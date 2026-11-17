@@ -11,6 +11,7 @@ import '../../core/providers/permission_policy.dart'
     show permissionModePreferenceKey;
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
+import '../cost/usage_ledger.dart';
 import '../sessions/session_manager.dart';
 import 'ci_log.dart';
 import 'pr_babysitter.dart';
@@ -536,6 +537,10 @@ class CiFixer extends Notifier<Map<String, CiFixState>> {
       }
       await _history(sessionId, line, st.sha);
       await _leavePlan(sessionId);
+      // SPEC-081 P6: the turn of this message is of the CI fixer.
+      ref
+          .read(usageLedgerProvider)
+          .markNextTurn(sessionId: sessionId, source: UsageSource.ci);
       await manager.send(sessionId, message);
     } on SessionException catch (e) {
       _set(sessionId, null);

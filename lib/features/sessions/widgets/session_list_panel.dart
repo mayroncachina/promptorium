@@ -1,3 +1,5 @@
+import '../../secrets/secret_blocks.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -181,6 +183,12 @@ class _SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final look = SessionLook.of(session.status, alive: alive);
+    // SPEC-085 R7: a commit stopped by the Vigia de segredos waits for you.
+    final secret = ref.watch(
+      secretBlocksProvider.select(
+        (m) => m.containsKey(sessionSecretKey(session.id)),
+      ),
+    );
     final busy = ref.watch(
       sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
     );
@@ -323,10 +331,15 @@ class _SessionTile extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            look.label,
+                            secret ? 'Segredo encontrado' : look.label,
+                            key: secret
+                                ? ValueKey('session-secret-${session.id}')
+                                : null,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: look.color),
+                            style: TextStyle(
+                              color: secret ? AppColors.amber : look.color,
+                            ),
                           ),
                         ),
                         const Spacer(),

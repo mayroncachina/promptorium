@@ -7,6 +7,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/secrets/secret_guard.dart';
+import 'package:promptorium/features/secrets/secret_blocks.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
@@ -1432,6 +1434,41 @@ void main() {
       throwsA(isA<ReviewException>()),
     );
     expect(cmds.calls, isEmpty);
+  });
+
+  // SPEC-085 R5.
+  test('Criar PR with a secret in the pending files: no commit, no push, '
+      'no gh; the request "Segredo encontrado" waits', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    final remote = '${tmp.path}/remote.git';
+    await Process.run('git', ['init', '-q', '--bare', remote]);
+    await gitIn(repo, ['remote', 'add', 'origin', remote]);
+    final head = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+    File('${e.worktree}/.env').writeAsStringSync('TOKEN=1\n');
+    await expectLater(
+      e.review.createPr(e.sessionId),
+      throwsA(
+        isA<SecretsFound>().having(
+          (x) => x.findings.single.ruleId,
+          'rule',
+          'env-file',
+        ),
+      ),
+    );
+    expect((await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim(), head);
+    final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
+    expect((await gitIn(remote, ['branch', '--list', s.branch])).trim(), '');
+    expect(
+      cmds.calls.where((c) => c.$1 == 'gh' && c.$2.contains('create')),
+      isEmpty,
+    );
+    expect(e.c.read(secretBlocksProvider)[appSecretKey(e.worktree)], isNotNull);
+
+    // Handled (in .gitignore): the PR goes, and the request leaves.
+    File('${e.worktree}/.gitignore').writeAsStringSync('/.env\n');
+    await e.review.createPr(e.sessionId);
+    expect(e.c.read(secretBlocksProvider), isEmpty);
   });
 
   test('Criar PR: commits pending, pushes the branch and calls gh', () async {

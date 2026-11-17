@@ -15,12 +15,15 @@ import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
 import 'features/activities/quota_forecast.dart';
+import 'features/cost/quota_ruler.dart';
 import 'features/board/autopilot.dart';
 import 'features/home/tray_radar.dart';
 import 'features/notifications/agent_alerts.dart';
 import 'features/repository/graph/commit_model_badge.dart';
 import 'features/repository/graph/graph_tab.dart' show graphAuthorBadgeProvider;
 import 'features/review/pr_babysitter.dart';
+import 'features/sessions/restore/restore_service.dart'
+    show restoreServiceProvider;
 import 'features/sessions/session_manager.dart';
 import 'ui/theme/tokens.dart';
 
@@ -57,9 +60,14 @@ Future<void> main() async {
   );
   // A worktree that goes away (merge, discard) stops its development server
   // first (SPEC-051 R5).
+  // Its restore points go with it (SPEC-084 R13).
   GitService.beforeRemoveWorktree = (path) => Future.wait([
     container.read(devServerRegistryProvider).stopWorktree(path),
     container.read(previewBrowserProvider).close(path),
+    container
+        .read(restoreServiceProvider)
+        .dropWorktree(path)
+        .catchError((Object e) => debugPrint('pontos de $path: $e')),
   ]);
   await windowManager.setPreventClose(true);
   final closeHandler = _CloseHandler(container);
@@ -93,6 +101,8 @@ Future<void> main() async {
   container.listen(agentAlertsProvider, (_, _) {});
   // SPEC-076 R7: the readings of the quota feed the forecast from now on.
   container.read(quotaSamplesProvider);
+  // SPEC-081 R3: and the ruler of the cost per spec.
+  container.read(quotaRulerProvider);
   // Plan usage in the footer: `claude -p /usage` costs no tokens.
   final usage = container.read(usagePollerProvider);
   unawaited(usage.refresh());

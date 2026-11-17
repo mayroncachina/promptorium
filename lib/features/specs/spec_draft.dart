@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../project/project_plan.dart' show PlanMessage;
+import 'spec_prints.dart';
 
 /// An open question of the draft (`- P1 · …`, `  - Sugestão: …`).
 @immutable
@@ -99,6 +100,8 @@ class SpecDraftData {
     this.outOfScope = const [],
     this.dependsOn = const [],
     this.openQuestions = const [],
+    this.prints = const [],
+    this.printsSent = false,
   });
 
   /// R10: what passes this goes to "Fora do escopo".
@@ -117,6 +120,17 @@ class SpecDraftData {
   final List<String> outOfScope;
   final List<String> dependsOn;
   final List<DraftQuestion> openQuestions;
+
+  /// The prints of the idea (SPEC-083 R4): temporary files until the spec
+  /// is created or the draft discarded.
+  final List<SpecPrint> prints;
+
+  /// The planner already got the images (SPEC-083 R6): later turns resume
+  /// the session and do not send them again.
+  final bool printsSent;
+
+  /// SPEC-083 R7: a print of a bug makes the spec `tipo: bug`.
+  bool get isBug => prints.any((s) => s.kind == PrintKind.bug);
 
   /// The planner answered at least once (R6).
   bool get hasReply => messages.any((m) => !m.fromUser);
@@ -139,7 +153,14 @@ class SpecDraftData {
     final j = json is Map ? json : const {};
     final draft = PlannerDraft.fromJson(j);
     final messages = j['messages'];
+    final prints = j['prints'];
     return SpecDraftData(
+      prints: [
+        if (prints is List)
+          for (final x in prints)
+            if (x is Map) SpecPrint.fromJson(x),
+      ],
+      printsSent: j['printsSent'] == true,
       messages: [
         if (messages is List)
           for (final m in messages)
@@ -166,7 +187,21 @@ class SpecDraftData {
     'outOfScope': outOfScope,
     'dependsOn': dependsOn,
     'openQuestions': [for (final q in openQuestions) q.toJson()],
+    if (prints.isNotEmpty) 'prints': [for (final x in prints) x.toJson()],
+    if (printsSent) 'printsSent': true,
   });
+
+  SpecDraftData withPrints(List<SpecPrint> prints) => _copy(prints: prints);
+
+  SpecDraftData withPrintsSent() => _copy(printsSent: true);
+
+  /// The description of print [index] typed by the person (R8).
+  SpecDraftData withPrintDescription(int index, String text) => _copy(
+    prints: [
+      for (final (i, s) in prints.indexed)
+        i == index ? s.copyWith(description: text, descriptionEdited: true) : s,
+    ],
+  );
 
   SpecDraftData withUserMessage(String text) => _copy(
     messages: [
@@ -185,6 +220,7 @@ class SpecDraftData {
     required PlannerDraft draft,
     required List<String> suggestions,
     required Set<String> knownSpecs,
+    List<PrintNote> printNotes = const [],
   }) {
     final kept = draft.requirements.take(maxRequirements).toList();
     final outOfScope = [...draft.outOfScope];
@@ -206,6 +242,7 @@ class SpecDraftData {
           if (knownSpecs.contains(d)) d,
       }.toList(),
       openQuestions: draft.openQuestions,
+      prints: _withNotes(printNotes),
     );
     return next._copy(
       messages: [
@@ -220,6 +257,26 @@ class SpecDraftData {
     );
   }
 
+  /// The description and brands of each print from the planner (R7), by
+  /// name, else by position; a description typed by the person stays.
+  List<SpecPrint> _withNotes(List<PrintNote> notes) {
+    if (notes.isEmpty) return prints;
+    return [
+      for (final (i, s) in prints.indexed)
+        if ((notes.where((n) => n.name == s.name).firstOrNull ??
+                (i < notes.length ? notes[i] : null))
+            case final n?)
+          s.copyWith(
+            description: s.descriptionEdited || n.description.isEmpty
+                ? s.description
+                : n.description,
+            brands: n.brands,
+          )
+        else
+          s,
+    ];
+  }
+
   SpecDraftData _copy({
     List<PlanMessage>? messages,
     String? title,
@@ -230,6 +287,8 @@ class SpecDraftData {
     List<String>? outOfScope,
     List<String>? dependsOn,
     List<DraftQuestion>? openQuestions,
+    List<SpecPrint>? prints,
+    bool? printsSent,
   }) => SpecDraftData(
     messages: messages ?? this.messages,
     title: title ?? this.title,
@@ -240,7 +299,36 @@ class SpecDraftData {
     outOfScope: outOfScope ?? this.outOfScope,
     dependsOn: dependsOn ?? this.dependsOn,
     openQuestions: openQuestions ?? this.openQuestions,
+    prints: prints ?? this.prints,
+    printsSent: printsSent ?? this.printsSent,
   );
+}
+
+/// What the planner says of one print (`prints` of the answer, R7).
+@immutable
+class PrintNote {
+  const PrintNote({
+    required this.name,
+    this.description = '',
+    this.brands = const [],
+  });
+
+  final String name;
+
+  /// One sentence of what it shows: the alt text of the image.
+  final String description;
+
+  /// Product, company and brand names read in the print.
+  final List<String> brands;
+
+  factory PrintNote.fromJson(Object? j) {
+    final m = j is Map ? j : const {};
+    return PrintNote(
+      name: _line(m['nome']),
+      description: _line(m['descricao']),
+      brands: _lines(m['marcas']),
+    );
+  }
 }
 
 /// Ending of a requirement that did not fit (R10).
@@ -269,6 +357,7 @@ String? draftChanges(SpecDraftData before, SpecDraftData after) {
     if (!listEquals(before.dependsOn, after.dependsOn)) 'Depende de',
     if (!listEquals(before.openQuestions, after.openQuestions))
       'Perguntas ${after.openQuestions.length}',
+    if (!listEquals(before.prints, after.prints)) 'Referência visual',
   ];
   return parts.isEmpty ? null : 'Rascunho atualizado · ${parts.join(' · ')}';
 }

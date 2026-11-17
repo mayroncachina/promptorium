@@ -1,3 +1,5 @@
+import '../../secrets/secret_flow.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,8 @@ import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../cost/spec_cost.dart';
+import '../../cost/widgets/spec_cost_section.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/replay/open_replay.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -231,6 +235,7 @@ class SpecStepsPanel extends ConsumerWidget {
       blockers: specBlockers(spec, specsByCode(all)),
     );
     final (done, total) = progressOf(steps);
+    final hasCost = !ref.watch(specCostProvider(spec.id)).isEmpty;
     final last = data.lastSession;
     final busy =
         last != null &&
@@ -270,8 +275,8 @@ class SpecStepsPanel extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '$done/$total etapas'
-                '${data.cost > 0 ? ' · ${formatCost(data.cost)}' : ''}',
+                // SPEC-081 R8: the cost is in the section Cota below.
+                '$done/$total etapas',
                 key: const ValueKey('steps-progress'),
                 textAlign: TextAlign.right,
                 maxLines: 1,
@@ -312,6 +317,7 @@ class SpecStepsPanel extends ConsumerWidget {
         ],
         const SizedBox(height: 10),
         Expanded(
+          flex: 1,
           child: steps.isEmpty
               ? const Center(
                   child: Text(
@@ -339,6 +345,16 @@ class SpecStepsPanel extends ConsumerWidget {
                   ),
                 ),
         ),
+        // SPEC-081 R8: what every origin of the spec cost, below the steps.
+        if (hasCost)
+          Flexible(
+            flex: 2,
+            child: SingleChildScrollView(
+              key: const ValueKey('spec-cost-scroll'),
+              padding: const EdgeInsets.only(top: 12, right: 4),
+              child: SpecCostSection(specId: spec.id, sessions: sessions),
+            ),
+          ),
         Builder(
           builder: (context) {
             final subs = watchSubagentStatuses(ref, spec, steps, sessions);
@@ -396,8 +412,13 @@ class SpecStepsPanel extends ConsumerWidget {
                     label: 'Commitar o que sobrou',
                     onTap: () => _gateAction(
                       context,
-                      () =>
-                          ref.read(specRunnerProvider).commitLeftovers(spec.id),
+                      () => withSecretGuard(
+                        context,
+                        ref,
+                        () => ref
+                            .read(specRunnerProvider)
+                            .commitLeftovers(spec.id),
+                      ),
                     ),
                   ),
                 ),

@@ -6,6 +6,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../cost/usage_ledger.dart';
 import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/readonly_run.dart';
 import '../../../core/fs/dir_watcher.dart';
@@ -208,6 +209,8 @@ final prototypeAgentProvider = Provider<PrototypeAgent>(
               prompt: prompt,
               cancelled: cancelled,
               timeout: prototypeTimeout,
+              specCode: specCodeInText(prompt) ?? _promptSpecCode(prompt),
+              usageSource: UsageSource.outros,
               // Write rules are Claude's (other providers run read-only).
               providerId: 'claude',
               denyMessage:
@@ -896,3 +899,10 @@ final prototypeScreensProvider = NotifierProvider.autoDispose
     .family<PrototypeScreens, PrototypeState, PrototypeKey>(
       PrototypeScreens.new,
     );
+
+/// "da spec SPEC-NNN" of the first line of the prototype prompts
+/// (SPEC-081 R2).
+String? _promptSpecCode(String prompt) =>
+    RegExp(r'spec ((?:SPEC|VIBE)-\d+)\b')
+        .firstMatch(prompt.split('\n').first)
+        ?.group(1);

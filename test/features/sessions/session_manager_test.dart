@@ -629,6 +629,19 @@ void main() {
     fake.emit(jsonEncode(second));
     await settle();
     expect((await repoSessions.getById(id))!.costUsd, 0.005);
+
+    // SPEC-081 R1: one entry per turn, the cost being the difference of the
+    // cumulative total_cost_usd (a session without a spec is "livre").
+    final entries = await c
+        .read(appDatabaseProvider)
+        .select(c.read(appDatabaseProvider).usageEntries)
+        .get();
+    expect(entries, hasLength(2));
+    expect(entries.map((e) => e.source).toSet(), {UsageSource.livre});
+    expect(entries.every((e) => e.sessionId == id), isTrue);
+    expect(entries.first.costUsd, closeTo(0.00302371, 1e-9));
+    expect(entries.last.costUsd, closeTo(0.005 - 0.00302371, 1e-9));
+    expect(entries.first.tokensOut, 42);
   });
 
   test(

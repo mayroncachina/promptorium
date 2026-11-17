@@ -38,6 +38,18 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 33) {
+    await db.customStatement('DROP TABLE IF EXISTS secret_waivers');
+  }
+  if (version < 32) {
+    await db.customStatement('DROP TABLE IF EXISTS restore_points');
+  }
+  if (version < 31) {
+    await db.customStatement('DROP TABLE IF EXISTS usage_entries');
+  }
+  if (version < 30) {
+    await db.customStatement('DROP TABLE IF EXISTS activity_events');
+  }
   if (version < 29) {
     await db.customStatement('DROP TABLE IF EXISTS snippets');
   }
@@ -657,5 +669,209 @@ void main() {
 
     await db.customStatement('DELETE FROM workspaces WHERE id = 1');
     expect(await db.select(db.snippets).get(), isEmpty);
+  });
+
+  // SPEC-080 R6.
+  test('v29 → v30 creates the journal by workspace with its index; deleting '
+      'the workspace deletes it', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 29);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name = 'activity_events_at'",
+        )
+        .getSingle();
+    expect(index.read<String>('sql'), contains('workspace_id, at'));
+
+    await db
+        .into(db.activityEvents)
+        .insert(
+          ActivityEventsCompanion.insert(
+            workspaceId: 1,
+            kind: 'pr',
+            outcome: 'ok',
+            title: 'PR #267',
+            groupKey: 'pr:267',
+            at: DateTime(2026, 11, 16, 23, 14),
+            prNumber: const Value(267),
+          ),
+        );
+    final row = await db.select(db.activityEvents).getSingle();
+    expect(row.detail, '');
+    expect(row.prNumber, 267);
+
+    await db.customStatement('DELETE FROM workspaces WHERE id = 1');
+    expect(await db.select(db.activityEvents).get(), isEmpty);
+  });
+  // SPEC-081 R1.
+  test('v30 → v31 creates usage_entries and its indexes; deleting the spec '
+      'deletes them and deleting the session keeps them', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await db.customStatement(
+      "INSERT INTO specs (workspace_id, code, title, path) "
+      "VALUES (1, 'SPEC-001', 'x', 'specs/x.md')",
+    );
+    await downgrade(db, 30);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final indexes = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'index' "
+          "AND tbl_name = 'usage_entries' AND name LIKE 'usage_entries_%'",
+        )
+        .get();
+    expect(
+      {for (final r in indexes) r.read<String>('name')},
+      {'usage_entries_spec', 'usage_entries_workspace'},
+    );
+    expect((await db.select(db.specs).getSingle()).code, 'SPEC-001');
+
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: 's1',
+            workspaceId: 1,
+            worktreePath: '/r',
+            branch: 'main',
+            model: 'sonnet',
+            specId: const Value(1),
+          ),
+        );
+    for (final spec in [1, null]) {
+      await db
+          .into(db.usageEntries)
+          .insert(
+            UsageEntriesCompanion.insert(
+              workspaceId: const Value(1),
+              specId: Value(spec),
+              source: UsageSource.etapa,
+              sessionId: const Value('s1'),
+              at: DateTime(2026, 11, 17),
+              tokensIn: const Value(10),
+            ),
+          );
+    }
+    await (db.delete(db.sessions)..where((s) => s.id.equals('s1'))).go();
+    final kept = await db.select(db.usageEntries).get();
+    expect(kept, hasLength(2));
+    expect(kept.every((e) => e.sessionId == null), isTrue);
+
+    await db.customStatement('DELETE FROM specs WHERE id = 1');
+    final left = await db.select(db.usageEntries).get();
+    expect(left.single.specId, isNull);
+  });
+  // SPEC-084 R3, R13.
+  test('v31 → v32 creates restore_points; deleting the session deletes '
+      'its points', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 31);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name = 'restore_points_session'",
+        )
+        .getSingle();
+    expect(index.read<String>('sql'), contains('session_id, turn'));
+
+    await SessionsRepo(db).insert(
+      id: 's1',
+      workspaceId: 1,
+      worktreePath: '/r',
+      branch: 'main',
+      model: 'opus',
+    );
+    await db
+        .into(db.restorePoints)
+        .insert(
+          RestorePointsCompanion.insert(
+            workspaceId: 1,
+            sessionId: const Value('s1'),
+            worktreePath: '/r',
+            turn: 1,
+            startedAt: DateTime(2026, 11, 17),
+            startHead: 'a',
+            startSha: 'b',
+          ),
+        );
+    expect(await db.select(db.restorePoints).get(), hasLength(1));
+    await SessionsRepo(db).delete('s1');
+    expect(await db.select(db.restorePoints).get(), isEmpty);
+  });
+  // SPEC-085 R11 (v33).
+  test('v32 → v33 creates the secret waivers by workspace; deleting the '
+      'workspace deletes them', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 32);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    await db
+        .into(db.secretWaivers)
+        .insert(
+          SecretWaiversCompanion.insert(
+            workspaceId: 1,
+            rule: 'stripe',
+            path: 'src/a.ts',
+            fingerprint: 'f',
+            scope: 'valor',
+            reason: 'chave de teste revogada',
+            origin: 'manual',
+          ),
+        );
+    final row = await db.select(db.secretWaivers).getSingle();
+    expect(row.lastUsedAt, isNotNull);
+    await db.customStatement('DELETE FROM workspaces WHERE id = 1');
+    expect(await db.select(db.secretWaivers).get(), isEmpty);
   });
 }

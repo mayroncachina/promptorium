@@ -298,4 +298,106 @@ void main() {
     expect(row.description, '');
     await db.close();
   });
+
+  test('v29 → v30 (SPEC-080) creates the journal of a workspace', () async {
+    final schema = await verifier.schemaAt(29);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.activityEvents)
+        .insert(
+          ActivityEventsCompanion.insert(
+            workspaceId: 1,
+            kind: 'gate',
+            outcome: 'failed',
+            title: 'SPEC-077',
+            groupKey: 'spec:1',
+            at: DateTime(2026, 11, 16),
+          ),
+        );
+    final row = await db.select(db.activityEvents).getSingle();
+    expect(row.seed, equals(null));
+    expect(row.detail, '');
+    await db.close();
+  });
+  test('v30 → v31 (SPEC-081) creates the usage entries, nothing else '
+      'changes', () async {
+    final schema = await verifier.schemaAt(30);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.usageEntries)
+        .insert(
+          UsageEntriesCompanion.insert(
+            workspaceId: const Value(1),
+            source: UsageSource.etapa,
+            at: DateTime(2026, 11, 17),
+          ),
+        );
+    final row = await db.select(db.usageEntries).getSingle();
+    expect(row.tokensIn, 0);
+    expect(row.costUsd, 0);
+    expect(row.weekPct, equals(null));
+    expect(row.estimated, isFalse);
+    expect(
+      (await db.select(db.workspaces).getSingle()).name,
+      'r',
+      reason: 'the workspaces are kept',
+    );
+    await db.close();
+  });
+  test(
+    'v31 → v32 (SPEC-084) creates the restore points of a session',
+    () async {
+      final schema = await verifier.schemaAt(31);
+      schema.rawDatabase.execute(
+        "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+      );
+      final db = AppDatabase(schema.newConnection());
+      await db
+          .into(db.restorePoints)
+          .insert(
+            RestorePointsCompanion.insert(
+              workspaceId: 1,
+              worktreePath: '/r',
+              turn: 1,
+              startedAt: DateTime(2026, 11, 17, 14, 2),
+              startHead: 'a' * 40,
+              startSha: 'b' * 40,
+            ),
+          );
+      final row = await db.select(db.restorePoints).getSingle();
+      expect(row.state, 'ativo');
+      expect(row.largeFiles, '[]');
+      expect(row.endSha, equals(null));
+      await db.close();
+    },
+  );
+  test('v32 → v33 (SPEC-085) creates the secret waivers', () async {
+    final schema = await verifier.schemaAt(32);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.secretWaivers)
+        .insert(
+          SecretWaiversCompanion.insert(
+            workspaceId: 1,
+            rule: 'env-file',
+            path: '.env',
+            fingerprint: 'f',
+            scope: 'arquivo',
+            reason: 'arquivo local de teste',
+            origin: 'sessao:s1',
+          ),
+        );
+    final row = await db.select(db.secretWaivers).getSingle();
+    expect(row.scope, 'arquivo');
+    await db.close();
+  });
 }

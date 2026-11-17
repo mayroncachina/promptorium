@@ -25,6 +25,7 @@ import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
 import 'widgets/side_panel.dart';
 import 'widgets/timeline_view.dart';
+import 'widgets/undo_dialog.dart';
 import 'widgets/tool_expanded_view.dart';
 
 enum SessionTab { timeline, replay, terminal, diff, preview, raw }
@@ -662,6 +663,8 @@ class _Header extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  // SPEC-084 R5: beside Fork, while there is a point.
+                  UndoLastTurnButton(session: s),
                   SmallButton(
                     key: const ValueKey('session-open-terminal'),
                     label: 'Abrir terminal',

@@ -1,3 +1,5 @@
+import 'secret_block_card.dart';
+
 import 'dart:collection';
 import 'dart:math' as math;
 
@@ -6,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/providers.dart';
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/copy_button.dart';
@@ -14,12 +17,15 @@ import '../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../ui/widgets/motion_enter.dart';
 import '../../snippets/snippet_scope.dart';
 import '../edit_diff.dart';
+import '../restore/restore_service.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
 import '../tool_expanded.dart';
+import 'restore_points_section.dart';
 import 'session_activity.dart';
 import 'session_style.dart';
+import 'undo_dialog.dart';
 
 /// Edit diffs of a session timeline, per snapshot.
 final _sessionDiffs = Expando<Map<String, EditDiff>>('edit diffs');
@@ -67,28 +73,68 @@ class TimelineView extends ConsumerWidget {
     );
     final expanded = ref.read(toolExpandedProvider.notifier);
     final reveal = expanded.revealFor(sessionId);
+    // SPEC-084 R10: the restore point of each message that opened a turn.
+    final points =
+        ref.watch(sessionRestorePointsProvider(sessionId)).value ??
+        const <RestorePoint>[];
+    final users = [
+      for (final it in snap.items)
+        if (it is UserItem) it,
+    ];
+    final markers = points.isEmpty
+        ? const <Object, RestorePoint>{}
+        : restorePointsByMessage(users, (m) => (m as UserItem).at, points);
     return ToolExpandHost(
       onOpen: (t, origin) => expanded.open(sessionId, t.id, origin: origin),
       cards: expanded.cards(sessionId),
       reveal: reveal,
       child: SessionSnippetScope(
         sessionId: sessionId,
-        child: TimelineListView(
-          key: ValueKey('timeline-$sessionId'),
-          reveal: reveal,
-          editInfo: (t) =>
-              diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
-          footer: since == null
-              ? null
-              : SessionActivity(items: snap.items, since: since),
-          items: snap.items,
-          loading: snap.loading,
-          root: root,
-          waitingTools: waitingTools,
+        child: SecretSessionScope(
+          sessionId: sessionId,
+          child: TimelineListView(
+            key: ValueKey('timeline-$sessionId'),
+            reveal: reveal,
+            editInfo: (t) =>
+                diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
+            userMarker: markers.isEmpty
+                ? null
+                : (u) {
+                    final p = markers[u];
+                    if (p == null) return null;
+                    return RestorePointMarker(
+                      point: p,
+                      onTap: () => _openPoint(context, ref, p),
+                    );
+                  },
+            footer: since == null
+                ? null
+                : SessionActivity(items: snap.items, since: since),
+            items: snap.items,
+            loading: snap.loading,
+            root: root,
+            waitingTools: waitingTools,
+          ),
         ),
       ),
     );
   }
+}
+
+/// A click on the marker of a message (R10): the undo window of that turn,
+/// or "Refazer" when it was undone.
+Future<void> _openPoint(
+  BuildContext context,
+  WidgetRef ref,
+  RestorePoint p,
+) async {
+  final s = await ref.read(sessionsRepoProvider).getById(p.sessionId ?? '');
+  if (s == null || !context.mounted) return;
+  if (p.state == RestoreState.undone) {
+    if (p.undoneSha == null) return;
+    return openUndoDialog(context, ref, session: s, point: p, redo: true);
+  }
+  return openUndoDialog(context, ref, session: s, point: p);
 }
 
 /// Scrollable list of timeline items (sessions and Prompt conversations).
@@ -109,6 +155,8 @@ class TimelineListView extends StatefulWidget {
     this.answerFooter,
     this.editInfo,
     this.reveal,
+    this.customItem,
+    this.userMarker,
   });
 
   final List<TimelineItem> items;
@@ -132,6 +180,13 @@ class TimelineListView extends StatefulWidget {
 
   /// Card to scroll into view, when off screen (SPEC-058 R8).
   final ToolReveal? reveal;
+
+  /// Widget of an item the screen draws itself (the folded comparison of
+  /// the Prompt, SPEC-079); null = the default view.
+  final Widget? Function(TimelineItem item)? customItem;
+
+  /// Beside the time of a message (the restore point, SPEC-084 R10).
+  final Widget? Function(UserItem item)? userMarker;
 
   @override
   State<TimelineListView> createState() => _TimelineListViewState();
@@ -310,13 +365,16 @@ class _TimelineListViewState extends State<TimelineListView> {
         final gap = prev == null
             ? 0.0
             : (item is ToolItem && prev is ToolItem ? 4.0 : 14.0);
-        final view = TimelineItemView(
-          item: item,
-          root: widget.root,
-          waitingTools: widget.waitingTools,
-          assistantName: widget.assistantName,
-          editInfo: widget.editInfo,
-        );
+        final view =
+            widget.customItem?.call(item) ??
+            TimelineItemView(
+              item: item,
+              root: widget.root,
+              waitingTools: widget.waitingTools,
+              assistantName: widget.assistantName,
+              editInfo: widget.editInfo,
+              userMarker: widget.userMarker,
+            );
         final extraBelow =
             item is AssistantTextItem &&
                 item.parentToolUseId == null &&
@@ -403,6 +461,7 @@ class TimelineItemView extends StatelessWidget {
     this.nested = false,
     this.assistantName = 'Claude',
     this.editInfo,
+    this.userMarker,
   });
 
   final TimelineItem item;
@@ -411,12 +470,13 @@ class TimelineItemView extends StatelessWidget {
   final bool nested;
   final String assistantName;
   final EditInfo? Function(ToolItem tool)? editInfo;
+  final Widget? Function(UserItem item)? userMarker;
 
   @override
   Widget build(BuildContext context) {
     final it = item;
     return switch (it) {
-      UserItem() => _UserBubble(it),
+      UserItem() => _UserBubble(it, marker: userMarker?.call(it)),
       AssistantTextItem() => _AssistantText(
         it,
         nested: nested,
@@ -430,6 +490,10 @@ class TimelineItemView extends StatelessWidget {
         editInfo: editInfo,
       ),
       ThinkingItem() => ThinkingCard(item: it),
+      SecretBlockItem() => switch (SecretSessionScope.of(context)) {
+        final String id => SecretBlockCard(item: it, sessionId: id),
+        null => _Notice(it),
+      },
       NoticeItem() => _Notice(it),
     };
   }
@@ -520,9 +584,10 @@ class _ThinkingCardState extends State<ThinkingCard> {
 }
 
 class _UserBubble extends StatelessWidget {
-  const _UserBubble(this.item);
+  const _UserBubble(this.item, {this.marker});
 
   final UserItem item;
+  final Widget? marker;
 
   @override
   Widget build(BuildContext context) {
@@ -540,12 +605,18 @@ class _UserBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Você · ${formatClock(item.at)}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Você · ${formatClock(item.at)}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (marker != null) ...[const SizedBox(width: 8), marker!],
+                ],
               ),
               const SizedBox(height: 4),
               SelectableText(

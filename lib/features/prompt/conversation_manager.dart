@@ -3,6 +3,7 @@ import 'dart:io' show Directory;
 import 'dart:convert' show jsonEncode;
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,8 +23,15 @@ import '../board/spec_runner.dart' show gateRunningProvider;
 import '../project/project_config.dart';
 import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
-    show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
+    show
+        LiveTool,
+        PendingApproval,
+        SessionManager,
+        liveTextLine,
+        sessionIdGeneratorProvider;
+import '../sessions/restore/restore_service.dart';
 import '../sessions/timeline.dart';
+import '../cost/usage_ledger.dart';
 import '../sessions/timeline_provider.dart';
 import '../specs/spec_service.dart' show specServiceProvider;
 import 'refine_origin.dart';
@@ -115,6 +123,9 @@ class _Run {
   /// Claude session id used by this process (`--session-id` / `--resume`).
   final String sid;
   double lastCost;
+
+  /// Last `total_cost_usd` of this process (SPEC-081 R1).
+  double? seenCost;
   bool busy = false;
   DateTime? busySince;
   bool stopping = false;
@@ -241,6 +252,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     }
     r ??= await _ensureStarted(conv);
     final run = r;
+    // SPEC-084 R1, P5: a VIBE turn gets a restore point (not the Prompt
+    // conversations in the root).
+    final point = conv.specId == null ? null : await _checkpoint(conv, msg);
     await _enqueue(id, run, () async {
       final json = AppEventTypes.userMessage(msg, DateTime.now());
       final row = await _repo.appendEvent(
@@ -250,6 +264,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       );
       await _repo.countMessage(id);
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      if (point != null) {
+        await ref.read(restoreServiceProvider).attachSeq(point.id, row.seq);
+      }
     });
     run
       ..busy = true
@@ -257,6 +274,35 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       ..calls = 0;
     _publish();
     await run.run.send(msg, images: images);
+  }
+
+  /// Restore point of the start of a VIBE turn, in its worktree (SPEC-084
+  /// R1); a failure only becomes a note.
+  Future<RestorePoint?> _checkpoint(Conversation conv, String msg) async {
+    try {
+      final ws = await ref
+          .read(workspacesRepoProvider)
+          .getById(conv.workspaceId);
+      if (ws == null) return null;
+      final r = await ref
+          .read(restoreServiceProvider)
+          .start(
+            workspaceId: ws.id,
+            worktree: await _vibeWorktree(conv, ws),
+            conversationId: conv.id,
+            prompt: msg,
+          );
+      if (r.failure != null) {
+        await _note(conv.id, 'Ponto de restauração não gravado: ${r.failure}');
+      }
+      if (r.large.isNotEmpty) {
+        await _note(conv.id, SessionManager.largeFilesNote(r.large));
+      }
+      return r.point;
+    } catch (e) {
+      debugPrint('conversa ${conv.id}: ponto de restauração — $e');
+      return null;
+    }
   }
 
   /// A message to the conversation of a VIBE (SPEC-069 R7): the VIBE is
@@ -311,6 +357,30 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       _note(id, text, error: error);
 
   Future<void> setMode(int id, PromptMode mode) => _repo.setMode(id, mode.name);
+
+  /// The conversation goes on from [sessionId] (the fork of the side chosen
+  /// in a comparison, SPEC-079 R11), with its model and mode. A live
+  /// process of the old session is stopped: the next message resumes the
+  /// new one. [sessionId] null keeps the session.
+  Future<void> adoptSession(
+    int id,
+    String? sessionId, {
+    required String model,
+    required PromptMode mode,
+  }) async {
+    final r = _runs[id];
+    if (r != null) await _stopRun(id, r);
+    await _repo.update(
+      id,
+      ConversationsCompanion(
+        claudeSessionId: sessionId == null
+            ? const Value.absent()
+            : Value(sessionId),
+        model: Value(model),
+        mode: Value(mode.name),
+      ),
+    );
+  }
 
   Future<void> setModel(int id, String model) => _repo.setModel(id, model);
 
@@ -557,6 +627,12 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) r.recent[i] = r.recent[i].finished();
       case Result():
+        final turn = turnCost(
+          e.totalCostUsd,
+          lastSeen: r.seenCost,
+          stored: r.lastCost,
+        );
+        r.seenCost = e.totalCostUsd;
         r.lastCost = math.max(r.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -569,7 +645,14 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           tokensOut: u.outputTokens,
         );
         await _repo.countMessage(id);
+        // SPEC-081 R1: one entry per turn (VIBE, refinement, Prompt).
+        await ref
+            .read(usageLedgerProvider)
+            .recordConversationTurn(id, e, costUsd: turn);
         r.busy = false;
+        // SPEC-084 R1: the end of a VIBE turn (the next start waits for
+        // it).
+        unawaited(ref.read(restoreServiceProvider).end(conversationId: id));
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
       default:
@@ -594,6 +677,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await closeMcpRun(r.mcpServer, r.mcp);
     if (!ref.mounted || _shuttingDown) return;
     _publish();
+    if (r.busy) {
+      await ref.read(restoreServiceProvider).end(conversationId: id);
+    }
     if (!r.stopping && r.busy) {
       await _note(
         id,

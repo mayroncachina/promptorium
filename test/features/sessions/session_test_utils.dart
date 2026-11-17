@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart' show fail;
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/app_notifier.dart';
+import 'package:promptorium/features/sessions/restore/restore_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 
 import '../../core/claude/claude_process_test.dart' show FakeProcess;
@@ -93,11 +94,18 @@ List<Override> sessionOverrides({
   required FakeCli cli,
   required FakeNotifier notifier,
   String? worktreesBase,
+  bool restorePoints = false,
 }) => [
   databaseOverride(db),
   claudeProcessStarterProvider.overrideWithValue(cli.start),
   appNotifierProvider.overrideWithValue(notifier),
   sessionIdGeneratorProvider.overrideWithValue(idSequence()),
+  // SPEC-084: restore points only in the tests about them (real git per
+  // turn would slow every other test down).
+  if (!restorePoints)
+    restoreSettingsProvider.overrideWithValue(
+      const RestoreSettings(enabled: false),
+    ),
   if (worktreesBase != null)
     gitServiceFactoryProvider.overrideWithValue(
       (root) => GitService(root, worktreesBase: worktreesBase),

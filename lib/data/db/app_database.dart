@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 29;
+const appSchemaVersion = 33;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -843,6 +843,195 @@ class Snippets extends Table {
   ];
 }
 
+/// The journal of what finished (SPEC-080 R6, schema v30): by workspace,
+/// kept 14 days. The "Retomar de onde parei" card is built from it.
+@TableIndex(name: 'activity_events_at', columns: {#workspaceId, #at})
+class ActivityEvents extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// spec, gate, pr, ci, release, session, conversation, autopilot.
+  TextColumn get kind => text()();
+
+  /// ok, failed, attention.
+  TextColumn get outcome => text()();
+  TextColumn get title => text()();
+  TextColumn get detail => text().withDefault(const Constant(''))();
+
+  /// The robot's seed (SPEC-076 R5); null = an icon.
+  TextColumn get seed => text().nullable()();
+  IntColumn get specId => integer().nullable()();
+  TextColumn get sessionId => text().nullable()();
+  IntColumn get conversationId => integer().nullable()();
+  IntColumn get prNumber => integer().nullable()();
+  TextColumn get releaseTag => text().nullable()();
+
+  /// Events with the same key become one item of the card (R8).
+  TextColumn get groupKey => text()();
+  DateTimeColumn get at => dateTime()();
+}
+
+/// One turn of a session, a conversation or a `claude -p` of the app
+/// (SPEC-081 R1, schema v31): its tokens, its estimated cost and its weight
+/// in the 5-hour and weekly windows of the plan. Deleting the workspace or
+/// the spec deletes it; deleting the session or conversation keeps it.
+@TableIndex(name: 'usage_entries_spec', columns: {#specId, #at})
+@TableIndex(name: 'usage_entries_workspace', columns: {#workspaceId, #at})
+class UsageEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId => integer().nullable().references(
+    Workspaces,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get specId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get source => textEnum<UsageSource>()();
+
+  /// Steps of the session (`R2`, `REV1`); null outside a step.
+  TextColumn get step => text().nullable()();
+  TextColumn get sessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get conversationId => integer().nullable().references(
+    Conversations,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get model => text().nullable()();
+  DateTimeColumn get at => dateTime()();
+
+  /// New input tokens of the turn.
+  IntColumn get tokensIn => integer().withDefault(const Constant(0))();
+  IntColumn get tokensCacheWrite => integer().withDefault(const Constant(0))();
+  IntColumn get tokensCacheRead => integer().withDefault(const Constant(0))();
+  IntColumn get tokensOut => integer().withDefault(const Constant(0))();
+
+  /// Estimated cost of the turn (the CLI's `total_cost_usd` difference).
+  RealColumn get costUsd => real().withDefault(const Constant(0))();
+
+  /// Weight in the windows (0–1) by the ruler of the moment (R4); null
+  /// until a ruler exists.
+  RealColumn get fiveHourPct => real().nullable()();
+  RealColumn get weekPct => real().nullable()();
+
+  /// Rebuilt from the events of before (R5): weighed by today's ruler.
+  BoolColumn get estimated => boolean().withDefault(const Constant(false))();
+}
+
+/// Restore points of a turn of an agent (SPEC-084 R3, schema v32): the
+/// commits live in hidden refs (`refs/promptorium/restore/<owner>/<turn>-…`);
+/// this row keeps what the session screen shows. Deleting the session, the
+/// conversation (VIBE) or the workspace deletes the rows; the refs left
+/// behind go with the next pruning (R13).
+@TableIndex(name: 'restore_points_session', columns: {#sessionId, #turn})
+class RestorePoints extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// The session of the turn, or the conversation of a VIBE (one of them).
+  TextColumn get sessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get conversationId => integer().nullable().references(
+    Conversations,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// Worktree the turn ran in (the point is of this directory, P8).
+  TextColumn get worktreePath => text()();
+
+  /// 1, 2, 3… within the session.
+  IntColumn get turn => integer()();
+
+  /// Start of the message that opened the turn (the dialog title).
+  TextColumn get prompt => text().withDefault(const Constant(''))();
+
+  /// `seq` of that message in the timeline (the marker, R10).
+  IntColumn get eventSeq => integer().nullable()();
+  DateTimeColumn get startedAt => dateTime()();
+
+  /// Start of the turn: branch (null = detached HEAD), HEAD and the commit
+  /// with the whole working tree (= HEAD when the tree was clean).
+  TextColumn get startBranch => text().nullable()();
+  TextColumn get startHead => text()();
+  TextColumn get startSha => text()();
+
+  /// End of the turn (null while it runs or when it was not recorded).
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  TextColumn get endBranch => text().nullable()();
+  TextColumn get endHead => text().nullable()();
+  TextColumn get endSha => text().nullable()();
+
+  /// Uncommitted files kept at the start and their size (the tooltip).
+  IntColumn get files => integer().withDefault(const Constant(0))();
+  IntColumn get bytes => integer().withDefault(const Constant(0))();
+
+  /// What the turn changed (files, commits): the list of the panel.
+  IntColumn get changedFiles => integer().withDefault(const Constant(0))();
+  IntColumn get commits => integer().withDefault(const Constant(0))();
+
+  /// JSON array of untracked files above the size limit (R4): not kept.
+  TextColumn get largeFiles => text().withDefault(const Constant('[]'))();
+
+  /// `ativo`, `desfeito` or `refeito` (R9, R11).
+  TextColumn get state => text().withDefault(const Constant('ativo'))();
+
+  /// "Antes de desfazer" (R8): branch, HEAD and working tree before the
+  /// undo, and the working tree right after it (what Refazer compares).
+  TextColumn get undoBranch => text().nullable()();
+  TextColumn get undoHead => text().nullable()();
+  TextColumn get undoSha => text().nullable()();
+  TextColumn get undoneHead => text().nullable()();
+  TextColumn get undoneSha => text().nullable()();
+
+  /// Last time it was recorded, undone or redone (the 14 days of R13).
+  DateTimeColumn get usedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// Findings of the Vigia de segredos the user ignored with a reason
+/// (SPEC-085 R11, schema v33), by workspace. Only the fingerprint of the
+/// value is kept (`sha256` with the app's local salt), never the value.
+/// Nothing goes to the repository.
+@TableIndex(name: 'secret_waivers_workspace', columns: {#workspaceId})
+class SecretWaivers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// Id of the rule (`stripe`, `env-file`…).
+  TextColumn get rule => text()();
+
+  /// Path of the finding, relative to the repository.
+  TextColumn get path => text()();
+
+  /// Fingerprint of the value (of the added content, for a sensitive file).
+  TextColumn get fingerprint => text()();
+
+  /// `valor` (the same value in any file) or `arquivo` (the rule in this
+  /// path).
+  TextColumn get scope => text()();
+  TextColumn get reason => text()();
+
+  /// Who asked: `sessao:<id>`, `app` or `manual`.
+  TextColumn get origin => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Last time it matched a finding; 90 days without a match removes it
+  /// (R12).
+  DateTimeColumn get lastUsedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -880,6 +1069,10 @@ class AppSettings extends Table {
     StepRuns,
     SpecNotes,
     Snippets,
+    ActivityEvents,
+    UsageEntries,
+    RestorePoints,
+    SecretWaivers,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1280,6 +1473,33 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('snippets')) return;
             await m.createTable(v.snippets);
             await m.createIndex(v.snippetsBodyHash);
+          },
+          // v33: waivers of the Vigia de segredos (SPEC-085 R11).
+          from32To33: (m, v) async {
+            if (await _hasTable('secret_waivers')) return;
+            await m.createTable(v.secretWaivers);
+            await m.createIndex(v.secretWaiversWorkspace);
+          },
+          // v32: restore points (SPEC-084 R3).
+          from31To32: (m, v) async {
+            if (await _hasTable('restore_points')) return;
+            await m.createTable(v.restorePoints);
+            await m.createIndex(v.restorePointsSession);
+          },
+          // v30: the journal of what finished (SPEC-080 R6) and its index
+          // by workspace and time.
+          from29To30: (m, v) async {
+            if (await _hasTable('activity_events')) return;
+            await m.createTable(v.activityEvents);
+            await m.createIndex(v.activityEventsAt);
+          },
+          // v31: one entry per turn (SPEC-081 R1). Nothing else changes;
+          // the history of before is rebuilt after opening (R5).
+          from30To31: (m, v) async {
+            if (await _hasTable('usage_entries')) return;
+            await m.createTable(v.usageEntries);
+            await m.createIndex(v.usageEntriesSpec);
+            await m.createIndex(v.usageEntriesWorkspace);
           },
         ),
       );

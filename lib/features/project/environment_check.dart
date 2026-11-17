@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clipboard/clipboard_image.dart';
 import '../../core/fs/project_paths.dart';
 import '../../core/git/git_root.dart' show InvalidWorkspaceFolder, expandHome;
 import '../../core/git/repo_setup.dart';
@@ -18,8 +19,9 @@ import 'project_service.dart' show projectNamePattern;
 /// checked before "Criar" — git, Claude Code, the hosting CLI and the
 /// folder — each with a mark and, when red or amber, what fixes it.
 
-/// The four items of the panel, in display order.
-enum EnvKind { git, claude, host, folder }
+/// The items of the panel, in display order. [clipboard] is optional: it
+/// never blocks (SPEC-083 R2).
+enum EnvKind { git, claude, host, folder, clipboard }
 
 /// The mark of an item. Red blocks, amber only warns (R1, R15).
 enum EnvState {
@@ -48,6 +50,9 @@ enum EnvProblem {
   folderNotWritable,
   folderBusy,
   folderBadName,
+
+  /// No `wl-paste` / `xclip`: images cannot be pasted (SPEC-083 R2).
+  clipboardMissing,
   timeout,
 }
 
@@ -156,6 +161,7 @@ String envTitle(EnvKind kind, [Hosting hosting = Hosting.github]) =>
       EnvKind.host =>
         hosting == Hosting.gitlab ? 'GitLab (glab)' : 'GitHub (gh)',
       EnvKind.folder => 'Pasta',
+      EnvKind.clipboard => 'Colar imagens (opcional)',
     };
 
 /// Where the Claude Code installation is explained (R3).
@@ -252,6 +258,10 @@ abstract class EnvironmentProbe {
 
   /// Why [name] is not a valid branch, or null.
   Future<String?> branchError(String name);
+
+  /// `wl-paste` (Wayland) or `xclip` (X11), to paste images in "Nova
+  /// spec" (SPEC-083 R2). Optional: amber at most.
+  Future<EnvItem> clipboard();
 }
 
 /// The real probe: git through [RepoSetup], Claude through
@@ -291,6 +301,32 @@ class SystemEnvironmentProbe implements EnvironmentProbe {
 
   @override
   Future<String?> branchError(String name) => _setup.checkBranchName(name);
+
+  @override
+  Future<EnvItem> clipboard() =>
+      checkClipboard(_ref.read(clipboardImageReaderProvider));
+}
+
+/// The optional clipboard item (SPEC-083 R2).
+Future<EnvItem> checkClipboard(ClipboardImageReader reader) async {
+  const title = 'Colar imagens (opcional)';
+  final missing = await reader.missingTool();
+  if (missing == null) {
+    return EnvItem(
+      EnvKind.clipboard,
+      EnvState.ok,
+      title: title,
+      line: '${reader.executable} encontrado',
+    );
+  }
+  return EnvItem(
+    EnvKind.clipboard,
+    EnvState.warning,
+    title: title,
+    line: 'Sem ${missing.tool}: o Ctrl V da Nova spec não cola imagens.',
+    problem: EnvProblem.clipboardMissing,
+    command: missing.command,
+  );
 }
 
 final environmentProbeProvider = Provider<EnvironmentProbe>(
@@ -588,6 +624,7 @@ class EnvironmentChecker extends ChangeNotifier {
     _run(EnvKind.claude, refreshClaude: refreshClaude);
     _syncHost(run: true);
     _run(EnvKind.folder);
+    _run(EnvKind.clipboard);
   }
 
   /// The form changed: Pasta and the hosting run again after [debounce].
@@ -657,6 +694,7 @@ class EnvironmentChecker extends ChangeNotifier {
       EnvKind.claude => probe.claude(refresh: refreshClaude),
       EnvKind.host => probe.host(i.hosting, i.hostname!, gitCwd(i.parent)),
       EnvKind.folder => probe.folder(i.parent, i.name),
+      EnvKind.clipboard => probe.clipboard(),
     };
     EnvItem unverified(String line) => EnvItem(
       kind,

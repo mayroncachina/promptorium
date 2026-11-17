@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
+import '../../core/clipboard/clipboard_image.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
@@ -18,6 +23,8 @@ import '../sessions/widgets/session_style.dart';
 import 'new_spec_dialog.dart';
 import 'spec_draft.dart';
 import 'spec_planner.dart';
+import 'spec_prints.dart';
+import 'widgets/print_cards.dart';
 
 /// "Nova spec" from anywhere (SPEC-039 R1): the Specs screen, on the idea.
 Future<void> openNewSpec(WidgetRef ref) async {
@@ -167,6 +174,27 @@ class _IdeaState extends ConsumerState<_Idea> {
   /// "Planejar a spec" ran: the refine target goes on with the draft.
   bool _planning = false;
 
+  /// The prints of the idea (SPEC-083 R4), until "Planejar a spec" hands
+  /// them to the draft.
+  List<SpecPrint> _prints = const [];
+
+  /// Why the last print was refused (R3).
+  String? _printError;
+
+  /// Ctrl V with an image and no `wl-paste` / `xclip` (R2).
+  ClipboardToolMissing? _toolMissing;
+
+  /// "Print 1 anexado, 1568 × 980" (R12).
+  String? _printStatus;
+
+  /// A print being read: one at a time keeps the order.
+  Future<void> _printQueue = Future.value();
+
+  late final _screenFocus = FocusNode(
+    debugLabel: 'new-spec-idea-screen',
+    skipTraversal: true,
+  );
+
   /// Read here: the widget's ref is gone in [dispose].
   late final IssueRefine _refine;
 
@@ -187,18 +215,146 @@ class _IdeaState extends ConsumerState<_Idea> {
       final id = widget.workspace.id;
       Future.microtask(() => refine.clear(id));
     }
+    // Left without planning: the prints were never kept (R4).
+    if (!_planning && _prints.isNotEmpty) {
+      unawaited(deletePrintFiles(_prints));
+    }
     _text.dispose();
+    _screenFocus.dispose();
     super.dispose();
+  }
+
+  /// R1: Ctrl V anywhere on the screen also looks for an image; the text
+  /// paste goes on as before (the event is not consumed).
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    final k = HardwareKeyboard.instance;
+    if (e is KeyDownEvent &&
+        e.logicalKey == LogicalKeyboardKey.keyV &&
+        k.isControlPressed &&
+        !k.isShiftPressed &&
+        !k.isAltPressed) {
+      unawaited(_pasteImage());
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _pasteImage() async {
+    final r = await ref.read(clipboardImageReaderProvider).read();
+    if (!mounted) return;
+    switch (r) {
+      case ClipboardImageFound(:final bytes):
+        await _addPrint(() async => bytes);
+      case ClipboardToolMissing():
+        // Without the tool there is no way to see the image; text in the
+        // clipboard means a normal paste, so the notice is only for the
+        // rest (R2).
+        final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+        if (!mounted || (text != null && text.isNotEmpty)) return;
+        setState(() => _toolMissing = r);
+      case ClipboardNoImage():
+        break;
+    }
+  }
+
+  /// "Anexar print…" (R1).
+  Future<void> _pickPrint() async {
+    final path = await ref.read(printFilePickerProvider)();
+    if (path == null || !mounted) return;
+    await _addFiles([path]);
+  }
+
+  /// Dropped or picked image files (R1).
+  Future<void> _addFiles(List<String> paths) async {
+    for (final path in paths) {
+      final name = path.split('/').last;
+      await _addPrint(() async {
+        final f = File(path);
+        if (await f.length() > maxPrintBytes) {
+          throw PrintException(
+            '"$name" tem mais de 20 MB. Reduza a imagem e tente de novo.',
+          );
+        }
+        return f.readAsBytes();
+      }, sourceName: name);
+    }
+  }
+
+  Future<void> _addPrint(
+    Future<List<int>> Function() read, {
+    String? sourceName,
+  }) {
+    final job = _printQueue.then((_) async {
+      try {
+        final bytes = await read();
+        final print = await preparePrint(
+          bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+          workspacePath: _ws.path,
+          existing: _prints,
+          sourceName: sourceName,
+        );
+        if (!mounted) {
+          await deletePrintFiles([print]);
+          return;
+        }
+        final n = _prints.length + 1;
+        final status = 'Print $n anexado, ${print.width} por ${print.height}';
+        setState(() {
+          _prints = [..._prints, print];
+          _printError = null;
+          _toolMissing = null;
+          _printStatus = 'Print $n anexado, ${print.sizeLabel}';
+        });
+        if (mounted) {
+          unawaited(
+            SemanticsService.sendAnnouncement(
+              View.of(context),
+              status,
+              TextDirection.ltr,
+            ),
+          );
+        }
+      } on PrintException catch (e) {
+        if (mounted) setState(() => _printError = e.message);
+      } on FileSystemException catch (e) {
+        if (mounted) {
+          setState(
+            () => _printError =
+                'Não foi possível ler ${sourceName ?? 'a imagem'}: '
+                '${e.osError?.message ?? e.message}',
+          );
+        }
+      }
+    });
+    _printQueue = job.catchError((Object _) {});
+    return job;
+  }
+
+  void _setKind(int index, PrintKind kind) => setState(
+    () => _prints = [
+      for (final (i, s) in _prints.indexed)
+        i == index ? s.copyWith(kind: kind) : s,
+    ],
+  );
+
+  void _removePrint(int index) {
+    final gone = _prints[index];
+    setState(() {
+      _prints = renumberPrints([..._prints]..removeAt(index));
+      _printError = null;
+      _printStatus = null;
+    });
+    unawaited(deletePrintFiles([gone]));
   }
 
   Workspace get _ws => widget.workspace;
 
   Future<void> _plan() async {
     final idea = _text.text.trim();
-    if (idea.isEmpty) return;
+    if (idea.isEmpty && _prints.isEmpty) return;
+    if (!printsTyped(_prints)) return;
     _planning = true;
     final planner = ref.read(specPlannerProvider.notifier);
-    final started = planner.begin(_ws, idea);
+    final started = planner.begin(_ws, idea, prints: _prints);
     ref.read(newSpecFlowProvider.notifier).converse();
     await started;
   }
@@ -288,11 +444,47 @@ class _IdeaState extends ConsumerState<_Idea> {
     final data = row == null ? null : SpecDraftData.decode(row.data);
     final noCli = ref.watch(cliStatusProvider).$1 == CliStatus.notFound;
     final busy = ref.watch(specPlannerProvider).contains(_ws.id);
+    final untyped = !printsTyped(_prints);
     final hint = data != null
         ? 'Continue ou descarte o rascunho para planejar outra ideia.'
+        : untyped
+        ? 'Diga se cada print é um bug ou uma referência'
         : noCli
         ? 'Em branco abre o modelo de sempre.'
         : 'Em branco abre o modelo de sempre, sem chamar o planner.';
+    final hasIdea = _text.text.trim().isNotEmpty || _prints.isNotEmpty;
+    return Focus(
+      focusNode: _screenFocus,
+      onKeyEvent: _onKey,
+      // A click on the empty part of the screen takes the focus off the
+      // field (desktop); it lands here so Ctrl V still works (R1).
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _screenFocus.requestFocus,
+        child: _ideaBody(
+          context,
+          data,
+          row,
+          noCli,
+          busy,
+          untyped,
+          hint,
+          hasIdea,
+        ),
+      ),
+    );
+  }
+
+  Widget _ideaBody(
+    BuildContext context,
+    SpecDraftData? data,
+    SpecDraft? row,
+    bool noCli,
+    bool busy,
+    bool untyped,
+    String hint,
+    bool hasIdea,
+  ) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -328,7 +520,8 @@ class _IdeaState extends ConsumerState<_Idea> {
               const Text(
                 'Uma ou duas frases: o que muda e para quem. O planner lê o '
                 'repositório, faz poucas perguntas e monta a spec com você. '
-                'Já tem um documento? Importe o texto dele.',
+                'Já tem um documento? Importe o texto dele. Tem um print? '
+                'Cole com Ctrl V.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.4,
@@ -344,7 +537,42 @@ class _IdeaState extends ConsumerState<_Idea> {
                     'Avisar o paciente antes da consulta, para reduzir as '
                     'faltas…',
                 onChanged: (_) => setState(() {}),
+                onImageFiles: _addFiles,
+                onAttachPrint: _pickPrint,
+                printHint:
+                    'ou cole com Ctrl V · até $maxPrints prints · PDF, '
+                    'Markdown ou TXT',
               ),
+              if (_printStatus case final status?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '✓ $status',
+                    key: const ValueKey('print-status'),
+                    style: const TextStyle(fontSize: 11, color: AppColors.teal),
+                  ),
+                ),
+              if (_toolMissing case final missing?) ...[
+                const SizedBox(height: 10),
+                _ToolMissingCard(
+                  missing: missing,
+                  onClose: () => setState(() => _toolMissing = null),
+                ),
+              ],
+              if (_printError case final error?) ...[
+                const SizedBox(height: 10),
+                _PrintErrorLine(error),
+              ],
+              if (_prints.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                PrintCards(
+                  prints: _prints,
+                  onKind: _setKind,
+                  onRemove: _removePrint,
+                ),
+                const SizedBox(height: 10),
+                const _SensitiveWarning(),
+              ],
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
@@ -356,11 +584,7 @@ class _IdeaState extends ConsumerState<_Idea> {
                     label: 'Planejar a spec',
                     height: 36,
                     fontSize: 13,
-                    onTap:
-                        _text.text.trim().isEmpty ||
-                            data != null ||
-                            noCli ||
-                            busy
+                    onTap: !hasIdea || untyped || data != null || noCli || busy
                         ? null
                         : _plan,
                   ),
@@ -373,9 +597,12 @@ class _IdeaState extends ConsumerState<_Idea> {
                   ),
                   Text(
                     hint,
-                    style: const TextStyle(
+                    key: const ValueKey('new-spec-plan-hint'),
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: untyped && data == null
+                          ? AppColors.amber
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -386,6 +613,148 @@ class _IdeaState extends ConsumerState<_Idea> {
       ),
     );
   }
+}
+
+/// R5: the fixed notice under the cards.
+class _SensitiveWarning extends StatelessWidget {
+  const _SensitiveWarning();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('print-sensitive-warning'),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    decoration: BoxDecoration(
+      color: AppColors.amberTint,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: SessionColors.approvalBorder),
+    ),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: 1),
+          child: Icon(
+            Icons.warning_amber_rounded,
+            size: 15,
+            color: AppColors.amber,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'O print vai para o repositório quando a spec for criada. Confira '
+            'se ele não mostra senha, token, e-mail ou dado de cliente.',
+            style: TextStyle(fontSize: 12, height: 1.4, color: AppColors.text),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// R3: why a print was refused.
+class _PrintErrorLine extends StatelessWidget {
+  const _PrintErrorLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Container(
+      key: const ValueKey('print-error'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: SessionColors.stopBorder),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, color: AppColors.red),
+      ),
+    ),
+  );
+}
+
+/// R2: Ctrl V with an image and no `wl-paste` / `xclip`.
+class _ToolMissingCard extends StatelessWidget {
+  const _ToolMissingCard({required this.missing, required this.onClose});
+
+  final ClipboardToolMissing missing;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Container(
+      key: const ValueKey('print-tool-missing'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaisedSolid,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderHover),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  ClipboardToolMissing.message,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('print-tool-missing-close'),
+                tooltip: 'Fechar aviso',
+                iconSize: 16,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundSolid,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    missing.command,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                SmallButton(
+                  key: const ValueKey('print-tool-copy'),
+                  label: 'Copiar',
+                  height: 26,
+                  semanticLabel: 'Copiar o comando de instalação',
+                  onTap: () =>
+                      Clipboard.setData(ClipboardData(text: missing.command)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Enquanto isso, arraste o arquivo para o campo ou use "Anexar '
+            'print…".',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// "Da issue #215" (SPEC-074 R6): the text came from the issue, and saving
@@ -611,6 +980,7 @@ class _MiniPlanning extends ConsumerWidget {
               Expanded(
                 child: _Conversation(
                   messages: data.messages,
+                  prints: data.prints,
                   busy: busy,
                   failed: !busy && data.unanswered.isNotEmpty,
                   onSuggestion: (s) => planner.send(workspace, s),
@@ -641,6 +1011,7 @@ class _MiniPlanning extends ConsumerWidget {
 class _Conversation extends StatefulWidget {
   const _Conversation({
     required this.messages,
+    this.prints = const [],
     required this.busy,
     required this.failed,
     required this.onSuggestion,
@@ -648,6 +1019,9 @@ class _Conversation extends StatefulWidget {
   });
 
   final List<PlanMessage> messages;
+
+  /// Shown with the first message of the person (SPEC-083 R6).
+  final List<SpecPrint> prints;
   final bool busy;
   final bool failed;
   final ValueChanged<String> onSuggestion;
@@ -694,6 +1068,7 @@ class _ConversationState extends State<_Conversation> {
     final msgs = widget.messages;
     final idle = !widget.busy && !widget.failed;
     final lastPlanner = msgs.lastIndexWhere((m) => !m.fromUser);
+    final firstUser = msgs.indexWhere((m) => m.fromUser);
     // Measured, not estimated: a lazy list stops short of the real end.
     return SingleChildScrollView(
       key: const ValueKey('new-spec-conversation'),
@@ -705,6 +1080,7 @@ class _ConversationState extends State<_Conversation> {
           for (final (i, m) in msgs.indexed) ...[
             _Message(
               message: m,
+              prints: i == firstUser ? widget.prints : const [],
               suggestions: idle && i == lastPlanner ? m.suggestions : const [],
               onSuggestion: widget.onSuggestion,
             ),
@@ -740,11 +1116,13 @@ class _ConversationState extends State<_Conversation> {
 class _Message extends StatelessWidget {
   const _Message({
     required this.message,
+    this.prints = const [],
     required this.suggestions,
     required this.onSuggestion,
   });
 
   final PlanMessage message;
+  final List<SpecPrint> prints;
   final List<String> suggestions;
   final ValueChanged<String> onSuggestion;
 
@@ -762,9 +1140,39 @@ class _Message extends StatelessWidget {
               color: SessionColors.selectedBg,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: SelectableText(
-              m.text,
-              style: const TextStyle(fontSize: 13, color: AppColors.text),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final (i, s) in prints.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        PrintThumbnail(
+                          print: s,
+                          index: i,
+                          width: 72,
+                          height: 46,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '${s.name} · ${s.kind == PrintKind.reference ? 'referência de outro app' : 'bug neste projeto'}',
+                            style: const TextStyle(
+                              fontFamily: AppFonts.mono,
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                SelectableText(
+                  m.text,
+                  style: const TextStyle(fontSize: 13, color: AppColors.text),
+                ),
+              ],
             ),
           ),
         ),
@@ -965,11 +1373,19 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
         refine?.code ?? ref.watch(nextSpecCodeProvider(widget.workspace)).value;
     final specs =
         ref.watch(specsProvider(widget.workspace.id)).value ?? const <Spec>[];
+    // SPEC-083 R9: a citation of the reference app blocks "Criar spec".
+    final mentions = brandMentions(d);
     final canCreate =
         d.hasReply &&
         !widget.busy &&
         !_creating &&
-        _title.text.trim().isNotEmpty;
+        _title.text.trim().isNotEmpty &&
+        mentions.isEmpty;
+    List<(int, int)> marks(String where) => [
+      for (final m in mentions)
+        if (m.where == where) (m.start, m.end),
+    ];
+    final planner = ref.read(specPlannerProvider.notifier);
     final folder = ProjectConfig.loadSync(widget.workspace.path).specsDir;
     return Container(
       decoration: const BoxDecoration(
@@ -1025,7 +1441,24 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                 ),
                 const SizedBox(height: 14),
                 const _Label('Objetivo'),
-                d.objective.isEmpty ? const _Empty() : _Body(d.objective),
+                d.objective.isEmpty
+                    ? const _Empty()
+                    : _Body(d.objective, marks: marks('Objetivo')),
+                if (d.prints.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  const _Label('Referência visual'),
+                  for (final (i, s) in d.prints.indexed)
+                    _DraftPrint(
+                      key: ValueKey('draft-print-$i'),
+                      index: i,
+                      print: s,
+                      onDescription: (text) => planner.editPrintDescription(
+                        widget.workspace,
+                        i,
+                        text,
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 14),
                 _Label(
                   'Requisitos',
@@ -1040,6 +1473,22 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                     id: 'R${i + 1}',
                     text: r,
                     isNew: d.newRequirements.contains(r),
+                    marks: marks('R${i + 1}'),
+                  ),
+                for (final brand in {for (final m in mentions) m.brand})
+                  _BrandWarning(
+                    key: ValueKey('brand-warning-$brand'),
+                    brand: brand,
+                    where: {
+                      for (final m in mentions)
+                        if (m.brand == brand) m.where,
+                    }.toList(),
+                    onRewrite: widget.busy
+                        ? null
+                        : () => planner.rewriteBrands(
+                            widget.workspace,
+                            {for (final m in mentions) m.brand}.toList(),
+                          ),
                   ),
                 const SizedBox(height: 14),
                 const _Label('Fora do escopo'),
@@ -1047,7 +1496,14 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                 for (final o in d.outOfScope)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: _Body(o),
+                    child: _Body(
+                      o,
+                      marks: [
+                        for (final m in mentions)
+                          if (m.where == 'Fora do escopo' && m.text == o)
+                            (m.start, m.end),
+                      ],
+                    ),
                   ),
                 const SizedBox(height: 14),
                 const _Label('Depende de'),
@@ -1121,6 +1577,18 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                     ),
                   ],
                 ),
+                if (mentions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tire as citações ao app de referência '
+                    '(${mentions.length})',
+                    key: const ValueKey('brand-block-hint'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.amber,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1226,14 +1694,240 @@ class _Empty extends StatelessWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body(this.text);
+  const _Body(this.text, {this.marks = const []});
 
   final String text;
 
+  /// Citations of the reference app, highlighted (SPEC-083 R9).
+  final List<(int, int)> marks;
+
+  static const _style = TextStyle(
+    fontSize: 13,
+    height: 1.45,
+    color: AppColors.text,
+  );
+
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(fontSize: 13, height: 1.45, color: AppColors.text),
+  Widget build(BuildContext context) {
+    if (marks.isEmpty) return Text(text, style: _style);
+    final sorted = [...marks]..sort((a, b) => a.$1.compareTo(b.$1));
+    final spans = <TextSpan>[];
+    var at = 0;
+    for (final (start, end) in sorted) {
+      if (start < at) continue;
+      spans
+        ..add(TextSpan(text: text.substring(at, start)))
+        ..add(
+          TextSpan(
+            text: text.substring(start, end),
+            style: const TextStyle(
+              backgroundColor: SessionColors.approvalBg,
+              color: AppColors.amberLight,
+              decoration: TextDecoration.underline,
+              decorationColor: AppColors.amber,
+            ),
+          ),
+        );
+      at = end;
+    }
+    spans.add(TextSpan(text: text.substring(at)));
+    return Text.rich(TextSpan(style: _style, children: spans));
+  }
+}
+
+/// One print of "Referência visual" (SPEC-083 R8): the thumbnail, the kind
+/// and the description written by the planner, which the person may edit.
+class _DraftPrint extends StatefulWidget {
+  const _DraftPrint({
+    super.key,
+    required this.index,
+    required this.print,
+    required this.onDescription,
+  });
+
+  final int index;
+  final SpecPrint print;
+  final ValueChanged<String> onDescription;
+
+  @override
+  State<_DraftPrint> createState() => _DraftPrintState();
+}
+
+class _DraftPrintState extends State<_DraftPrint> {
+  late final _text = TextEditingController(text: widget.print.description);
+  final _focus = FocusNode();
+
+  @override
+  void didUpdateWidget(_DraftPrint old) {
+    super.didUpdateWidget(old);
+    final d = widget.print.description;
+    if (!_focus.hasFocus && d != _text.text) _text.text = d;
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.print;
+    final n = widget.index + 1;
+    final reference = s.kind == PrintKind.reference;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PrintThumbnail(print: s, index: widget.index, width: 112, height: 70),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      s.name,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 12,
+                      ),
+                    ),
+                    InfoTag(s.kind?.short ?? 'sem tipo'),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  key: ValueKey('draft-print-description-${widget.index}'),
+                  controller: _text,
+                  focusNode: _focus,
+                  minLines: 1,
+                  maxLines: 3,
+                  style: const TextStyle(fontSize: 12, color: AppColors.text),
+                  decoration: _fieldDecoration(
+                    dense: true,
+                    hint: 'O que o print $n mostra',
+                  ),
+                  onChanged: widget.onDescription,
+                ),
+                if (reference) ...[
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Só referência: a spec não copia a marca, o nome, os '
+                    'textos nem os ícones do app de referência.',
+                    key: ValueKey('draft-print-reference-note'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.4,
+                      color: AppColors.lilac,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "A spec cita “Nimbo” do app de referência" (SPEC-083 R9).
+class _BrandWarning extends StatelessWidget {
+  const _BrandWarning({
+    super.key,
+    required this.brand,
+    required this.where,
+    required this.onRewrite,
+  });
+
+  final String brand;
+  final List<String> where;
+  final VoidCallback? onRewrite;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Container(
+      margin: const EdgeInsets.only(top: 6, bottom: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.amberTint,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: SessionColors.approvalBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: 15,
+                  color: AppColors.amber,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'A spec cita “$brand” do app de referência',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.amberLight,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '  ${where.join(', ')}',
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SmallButton(
+                key: const ValueKey('brand-rewrite'),
+                label: 'Pedir ao planner para reescrever',
+                onTap: onRewrite,
+              ),
+              const Text(
+                'ou responda na conversa',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -1244,12 +1938,14 @@ class _Item extends StatelessWidget {
     required this.text,
     this.detail,
     this.isNew = false,
+    this.marks = const [],
   });
 
   final String id;
   final String text;
   final String? detail;
   final bool isNew;
+  final List<(int, int)> marks;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1273,7 +1969,7 @@ class _Item extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Body(text),
+              _Body(text, marks: marks),
               if (detail != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 3),

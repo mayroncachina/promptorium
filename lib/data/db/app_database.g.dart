@@ -15922,6 +15922,3914 @@ class SnippetsCompanion extends UpdateCompanion<Snippet> {
   }
 }
 
+class $ActivityEventsTable extends ActivityEvents
+    with TableInfo<$ActivityEventsTable, ActivityEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActivityEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _seedMeta = const VerificationMeta('seed');
+  @override
+  late final GeneratedColumn<String> seed = GeneratedColumn<String>(
+    'seed',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prNumberMeta = const VerificationMeta(
+    'prNumber',
+  );
+  @override
+  late final GeneratedColumn<int> prNumber = GeneratedColumn<int>(
+    'pr_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _releaseTagMeta = const VerificationMeta(
+    'releaseTag',
+  );
+  @override
+  late final GeneratedColumn<String> releaseTag = GeneratedColumn<String>(
+    'release_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _groupKeyMeta = const VerificationMeta(
+    'groupKey',
+  );
+  @override
+  late final GeneratedColumn<String> groupKey = GeneratedColumn<String>(
+    'group_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    kind,
+    outcome,
+    title,
+    detail,
+    seed,
+    specId,
+    sessionId,
+    conversationId,
+    prNumber,
+    releaseTag,
+    groupKey,
+    at,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'activity_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActivityEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_outcomeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('seed')) {
+      context.handle(
+        _seedMeta,
+        seed.isAcceptableOrUnknown(data['seed']!, _seedMeta),
+      );
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pr_number')) {
+      context.handle(
+        _prNumberMeta,
+        prNumber.isAcceptableOrUnknown(data['pr_number']!, _prNumberMeta),
+      );
+    }
+    if (data.containsKey('release_tag')) {
+      context.handle(
+        _releaseTagMeta,
+        releaseTag.isAcceptableOrUnknown(data['release_tag']!, _releaseTagMeta),
+      );
+    }
+    if (data.containsKey('group_key')) {
+      context.handle(
+        _groupKeyMeta,
+        groupKey.isAcceptableOrUnknown(data['group_key']!, _groupKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupKeyMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActivityEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActivityEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      )!,
+      seed: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seed'],
+      ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      prNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pr_number'],
+      ),
+      releaseTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_tag'],
+      ),
+      groupKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_key'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}at'],
+      )!,
+    );
+  }
+
+  @override
+  $ActivityEventsTable createAlias(String alias) {
+    return $ActivityEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ActivityEvent extends DataClass implements Insertable<ActivityEvent> {
+  final int id;
+  final int workspaceId;
+
+  /// spec, gate, pr, ci, release, session, conversation, autopilot.
+  final String kind;
+
+  /// ok, failed, attention.
+  final String outcome;
+  final String title;
+  final String detail;
+
+  /// The robot's seed (SPEC-076 R5); null = an icon.
+  final String? seed;
+  final int? specId;
+  final String? sessionId;
+  final int? conversationId;
+  final int? prNumber;
+  final String? releaseTag;
+
+  /// Events with the same key become one item of the card (R8).
+  final String groupKey;
+  final DateTime at;
+  const ActivityEvent({
+    required this.id,
+    required this.workspaceId,
+    required this.kind,
+    required this.outcome,
+    required this.title,
+    required this.detail,
+    this.seed,
+    this.specId,
+    this.sessionId,
+    this.conversationId,
+    this.prNumber,
+    this.releaseTag,
+    required this.groupKey,
+    required this.at,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['kind'] = Variable<String>(kind);
+    map['outcome'] = Variable<String>(outcome);
+    map['title'] = Variable<String>(title);
+    map['detail'] = Variable<String>(detail);
+    if (!nullToAbsent || seed != null) {
+      map['seed'] = Variable<String>(seed);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    if (!nullToAbsent || prNumber != null) {
+      map['pr_number'] = Variable<int>(prNumber);
+    }
+    if (!nullToAbsent || releaseTag != null) {
+      map['release_tag'] = Variable<String>(releaseTag);
+    }
+    map['group_key'] = Variable<String>(groupKey);
+    map['at'] = Variable<DateTime>(at);
+    return map;
+  }
+
+  ActivityEventsCompanion toCompanion(bool nullToAbsent) {
+    return ActivityEventsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      kind: Value(kind),
+      outcome: Value(outcome),
+      title: Value(title),
+      detail: Value(detail),
+      seed: seed == null && nullToAbsent ? const Value.absent() : Value(seed),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      prNumber: prNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prNumber),
+      releaseTag: releaseTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseTag),
+      groupKey: Value(groupKey),
+      at: Value(at),
+    );
+  }
+
+  factory ActivityEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActivityEvent(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      outcome: serializer.fromJson<String>(json['outcome']),
+      title: serializer.fromJson<String>(json['title']),
+      detail: serializer.fromJson<String>(json['detail']),
+      seed: serializer.fromJson<String?>(json['seed']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      prNumber: serializer.fromJson<int?>(json['prNumber']),
+      releaseTag: serializer.fromJson<String?>(json['releaseTag']),
+      groupKey: serializer.fromJson<String>(json['groupKey']),
+      at: serializer.fromJson<DateTime>(json['at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'kind': serializer.toJson<String>(kind),
+      'outcome': serializer.toJson<String>(outcome),
+      'title': serializer.toJson<String>(title),
+      'detail': serializer.toJson<String>(detail),
+      'seed': serializer.toJson<String?>(seed),
+      'specId': serializer.toJson<int?>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'prNumber': serializer.toJson<int?>(prNumber),
+      'releaseTag': serializer.toJson<String?>(releaseTag),
+      'groupKey': serializer.toJson<String>(groupKey),
+      'at': serializer.toJson<DateTime>(at),
+    };
+  }
+
+  ActivityEvent copyWith({
+    int? id,
+    int? workspaceId,
+    String? kind,
+    String? outcome,
+    String? title,
+    String? detail,
+    Value<String?> seed = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    Value<int?> prNumber = const Value.absent(),
+    Value<String?> releaseTag = const Value.absent(),
+    String? groupKey,
+    DateTime? at,
+  }) => ActivityEvent(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    kind: kind ?? this.kind,
+    outcome: outcome ?? this.outcome,
+    title: title ?? this.title,
+    detail: detail ?? this.detail,
+    seed: seed.present ? seed.value : this.seed,
+    specId: specId.present ? specId.value : this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    prNumber: prNumber.present ? prNumber.value : this.prNumber,
+    releaseTag: releaseTag.present ? releaseTag.value : this.releaseTag,
+    groupKey: groupKey ?? this.groupKey,
+    at: at ?? this.at,
+  );
+  ActivityEvent copyWithCompanion(ActivityEventsCompanion data) {
+    return ActivityEvent(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+      title: data.title.present ? data.title.value : this.title,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      seed: data.seed.present ? data.seed.value : this.seed,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      prNumber: data.prNumber.present ? data.prNumber.value : this.prNumber,
+      releaseTag: data.releaseTag.present
+          ? data.releaseTag.value
+          : this.releaseTag,
+      groupKey: data.groupKey.present ? data.groupKey.value : this.groupKey,
+      at: data.at.present ? data.at.value : this.at,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEvent(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('kind: $kind, ')
+          ..write('outcome: $outcome, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('seed: $seed, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('prNumber: $prNumber, ')
+          ..write('releaseTag: $releaseTag, ')
+          ..write('groupKey: $groupKey, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    kind,
+    outcome,
+    title,
+    detail,
+    seed,
+    specId,
+    sessionId,
+    conversationId,
+    prNumber,
+    releaseTag,
+    groupKey,
+    at,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActivityEvent &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.kind == this.kind &&
+          other.outcome == this.outcome &&
+          other.title == this.title &&
+          other.detail == this.detail &&
+          other.seed == this.seed &&
+          other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.prNumber == this.prNumber &&
+          other.releaseTag == this.releaseTag &&
+          other.groupKey == this.groupKey &&
+          other.at == this.at);
+}
+
+class ActivityEventsCompanion extends UpdateCompanion<ActivityEvent> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> kind;
+  final Value<String> outcome;
+  final Value<String> title;
+  final Value<String> detail;
+  final Value<String?> seed;
+  final Value<int?> specId;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<int?> prNumber;
+  final Value<String?> releaseTag;
+  final Value<String> groupKey;
+  final Value<DateTime> at;
+  const ActivityEventsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.title = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.seed = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.prNumber = const Value.absent(),
+    this.releaseTag = const Value.absent(),
+    this.groupKey = const Value.absent(),
+    this.at = const Value.absent(),
+  });
+  ActivityEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String kind,
+    required String outcome,
+    required String title,
+    this.detail = const Value.absent(),
+    this.seed = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.prNumber = const Value.absent(),
+    this.releaseTag = const Value.absent(),
+    required String groupKey,
+    required DateTime at,
+  }) : workspaceId = Value(workspaceId),
+       kind = Value(kind),
+       outcome = Value(outcome),
+       title = Value(title),
+       groupKey = Value(groupKey),
+       at = Value(at);
+  static Insertable<ActivityEvent> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? kind,
+    Expression<String>? outcome,
+    Expression<String>? title,
+    Expression<String>? detail,
+    Expression<String>? seed,
+    Expression<int>? specId,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<int>? prNumber,
+    Expression<String>? releaseTag,
+    Expression<String>? groupKey,
+    Expression<DateTime>? at,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (kind != null) 'kind': kind,
+      if (outcome != null) 'outcome': outcome,
+      if (title != null) 'title': title,
+      if (detail != null) 'detail': detail,
+      if (seed != null) 'seed': seed,
+      if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (prNumber != null) 'pr_number': prNumber,
+      if (releaseTag != null) 'release_tag': releaseTag,
+      if (groupKey != null) 'group_key': groupKey,
+      if (at != null) 'at': at,
+    });
+  }
+
+  ActivityEventsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? kind,
+    Value<String>? outcome,
+    Value<String>? title,
+    Value<String>? detail,
+    Value<String?>? seed,
+    Value<int?>? specId,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<int?>? prNumber,
+    Value<String?>? releaseTag,
+    Value<String>? groupKey,
+    Value<DateTime>? at,
+  }) {
+    return ActivityEventsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      kind: kind ?? this.kind,
+      outcome: outcome ?? this.outcome,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      seed: seed ?? this.seed,
+      specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      prNumber: prNumber ?? this.prNumber,
+      releaseTag: releaseTag ?? this.releaseTag,
+      groupKey: groupKey ?? this.groupKey,
+      at: at ?? this.at,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (seed.present) {
+      map['seed'] = Variable<String>(seed.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (prNumber.present) {
+      map['pr_number'] = Variable<int>(prNumber.value);
+    }
+    if (releaseTag.present) {
+      map['release_tag'] = Variable<String>(releaseTag.value);
+    }
+    if (groupKey.present) {
+      map['group_key'] = Variable<String>(groupKey.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<DateTime>(at.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('kind: $kind, ')
+          ..write('outcome: $outcome, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('seed: $seed, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('prNumber: $prNumber, ')
+          ..write('releaseTag: $releaseTag, ')
+          ..write('groupKey: $groupKey, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UsageEntriesTable extends UsageEntries
+    with TableInfo<$UsageEntriesTable, UsageEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UsageEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<UsageSource, String> source =
+      GeneratedColumn<String>(
+        'source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<UsageSource>($UsageEntriesTable.$convertersource);
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<String> step = GeneratedColumn<String>(
+    'step',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES conversations (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tokensInMeta = const VerificationMeta(
+    'tokensIn',
+  );
+  @override
+  late final GeneratedColumn<int> tokensIn = GeneratedColumn<int>(
+    'tokens_in',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensCacheWriteMeta = const VerificationMeta(
+    'tokensCacheWrite',
+  );
+  @override
+  late final GeneratedColumn<int> tokensCacheWrite = GeneratedColumn<int>(
+    'tokens_cache_write',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensCacheReadMeta = const VerificationMeta(
+    'tokensCacheRead',
+  );
+  @override
+  late final GeneratedColumn<int> tokensCacheRead = GeneratedColumn<int>(
+    'tokens_cache_read',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensOutMeta = const VerificationMeta(
+    'tokensOut',
+  );
+  @override
+  late final GeneratedColumn<int> tokensOut = GeneratedColumn<int>(
+    'tokens_out',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _costUsdMeta = const VerificationMeta(
+    'costUsd',
+  );
+  @override
+  late final GeneratedColumn<double> costUsd = GeneratedColumn<double>(
+    'cost_usd',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _fiveHourPctMeta = const VerificationMeta(
+    'fiveHourPct',
+  );
+  @override
+  late final GeneratedColumn<double> fiveHourPct = GeneratedColumn<double>(
+    'five_hour_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weekPctMeta = const VerificationMeta(
+    'weekPct',
+  );
+  @override
+  late final GeneratedColumn<double> weekPct = GeneratedColumn<double>(
+    'week_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedMeta = const VerificationMeta(
+    'estimated',
+  );
+  @override
+  late final GeneratedColumn<bool> estimated = GeneratedColumn<bool>(
+    'estimated',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("estimated" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    specId,
+    source,
+    step,
+    sessionId,
+    conversationId,
+    model,
+    at,
+    tokensIn,
+    tokensCacheWrite,
+    tokensCacheRead,
+    tokensOut,
+    costUsd,
+    fiveHourPct,
+    weekPct,
+    estimated,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'usage_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UsageEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('tokens_in')) {
+      context.handle(
+        _tokensInMeta,
+        tokensIn.isAcceptableOrUnknown(data['tokens_in']!, _tokensInMeta),
+      );
+    }
+    if (data.containsKey('tokens_cache_write')) {
+      context.handle(
+        _tokensCacheWriteMeta,
+        tokensCacheWrite.isAcceptableOrUnknown(
+          data['tokens_cache_write']!,
+          _tokensCacheWriteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tokens_cache_read')) {
+      context.handle(
+        _tokensCacheReadMeta,
+        tokensCacheRead.isAcceptableOrUnknown(
+          data['tokens_cache_read']!,
+          _tokensCacheReadMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tokens_out')) {
+      context.handle(
+        _tokensOutMeta,
+        tokensOut.isAcceptableOrUnknown(data['tokens_out']!, _tokensOutMeta),
+      );
+    }
+    if (data.containsKey('cost_usd')) {
+      context.handle(
+        _costUsdMeta,
+        costUsd.isAcceptableOrUnknown(data['cost_usd']!, _costUsdMeta),
+      );
+    }
+    if (data.containsKey('five_hour_pct')) {
+      context.handle(
+        _fiveHourPctMeta,
+        fiveHourPct.isAcceptableOrUnknown(
+          data['five_hour_pct']!,
+          _fiveHourPctMeta,
+        ),
+      );
+    }
+    if (data.containsKey('week_pct')) {
+      context.handle(
+        _weekPctMeta,
+        weekPct.isAcceptableOrUnknown(data['week_pct']!, _weekPctMeta),
+      );
+    }
+    if (data.containsKey('estimated')) {
+      context.handle(
+        _estimatedMeta,
+        estimated.isAcceptableOrUnknown(data['estimated']!, _estimatedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UsageEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UsageEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
+      source: $UsageEntriesTable.$convertersource.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}source'],
+        )!,
+      ),
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}at'],
+      )!,
+      tokensIn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_in'],
+      )!,
+      tokensCacheWrite: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_cache_write'],
+      )!,
+      tokensCacheRead: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_cache_read'],
+      )!,
+      tokensOut: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_out'],
+      )!,
+      costUsd: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cost_usd'],
+      )!,
+      fiveHourPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}five_hour_pct'],
+      ),
+      weekPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}week_pct'],
+      ),
+      estimated: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}estimated'],
+      )!,
+    );
+  }
+
+  @override
+  $UsageEntriesTable createAlias(String alias) {
+    return $UsageEntriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<UsageSource, String, String> $convertersource =
+      const EnumNameConverter<UsageSource>(UsageSource.values);
+}
+
+class UsageEntry extends DataClass implements Insertable<UsageEntry> {
+  final int id;
+  final int? workspaceId;
+  final int? specId;
+  final UsageSource source;
+
+  /// Steps of the session (`R2`, `REV1`); null outside a step.
+  final String? step;
+  final String? sessionId;
+  final int? conversationId;
+  final String? model;
+  final DateTime at;
+
+  /// New input tokens of the turn.
+  final int tokensIn;
+  final int tokensCacheWrite;
+  final int tokensCacheRead;
+  final int tokensOut;
+
+  /// Estimated cost of the turn (the CLI's `total_cost_usd` difference).
+  final double costUsd;
+
+  /// Weight in the windows (0–1) by the ruler of the moment (R4); null
+  /// until a ruler exists.
+  final double? fiveHourPct;
+  final double? weekPct;
+
+  /// Rebuilt from the events of before (R5): weighed by today's ruler.
+  final bool estimated;
+  const UsageEntry({
+    required this.id,
+    this.workspaceId,
+    this.specId,
+    required this.source,
+    this.step,
+    this.sessionId,
+    this.conversationId,
+    this.model,
+    required this.at,
+    required this.tokensIn,
+    required this.tokensCacheWrite,
+    required this.tokensCacheRead,
+    required this.tokensOut,
+    required this.costUsd,
+    this.fiveHourPct,
+    this.weekPct,
+    required this.estimated,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || workspaceId != null) {
+      map['workspace_id'] = Variable<int>(workspaceId);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    {
+      map['source'] = Variable<String>(
+        $UsageEntriesTable.$convertersource.toSql(source),
+      );
+    }
+    if (!nullToAbsent || step != null) {
+      map['step'] = Variable<String>(step);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
+    map['at'] = Variable<DateTime>(at);
+    map['tokens_in'] = Variable<int>(tokensIn);
+    map['tokens_cache_write'] = Variable<int>(tokensCacheWrite);
+    map['tokens_cache_read'] = Variable<int>(tokensCacheRead);
+    map['tokens_out'] = Variable<int>(tokensOut);
+    map['cost_usd'] = Variable<double>(costUsd);
+    if (!nullToAbsent || fiveHourPct != null) {
+      map['five_hour_pct'] = Variable<double>(fiveHourPct);
+    }
+    if (!nullToAbsent || weekPct != null) {
+      map['week_pct'] = Variable<double>(weekPct);
+    }
+    map['estimated'] = Variable<bool>(estimated);
+    return map;
+  }
+
+  UsageEntriesCompanion toCompanion(bool nullToAbsent) {
+    return UsageEntriesCompanion(
+      id: Value(id),
+      workspaceId: workspaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workspaceId),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      source: Value(source),
+      step: step == null && nullToAbsent ? const Value.absent() : Value(step),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
+      at: Value(at),
+      tokensIn: Value(tokensIn),
+      tokensCacheWrite: Value(tokensCacheWrite),
+      tokensCacheRead: Value(tokensCacheRead),
+      tokensOut: Value(tokensOut),
+      costUsd: Value(costUsd),
+      fiveHourPct: fiveHourPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fiveHourPct),
+      weekPct: weekPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekPct),
+      estimated: Value(estimated),
+    );
+  }
+
+  factory UsageEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UsageEntry(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int?>(json['workspaceId']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      source: $UsageEntriesTable.$convertersource.fromJson(
+        serializer.fromJson<String>(json['source']),
+      ),
+      step: serializer.fromJson<String?>(json['step']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      model: serializer.fromJson<String?>(json['model']),
+      at: serializer.fromJson<DateTime>(json['at']),
+      tokensIn: serializer.fromJson<int>(json['tokensIn']),
+      tokensCacheWrite: serializer.fromJson<int>(json['tokensCacheWrite']),
+      tokensCacheRead: serializer.fromJson<int>(json['tokensCacheRead']),
+      tokensOut: serializer.fromJson<int>(json['tokensOut']),
+      costUsd: serializer.fromJson<double>(json['costUsd']),
+      fiveHourPct: serializer.fromJson<double?>(json['fiveHourPct']),
+      weekPct: serializer.fromJson<double?>(json['weekPct']),
+      estimated: serializer.fromJson<bool>(json['estimated']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int?>(workspaceId),
+      'specId': serializer.toJson<int?>(specId),
+      'source': serializer.toJson<String>(
+        $UsageEntriesTable.$convertersource.toJson(source),
+      ),
+      'step': serializer.toJson<String?>(step),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'model': serializer.toJson<String?>(model),
+      'at': serializer.toJson<DateTime>(at),
+      'tokensIn': serializer.toJson<int>(tokensIn),
+      'tokensCacheWrite': serializer.toJson<int>(tokensCacheWrite),
+      'tokensCacheRead': serializer.toJson<int>(tokensCacheRead),
+      'tokensOut': serializer.toJson<int>(tokensOut),
+      'costUsd': serializer.toJson<double>(costUsd),
+      'fiveHourPct': serializer.toJson<double?>(fiveHourPct),
+      'weekPct': serializer.toJson<double?>(weekPct),
+      'estimated': serializer.toJson<bool>(estimated),
+    };
+  }
+
+  UsageEntry copyWith({
+    int? id,
+    Value<int?> workspaceId = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
+    UsageSource? source,
+    Value<String?> step = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    Value<String?> model = const Value.absent(),
+    DateTime? at,
+    int? tokensIn,
+    int? tokensCacheWrite,
+    int? tokensCacheRead,
+    int? tokensOut,
+    double? costUsd,
+    Value<double?> fiveHourPct = const Value.absent(),
+    Value<double?> weekPct = const Value.absent(),
+    bool? estimated,
+  }) => UsageEntry(
+    id: id ?? this.id,
+    workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
+    specId: specId.present ? specId.value : this.specId,
+    source: source ?? this.source,
+    step: step.present ? step.value : this.step,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    model: model.present ? model.value : this.model,
+    at: at ?? this.at,
+    tokensIn: tokensIn ?? this.tokensIn,
+    tokensCacheWrite: tokensCacheWrite ?? this.tokensCacheWrite,
+    tokensCacheRead: tokensCacheRead ?? this.tokensCacheRead,
+    tokensOut: tokensOut ?? this.tokensOut,
+    costUsd: costUsd ?? this.costUsd,
+    fiveHourPct: fiveHourPct.present ? fiveHourPct.value : this.fiveHourPct,
+    weekPct: weekPct.present ? weekPct.value : this.weekPct,
+    estimated: estimated ?? this.estimated,
+  );
+  UsageEntry copyWithCompanion(UsageEntriesCompanion data) {
+    return UsageEntry(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      source: data.source.present ? data.source.value : this.source,
+      step: data.step.present ? data.step.value : this.step,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      model: data.model.present ? data.model.value : this.model,
+      at: data.at.present ? data.at.value : this.at,
+      tokensIn: data.tokensIn.present ? data.tokensIn.value : this.tokensIn,
+      tokensCacheWrite: data.tokensCacheWrite.present
+          ? data.tokensCacheWrite.value
+          : this.tokensCacheWrite,
+      tokensCacheRead: data.tokensCacheRead.present
+          ? data.tokensCacheRead.value
+          : this.tokensCacheRead,
+      tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
+      costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
+      fiveHourPct: data.fiveHourPct.present
+          ? data.fiveHourPct.value
+          : this.fiveHourPct,
+      weekPct: data.weekPct.present ? data.weekPct.value : this.weekPct,
+      estimated: data.estimated.present ? data.estimated.value : this.estimated,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UsageEntry(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('specId: $specId, ')
+          ..write('source: $source, ')
+          ..write('step: $step, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('model: $model, ')
+          ..write('at: $at, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensCacheWrite: $tokensCacheWrite, ')
+          ..write('tokensCacheRead: $tokensCacheRead, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('fiveHourPct: $fiveHourPct, ')
+          ..write('weekPct: $weekPct, ')
+          ..write('estimated: $estimated')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    specId,
+    source,
+    step,
+    sessionId,
+    conversationId,
+    model,
+    at,
+    tokensIn,
+    tokensCacheWrite,
+    tokensCacheRead,
+    tokensOut,
+    costUsd,
+    fiveHourPct,
+    weekPct,
+    estimated,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UsageEntry &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.specId == this.specId &&
+          other.source == this.source &&
+          other.step == this.step &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.model == this.model &&
+          other.at == this.at &&
+          other.tokensIn == this.tokensIn &&
+          other.tokensCacheWrite == this.tokensCacheWrite &&
+          other.tokensCacheRead == this.tokensCacheRead &&
+          other.tokensOut == this.tokensOut &&
+          other.costUsd == this.costUsd &&
+          other.fiveHourPct == this.fiveHourPct &&
+          other.weekPct == this.weekPct &&
+          other.estimated == this.estimated);
+}
+
+class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
+  final Value<int> id;
+  final Value<int?> workspaceId;
+  final Value<int?> specId;
+  final Value<UsageSource> source;
+  final Value<String?> step;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<String?> model;
+  final Value<DateTime> at;
+  final Value<int> tokensIn;
+  final Value<int> tokensCacheWrite;
+  final Value<int> tokensCacheRead;
+  final Value<int> tokensOut;
+  final Value<double> costUsd;
+  final Value<double?> fiveHourPct;
+  final Value<double?> weekPct;
+  final Value<bool> estimated;
+  const UsageEntriesCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.step = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.model = const Value.absent(),
+    this.at = const Value.absent(),
+    this.tokensIn = const Value.absent(),
+    this.tokensCacheWrite = const Value.absent(),
+    this.tokensCacheRead = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.fiveHourPct = const Value.absent(),
+    this.weekPct = const Value.absent(),
+    this.estimated = const Value.absent(),
+  });
+  UsageEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.specId = const Value.absent(),
+    required UsageSource source,
+    this.step = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.model = const Value.absent(),
+    required DateTime at,
+    this.tokensIn = const Value.absent(),
+    this.tokensCacheWrite = const Value.absent(),
+    this.tokensCacheRead = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.fiveHourPct = const Value.absent(),
+    this.weekPct = const Value.absent(),
+    this.estimated = const Value.absent(),
+  }) : source = Value(source),
+       at = Value(at);
+  static Insertable<UsageEntry> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<int>? specId,
+    Expression<String>? source,
+    Expression<String>? step,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<String>? model,
+    Expression<DateTime>? at,
+    Expression<int>? tokensIn,
+    Expression<int>? tokensCacheWrite,
+    Expression<int>? tokensCacheRead,
+    Expression<int>? tokensOut,
+    Expression<double>? costUsd,
+    Expression<double>? fiveHourPct,
+    Expression<double>? weekPct,
+    Expression<bool>? estimated,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (specId != null) 'spec_id': specId,
+      if (source != null) 'source': source,
+      if (step != null) 'step': step,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (model != null) 'model': model,
+      if (at != null) 'at': at,
+      if (tokensIn != null) 'tokens_in': tokensIn,
+      if (tokensCacheWrite != null) 'tokens_cache_write': tokensCacheWrite,
+      if (tokensCacheRead != null) 'tokens_cache_read': tokensCacheRead,
+      if (tokensOut != null) 'tokens_out': tokensOut,
+      if (costUsd != null) 'cost_usd': costUsd,
+      if (fiveHourPct != null) 'five_hour_pct': fiveHourPct,
+      if (weekPct != null) 'week_pct': weekPct,
+      if (estimated != null) 'estimated': estimated,
+    });
+  }
+
+  UsageEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? workspaceId,
+    Value<int?>? specId,
+    Value<UsageSource>? source,
+    Value<String?>? step,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<String?>? model,
+    Value<DateTime>? at,
+    Value<int>? tokensIn,
+    Value<int>? tokensCacheWrite,
+    Value<int>? tokensCacheRead,
+    Value<int>? tokensOut,
+    Value<double>? costUsd,
+    Value<double?>? fiveHourPct,
+    Value<double?>? weekPct,
+    Value<bool>? estimated,
+  }) {
+    return UsageEntriesCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      specId: specId ?? this.specId,
+      source: source ?? this.source,
+      step: step ?? this.step,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      model: model ?? this.model,
+      at: at ?? this.at,
+      tokensIn: tokensIn ?? this.tokensIn,
+      tokensCacheWrite: tokensCacheWrite ?? this.tokensCacheWrite,
+      tokensCacheRead: tokensCacheRead ?? this.tokensCacheRead,
+      tokensOut: tokensOut ?? this.tokensOut,
+      costUsd: costUsd ?? this.costUsd,
+      fiveHourPct: fiveHourPct ?? this.fiveHourPct,
+      weekPct: weekPct ?? this.weekPct,
+      estimated: estimated ?? this.estimated,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(
+        $UsageEntriesTable.$convertersource.toSql(source.value),
+      );
+    }
+    if (step.present) {
+      map['step'] = Variable<String>(step.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<DateTime>(at.value);
+    }
+    if (tokensIn.present) {
+      map['tokens_in'] = Variable<int>(tokensIn.value);
+    }
+    if (tokensCacheWrite.present) {
+      map['tokens_cache_write'] = Variable<int>(tokensCacheWrite.value);
+    }
+    if (tokensCacheRead.present) {
+      map['tokens_cache_read'] = Variable<int>(tokensCacheRead.value);
+    }
+    if (tokensOut.present) {
+      map['tokens_out'] = Variable<int>(tokensOut.value);
+    }
+    if (costUsd.present) {
+      map['cost_usd'] = Variable<double>(costUsd.value);
+    }
+    if (fiveHourPct.present) {
+      map['five_hour_pct'] = Variable<double>(fiveHourPct.value);
+    }
+    if (weekPct.present) {
+      map['week_pct'] = Variable<double>(weekPct.value);
+    }
+    if (estimated.present) {
+      map['estimated'] = Variable<bool>(estimated.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UsageEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('specId: $specId, ')
+          ..write('source: $source, ')
+          ..write('step: $step, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('model: $model, ')
+          ..write('at: $at, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensCacheWrite: $tokensCacheWrite, ')
+          ..write('tokensCacheRead: $tokensCacheRead, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('fiveHourPct: $fiveHourPct, ')
+          ..write('weekPct: $weekPct, ')
+          ..write('estimated: $estimated')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RestorePointsTable extends RestorePoints
+    with TableInfo<$RestorePointsTable, RestorePoint> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RestorePointsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES conversations (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _worktreePathMeta = const VerificationMeta(
+    'worktreePath',
+  );
+  @override
+  late final GeneratedColumn<String> worktreePath = GeneratedColumn<String>(
+    'worktree_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _turnMeta = const VerificationMeta('turn');
+  @override
+  late final GeneratedColumn<int> turn = GeneratedColumn<int>(
+    'turn',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
+  @override
+  late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
+    'prompt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _eventSeqMeta = const VerificationMeta(
+    'eventSeq',
+  );
+  @override
+  late final GeneratedColumn<int> eventSeq = GeneratedColumn<int>(
+    'event_seq',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startBranchMeta = const VerificationMeta(
+    'startBranch',
+  );
+  @override
+  late final GeneratedColumn<String> startBranch = GeneratedColumn<String>(
+    'start_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startHeadMeta = const VerificationMeta(
+    'startHead',
+  );
+  @override
+  late final GeneratedColumn<String> startHead = GeneratedColumn<String>(
+    'start_head',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startShaMeta = const VerificationMeta(
+    'startSha',
+  );
+  @override
+  late final GeneratedColumn<String> startSha = GeneratedColumn<String>(
+    'start_sha',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endBranchMeta = const VerificationMeta(
+    'endBranch',
+  );
+  @override
+  late final GeneratedColumn<String> endBranch = GeneratedColumn<String>(
+    'end_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endHeadMeta = const VerificationMeta(
+    'endHead',
+  );
+  @override
+  late final GeneratedColumn<String> endHead = GeneratedColumn<String>(
+    'end_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endShaMeta = const VerificationMeta('endSha');
+  @override
+  late final GeneratedColumn<String> endSha = GeneratedColumn<String>(
+    'end_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _filesMeta = const VerificationMeta('files');
+  @override
+  late final GeneratedColumn<int> files = GeneratedColumn<int>(
+    'files',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<int> bytes = GeneratedColumn<int>(
+    'bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _changedFilesMeta = const VerificationMeta(
+    'changedFiles',
+  );
+  @override
+  late final GeneratedColumn<int> changedFiles = GeneratedColumn<int>(
+    'changed_files',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _commitsMeta = const VerificationMeta(
+    'commits',
+  );
+  @override
+  late final GeneratedColumn<int> commits = GeneratedColumn<int>(
+    'commits',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _largeFilesMeta = const VerificationMeta(
+    'largeFiles',
+  );
+  @override
+  late final GeneratedColumn<String> largeFiles = GeneratedColumn<String>(
+    'large_files',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('ativo'),
+  );
+  static const VerificationMeta _undoBranchMeta = const VerificationMeta(
+    'undoBranch',
+  );
+  @override
+  late final GeneratedColumn<String> undoBranch = GeneratedColumn<String>(
+    'undo_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoHeadMeta = const VerificationMeta(
+    'undoHead',
+  );
+  @override
+  late final GeneratedColumn<String> undoHead = GeneratedColumn<String>(
+    'undo_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoShaMeta = const VerificationMeta(
+    'undoSha',
+  );
+  @override
+  late final GeneratedColumn<String> undoSha = GeneratedColumn<String>(
+    'undo_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoneHeadMeta = const VerificationMeta(
+    'undoneHead',
+  );
+  @override
+  late final GeneratedColumn<String> undoneHead = GeneratedColumn<String>(
+    'undone_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoneShaMeta = const VerificationMeta(
+    'undoneSha',
+  );
+  @override
+  late final GeneratedColumn<String> undoneSha = GeneratedColumn<String>(
+    'undone_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usedAtMeta = const VerificationMeta('usedAt');
+  @override
+  late final GeneratedColumn<DateTime> usedAt = GeneratedColumn<DateTime>(
+    'used_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    sessionId,
+    conversationId,
+    worktreePath,
+    turn,
+    prompt,
+    eventSeq,
+    startedAt,
+    startBranch,
+    startHead,
+    startSha,
+    endedAt,
+    endBranch,
+    endHead,
+    endSha,
+    files,
+    bytes,
+    changedFiles,
+    commits,
+    largeFiles,
+    state,
+    undoBranch,
+    undoHead,
+    undoSha,
+    undoneHead,
+    undoneSha,
+    usedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'restore_points';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RestorePoint> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worktree_path')) {
+      context.handle(
+        _worktreePathMeta,
+        worktreePath.isAcceptableOrUnknown(
+          data['worktree_path']!,
+          _worktreePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreePathMeta);
+    }
+    if (data.containsKey('turn')) {
+      context.handle(
+        _turnMeta,
+        turn.isAcceptableOrUnknown(data['turn']!, _turnMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_turnMeta);
+    }
+    if (data.containsKey('prompt')) {
+      context.handle(
+        _promptMeta,
+        prompt.isAcceptableOrUnknown(data['prompt']!, _promptMeta),
+      );
+    }
+    if (data.containsKey('event_seq')) {
+      context.handle(
+        _eventSeqMeta,
+        eventSeq.isAcceptableOrUnknown(data['event_seq']!, _eventSeqMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('start_branch')) {
+      context.handle(
+        _startBranchMeta,
+        startBranch.isAcceptableOrUnknown(
+          data['start_branch']!,
+          _startBranchMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_head')) {
+      context.handle(
+        _startHeadMeta,
+        startHead.isAcceptableOrUnknown(data['start_head']!, _startHeadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startHeadMeta);
+    }
+    if (data.containsKey('start_sha')) {
+      context.handle(
+        _startShaMeta,
+        startSha.isAcceptableOrUnknown(data['start_sha']!, _startShaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startShaMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('end_branch')) {
+      context.handle(
+        _endBranchMeta,
+        endBranch.isAcceptableOrUnknown(data['end_branch']!, _endBranchMeta),
+      );
+    }
+    if (data.containsKey('end_head')) {
+      context.handle(
+        _endHeadMeta,
+        endHead.isAcceptableOrUnknown(data['end_head']!, _endHeadMeta),
+      );
+    }
+    if (data.containsKey('end_sha')) {
+      context.handle(
+        _endShaMeta,
+        endSha.isAcceptableOrUnknown(data['end_sha']!, _endShaMeta),
+      );
+    }
+    if (data.containsKey('files')) {
+      context.handle(
+        _filesMeta,
+        files.isAcceptableOrUnknown(data['files']!, _filesMeta),
+      );
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    }
+    if (data.containsKey('changed_files')) {
+      context.handle(
+        _changedFilesMeta,
+        changedFiles.isAcceptableOrUnknown(
+          data['changed_files']!,
+          _changedFilesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('commits')) {
+      context.handle(
+        _commitsMeta,
+        commits.isAcceptableOrUnknown(data['commits']!, _commitsMeta),
+      );
+    }
+    if (data.containsKey('large_files')) {
+      context.handle(
+        _largeFilesMeta,
+        largeFiles.isAcceptableOrUnknown(data['large_files']!, _largeFilesMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('undo_branch')) {
+      context.handle(
+        _undoBranchMeta,
+        undoBranch.isAcceptableOrUnknown(data['undo_branch']!, _undoBranchMeta),
+      );
+    }
+    if (data.containsKey('undo_head')) {
+      context.handle(
+        _undoHeadMeta,
+        undoHead.isAcceptableOrUnknown(data['undo_head']!, _undoHeadMeta),
+      );
+    }
+    if (data.containsKey('undo_sha')) {
+      context.handle(
+        _undoShaMeta,
+        undoSha.isAcceptableOrUnknown(data['undo_sha']!, _undoShaMeta),
+      );
+    }
+    if (data.containsKey('undone_head')) {
+      context.handle(
+        _undoneHeadMeta,
+        undoneHead.isAcceptableOrUnknown(data['undone_head']!, _undoneHeadMeta),
+      );
+    }
+    if (data.containsKey('undone_sha')) {
+      context.handle(
+        _undoneShaMeta,
+        undoneSha.isAcceptableOrUnknown(data['undone_sha']!, _undoneShaMeta),
+      );
+    }
+    if (data.containsKey('used_at')) {
+      context.handle(
+        _usedAtMeta,
+        usedAt.isAcceptableOrUnknown(data['used_at']!, _usedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RestorePoint map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RestorePoint(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      worktreePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_path'],
+      )!,
+      turn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}turn'],
+      )!,
+      prompt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prompt'],
+      )!,
+      eventSeq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}event_seq'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      startBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_branch'],
+      ),
+      startHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_head'],
+      )!,
+      startSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_sha'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      endBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_branch'],
+      ),
+      endHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_head'],
+      ),
+      endSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_sha'],
+      ),
+      files: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}files'],
+      )!,
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes'],
+      )!,
+      changedFiles: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}changed_files'],
+      )!,
+      commits: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}commits'],
+      )!,
+      largeFiles: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}large_files'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      undoBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_branch'],
+      ),
+      undoHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_head'],
+      ),
+      undoSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_sha'],
+      ),
+      undoneHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undone_head'],
+      ),
+      undoneSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undone_sha'],
+      ),
+      usedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}used_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RestorePointsTable createAlias(String alias) {
+    return $RestorePointsTable(attachedDatabase, alias);
+  }
+}
+
+class RestorePoint extends DataClass implements Insertable<RestorePoint> {
+  final int id;
+  final int workspaceId;
+
+  /// The session of the turn, or the conversation of a VIBE (one of them).
+  final String? sessionId;
+  final int? conversationId;
+
+  /// Worktree the turn ran in (the point is of this directory, P8).
+  final String worktreePath;
+
+  /// 1, 2, 3… within the session.
+  final int turn;
+
+  /// Start of the message that opened the turn (the dialog title).
+  final String prompt;
+
+  /// `seq` of that message in the timeline (the marker, R10).
+  final int? eventSeq;
+  final DateTime startedAt;
+
+  /// Start of the turn: branch (null = detached HEAD), HEAD and the commit
+  /// with the whole working tree (= HEAD when the tree was clean).
+  final String? startBranch;
+  final String startHead;
+  final String startSha;
+
+  /// End of the turn (null while it runs or when it was not recorded).
+  final DateTime? endedAt;
+  final String? endBranch;
+  final String? endHead;
+  final String? endSha;
+
+  /// Uncommitted files kept at the start and their size (the tooltip).
+  final int files;
+  final int bytes;
+
+  /// What the turn changed (files, commits): the list of the panel.
+  final int changedFiles;
+  final int commits;
+
+  /// JSON array of untracked files above the size limit (R4): not kept.
+  final String largeFiles;
+
+  /// `ativo`, `desfeito` or `refeito` (R9, R11).
+  final String state;
+
+  /// "Antes de desfazer" (R8): branch, HEAD and working tree before the
+  /// undo, and the working tree right after it (what Refazer compares).
+  final String? undoBranch;
+  final String? undoHead;
+  final String? undoSha;
+  final String? undoneHead;
+  final String? undoneSha;
+
+  /// Last time it was recorded, undone or redone (the 14 days of R13).
+  final DateTime usedAt;
+  const RestorePoint({
+    required this.id,
+    required this.workspaceId,
+    this.sessionId,
+    this.conversationId,
+    required this.worktreePath,
+    required this.turn,
+    required this.prompt,
+    this.eventSeq,
+    required this.startedAt,
+    this.startBranch,
+    required this.startHead,
+    required this.startSha,
+    this.endedAt,
+    this.endBranch,
+    this.endHead,
+    this.endSha,
+    required this.files,
+    required this.bytes,
+    required this.changedFiles,
+    required this.commits,
+    required this.largeFiles,
+    required this.state,
+    this.undoBranch,
+    this.undoHead,
+    this.undoSha,
+    this.undoneHead,
+    this.undoneSha,
+    required this.usedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    map['worktree_path'] = Variable<String>(worktreePath);
+    map['turn'] = Variable<int>(turn);
+    map['prompt'] = Variable<String>(prompt);
+    if (!nullToAbsent || eventSeq != null) {
+      map['event_seq'] = Variable<int>(eventSeq);
+    }
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || startBranch != null) {
+      map['start_branch'] = Variable<String>(startBranch);
+    }
+    map['start_head'] = Variable<String>(startHead);
+    map['start_sha'] = Variable<String>(startSha);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || endBranch != null) {
+      map['end_branch'] = Variable<String>(endBranch);
+    }
+    if (!nullToAbsent || endHead != null) {
+      map['end_head'] = Variable<String>(endHead);
+    }
+    if (!nullToAbsent || endSha != null) {
+      map['end_sha'] = Variable<String>(endSha);
+    }
+    map['files'] = Variable<int>(files);
+    map['bytes'] = Variable<int>(bytes);
+    map['changed_files'] = Variable<int>(changedFiles);
+    map['commits'] = Variable<int>(commits);
+    map['large_files'] = Variable<String>(largeFiles);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || undoBranch != null) {
+      map['undo_branch'] = Variable<String>(undoBranch);
+    }
+    if (!nullToAbsent || undoHead != null) {
+      map['undo_head'] = Variable<String>(undoHead);
+    }
+    if (!nullToAbsent || undoSha != null) {
+      map['undo_sha'] = Variable<String>(undoSha);
+    }
+    if (!nullToAbsent || undoneHead != null) {
+      map['undone_head'] = Variable<String>(undoneHead);
+    }
+    if (!nullToAbsent || undoneSha != null) {
+      map['undone_sha'] = Variable<String>(undoneSha);
+    }
+    map['used_at'] = Variable<DateTime>(usedAt);
+    return map;
+  }
+
+  RestorePointsCompanion toCompanion(bool nullToAbsent) {
+    return RestorePointsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      worktreePath: Value(worktreePath),
+      turn: Value(turn),
+      prompt: Value(prompt),
+      eventSeq: eventSeq == null && nullToAbsent
+          ? const Value.absent()
+          : Value(eventSeq),
+      startedAt: Value(startedAt),
+      startBranch: startBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startBranch),
+      startHead: Value(startHead),
+      startSha: Value(startSha),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      endBranch: endBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endBranch),
+      endHead: endHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endHead),
+      endSha: endSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endSha),
+      files: Value(files),
+      bytes: Value(bytes),
+      changedFiles: Value(changedFiles),
+      commits: Value(commits),
+      largeFiles: Value(largeFiles),
+      state: Value(state),
+      undoBranch: undoBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoBranch),
+      undoHead: undoHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoHead),
+      undoSha: undoSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoSha),
+      undoneHead: undoneHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneHead),
+      undoneSha: undoneSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneSha),
+      usedAt: Value(usedAt),
+    );
+  }
+
+  factory RestorePoint.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RestorePoint(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      worktreePath: serializer.fromJson<String>(json['worktreePath']),
+      turn: serializer.fromJson<int>(json['turn']),
+      prompt: serializer.fromJson<String>(json['prompt']),
+      eventSeq: serializer.fromJson<int?>(json['eventSeq']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      startBranch: serializer.fromJson<String?>(json['startBranch']),
+      startHead: serializer.fromJson<String>(json['startHead']),
+      startSha: serializer.fromJson<String>(json['startSha']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      endBranch: serializer.fromJson<String?>(json['endBranch']),
+      endHead: serializer.fromJson<String?>(json['endHead']),
+      endSha: serializer.fromJson<String?>(json['endSha']),
+      files: serializer.fromJson<int>(json['files']),
+      bytes: serializer.fromJson<int>(json['bytes']),
+      changedFiles: serializer.fromJson<int>(json['changedFiles']),
+      commits: serializer.fromJson<int>(json['commits']),
+      largeFiles: serializer.fromJson<String>(json['largeFiles']),
+      state: serializer.fromJson<String>(json['state']),
+      undoBranch: serializer.fromJson<String?>(json['undoBranch']),
+      undoHead: serializer.fromJson<String?>(json['undoHead']),
+      undoSha: serializer.fromJson<String?>(json['undoSha']),
+      undoneHead: serializer.fromJson<String?>(json['undoneHead']),
+      undoneSha: serializer.fromJson<String?>(json['undoneSha']),
+      usedAt: serializer.fromJson<DateTime>(json['usedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'worktreePath': serializer.toJson<String>(worktreePath),
+      'turn': serializer.toJson<int>(turn),
+      'prompt': serializer.toJson<String>(prompt),
+      'eventSeq': serializer.toJson<int?>(eventSeq),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'startBranch': serializer.toJson<String?>(startBranch),
+      'startHead': serializer.toJson<String>(startHead),
+      'startSha': serializer.toJson<String>(startSha),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'endBranch': serializer.toJson<String?>(endBranch),
+      'endHead': serializer.toJson<String?>(endHead),
+      'endSha': serializer.toJson<String?>(endSha),
+      'files': serializer.toJson<int>(files),
+      'bytes': serializer.toJson<int>(bytes),
+      'changedFiles': serializer.toJson<int>(changedFiles),
+      'commits': serializer.toJson<int>(commits),
+      'largeFiles': serializer.toJson<String>(largeFiles),
+      'state': serializer.toJson<String>(state),
+      'undoBranch': serializer.toJson<String?>(undoBranch),
+      'undoHead': serializer.toJson<String?>(undoHead),
+      'undoSha': serializer.toJson<String?>(undoSha),
+      'undoneHead': serializer.toJson<String?>(undoneHead),
+      'undoneSha': serializer.toJson<String?>(undoneSha),
+      'usedAt': serializer.toJson<DateTime>(usedAt),
+    };
+  }
+
+  RestorePoint copyWith({
+    int? id,
+    int? workspaceId,
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    String? worktreePath,
+    int? turn,
+    String? prompt,
+    Value<int?> eventSeq = const Value.absent(),
+    DateTime? startedAt,
+    Value<String?> startBranch = const Value.absent(),
+    String? startHead,
+    String? startSha,
+    Value<DateTime?> endedAt = const Value.absent(),
+    Value<String?> endBranch = const Value.absent(),
+    Value<String?> endHead = const Value.absent(),
+    Value<String?> endSha = const Value.absent(),
+    int? files,
+    int? bytes,
+    int? changedFiles,
+    int? commits,
+    String? largeFiles,
+    String? state,
+    Value<String?> undoBranch = const Value.absent(),
+    Value<String?> undoHead = const Value.absent(),
+    Value<String?> undoSha = const Value.absent(),
+    Value<String?> undoneHead = const Value.absent(),
+    Value<String?> undoneSha = const Value.absent(),
+    DateTime? usedAt,
+  }) => RestorePoint(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    worktreePath: worktreePath ?? this.worktreePath,
+    turn: turn ?? this.turn,
+    prompt: prompt ?? this.prompt,
+    eventSeq: eventSeq.present ? eventSeq.value : this.eventSeq,
+    startedAt: startedAt ?? this.startedAt,
+    startBranch: startBranch.present ? startBranch.value : this.startBranch,
+    startHead: startHead ?? this.startHead,
+    startSha: startSha ?? this.startSha,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    endBranch: endBranch.present ? endBranch.value : this.endBranch,
+    endHead: endHead.present ? endHead.value : this.endHead,
+    endSha: endSha.present ? endSha.value : this.endSha,
+    files: files ?? this.files,
+    bytes: bytes ?? this.bytes,
+    changedFiles: changedFiles ?? this.changedFiles,
+    commits: commits ?? this.commits,
+    largeFiles: largeFiles ?? this.largeFiles,
+    state: state ?? this.state,
+    undoBranch: undoBranch.present ? undoBranch.value : this.undoBranch,
+    undoHead: undoHead.present ? undoHead.value : this.undoHead,
+    undoSha: undoSha.present ? undoSha.value : this.undoSha,
+    undoneHead: undoneHead.present ? undoneHead.value : this.undoneHead,
+    undoneSha: undoneSha.present ? undoneSha.value : this.undoneSha,
+    usedAt: usedAt ?? this.usedAt,
+  );
+  RestorePoint copyWithCompanion(RestorePointsCompanion data) {
+    return RestorePoint(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      worktreePath: data.worktreePath.present
+          ? data.worktreePath.value
+          : this.worktreePath,
+      turn: data.turn.present ? data.turn.value : this.turn,
+      prompt: data.prompt.present ? data.prompt.value : this.prompt,
+      eventSeq: data.eventSeq.present ? data.eventSeq.value : this.eventSeq,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      startBranch: data.startBranch.present
+          ? data.startBranch.value
+          : this.startBranch,
+      startHead: data.startHead.present ? data.startHead.value : this.startHead,
+      startSha: data.startSha.present ? data.startSha.value : this.startSha,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      endBranch: data.endBranch.present ? data.endBranch.value : this.endBranch,
+      endHead: data.endHead.present ? data.endHead.value : this.endHead,
+      endSha: data.endSha.present ? data.endSha.value : this.endSha,
+      files: data.files.present ? data.files.value : this.files,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+      changedFiles: data.changedFiles.present
+          ? data.changedFiles.value
+          : this.changedFiles,
+      commits: data.commits.present ? data.commits.value : this.commits,
+      largeFiles: data.largeFiles.present
+          ? data.largeFiles.value
+          : this.largeFiles,
+      state: data.state.present ? data.state.value : this.state,
+      undoBranch: data.undoBranch.present
+          ? data.undoBranch.value
+          : this.undoBranch,
+      undoHead: data.undoHead.present ? data.undoHead.value : this.undoHead,
+      undoSha: data.undoSha.present ? data.undoSha.value : this.undoSha,
+      undoneHead: data.undoneHead.present
+          ? data.undoneHead.value
+          : this.undoneHead,
+      undoneSha: data.undoneSha.present ? data.undoneSha.value : this.undoneSha,
+      usedAt: data.usedAt.present ? data.usedAt.value : this.usedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorePoint(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('turn: $turn, ')
+          ..write('prompt: $prompt, ')
+          ..write('eventSeq: $eventSeq, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('startBranch: $startBranch, ')
+          ..write('startHead: $startHead, ')
+          ..write('startSha: $startSha, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('endBranch: $endBranch, ')
+          ..write('endHead: $endHead, ')
+          ..write('endSha: $endSha, ')
+          ..write('files: $files, ')
+          ..write('bytes: $bytes, ')
+          ..write('changedFiles: $changedFiles, ')
+          ..write('commits: $commits, ')
+          ..write('largeFiles: $largeFiles, ')
+          ..write('state: $state, ')
+          ..write('undoBranch: $undoBranch, ')
+          ..write('undoHead: $undoHead, ')
+          ..write('undoSha: $undoSha, ')
+          ..write('undoneHead: $undoneHead, ')
+          ..write('undoneSha: $undoneSha, ')
+          ..write('usedAt: $usedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    workspaceId,
+    sessionId,
+    conversationId,
+    worktreePath,
+    turn,
+    prompt,
+    eventSeq,
+    startedAt,
+    startBranch,
+    startHead,
+    startSha,
+    endedAt,
+    endBranch,
+    endHead,
+    endSha,
+    files,
+    bytes,
+    changedFiles,
+    commits,
+    largeFiles,
+    state,
+    undoBranch,
+    undoHead,
+    undoSha,
+    undoneHead,
+    undoneSha,
+    usedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RestorePoint &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.worktreePath == this.worktreePath &&
+          other.turn == this.turn &&
+          other.prompt == this.prompt &&
+          other.eventSeq == this.eventSeq &&
+          other.startedAt == this.startedAt &&
+          other.startBranch == this.startBranch &&
+          other.startHead == this.startHead &&
+          other.startSha == this.startSha &&
+          other.endedAt == this.endedAt &&
+          other.endBranch == this.endBranch &&
+          other.endHead == this.endHead &&
+          other.endSha == this.endSha &&
+          other.files == this.files &&
+          other.bytes == this.bytes &&
+          other.changedFiles == this.changedFiles &&
+          other.commits == this.commits &&
+          other.largeFiles == this.largeFiles &&
+          other.state == this.state &&
+          other.undoBranch == this.undoBranch &&
+          other.undoHead == this.undoHead &&
+          other.undoSha == this.undoSha &&
+          other.undoneHead == this.undoneHead &&
+          other.undoneSha == this.undoneSha &&
+          other.usedAt == this.usedAt);
+}
+
+class RestorePointsCompanion extends UpdateCompanion<RestorePoint> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<String> worktreePath;
+  final Value<int> turn;
+  final Value<String> prompt;
+  final Value<int?> eventSeq;
+  final Value<DateTime> startedAt;
+  final Value<String?> startBranch;
+  final Value<String> startHead;
+  final Value<String> startSha;
+  final Value<DateTime?> endedAt;
+  final Value<String?> endBranch;
+  final Value<String?> endHead;
+  final Value<String?> endSha;
+  final Value<int> files;
+  final Value<int> bytes;
+  final Value<int> changedFiles;
+  final Value<int> commits;
+  final Value<String> largeFiles;
+  final Value<String> state;
+  final Value<String?> undoBranch;
+  final Value<String?> undoHead;
+  final Value<String?> undoSha;
+  final Value<String?> undoneHead;
+  final Value<String?> undoneSha;
+  final Value<DateTime> usedAt;
+  const RestorePointsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.worktreePath = const Value.absent(),
+    this.turn = const Value.absent(),
+    this.prompt = const Value.absent(),
+    this.eventSeq = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.startBranch = const Value.absent(),
+    this.startHead = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.endBranch = const Value.absent(),
+    this.endHead = const Value.absent(),
+    this.endSha = const Value.absent(),
+    this.files = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.changedFiles = const Value.absent(),
+    this.commits = const Value.absent(),
+    this.largeFiles = const Value.absent(),
+    this.state = const Value.absent(),
+    this.undoBranch = const Value.absent(),
+    this.undoHead = const Value.absent(),
+    this.undoSha = const Value.absent(),
+    this.undoneHead = const Value.absent(),
+    this.undoneSha = const Value.absent(),
+    this.usedAt = const Value.absent(),
+  });
+  RestorePointsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    required String worktreePath,
+    required int turn,
+    this.prompt = const Value.absent(),
+    this.eventSeq = const Value.absent(),
+    required DateTime startedAt,
+    this.startBranch = const Value.absent(),
+    required String startHead,
+    required String startSha,
+    this.endedAt = const Value.absent(),
+    this.endBranch = const Value.absent(),
+    this.endHead = const Value.absent(),
+    this.endSha = const Value.absent(),
+    this.files = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.changedFiles = const Value.absent(),
+    this.commits = const Value.absent(),
+    this.largeFiles = const Value.absent(),
+    this.state = const Value.absent(),
+    this.undoBranch = const Value.absent(),
+    this.undoHead = const Value.absent(),
+    this.undoSha = const Value.absent(),
+    this.undoneHead = const Value.absent(),
+    this.undoneSha = const Value.absent(),
+    this.usedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       worktreePath = Value(worktreePath),
+       turn = Value(turn),
+       startedAt = Value(startedAt),
+       startHead = Value(startHead),
+       startSha = Value(startSha);
+  static Insertable<RestorePoint> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<String>? worktreePath,
+    Expression<int>? turn,
+    Expression<String>? prompt,
+    Expression<int>? eventSeq,
+    Expression<DateTime>? startedAt,
+    Expression<String>? startBranch,
+    Expression<String>? startHead,
+    Expression<String>? startSha,
+    Expression<DateTime>? endedAt,
+    Expression<String>? endBranch,
+    Expression<String>? endHead,
+    Expression<String>? endSha,
+    Expression<int>? files,
+    Expression<int>? bytes,
+    Expression<int>? changedFiles,
+    Expression<int>? commits,
+    Expression<String>? largeFiles,
+    Expression<String>? state,
+    Expression<String>? undoBranch,
+    Expression<String>? undoHead,
+    Expression<String>? undoSha,
+    Expression<String>? undoneHead,
+    Expression<String>? undoneSha,
+    Expression<DateTime>? usedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (worktreePath != null) 'worktree_path': worktreePath,
+      if (turn != null) 'turn': turn,
+      if (prompt != null) 'prompt': prompt,
+      if (eventSeq != null) 'event_seq': eventSeq,
+      if (startedAt != null) 'started_at': startedAt,
+      if (startBranch != null) 'start_branch': startBranch,
+      if (startHead != null) 'start_head': startHead,
+      if (startSha != null) 'start_sha': startSha,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (endBranch != null) 'end_branch': endBranch,
+      if (endHead != null) 'end_head': endHead,
+      if (endSha != null) 'end_sha': endSha,
+      if (files != null) 'files': files,
+      if (bytes != null) 'bytes': bytes,
+      if (changedFiles != null) 'changed_files': changedFiles,
+      if (commits != null) 'commits': commits,
+      if (largeFiles != null) 'large_files': largeFiles,
+      if (state != null) 'state': state,
+      if (undoBranch != null) 'undo_branch': undoBranch,
+      if (undoHead != null) 'undo_head': undoHead,
+      if (undoSha != null) 'undo_sha': undoSha,
+      if (undoneHead != null) 'undone_head': undoneHead,
+      if (undoneSha != null) 'undone_sha': undoneSha,
+      if (usedAt != null) 'used_at': usedAt,
+    });
+  }
+
+  RestorePointsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<String>? worktreePath,
+    Value<int>? turn,
+    Value<String>? prompt,
+    Value<int?>? eventSeq,
+    Value<DateTime>? startedAt,
+    Value<String?>? startBranch,
+    Value<String>? startHead,
+    Value<String>? startSha,
+    Value<DateTime?>? endedAt,
+    Value<String?>? endBranch,
+    Value<String?>? endHead,
+    Value<String?>? endSha,
+    Value<int>? files,
+    Value<int>? bytes,
+    Value<int>? changedFiles,
+    Value<int>? commits,
+    Value<String>? largeFiles,
+    Value<String>? state,
+    Value<String?>? undoBranch,
+    Value<String?>? undoHead,
+    Value<String?>? undoSha,
+    Value<String?>? undoneHead,
+    Value<String?>? undoneSha,
+    Value<DateTime>? usedAt,
+  }) {
+    return RestorePointsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      worktreePath: worktreePath ?? this.worktreePath,
+      turn: turn ?? this.turn,
+      prompt: prompt ?? this.prompt,
+      eventSeq: eventSeq ?? this.eventSeq,
+      startedAt: startedAt ?? this.startedAt,
+      startBranch: startBranch ?? this.startBranch,
+      startHead: startHead ?? this.startHead,
+      startSha: startSha ?? this.startSha,
+      endedAt: endedAt ?? this.endedAt,
+      endBranch: endBranch ?? this.endBranch,
+      endHead: endHead ?? this.endHead,
+      endSha: endSha ?? this.endSha,
+      files: files ?? this.files,
+      bytes: bytes ?? this.bytes,
+      changedFiles: changedFiles ?? this.changedFiles,
+      commits: commits ?? this.commits,
+      largeFiles: largeFiles ?? this.largeFiles,
+      state: state ?? this.state,
+      undoBranch: undoBranch ?? this.undoBranch,
+      undoHead: undoHead ?? this.undoHead,
+      undoSha: undoSha ?? this.undoSha,
+      undoneHead: undoneHead ?? this.undoneHead,
+      undoneSha: undoneSha ?? this.undoneSha,
+      usedAt: usedAt ?? this.usedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (worktreePath.present) {
+      map['worktree_path'] = Variable<String>(worktreePath.value);
+    }
+    if (turn.present) {
+      map['turn'] = Variable<int>(turn.value);
+    }
+    if (prompt.present) {
+      map['prompt'] = Variable<String>(prompt.value);
+    }
+    if (eventSeq.present) {
+      map['event_seq'] = Variable<int>(eventSeq.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (startBranch.present) {
+      map['start_branch'] = Variable<String>(startBranch.value);
+    }
+    if (startHead.present) {
+      map['start_head'] = Variable<String>(startHead.value);
+    }
+    if (startSha.present) {
+      map['start_sha'] = Variable<String>(startSha.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (endBranch.present) {
+      map['end_branch'] = Variable<String>(endBranch.value);
+    }
+    if (endHead.present) {
+      map['end_head'] = Variable<String>(endHead.value);
+    }
+    if (endSha.present) {
+      map['end_sha'] = Variable<String>(endSha.value);
+    }
+    if (files.present) {
+      map['files'] = Variable<int>(files.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<int>(bytes.value);
+    }
+    if (changedFiles.present) {
+      map['changed_files'] = Variable<int>(changedFiles.value);
+    }
+    if (commits.present) {
+      map['commits'] = Variable<int>(commits.value);
+    }
+    if (largeFiles.present) {
+      map['large_files'] = Variable<String>(largeFiles.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (undoBranch.present) {
+      map['undo_branch'] = Variable<String>(undoBranch.value);
+    }
+    if (undoHead.present) {
+      map['undo_head'] = Variable<String>(undoHead.value);
+    }
+    if (undoSha.present) {
+      map['undo_sha'] = Variable<String>(undoSha.value);
+    }
+    if (undoneHead.present) {
+      map['undone_head'] = Variable<String>(undoneHead.value);
+    }
+    if (undoneSha.present) {
+      map['undone_sha'] = Variable<String>(undoneSha.value);
+    }
+    if (usedAt.present) {
+      map['used_at'] = Variable<DateTime>(usedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorePointsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('turn: $turn, ')
+          ..write('prompt: $prompt, ')
+          ..write('eventSeq: $eventSeq, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('startBranch: $startBranch, ')
+          ..write('startHead: $startHead, ')
+          ..write('startSha: $startSha, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('endBranch: $endBranch, ')
+          ..write('endHead: $endHead, ')
+          ..write('endSha: $endSha, ')
+          ..write('files: $files, ')
+          ..write('bytes: $bytes, ')
+          ..write('changedFiles: $changedFiles, ')
+          ..write('commits: $commits, ')
+          ..write('largeFiles: $largeFiles, ')
+          ..write('state: $state, ')
+          ..write('undoBranch: $undoBranch, ')
+          ..write('undoHead: $undoHead, ')
+          ..write('undoSha: $undoSha, ')
+          ..write('undoneHead: $undoneHead, ')
+          ..write('undoneSha: $undoneSha, ')
+          ..write('usedAt: $usedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SecretWaiversTable extends SecretWaivers
+    with TableInfo<$SecretWaiversTable, SecretWaiver> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SecretWaiversTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _ruleMeta = const VerificationMeta('rule');
+  @override
+  late final GeneratedColumn<String> rule = GeneratedColumn<String>(
+    'rule',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fingerprintMeta = const VerificationMeta(
+    'fingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> fingerprint = GeneratedColumn<String>(
+    'fingerprint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    rule,
+    path,
+    fingerprint,
+    scope,
+    reason,
+    origin,
+    createdAt,
+    lastUsedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'secret_waivers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SecretWaiver> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('rule')) {
+      context.handle(
+        _ruleMeta,
+        rule.isAcceptableOrUnknown(data['rule']!, _ruleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ruleMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('fingerprint')) {
+      context.handle(
+        _fingerprintMeta,
+        fingerprint.isAcceptableOrUnknown(
+          data['fingerprint']!,
+          _fingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fingerprintMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scopeMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_originMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SecretWaiver map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SecretWaiver(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      rule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      fingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fingerprint'],
+      )!,
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SecretWaiversTable createAlias(String alias) {
+    return $SecretWaiversTable(attachedDatabase, alias);
+  }
+}
+
+class SecretWaiver extends DataClass implements Insertable<SecretWaiver> {
+  final int id;
+  final int workspaceId;
+
+  /// Id of the rule (`stripe`, `env-file`…).
+  final String rule;
+
+  /// Path of the finding, relative to the repository.
+  final String path;
+
+  /// Fingerprint of the value (of the added content, for a sensitive file).
+  final String fingerprint;
+
+  /// `valor` (the same value in any file) or `arquivo` (the rule in this
+  /// path).
+  final String scope;
+  final String reason;
+
+  /// Who asked: `sessao:<id>`, `app` or `manual`.
+  final String origin;
+  final DateTime createdAt;
+
+  /// Last time it matched a finding; 90 days without a match removes it
+  /// (R12).
+  final DateTime lastUsedAt;
+  const SecretWaiver({
+    required this.id,
+    required this.workspaceId,
+    required this.rule,
+    required this.path,
+    required this.fingerprint,
+    required this.scope,
+    required this.reason,
+    required this.origin,
+    required this.createdAt,
+    required this.lastUsedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['rule'] = Variable<String>(rule);
+    map['path'] = Variable<String>(path);
+    map['fingerprint'] = Variable<String>(fingerprint);
+    map['scope'] = Variable<String>(scope);
+    map['reason'] = Variable<String>(reason);
+    map['origin'] = Variable<String>(origin);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    return map;
+  }
+
+  SecretWaiversCompanion toCompanion(bool nullToAbsent) {
+    return SecretWaiversCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      rule: Value(rule),
+      path: Value(path),
+      fingerprint: Value(fingerprint),
+      scope: Value(scope),
+      reason: Value(reason),
+      origin: Value(origin),
+      createdAt: Value(createdAt),
+      lastUsedAt: Value(lastUsedAt),
+    );
+  }
+
+  factory SecretWaiver.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SecretWaiver(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      rule: serializer.fromJson<String>(json['rule']),
+      path: serializer.fromJson<String>(json['path']),
+      fingerprint: serializer.fromJson<String>(json['fingerprint']),
+      scope: serializer.fromJson<String>(json['scope']),
+      reason: serializer.fromJson<String>(json['reason']),
+      origin: serializer.fromJson<String>(json['origin']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastUsedAt: serializer.fromJson<DateTime>(json['lastUsedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'rule': serializer.toJson<String>(rule),
+      'path': serializer.toJson<String>(path),
+      'fingerprint': serializer.toJson<String>(fingerprint),
+      'scope': serializer.toJson<String>(scope),
+      'reason': serializer.toJson<String>(reason),
+      'origin': serializer.toJson<String>(origin),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastUsedAt': serializer.toJson<DateTime>(lastUsedAt),
+    };
+  }
+
+  SecretWaiver copyWith({
+    int? id,
+    int? workspaceId,
+    String? rule,
+    String? path,
+    String? fingerprint,
+    String? scope,
+    String? reason,
+    String? origin,
+    DateTime? createdAt,
+    DateTime? lastUsedAt,
+  }) => SecretWaiver(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    rule: rule ?? this.rule,
+    path: path ?? this.path,
+    fingerprint: fingerprint ?? this.fingerprint,
+    scope: scope ?? this.scope,
+    reason: reason ?? this.reason,
+    origin: origin ?? this.origin,
+    createdAt: createdAt ?? this.createdAt,
+    lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+  );
+  SecretWaiver copyWithCompanion(SecretWaiversCompanion data) {
+    return SecretWaiver(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      path: data.path.present ? data.path.value : this.path,
+      fingerprint: data.fingerprint.present
+          ? data.fingerprint.value
+          : this.fingerprint,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecretWaiver(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('rule: $rule, ')
+          ..write('path: $path, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('scope: $scope, ')
+          ..write('reason: $reason, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    rule,
+    path,
+    fingerprint,
+    scope,
+    reason,
+    origin,
+    createdAt,
+    lastUsedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SecretWaiver &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.rule == this.rule &&
+          other.path == this.path &&
+          other.fingerprint == this.fingerprint &&
+          other.scope == this.scope &&
+          other.reason == this.reason &&
+          other.origin == this.origin &&
+          other.createdAt == this.createdAt &&
+          other.lastUsedAt == this.lastUsedAt);
+}
+
+class SecretWaiversCompanion extends UpdateCompanion<SecretWaiver> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> rule;
+  final Value<String> path;
+  final Value<String> fingerprint;
+  final Value<String> scope;
+  final Value<String> reason;
+  final Value<String> origin;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> lastUsedAt;
+  const SecretWaiversCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.path = const Value.absent(),
+    this.fingerprint = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+  });
+  SecretWaiversCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String rule,
+    required String path,
+    required String fingerprint,
+    required String scope,
+    required String reason,
+    required String origin,
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       rule = Value(rule),
+       path = Value(path),
+       fingerprint = Value(fingerprint),
+       scope = Value(scope),
+       reason = Value(reason),
+       origin = Value(origin);
+  static Insertable<SecretWaiver> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? rule,
+    Expression<String>? path,
+    Expression<String>? fingerprint,
+    Expression<String>? scope,
+    Expression<String>? reason,
+    Expression<String>? origin,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastUsedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (rule != null) 'rule': rule,
+      if (path != null) 'path': path,
+      if (fingerprint != null) 'fingerprint': fingerprint,
+      if (scope != null) 'scope': scope,
+      if (reason != null) 'reason': reason,
+      if (origin != null) 'origin': origin,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+    });
+  }
+
+  SecretWaiversCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? rule,
+    Value<String>? path,
+    Value<String>? fingerprint,
+    Value<String>? scope,
+    Value<String>? reason,
+    Value<String>? origin,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? lastUsedAt,
+  }) {
+    return SecretWaiversCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      rule: rule ?? this.rule,
+      path: path ?? this.path,
+      fingerprint: fingerprint ?? this.fingerprint,
+      scope: scope ?? this.scope,
+      reason: reason ?? this.reason,
+      origin: origin ?? this.origin,
+      createdAt: createdAt ?? this.createdAt,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(rule.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (fingerprint.present) {
+      map['fingerprint'] = Variable<String>(fingerprint.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecretWaiversCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('rule: $rule, ')
+          ..write('path: $path, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('scope: $scope, ')
+          ..write('reason: $reason, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15956,9 +19864,33 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $StepRunsTable stepRuns = $StepRunsTable(this);
   late final $SpecNotesTable specNotes = $SpecNotesTable(this);
   late final $SnippetsTable snippets = $SnippetsTable(this);
+  late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
+  late final $UsageEntriesTable usageEntries = $UsageEntriesTable(this);
+  late final $RestorePointsTable restorePoints = $RestorePointsTable(this);
+  late final $SecretWaiversTable secretWaivers = $SecretWaiversTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
+  );
+  late final Index activityEventsAt = Index(
+    'activity_events_at',
+    'CREATE INDEX activity_events_at ON activity_events (workspace_id, at)',
+  );
+  late final Index usageEntriesSpec = Index(
+    'usage_entries_spec',
+    'CREATE INDEX usage_entries_spec ON usage_entries (spec_id, at)',
+  );
+  late final Index usageEntriesWorkspace = Index(
+    'usage_entries_workspace',
+    'CREATE INDEX usage_entries_workspace ON usage_entries (workspace_id, at)',
+  );
+  late final Index restorePointsSession = Index(
+    'restore_points_session',
+    'CREATE INDEX restore_points_session ON restore_points (session_id, turn)',
+  );
+  late final Index secretWaiversWorkspace = Index(
+    'secret_waivers_workspace',
+    'CREATE INDEX secret_waivers_workspace ON secret_waivers (workspace_id)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -15991,7 +19923,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stepRuns,
     specNotes,
     snippets,
+    activityEvents,
+    usageEntries,
+    restorePoints,
+    secretWaivers,
     snippetsBodyHash,
+    activityEventsAt,
+    usageEntriesSpec,
+    usageEntriesWorkspace,
+    restorePointsSession,
+    secretWaiversWorkspace,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -16184,6 +20125,69 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('snippets', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('activity_events', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversations',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversations',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('secret_waivers', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -16368,6 +20372,78 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ActivityEventsTable, List<ActivityEvent>>
+  _activityEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activityEvents,
+    aliasName: 'workspaces__id__activity_events__workspace_id',
+  );
+
+  $$ActivityEventsTableProcessedTableManager get activityEventsRefs {
+    final manager = $$ActivityEventsTableTableManager(
+      $_db,
+      $_db.activityEvents,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activityEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'workspaces__id__usage_entries__workspace_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'workspaces__id__restore_points__workspace_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SecretWaiversTable, List<SecretWaiver>>
+  _secretWaiversRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.secretWaivers,
+    aliasName: 'workspaces__id__secret_waivers__workspace_id',
+  );
+
+  $$SecretWaiversTableProcessedTableManager get secretWaiversRefs {
+    final manager = $$SecretWaiversTableTableManager(
+      $_db,
+      $_db.secretWaivers,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_secretWaiversRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -16619,6 +20695,106 @@ class $$WorkspacesTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> activityEventsRefs(
+    Expression<bool> Function($$ActivityEventsTableFilterComposer f) f,
+  ) {
+    final $$ActivityEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> secretWaiversRefs(
+    Expression<bool> Function($$SecretWaiversTableFilterComposer f) f,
+  ) {
+    final $$SecretWaiversTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.secretWaivers,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SecretWaiversTableFilterComposer(
+            $db: $db,
+            $table: $db.secretWaivers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -16904,6 +21080,106 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> activityEventsRefs<T extends Object>(
+    Expression<T> Function($$ActivityEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ActivityEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> secretWaiversRefs<T extends Object>(
+    Expression<T> Function($$SecretWaiversTableAnnotationComposer a) f,
+  ) {
+    final $$SecretWaiversTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.secretWaivers,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SecretWaiversTableAnnotationComposer(
+            $db: $db,
+            $table: $db.secretWaivers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -16929,6 +21205,10 @@ class $$WorkspacesTableTableManager
             bool specDraftsRefs,
             bool autopilotStatesRefs,
             bool snippetsRefs,
+            bool activityEventsRefs,
+            bool usageEntriesRefs,
+            bool restorePointsRefs,
+            bool secretWaiversRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -16985,6 +21265,10 @@ class $$WorkspacesTableTableManager
                 specDraftsRefs = false,
                 autopilotStatesRefs = false,
                 snippetsRefs = false,
+                activityEventsRefs = false,
+                usageEntriesRefs = false,
+                restorePointsRefs = false,
+                secretWaiversRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -16998,6 +21282,10 @@ class $$WorkspacesTableTableManager
                     if (specDraftsRefs) db.specDrafts,
                     if (autopilotStatesRefs) db.autopilotStates,
                     if (snippetsRefs) db.snippets,
+                    if (activityEventsRefs) db.activityEvents,
+                    if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
+                    if (secretWaiversRefs) db.secretWaivers,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -17191,6 +21479,90 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (activityEventsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          ActivityEvent
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._activityEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).activityEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (secretWaiversRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          SecretWaiver
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._secretWaiversRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).secretWaiversRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17221,6 +21593,10 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool specDraftsRefs,
         bool autopilotStatesRefs,
         bool snippetsRefs,
+        bool activityEventsRefs,
+        bool usageEntriesRefs,
+        bool restorePointsRefs,
+        bool secretWaiversRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -17938,6 +22314,24 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'specs__id__usage_entries__spec_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -18405,6 +22799,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$SpecNotesTableFilterComposer(
             $db: $db,
             $table: $db.specNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -19096,6 +23515,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -19123,6 +23567,7 @@ class $$SpecsTableTableManager
             bool specDuelsRefs,
             bool stepRunsRefs,
             bool specNotesRefs,
+            bool usageEntriesRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -19323,6 +23768,7 @@ class $$SpecsTableTableManager
                 specDuelsRefs = false,
                 stepRunsRefs = false,
                 specNotesRefs = false,
+                usageEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -19336,6 +23782,7 @@ class $$SpecsTableTableManager
                     if (specDuelsRefs) db.specDuels,
                     if (stepRunsRefs) db.stepRuns,
                     if (specNotesRefs) db.specNotes,
+                    if (usageEntriesRefs) db.usageEntries,
                   ],
                   addJoins:
                       <
@@ -19541,6 +23988,27 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -19573,6 +24041,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool specDuelsRefs,
         bool stepRunsRefs,
         bool specNotesRefs,
+        bool usageEntriesRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -20934,6 +25403,42 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'sessions__id__usage_entries__session_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'sessions__id__restore_points__session_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -21246,6 +25751,56 @@ class $$SessionsTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21731,6 +26286,56 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -21755,6 +26360,8 @@ class $$SessionsTableTableManager
             bool pendingNoticesRefs,
             bool reviewCommentsRefs,
             bool snippetsRefs,
+            bool usageEntriesRefs,
+            bool restorePointsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -21902,6 +26509,8 @@ class $$SessionsTableTableManager
                 pendingNoticesRefs = false,
                 reviewCommentsRefs = false,
                 snippetsRefs = false,
+                usageEntriesRefs = false,
+                restorePointsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -21911,6 +26520,8 @@ class $$SessionsTableTableManager
                     if (pendingNoticesRefs) db.pendingNotices,
                     if (reviewCommentsRefs) db.reviewComments,
                     if (snippetsRefs) db.snippets,
+                    if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
                   ],
                   addJoins:
                       <
@@ -22071,6 +26682,48 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -22100,6 +26753,8 @@ typedef $$SessionsTableProcessedTableManager =
         bool pendingNoticesRefs,
         bool reviewCommentsRefs,
         bool snippetsRefs,
+        bool usageEntriesRefs,
+        bool restorePointsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -22561,6 +27216,42 @@ final class $$ConversationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'conversations__id__usage_entries__conversation_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.conversationId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'conversations__id__restore_points__conversation_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.conversationId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ConversationsTableFilterComposer
@@ -22749,6 +27440,56 @@ class $$ConversationsTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23076,6 +27817,56 @@ class $$ConversationsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ConversationsTableTableManager
@@ -23096,6 +27887,8 @@ class $$ConversationsTableTableManager
             bool sessionId,
             bool conversationEventsRefs,
             bool snippetsRefs,
+            bool usageEntriesRefs,
+            bool restorePointsRefs,
           })
         > {
   $$ConversationsTableTableManager(_$AppDatabase db, $ConversationsTable table)
@@ -23211,12 +28004,16 @@ class $$ConversationsTableTableManager
                 sessionId = false,
                 conversationEventsRefs = false,
                 snippetsRefs = false,
+                usageEntriesRefs = false,
+                restorePointsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (conversationEventsRefs) db.conversationEvents,
                     if (snippetsRefs) db.snippets,
+                    if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
                   ],
                   addJoins:
                       <
@@ -23303,6 +28100,48 @@ class $$ConversationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Conversation,
+                          $ConversationsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Conversation,
+                          $ConversationsTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationsTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -23328,6 +28167,8 @@ typedef $$ConversationsTableProcessedTableManager =
         bool sessionId,
         bool conversationEventsRefs,
         bool snippetsRefs,
+        bool usageEntriesRefs,
+        bool restorePointsRefs,
       })
     >;
 typedef $$ConversationEventsTableCreateCompanionBuilder =
@@ -29298,6 +34139,2665 @@ typedef $$SnippetsTableProcessedTableManager =
         bool originSessionId,
       })
     >;
+typedef $$ActivityEventsTableCreateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      required String kind,
+      required String outcome,
+      required String title,
+      Value<String> detail,
+      Value<String?> seed,
+      Value<int?> specId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<int?> prNumber,
+      Value<String?> releaseTag,
+      required String groupKey,
+      required DateTime at,
+    });
+typedef $$ActivityEventsTableUpdateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String> kind,
+      Value<String> outcome,
+      Value<String> title,
+      Value<String> detail,
+      Value<String?> seed,
+      Value<int?> specId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<int?> prNumber,
+      Value<String?> releaseTag,
+      Value<String> groupKey,
+      Value<DateTime> at,
+    });
+
+final class $$ActivityEventsTableReferences
+    extends BaseReferences<_$AppDatabase, $ActivityEventsTable, ActivityEvent> {
+  $$ActivityEventsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) => db.workspaces
+      .createAlias('activity_events__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ActivityEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seed => $composableBuilder(
+    column: $table.seed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get prNumber => $composableBuilder(
+    column: $table.prNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seed => $composableBuilder(
+    column: $table.seed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get prNumber => $composableBuilder(
+    column: $table.prNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<String> get seed =>
+      $composableBuilder(column: $table.seed, builder: (column) => column);
+
+  GeneratedColumn<int> get specId =>
+      $composableBuilder(column: $table.specId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get prNumber =>
+      $composableBuilder(column: $table.prNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get groupKey =>
+      $composableBuilder(column: $table.groupKey, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActivityEventsTable,
+          ActivityEvent,
+          $$ActivityEventsTableFilterComposer,
+          $$ActivityEventsTableOrderingComposer,
+          $$ActivityEventsTableAnnotationComposer,
+          $$ActivityEventsTableCreateCompanionBuilder,
+          $$ActivityEventsTableUpdateCompanionBuilder,
+          (ActivityEvent, $$ActivityEventsTableReferences),
+          ActivityEvent,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$ActivityEventsTableTableManager(
+    _$AppDatabase db,
+    $ActivityEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActivityEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActivityEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActivityEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> outcome = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> detail = const Value.absent(),
+                Value<String?> seed = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<int?> prNumber = const Value.absent(),
+                Value<String?> releaseTag = const Value.absent(),
+                Value<String> groupKey = const Value.absent(),
+                Value<DateTime> at = const Value.absent(),
+              }) => ActivityEventsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                kind: kind,
+                outcome: outcome,
+                title: title,
+                detail: detail,
+                seed: seed,
+                specId: specId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                prNumber: prNumber,
+                releaseTag: releaseTag,
+                groupKey: groupKey,
+                at: at,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String kind,
+                required String outcome,
+                required String title,
+                Value<String> detail = const Value.absent(),
+                Value<String?> seed = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<int?> prNumber = const Value.absent(),
+                Value<String?> releaseTag = const Value.absent(),
+                required String groupKey,
+                required DateTime at,
+              }) => ActivityEventsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                kind: kind,
+                outcome: outcome,
+                title: title,
+                detail: detail,
+                seed: seed,
+                specId: specId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                prNumber: prNumber,
+                releaseTag: releaseTag,
+                groupKey: groupKey,
+                at: at,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ActivityEventsTable, ActivityEvent>(table),
+                  $$ActivityEventsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$ActivityEventsTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$ActivityEventsTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ActivityEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActivityEventsTable,
+      ActivityEvent,
+      $$ActivityEventsTableFilterComposer,
+      $$ActivityEventsTableOrderingComposer,
+      $$ActivityEventsTableAnnotationComposer,
+      $$ActivityEventsTableCreateCompanionBuilder,
+      $$ActivityEventsTableUpdateCompanionBuilder,
+      (ActivityEvent, $$ActivityEventsTableReferences),
+      ActivityEvent,
+      PrefetchHooks Function({bool workspaceId})
+    >;
+typedef $$UsageEntriesTableCreateCompanionBuilder =
+    UsageEntriesCompanion Function({
+      Value<int> id,
+      Value<int?> workspaceId,
+      Value<int?> specId,
+      required UsageSource source,
+      Value<String?> step,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String?> model,
+      required DateTime at,
+      Value<int> tokensIn,
+      Value<int> tokensCacheWrite,
+      Value<int> tokensCacheRead,
+      Value<int> tokensOut,
+      Value<double> costUsd,
+      Value<double?> fiveHourPct,
+      Value<double?> weekPct,
+      Value<bool> estimated,
+    });
+typedef $$UsageEntriesTableUpdateCompanionBuilder =
+    UsageEntriesCompanion Function({
+      Value<int> id,
+      Value<int?> workspaceId,
+      Value<int?> specId,
+      Value<UsageSource> source,
+      Value<String?> step,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String?> model,
+      Value<DateTime> at,
+      Value<int> tokensIn,
+      Value<int> tokensCacheWrite,
+      Value<int> tokensCacheRead,
+      Value<int> tokensOut,
+      Value<double> costUsd,
+      Value<double?> fiveHourPct,
+      Value<double?> weekPct,
+      Value<bool> estimated,
+    });
+
+final class $$UsageEntriesTableReferences
+    extends BaseReferences<_$AppDatabase, $UsageEntriesTable, UsageEntry> {
+  $$UsageEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('usage_entries__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager? get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id');
+    if ($_column == null) return null;
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('usage_entries__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get specId {
+    final $_column = $_itemColumn<int>('spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('usage_entries__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConversationsTable _conversationIdTable(_$AppDatabase db) => db
+      .conversations
+      .createAlias('usage_entries__conversation_id__conversations__id');
+
+  $$ConversationsTableProcessedTableManager? get conversationId {
+    final $_column = $_itemColumn<int>('conversation_id');
+    if ($_column == null) return null;
+    final manager = $$ConversationsTableTableManager(
+      $_db,
+      $_db.conversations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_conversationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$UsageEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<UsageSource, UsageSource, String> get source =>
+      $composableBuilder(
+        column: $table.source,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weekPct => $composableBuilder(
+    column: $table.weekPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get estimated => $composableBuilder(
+    column: $table.estimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableFilterComposer get conversationId {
+    final $$ConversationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weekPct => $composableBuilder(
+    column: $table.weekPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get estimated => $composableBuilder(
+    column: $table.estimated,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableOrderingComposer get conversationId {
+    final $$ConversationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<UsageSource, String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensIn =>
+      $composableBuilder(column: $table.tokensIn, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get tokensOut =>
+      $composableBuilder(column: $table.tokensOut, builder: (column) => column);
+
+  GeneratedColumn<double> get costUsd =>
+      $composableBuilder(column: $table.costUsd, builder: (column) => column);
+
+  GeneratedColumn<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get weekPct =>
+      $composableBuilder(column: $table.weekPct, builder: (column) => column);
+
+  GeneratedColumn<bool> get estimated =>
+      $composableBuilder(column: $table.estimated, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableAnnotationComposer get conversationId {
+    final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UsageEntriesTable,
+          UsageEntry,
+          $$UsageEntriesTableFilterComposer,
+          $$UsageEntriesTableOrderingComposer,
+          $$UsageEntriesTableAnnotationComposer,
+          $$UsageEntriesTableCreateCompanionBuilder,
+          $$UsageEntriesTableUpdateCompanionBuilder,
+          (UsageEntry, $$UsageEntriesTableReferences),
+          UsageEntry,
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool specId,
+            bool sessionId,
+            bool conversationId,
+          })
+        > {
+  $$UsageEntriesTableTableManager(_$AppDatabase db, $UsageEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UsageEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UsageEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UsageEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> workspaceId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<UsageSource> source = const Value.absent(),
+                Value<String?> step = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                Value<DateTime> at = const Value.absent(),
+                Value<int> tokensIn = const Value.absent(),
+                Value<int> tokensCacheWrite = const Value.absent(),
+                Value<int> tokensCacheRead = const Value.absent(),
+                Value<int> tokensOut = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<double?> fiveHourPct = const Value.absent(),
+                Value<double?> weekPct = const Value.absent(),
+                Value<bool> estimated = const Value.absent(),
+              }) => UsageEntriesCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                specId: specId,
+                source: source,
+                step: step,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                model: model,
+                at: at,
+                tokensIn: tokensIn,
+                tokensCacheWrite: tokensCacheWrite,
+                tokensCacheRead: tokensCacheRead,
+                tokensOut: tokensOut,
+                costUsd: costUsd,
+                fiveHourPct: fiveHourPct,
+                weekPct: weekPct,
+                estimated: estimated,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> workspaceId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                required UsageSource source,
+                Value<String?> step = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                required DateTime at,
+                Value<int> tokensIn = const Value.absent(),
+                Value<int> tokensCacheWrite = const Value.absent(),
+                Value<int> tokensCacheRead = const Value.absent(),
+                Value<int> tokensOut = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<double?> fiveHourPct = const Value.absent(),
+                Value<double?> weekPct = const Value.absent(),
+                Value<bool> estimated = const Value.absent(),
+              }) => UsageEntriesCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                specId: specId,
+                source: source,
+                step: step,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                model: model,
+                at: at,
+                tokensIn: tokensIn,
+                tokensCacheWrite: tokensCacheWrite,
+                tokensCacheRead: tokensCacheRead,
+                tokensOut: tokensOut,
+                costUsd: costUsd,
+                fiveHourPct: fiveHourPct,
+                weekPct: weekPct,
+                estimated: estimated,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$UsageEntriesTable, UsageEntry>(table),
+                  $$UsageEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                specId = false,
+                sessionId = false,
+                conversationId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (specId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.specId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._specIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sessionId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._sessionIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._sessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (conversationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.conversationId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._conversationIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._conversationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$UsageEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UsageEntriesTable,
+      UsageEntry,
+      $$UsageEntriesTableFilterComposer,
+      $$UsageEntriesTableOrderingComposer,
+      $$UsageEntriesTableAnnotationComposer,
+      $$UsageEntriesTableCreateCompanionBuilder,
+      $$UsageEntriesTableUpdateCompanionBuilder,
+      (UsageEntry, $$UsageEntriesTableReferences),
+      UsageEntry,
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool specId,
+        bool sessionId,
+        bool conversationId,
+      })
+    >;
+typedef $$RestorePointsTableCreateCompanionBuilder =
+    RestorePointsCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      required String worktreePath,
+      required int turn,
+      Value<String> prompt,
+      Value<int?> eventSeq,
+      required DateTime startedAt,
+      Value<String?> startBranch,
+      required String startHead,
+      required String startSha,
+      Value<DateTime?> endedAt,
+      Value<String?> endBranch,
+      Value<String?> endHead,
+      Value<String?> endSha,
+      Value<int> files,
+      Value<int> bytes,
+      Value<int> changedFiles,
+      Value<int> commits,
+      Value<String> largeFiles,
+      Value<String> state,
+      Value<String?> undoBranch,
+      Value<String?> undoHead,
+      Value<String?> undoSha,
+      Value<String?> undoneHead,
+      Value<String?> undoneSha,
+      Value<DateTime> usedAt,
+    });
+typedef $$RestorePointsTableUpdateCompanionBuilder =
+    RestorePointsCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String> worktreePath,
+      Value<int> turn,
+      Value<String> prompt,
+      Value<int?> eventSeq,
+      Value<DateTime> startedAt,
+      Value<String?> startBranch,
+      Value<String> startHead,
+      Value<String> startSha,
+      Value<DateTime?> endedAt,
+      Value<String?> endBranch,
+      Value<String?> endHead,
+      Value<String?> endSha,
+      Value<int> files,
+      Value<int> bytes,
+      Value<int> changedFiles,
+      Value<int> commits,
+      Value<String> largeFiles,
+      Value<String> state,
+      Value<String?> undoBranch,
+      Value<String?> undoHead,
+      Value<String?> undoSha,
+      Value<String?> undoneHead,
+      Value<String?> undoneSha,
+      Value<DateTime> usedAt,
+    });
+
+final class $$RestorePointsTableReferences
+    extends BaseReferences<_$AppDatabase, $RestorePointsTable, RestorePoint> {
+  $$RestorePointsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('restore_points__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('restore_points__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConversationsTable _conversationIdTable(_$AppDatabase db) => db
+      .conversations
+      .createAlias('restore_points__conversation_id__conversations__id');
+
+  $$ConversationsTableProcessedTableManager? get conversationId {
+    final $_column = $_itemColumn<int>('conversation_id');
+    if ($_column == null) return null;
+    final manager = $$ConversationsTableTableManager(
+      $_db,
+      $_db.conversations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_conversationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RestorePointsTableFilterComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get turn => $composableBuilder(
+    column: $table.turn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get eventSeq => $composableBuilder(
+    column: $table.eventSeq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startHead => $composableBuilder(
+    column: $table.startHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endBranch => $composableBuilder(
+    column: $table.endBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endHead => $composableBuilder(
+    column: $table.endHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endSha => $composableBuilder(
+    column: $table.endSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get files => $composableBuilder(
+    column: $table.files,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get commits => $composableBuilder(
+    column: $table.commits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoHead => $composableBuilder(
+    column: $table.undoHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoSha => $composableBuilder(
+    column: $table.undoSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoneSha => $composableBuilder(
+    column: $table.undoneSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableFilterComposer get conversationId {
+    final $$ConversationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get turn => $composableBuilder(
+    column: $table.turn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get eventSeq => $composableBuilder(
+    column: $table.eventSeq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startHead => $composableBuilder(
+    column: $table.startHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endBranch => $composableBuilder(
+    column: $table.endBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endHead => $composableBuilder(
+    column: $table.endHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endSha => $composableBuilder(
+    column: $table.endSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get files => $composableBuilder(
+    column: $table.files,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get commits => $composableBuilder(
+    column: $table.commits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoHead => $composableBuilder(
+    column: $table.undoHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoSha => $composableBuilder(
+    column: $table.undoSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoneSha => $composableBuilder(
+    column: $table.undoneSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableOrderingComposer get conversationId {
+    final $$ConversationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get turn =>
+      $composableBuilder(column: $table.turn, builder: (column) => column);
+
+  GeneratedColumn<String> get prompt =>
+      $composableBuilder(column: $table.prompt, builder: (column) => column);
+
+  GeneratedColumn<int> get eventSeq =>
+      $composableBuilder(column: $table.eventSeq, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startHead =>
+      $composableBuilder(column: $table.startHead, builder: (column) => column);
+
+  GeneratedColumn<String> get startSha =>
+      $composableBuilder(column: $table.startSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get endBranch =>
+      $composableBuilder(column: $table.endBranch, builder: (column) => column);
+
+  GeneratedColumn<String> get endHead =>
+      $composableBuilder(column: $table.endHead, builder: (column) => column);
+
+  GeneratedColumn<String> get endSha =>
+      $composableBuilder(column: $table.endSha, builder: (column) => column);
+
+  GeneratedColumn<int> get files =>
+      $composableBuilder(column: $table.files, builder: (column) => column);
+
+  GeneratedColumn<int> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  GeneratedColumn<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get commits =>
+      $composableBuilder(column: $table.commits, builder: (column) => column);
+
+  GeneratedColumn<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get undoHead =>
+      $composableBuilder(column: $table.undoHead, builder: (column) => column);
+
+  GeneratedColumn<String> get undoSha =>
+      $composableBuilder(column: $table.undoSha, builder: (column) => column);
+
+  GeneratedColumn<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get undoneSha =>
+      $composableBuilder(column: $table.undoneSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get usedAt =>
+      $composableBuilder(column: $table.usedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableAnnotationComposer get conversationId {
+    final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RestorePointsTable,
+          RestorePoint,
+          $$RestorePointsTableFilterComposer,
+          $$RestorePointsTableOrderingComposer,
+          $$RestorePointsTableAnnotationComposer,
+          $$RestorePointsTableCreateCompanionBuilder,
+          $$RestorePointsTableUpdateCompanionBuilder,
+          (RestorePoint, $$RestorePointsTableReferences),
+          RestorePoint,
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool sessionId,
+            bool conversationId,
+          })
+        > {
+  $$RestorePointsTableTableManager(_$AppDatabase db, $RestorePointsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RestorePointsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RestorePointsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RestorePointsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String> worktreePath = const Value.absent(),
+                Value<int> turn = const Value.absent(),
+                Value<String> prompt = const Value.absent(),
+                Value<int?> eventSeq = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<String?> startBranch = const Value.absent(),
+                Value<String> startHead = const Value.absent(),
+                Value<String> startSha = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> endBranch = const Value.absent(),
+                Value<String?> endHead = const Value.absent(),
+                Value<String?> endSha = const Value.absent(),
+                Value<int> files = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> changedFiles = const Value.absent(),
+                Value<int> commits = const Value.absent(),
+                Value<String> largeFiles = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> undoBranch = const Value.absent(),
+                Value<String?> undoHead = const Value.absent(),
+                Value<String?> undoSha = const Value.absent(),
+                Value<String?> undoneHead = const Value.absent(),
+                Value<String?> undoneSha = const Value.absent(),
+                Value<DateTime> usedAt = const Value.absent(),
+              }) => RestorePointsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                worktreePath: worktreePath,
+                turn: turn,
+                prompt: prompt,
+                eventSeq: eventSeq,
+                startedAt: startedAt,
+                startBranch: startBranch,
+                startHead: startHead,
+                startSha: startSha,
+                endedAt: endedAt,
+                endBranch: endBranch,
+                endHead: endHead,
+                endSha: endSha,
+                files: files,
+                bytes: bytes,
+                changedFiles: changedFiles,
+                commits: commits,
+                largeFiles: largeFiles,
+                state: state,
+                undoBranch: undoBranch,
+                undoHead: undoHead,
+                undoSha: undoSha,
+                undoneHead: undoneHead,
+                undoneSha: undoneSha,
+                usedAt: usedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                required String worktreePath,
+                required int turn,
+                Value<String> prompt = const Value.absent(),
+                Value<int?> eventSeq = const Value.absent(),
+                required DateTime startedAt,
+                Value<String?> startBranch = const Value.absent(),
+                required String startHead,
+                required String startSha,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> endBranch = const Value.absent(),
+                Value<String?> endHead = const Value.absent(),
+                Value<String?> endSha = const Value.absent(),
+                Value<int> files = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> changedFiles = const Value.absent(),
+                Value<int> commits = const Value.absent(),
+                Value<String> largeFiles = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> undoBranch = const Value.absent(),
+                Value<String?> undoHead = const Value.absent(),
+                Value<String?> undoSha = const Value.absent(),
+                Value<String?> undoneHead = const Value.absent(),
+                Value<String?> undoneSha = const Value.absent(),
+                Value<DateTime> usedAt = const Value.absent(),
+              }) => RestorePointsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                worktreePath: worktreePath,
+                turn: turn,
+                prompt: prompt,
+                eventSeq: eventSeq,
+                startedAt: startedAt,
+                startBranch: startBranch,
+                startHead: startHead,
+                startSha: startSha,
+                endedAt: endedAt,
+                endBranch: endBranch,
+                endHead: endHead,
+                endSha: endSha,
+                files: files,
+                bytes: bytes,
+                changedFiles: changedFiles,
+                commits: commits,
+                largeFiles: largeFiles,
+                state: state,
+                undoBranch: undoBranch,
+                undoHead: undoHead,
+                undoSha: undoSha,
+                undoneHead: undoneHead,
+                undoneSha: undoneSha,
+                usedAt: usedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RestorePointsTable, RestorePoint>(table),
+                  $$RestorePointsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                sessionId = false,
+                conversationId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sessionId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._sessionIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._sessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (conversationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.conversationId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._conversationIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._conversationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$RestorePointsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RestorePointsTable,
+      RestorePoint,
+      $$RestorePointsTableFilterComposer,
+      $$RestorePointsTableOrderingComposer,
+      $$RestorePointsTableAnnotationComposer,
+      $$RestorePointsTableCreateCompanionBuilder,
+      $$RestorePointsTableUpdateCompanionBuilder,
+      (RestorePoint, $$RestorePointsTableReferences),
+      RestorePoint,
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool sessionId,
+        bool conversationId,
+      })
+    >;
+typedef $$SecretWaiversTableCreateCompanionBuilder =
+    SecretWaiversCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      required String rule,
+      required String path,
+      required String fingerprint,
+      required String scope,
+      required String reason,
+      required String origin,
+      Value<DateTime> createdAt,
+      Value<DateTime> lastUsedAt,
+    });
+typedef $$SecretWaiversTableUpdateCompanionBuilder =
+    SecretWaiversCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String> rule,
+      Value<String> path,
+      Value<String> fingerprint,
+      Value<String> scope,
+      Value<String> reason,
+      Value<String> origin,
+      Value<DateTime> createdAt,
+      Value<DateTime> lastUsedAt,
+    });
+
+final class $$SecretWaiversTableReferences
+    extends BaseReferences<_$AppDatabase, $SecretWaiversTable, SecretWaiver> {
+  $$SecretWaiversTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('secret_waivers__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SecretWaiversTableFilterComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableOrderingComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SecretWaiversTable,
+          SecretWaiver,
+          $$SecretWaiversTableFilterComposer,
+          $$SecretWaiversTableOrderingComposer,
+          $$SecretWaiversTableAnnotationComposer,
+          $$SecretWaiversTableCreateCompanionBuilder,
+          $$SecretWaiversTableUpdateCompanionBuilder,
+          (SecretWaiver, $$SecretWaiversTableReferences),
+          SecretWaiver,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$SecretWaiversTableTableManager(_$AppDatabase db, $SecretWaiversTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SecretWaiversTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SecretWaiversTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SecretWaiversTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> rule = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String> fingerprint = const Value.absent(),
+                Value<String> scope = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> lastUsedAt = const Value.absent(),
+              }) => SecretWaiversCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                rule: rule,
+                path: path,
+                fingerprint: fingerprint,
+                scope: scope,
+                reason: reason,
+                origin: origin,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String rule,
+                required String path,
+                required String fingerprint,
+                required String scope,
+                required String reason,
+                required String origin,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> lastUsedAt = const Value.absent(),
+              }) => SecretWaiversCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                rule: rule,
+                path: path,
+                fingerprint: fingerprint,
+                scope: scope,
+                reason: reason,
+                origin: origin,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SecretWaiversTable, SecretWaiver>(table),
+                  $$SecretWaiversTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$SecretWaiversTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$SecretWaiversTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SecretWaiversTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SecretWaiversTable,
+      SecretWaiver,
+      $$SecretWaiversTableFilterComposer,
+      $$SecretWaiversTableOrderingComposer,
+      $$SecretWaiversTableAnnotationComposer,
+      $$SecretWaiversTableCreateCompanionBuilder,
+      $$SecretWaiversTableUpdateCompanionBuilder,
+      (SecretWaiver, $$SecretWaiversTableReferences),
+      SecretWaiver,
+      PrefetchHooks Function({bool workspaceId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29354,4 +36854,12 @@ class $AppDatabaseManager {
       $$SpecNotesTableTableManager(_db, _db.specNotes);
   $$SnippetsTableTableManager get snippets =>
       $$SnippetsTableTableManager(_db, _db.snippets);
+  $$ActivityEventsTableTableManager get activityEvents =>
+      $$ActivityEventsTableTableManager(_db, _db.activityEvents);
+  $$UsageEntriesTableTableManager get usageEntries =>
+      $$UsageEntriesTableTableManager(_db, _db.usageEntries);
+  $$RestorePointsTableTableManager get restorePoints =>
+      $$RestorePointsTableTableManager(_db, _db.restorePoints);
+  $$SecretWaiversTableTableManager get secretWaivers =>
+      $$SecretWaiversTableTableManager(_db, _db.secretWaivers);
 }

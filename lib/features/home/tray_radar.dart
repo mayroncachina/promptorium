@@ -163,7 +163,9 @@ RadarTarget _targetOf(int workspaceId, InboxItem item) => switch (item.kind) {
     section: AppSection.review,
     sessionId: item.sessionId,
   ),
-  InboxKind.approval || InboxKind.interrupted => RadarTarget(
+  InboxKind.approval ||
+  InboxKind.interrupted ||
+  InboxKind.secret => RadarTarget(
     workspaceId: workspaceId,
     section: AppSection.sessions,
     sessionId: item.sessionId,
@@ -204,6 +206,7 @@ TrayRadar buildTrayRadar(List<RadarWorkspace> workspaces) {
   final kinds = {for (final e in inbox) e.item.kind};
   final state =
       kinds.contains(InboxKind.approval) ||
+          kinds.contains(InboxKind.secret) ||
           kinds.contains(InboxKind.needsAnswer)
       ? TrayState.attention
       : kinds.contains(InboxKind.prProblem) ||

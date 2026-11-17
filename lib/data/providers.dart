@@ -6,6 +6,7 @@ import '../core/git/git_root.dart';
 import '../core/git/repo_setup.dart';
 import '../core/process/process_runner.dart';
 import 'db/app_database.dart';
+import 'repos/activity_events_repo.dart';
 import 'repos/agent_settings_repo.dart';
 import 'repos/app_settings_repo.dart';
 import 'repos/conversations_repo.dart';
@@ -17,6 +18,8 @@ import 'repos/spec_drafts_repo.dart';
 import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
+import 'repos/restore_points_repo.dart';
+import 'repos/secret_waivers_repo.dart';
 import 'repos/snippets_repo.dart';
 import 'repos/spec_duels_repo.dart';
 import 'repos/spec_notes_repo.dart';
@@ -26,6 +29,7 @@ import 'repos/specs_repo.dart';
 import 'repos/sprints_repo.dart';
 import 'repos/step_runs_repo.dart';
 import 'repos/tasks_repo.dart';
+import 'repos/usage_entries_repo.dart';
 import 'repos/workspaces_repo.dart';
 
 export 'db/app_database.dart';
@@ -100,6 +104,18 @@ final specNotesRepoProvider = Provider(
 );
 final snippetsRepoProvider = Provider(
   (ref) => SnippetsRepo(ref.watch(appDatabaseProvider)),
+);
+final activityEventsRepoProvider = Provider(
+  (ref) => ActivityEventsRepo(ref.watch(appDatabaseProvider)),
+);
+final usageEntriesRepoProvider = Provider(
+  (ref) => UsageEntriesRepo(ref.watch(appDatabaseProvider)),
+);
+final restorePointsRepoProvider = Provider(
+  (ref) => RestorePointsRepo(ref.watch(appDatabaseProvider)),
+);
+final secretWaiversRepoProvider = Provider(
+  (ref) => SecretWaiversRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
+import '../../data/providers.dart' show Session;
 
 /// The plan quota with a forecast at the current pace (SPEC-076 R7).
 
@@ -135,3 +136,20 @@ Map<String, double> sessionQuotaWeights(
   if (used == null || total <= 0) return const {};
   return {for (final e in costs.entries) e.key: e.value / total * used};
 }
+
+/// The cost of each session that ran in the current 5-hour window (started
+/// at [windowStart]) and is still open (R7): what [sessionQuotaWeights]
+/// splits.
+Map<String, double> windowSessionCosts(
+  Iterable<Session> sessions, {
+  required DateTime? windowStart,
+  required bool Function(String id) isAlive,
+}) => {
+  for (final s in sessions)
+    if (s.costUsd > 0 &&
+        (windowStart == null ||
+            s.endedAt == null ||
+            s.endedAt!.isAfter(windowStart)) &&
+        (s.endedAt == null || isAlive(s.id)))
+      s.id: s.costUsd,
+};

@@ -8,6 +8,8 @@ import 'package:window_manager/window_manager.dart';
 import '../data/providers.dart';
 import '../features/code/worktree_terminal.dart';
 import '../features/prompt/conversation_manager.dart';
+import '../features/prompt/compare/compare_controller.dart';
+import '../features/resume/presence.dart' show presenceProvider;
 import '../features/sessions/session_manager.dart';
 import '../features/sessions/widgets/session_terminal.dart';
 import 'dev/dev_server.dart';
@@ -176,6 +178,10 @@ Future<void> _stopWork(Ref ref) async {
     }
   }
 
+  // SPEC-080 R1: the visto por último is written on closing.
+  if (ref.exists(presenceProvider)) {
+    await step('visto por último', () => ref.read(presenceProvider).flush());
+  }
   await step(
     'terminais',
     () => ref.read(sessionTerminalsProvider.notifier).killAll(),
@@ -193,6 +199,9 @@ Future<void> _stopWork(Ref ref) async {
       () => Future.wait([
         ref.read(sessionManagerProvider.notifier).shutdown(),
         ref.read(conversationManagerProvider.notifier).shutdown(),
+        // SPEC-079 R13: the sides of a comparison come back interrupted.
+        if (ref.exists(compareControllerProvider))
+          ref.read(compareControllerProvider.notifier).shutdown(),
       ]).timeout(const Duration(seconds: 4)),
     ),
     // Development servers: SIGTERM, SIGKILL after 5 s (SPEC-051 R5).

@@ -1,3 +1,6 @@
+import '../secrets/secret_blocks.dart';
+import '../secrets/secret_flow.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +21,7 @@ import '../prompt/conversation_manager.dart';
 import '../repository/hygiene/hygiene_tab.dart' show HygieneHomeCard;
 import '../review/review_service.dart' show selectedReviewProvider;
 import '../sessions/session_manager.dart';
+import '../resume/widgets/since_last_visit.dart';
 import '../sessions/widgets/session_style.dart';
 import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import 'home_inbox.dart';
@@ -83,6 +87,8 @@ class _Inbox extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 18),
+        // SPEC-080 R12: what the "Retomar" card left unresolved.
+        const SinceLastVisit(),
         HygieneHomeCard(workspacePath: workspace.path),
         for (final g in groups) ...[
           _GroupTitle(group: g),
@@ -100,6 +106,7 @@ class _Inbox extends ConsumerWidget {
 
 Color _colorOf(InboxKind k) => switch (k) {
   InboxKind.approval => AppColors.amber,
+  InboxKind.secret => AppColors.amber,
   InboxKind.needsAnswer => AppColors.red,
   InboxKind.review => AppColors.blue,
   InboxKind.prProblem => AppColors.lilac,
@@ -275,6 +282,37 @@ class _InboxRow extends ConsumerWidget {
             ref.read(navigationProvider.notifier).go(AppSection.prompt);
           },
         ),
+        null,
+      ),
+      InboxKind.secret => (
+        item.sessionId == null
+            ? AmberButton(
+                key: key,
+                label: 'Ver achados',
+                height: 28,
+                onTap: () {
+                  final p = ref
+                      .read(secretBlocksProvider)
+                      .values
+                      .where(
+                        (p) =>
+                            p.sessionId == null &&
+                            p.title == item.title &&
+                            p.at == item.at,
+                      )
+                      .firstOrNull;
+                  if (p != null) openPendingSecret(context, ref, p);
+                },
+              )
+            : AmberButton(
+                key: key,
+                label: 'Ver achados',
+                height: 28,
+                onTap: () => openSessionIn(
+                  ProviderScope.containerOf(context),
+                  item.sessionId!,
+                ),
+              ),
         null,
       ),
       InboxKind.needsAnswer => (

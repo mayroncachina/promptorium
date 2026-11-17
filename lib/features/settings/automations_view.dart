@@ -29,46 +29,48 @@ class AutomationsCard extends ConsumerWidget {
               style: TextStyle(fontSize: 12, color: AppColors.amber),
             ),
           ),
-        for (final h in ManagedHook.values) ...[
-          Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              key: ValueKey('automation-${h.name}'),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: settings[h.settingKey] != '0',
-              onChanged: (on) => ref
-                  .read(appSettingsProvider.notifier)
-                  .set(h.settingKey, on ? '1' : '0'),
-              title: Text(
-                '${h.label} · ${h.event}',
-                style: const TextStyle(fontSize: 13),
-              ),
-              subtitle: Text(
-                h.description,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
+        // The Vigia de segredos has its own section (SPEC-085 R14).
+        for (final h in ManagedHook.values)
+          if (h != ManagedHook.secrets) ...[
+            Material(
+              color: Colors.transparent,
+              child: SwitchListTile(
+                key: ValueKey('automation-${h.name}'),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: settings[h.settingKey] != '0',
+                onChanged: (on) => ref
+                    .read(appSettingsProvider.notifier)
+                    .set(h.settingKey, on ? '1' : '0'),
+                title: Text(
+                  '${h.label} · ${h.event}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                subtitle: Text(
+                  h.description,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ),
-          ),
-          if (activity[h] case final a?)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Último: ${a.text}',
-                key: ValueKey('automation-last-${h.name}'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: AppFonts.mono,
-                  color: a.error ? AppColors.amber : AppColors.textMuted,
+            if (activity[h] case final a?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Último: ${a.text}',
+                  key: ValueKey('automation-last-${h.name}'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: AppFonts.mono,
+                    color: a.error ? AppColors.amber : AppColors.textMuted,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
         const SizedBox(height: 8),
         const Text(
           'Ficam num settings.json temporário de cada sessão (--settings), '

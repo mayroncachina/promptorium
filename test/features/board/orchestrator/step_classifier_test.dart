@@ -97,6 +97,9 @@ void main() {
           workspaceId,
           providerId,
           cancelled,
+          specId,
+          usageSource,
+          usageStep,
         }) {
           final call = _Call(prompt, options, cancelled);
           calls.add(call);

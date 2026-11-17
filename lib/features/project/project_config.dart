@@ -403,6 +403,7 @@ class ProjectConfig {
     this.hostType,
     this.autoResolveConflicts = false,
     this.autoFixCi = false,
+    this.secretIgnore = const [],
   });
 
   static const defaultSpecsDir = 'specs';
@@ -466,6 +467,10 @@ class ProjectConfig {
   /// the user. Default `manual`.
   final bool autoFixCi;
 
+  /// `segredos: ignorar:` (SPEC-085 R4, R15): globs of paths the Vigia de
+  /// segredos does not check (`test/fixtures/**`).
+  final List<String> secretIgnore;
+
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
 
@@ -507,6 +512,7 @@ class ProjectConfig {
     String? hostType,
     bool? autoResolveConflicts,
     bool? autoFixCi,
+    List<String>? secretIgnore,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -533,6 +539,7 @@ class ProjectConfig {
     hostType: hostType ?? this.hostType,
     autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
     autoFixCi: autoFixCi ?? this.autoFixCi,
+    secretIgnore: secretIgnore ?? this.secretIgnore,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -708,8 +715,8 @@ class ProjectConfig {
       ),
       autoResolveConflicts:
           '${map('review')['resolver-conflitos'] ?? ''}'.trim() == 'automatico',
-      autoFixCi:
-          '${map('review')['corrigir-ci'] ?? ''}'.trim() == 'automatico',
+      autoFixCi: '${map('review')['corrigir-ci'] ?? ''}'.trim() == 'automatico',
+      secretIgnore: strings(map('segredos')['ignorar']),
     );
   }
 
@@ -831,6 +838,14 @@ class ProjectConfig {
         ..writeln('  closes-no-pr: ${issues.closesInPr}')
         ..writeln('  comentar-andamento: ${issues.commentProgress}')
         ..writeln('  conferir-fechadas: ${issues.checkClosed}');
+    }
+    if (secretIgnore.isNotEmpty) {
+      b
+        ..writeln('segredos:')
+        ..writeln('  ignorar:');
+      for (final g in secretIgnore) {
+        b.writeln('    - ${jsonEncode(g)}');
+      }
     }
     if (!vibe.isDefault) {
       b.writeln('vibe:');

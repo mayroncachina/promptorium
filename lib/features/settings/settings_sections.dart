@@ -1,3 +1,6 @@
+import '../../core/secrets/secret_guard.dart' show SecretSettingKeys;
+import '../../core/secrets/secret_rules.dart' show SecretRuleGroup;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +11,7 @@ import '../../data/providers.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
 import '../notifications/agent_alerts.dart' show AlertSettingKeys;
 import '../project/project_config.dart';
+import '../sessions/restore/restore_service.dart' show RestoreSettingKeys;
 
 /// Sections of Configurações (UX v2, U9; docs/mockups/v2/Configuracoes.dc.html):
 /// the App group and the Workspace group, each entry with the words that
@@ -58,6 +62,19 @@ enum SettingsSection {
     'idle',
     'memória',
     'retomar',
+    'ponto',
+    'pontos',
+    'restauração',
+    'desfazer',
+    'turno',
+  ]),
+  resume('Retomar de onde parei', SettingsGroup.app, [
+    'retomar',
+    'fora',
+    'visto',
+    'diário',
+    'voltar',
+    'cartão',
   ]),
   notifications('Notificações', SettingsGroup.app, [
     'notificação',
@@ -68,6 +85,17 @@ enum SettingsSection {
     'lembrete',
     'clique',
     'dbus',
+  ]),
+  secrets('Vigia de segredos', SettingsGroup.app, [
+    'segredo',
+    'segredos',
+    'vigia',
+    'chave',
+    'token',
+    '.env',
+    'gitleaks',
+    'commit',
+    'ignorados',
   ]),
   appearance('Aparência', SettingsGroup.app, [
     'aparência',
@@ -174,7 +202,19 @@ bool sectionChanged(
           (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]' ||
           settings[AppSettingKeys.mcpServer] == '0' ||
           settings.containsKey(AppSettingKeys.mcpCreationLimit),
-    SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.sessions =>
+      now.idleMinutes != defaults.idleMinutes ||
+          [
+            RestoreSettingKeys.enabled,
+            RestoreSettingKeys.keepTurns,
+            RestoreSettingKeys.maxDays,
+            RestoreSettingKeys.maxFileMb,
+          ].any(settings.containsKey),
+    SettingsSection.resume => [
+      AppSettingKeys.resumeOnOpen,
+      AppSettingKeys.resumeAwayMinutes,
+      AppSettingKeys.resumeHiddenKinds,
+    ].any(settings.containsKey),
     SettingsSection.notifications => [
       AlertSettingKeys.agents,
       AlertSettingKeys.robot,
@@ -184,8 +224,16 @@ bool sectionChanged(
     SettingsSection.appearance =>
       settings[AppSettingKeys.glassEffects] == 'false' ||
           settings[AppSettingKeys.attentionShake] == 'false',
+    SettingsSection.secrets =>
+      [
+            SecretSettingKeys.enabled,
+            SecretSettingKeys.app,
+            SecretSettingKeys.manual,
+            for (final g in SecretRuleGroup.values) g.settingKey,
+          ].any((k) => settings[k] == '0') ||
+          settings[SecretSettingKeys.gitleaks] == '1',
     SettingsSection.automations => ManagedHook.values.any(
-      (h) => settings[h.settingKey] == '0',
+      (h) => h != ManagedHook.secrets && settings[h.settingKey] == '0',
     ),
     SettingsSection.providers =>
       (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,

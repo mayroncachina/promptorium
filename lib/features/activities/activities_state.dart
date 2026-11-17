@@ -1,3 +1,5 @@
+import '../secrets/secret_blocks.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
@@ -16,6 +18,7 @@ import '../review/ci_fixer.dart';
 import '../review/pr_babysitter.dart';
 import '../sessions/session_manager.dart';
 import '../specs/spec_planner.dart';
+import '../prompt/compare/compare_controller.dart';
 import 'activity.dart';
 import 'quota_forecast.dart';
 
@@ -180,16 +183,13 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
       locked: (s) => autoPlanner.lockOf(s.id) != null,
       starting: starting,
     );
-    for (final s in sessions) {
-      if (s.costUsd <= 0) continue;
-      final inWindow =
-          windowStart == null ||
-          s.endedAt == null ||
-          s.endedAt!.isAfter(windowStart);
-      if (inWindow && (s.endedAt == null || manager.isAlive(s.id))) {
-        costs[s.id] = s.costUsd;
-      }
-    }
+    costs.addAll(
+      windowSessionCosts(
+        sessions,
+        windowStart: windowStart,
+        isAlive: manager.isAlive,
+      ),
+    );
     list.add(
       ActivityWorkspace(
         id: ws.id,
@@ -227,6 +227,8 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
       prs: ref.watch(prBabysitterProvider),
       ci: ref.watch(ciFixerProvider),
       weights: sessionQuotaWeights(costs, rate?.fiveHourUtilization),
+      compares: ref.watch(compareControllerProvider),
+      secrets: ref.watch(secretBlocksProvider),
     ),
     now: now,
   );

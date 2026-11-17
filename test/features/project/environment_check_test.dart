@@ -89,6 +89,16 @@ class FakeProbe implements EnvironmentProbe {
         ? '"$name" não é um nome de branch válido.'
         : null;
   }
+
+  EnvItem clipboardItem = const EnvItem(
+    EnvKind.clipboard,
+    EnvState.ok,
+    title: 'Colar imagens (opcional)',
+    line: 'xclip encontrado',
+  );
+
+  @override
+  Future<EnvItem> clipboard() => _wait(() => clipboardItem);
 }
 
 void main() {
@@ -396,6 +406,7 @@ void main() {
           EnvKind.git,
           EnvKind.claude,
           EnvKind.folder,
+          EnvKind.clipboard,
         ]);
         probe.gate!.complete();
         await settle();
@@ -531,4 +542,6 @@ class _SlowFirst implements EnvironmentProbe {
       inner.setGlobalIdentity(name, email);
   @override
   Future<String?> branchError(String name) => inner.branchError(name);
+  @override
+  Future<EnvItem> clipboard() => inner.clipboard();
 }

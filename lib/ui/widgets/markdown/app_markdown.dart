@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SelectedContent, Selectable;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:path/path.dart' as p;
 
 import 'code_block.dart';
 
@@ -21,6 +24,7 @@ class AppMarkdown extends StatefulWidget {
     this.styleSheet,
     this.collapseLongCode = false,
     this.owner,
+    this.imageDirectory,
   });
 
   final String data;
@@ -29,6 +33,11 @@ class AppMarkdown extends StatefulWidget {
   final MarkdownStyleSheet? styleSheet;
   final bool collapseLongCode;
   final Object? owner;
+
+  /// Folder a relative image path is read from (the spec's folder, so
+  /// `../mockups/spec-073/print-1.png` shows the print, SPEC-083 R11).
+  /// Null keeps the package's default.
+  final String? imageDirectory;
 
   static final _memory = Expando<Map<String, bool>>('expanded code blocks');
 
@@ -64,6 +73,10 @@ class _AppMarkdownState extends State<AppMarkdown> {
         child: MarkdownBody(
           data: widget.data,
           styleSheet: style,
+          imageBuilder: widget.imageDirectory == null
+              ? null
+              : (uri, title, alt) =>
+                    markdownLocalImage(uri, widget.imageDirectory!, alt),
           builders: {
             'pre': _PreBuilder(
               collapsible: widget.collapseLongCode,
@@ -77,6 +90,34 @@ class _AppMarkdownState extends State<AppMarkdown> {
       ),
     );
   }
+}
+
+/// A relative image of a markdown file in [dir], read from disk; anything
+/// else (a URL, a missing file) shows only its alternative text.
+Widget markdownLocalImage(Uri uri, String dir, String? alt) {
+  Widget fallback() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Text(
+      alt == null || alt.isEmpty ? uri.toString() : '[$alt]',
+      style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+    ),
+  );
+  if (uri.hasScheme || uri.path.isEmpty) return fallback();
+  final path = p.normalize(p.join(dir, Uri.decodeComponent(uri.path)));
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 720, maxHeight: 480),
+      child: Image.file(
+        File(path),
+        key: ValueKey('markdown-image-${p.basename(path)}'),
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
+        semanticLabel: alt,
+        errorBuilder: (_, _, _) => fallback(),
+      ),
+    ),
+  );
 }
 
 /// Joins the copied text of the blocks of a document (R6): a line break

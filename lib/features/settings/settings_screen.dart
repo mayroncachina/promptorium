@@ -1,8 +1,11 @@
+import 'secrets_view.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../resume/resume_settings.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
@@ -20,6 +23,8 @@ import 'backups_view.dart';
 import 'notifications_view.dart';
 import 'orchestrator_view.dart';
 import 'providers_view.dart';
+import 'restore_points_settings.dart';
+import '../sessions/restore/restore_service.dart' show restoreSettingsProvider;
 import 'settings_choices.dart';
 import 'settings_sections.dart';
 
@@ -170,12 +175,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
+                SettingsSection.resume => const _Page(
+                  title: 'Retomar de onde parei',
+                  intro:
+                      'Um cartão com o que esperou, terminou e continua '
+                      'rodando enquanto você estava fora.',
+                  children: [ResumeSettingsView()],
+                ),
                 SettingsSection.notifications => const _Page(
                   title: 'Notificações',
                   intro:
                       'Avisos do sistema quando a janela do Promptorium está '
                       'em segundo plano.',
                   children: [NotificationsView()],
+                ),
+                SettingsSection.secrets => const _Page(
+                  title: 'Vigia de segredos',
+                  intro:
+                      'Confere o que vai entrar num commit, push ou PR e '
+                      'bloqueia chaves, tokens e arquivos .env.',
+                  children: [SecretsSettingsView()],
                 ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
@@ -510,19 +529,24 @@ class _SessionsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(runPrefsProvider);
     final settings = ref.read(appSettingsProvider.notifier);
+    final restore = ref.watch(restoreSettingsProvider);
     return _Page(
       title: 'Sessões',
-      intro: 'Como o app trata uma sessão parada.',
+      intro: 'Como as sessões rodam e o que o app guarda delas.',
       trailing: SmallButton(
         key: const ValueKey('settings-reset-sessions'),
         label: 'Restaurar padrões da seção',
-        onTap: () => settings.remove(AppSettingKeys.idleMinutes),
+        onTap: () async {
+          await settings.remove(AppSettingKeys.idleMinutes);
+          for (final k in restoreSettingKeys) {
+            await settings.remove(k);
+          }
+        },
       ),
       effect: _Effect(
-        prefs.idleMinutes == 0
-            ? 'O processo de uma sessão parada nunca é fechado sozinho.'
-            : 'Uma sessão parada há ${prefs.idleMinutes} min tem o processo '
-                  'fechado; "Retomar" ou uma mensagem a reabre com o contexto.',
+        '${prefs.idleMinutes == 0 ? 'O processo de uma sessão parada nunca é fechado sozinho.' : 'Uma sessão parada há ${prefs.idleMinutes} min tem o processo '
+                  'fechado; "Retomar" ou uma mensagem a reabre com o contexto.'} '
+        '${restore.enabled ? 'Antes de cada turno o app grava um ponto de restauração: dá para desfazer os últimos ${restore.keepTurns} turnos de cada sessão.' : 'Nenhum ponto de restauração é gravado: "Desfazer o último turno" não aparece nas sessões novas.'}',
       ),
       children: [
         AgentCard(
@@ -546,6 +570,9 @@ class _SessionsSection extends ConsumerWidget {
             ),
           ],
         ),
+        // SPEC-084 R14.
+        const SizedBox(height: 16),
+        const RestorePointsSettingsCard(),
       ],
     );
   }

@@ -421,4 +421,19 @@ autopilot:
     );
     expect(const ProjectConfig().autoFixCi, isFalse);
   });
+
+  // SPEC-085 R4, R15.
+  test('segredos.ignorar round-trips', () {
+    const c = ProjectConfig(
+      secretIgnore: ['test/fixtures/**', 'docs/exemplos/*.env.example'],
+    );
+    final yaml = c.toYaml();
+    expect(yaml, contains('segredos:\n  ignorar:\n    - "test/fixtures/**"'));
+    expect(ProjectConfig.parse(yaml).secretIgnore, c.secretIgnore);
+    expect(
+      ProjectConfig.parse('segredos:\n  ignorar: ["a/**"]\n').secretIgnore,
+      ['a/**'],
+    );
+    expect(const ProjectConfig().secretIgnore, isEmpty);
+  });
 }

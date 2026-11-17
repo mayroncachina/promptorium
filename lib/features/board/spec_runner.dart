@@ -1,3 +1,5 @@
+import '../../core/secrets/secret_guard.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -17,6 +19,7 @@ import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
+import '../sessions/restore/restore_service.dart' show restoreServiceProvider;
 import '../sessions/session_manager.dart';
 import '../project/spec_auto_planner.dart';
 import '../project/project_config.dart';
@@ -1536,6 +1539,10 @@ class SpecRunner {
     } on GitException catch (e) {
       debugPrint('${spec.code}: início da etapa não gravado — $e');
     }
+    // SPEC-084 R17: the first turn of the step reuses this snapshot.
+    if (sha != null) {
+      _ref.read(restoreServiceProvider).offerCheckpoint(worktree, sha, stash);
+    }
     await _ref
         .read(specStepsRepoProvider)
         .markStart(spec.id, steps, sha: sha, stash: stash);
@@ -2403,6 +2410,17 @@ class SpecRunner {
         ws != null &&
         ProjectConfig.loadSync(ws.path).git.markAgentCommits &&
         gitSupportsAgentTrailer(await _ref.read(gitVersionProvider.future));
+    // SPEC-085 R5: the Vigia de segredos before the app's commit.
+    await _ref
+        .read(secretGuardProvider)
+        .check(
+          s.worktreePath,
+          SecretCheckKind.commit,
+          workspaceId: s.workspaceId,
+          origin: SecretOrigin.app,
+          specId: spec.id,
+          title: '${spec.code} · ${spec.title}',
+        );
     try {
       await _ref
           .read(gitServiceFactoryProvider)(s.worktreePath)

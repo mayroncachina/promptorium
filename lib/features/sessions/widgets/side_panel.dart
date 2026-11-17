@@ -20,6 +20,7 @@ import '../edit_diff.dart';
 import '../timeline.dart';
 import 'agent_spec_approval.dart';
 import 'question_card.dart';
+import 'restore_points_section.dart';
 import 'session_style.dart';
 
 /// Right column: approvals of every session, details and changed files of the
@@ -61,6 +62,8 @@ class SessionSidePanel extends ConsumerWidget {
             const Text('ARQUIVOS ALTERADOS', style: sectionTitleStyle),
             const SizedBox(height: 10),
             _ChangedFiles(sessionId: s.id),
+            // SPEC-084 R9.
+            RestorePointsSection(session: s),
           ],
         ],
       ),

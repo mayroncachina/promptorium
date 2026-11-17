@@ -10,8 +10,11 @@ import '../../core/process/orphans.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
+import '../cost/quota_ruler.dart';
+import '../cost/usage_backfill.dart';
 import '../board/autopilot.dart';
 import '../prompt/prompt_actions.dart' show seedSavedPrompts;
+import '../sessions/restore/restore_service.dart' show restoreServiceProvider;
 import '../sessions/session_manager.dart';
 
 /// Values produced by startup steps and consumed by later steps / the app.
@@ -100,6 +103,15 @@ class OpenDatabaseStep extends StartupStep {
             '${AppDatabase.fileName}.sqlite.',
       );
     }
+    // SPEC-081: the ruler of the quota with its stored divisions, and the
+    // history of before rebuilt once, in the background (R3, R5).
+    ctx.ref.read(quotaRulerProvider.notifier).loadStored();
+    unawaited(
+      ctx.ref.read(usageBackfillProvider).run().catchError((Object e) {
+        debugPrint('custo por spec: histórico não reconstruído — $e');
+        return 0;
+      }),
+    );
     // First run: default saved prompts of the Prompt screen (best effort).
     try {
       await seedSavedPrompts(
@@ -196,6 +208,12 @@ class RestoreSessionsStep extends StartupStep {
     // Notices not delivered before closing; the autopilot that was on
     // resumes (not awaited: it may start sessions).
     await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    // SPEC-084 R13: old restore points go (not awaited: git per workspace).
+    unawaited(
+      ctx.ref.read(restoreServiceProvider).prune().catchError((Object e) {
+        debugPrint('pontos de restauração não limpos — $e');
+      }),
+    );
     // A spec in execution: the app opens on the Quadro (F10).
     final running = await ctx.ref
         .read(appDatabaseProvider)

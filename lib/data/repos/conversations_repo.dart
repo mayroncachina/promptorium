@@ -149,6 +149,21 @@ class ConversationsRepo {
         );
   });
 
+  /// Rewrites the JSON of one row (the comparison of SPEC-079 is one event
+  /// that changes while its sides run).
+  Future<int> updateEvent(int conversationId, int seq, String json) =>
+      (_db.update(_e)..where(
+            (e) => e.conversationId.equals(conversationId) & e.seq.equals(seq),
+          ))
+          .write(ConversationEventsCompanion(json: Value(json)));
+
+  /// Removes one row ("Descartar os dois", SPEC-079 R12).
+  Future<int> deleteEvent(int conversationId, int seq) =>
+      (_db.delete(_e)..where(
+            (e) => e.conversationId.equals(conversationId) & e.seq.equals(seq),
+          ))
+          .go();
+
   Future<List<ConversationEvent>> events(int conversationId) =>
       (_db.select(_e)
             ..where((e) => e.conversationId.equals(conversationId))

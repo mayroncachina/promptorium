@@ -44,6 +44,15 @@ abstract final class AppSettingKeys {
   /// right after a restart (see `RateLimitController`).
   static const lastRateLimit = 'usage.rateLimit';
 
+  /// Divisions of the ruler of each window (rise of the use ÷ cost of the
+  /// turns between two readings; JSON list, the last 20; SPEC-081 R3).
+  static const quotaRulerFiveHour = 'quota.ruler.five_hour';
+  static const quotaRulerSevenDay = 'quota.ruler.seven_day';
+
+  /// `1` once the history of before was rebuilt into `usage_entries`
+  /// (SPEC-081 R5).
+  static const usageBackfillDone = 'usage.backfill';
+
   /// Default model of a `RunKind` (`session`, `conversation`, `planner`).
   static String runModel(String kind) => 'claude.model.$kind';
 
@@ -133,6 +142,27 @@ abstract final class AppSettingKeys {
 
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
+
+  /// "Retomar de onde parei" (SPEC-080): the last time the person was seen
+  /// (ISO; window in focus and a key, a click or a scroll, R1).
+  static const resumeLastSeen = 'resume.lastSeenAt';
+
+  /// "Mostrar ao abrir o app" (`0` = off; on by default, R14).
+  static const resumeOnOpen = 'resume.onOpen';
+
+  /// "Mostrar ao voltar depois de", in minutes (`0` = never; 30, R14).
+  static const resumeAwayMinutes = 'resume.awayMinutes';
+
+  /// What does not enter "Terminou": `specs,prs,ci,releases,sessions`
+  /// (comma list of `ResumeKindGroup.name`; empty = everything, R14).
+  static const resumeHiddenKinds = 'resume.hiddenKinds';
+
+  /// "Desde a sua última visita" on the Início: the start of the window of
+  /// the card closed without "Tudo visto" (ISO; absent = no band, R12).
+  static const resumeBandSince = 'resume.bandSince';
+
+  /// "Tudo visto": the journal is seen until this time (ISO, R12).
+  static const resumeSeenUntil = 'resume.seenUntil';
 
   /// Labels of the last commands run from the palette, newest first, one
   /// per line (UX v2, U2).

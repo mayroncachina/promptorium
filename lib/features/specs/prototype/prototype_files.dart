@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show immutable;
 
+import '../spec_prints.dart' show PrintMeta;
+
 /// Screens of a spec's prototype (SPEC-022): self-contained HTML files in
 /// `docs/mockups/<code>/`, named `R<n>-<slug>.html` (variation A) and
 /// `R<n>-<slug>.<letter>.html` (B, C…), plus the app's `index.json`
@@ -198,6 +200,7 @@ class PrototypeIndex {
     this.emptied = const {},
     this.shown = const {},
     this.unseen = const {},
+    this.prints = const {},
   });
 
   static const fileName = 'index.json';
@@ -215,18 +218,25 @@ class PrototypeIndex {
   /// in "Versões".
   final Set<String> unseen;
 
+  /// The prints of the spec (`prints`, SPEC-083 R9, P6): type, description
+  /// and the brands read in each, by file name. The `print-*.png` files are
+  /// never screens of the prototype.
+  final Map<String, PrintMeta> prints;
+
   PrototypeIndex copyWith({
     Map<String, ScreenMeta>? screens,
     List<PrototypeRequest>? history,
     Map<String, EmptiedRequirement>? emptied,
     Map<String, String>? shown,
     Set<String>? unseen,
+    Map<String, PrintMeta>? prints,
   }) => PrototypeIndex(
     screens: screens ?? this.screens,
     history: history ?? this.history,
     emptied: emptied ?? this.emptied,
     shown: shown ?? this.shown,
     unseen: unseen ?? this.unseen,
+    prints: prints ?? this.prints,
   );
 
   String encode() => const JsonEncoder.withIndent('  ').convert({
@@ -241,6 +251,10 @@ class PrototypeIndex {
     if (shown.isNotEmpty)
       'mostrada': {for (final k in shown.keys.toList()..sort()) k: shown[k]},
     if (unseen.isNotEmpty) 'novas': unseen.toList()..sort(),
+    if (prints.isNotEmpty)
+      'prints': {
+        for (final k in prints.keys.toList()..sort()) k: prints[k]!.toJson(),
+      },
   });
 
   static PrototypeIndex decode(String? raw) {
@@ -251,7 +265,13 @@ class PrototypeIndex {
       final t = j['telas'];
       final e = j['semTela'];
       final m = j['mostrada'];
+      final pr = j['prints'];
       return PrototypeIndex(
+        prints: {
+          if (pr is Map)
+            for (final x in pr.entries)
+              '${x.key}': ?PrintMeta.fromJson(x.value),
+        },
         unseen: {for (final f in j['novas'] as List? ?? const []) '$f'},
         shown: {
           if (m is Map)

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cost/usage_ledger.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/readonly_run.dart';
 import '../../core/providers/claude_code_provider.dart';
@@ -237,6 +238,8 @@ class SpecQuestionOptions {
       _ref,
       workspaceId: ws.id,
       cwd: ws.path,
+      specCode: specCodeInText(specText),
+      usageSource: UsageSource.verificacao,
       options: ClaudeOptions(
         permissionMode: ClaudePermissionMode.defaultMode,
         disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
@@ -312,6 +315,8 @@ class SpecAnswerApplier {
         workspaceId: ws.id,
         cancelled: cancelled,
         cwd: ws.path,
+        specCode: specCodeInText(withDecisions),
+        usageSource: UsageSource.verificacao,
         options: ClaudeOptions(
           permissionMode: ClaudePermissionMode.defaultMode,
           disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
