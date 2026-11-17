@@ -9,6 +9,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../notifications/alert_target.dart' show AlertSpotlight;
 import '../project/project_config.dart';
 import '../sessions/new_session_dialog.dart';
 import '../sessions/session_manager.dart' show PendingApproval, slugify;
@@ -148,6 +149,16 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
   bool _busy = false;
   bool _open = false;
 
+  /// "Implementar como sessão": the focus after a click on the notification
+  /// (SPEC-086 R7).
+  final _primary = FocusNode(debugLabel: 'plan-primary');
+
+  @override
+  void dispose() {
+    _primary.dispose();
+    super.dispose();
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
@@ -246,6 +257,17 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final a = widget.approval;
+    if (a == null) return _card();
+    return AlertSpotlight(
+      requestId: a.requestId,
+      primary: _primary,
+      radius: 10,
+      child: _card(),
+    );
+  }
+
+  Widget _card() {
     final pending = widget.approval != null;
     final summary = planSummary(widget.plan);
     return Container(
@@ -330,6 +352,7 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
               children: [
                 AmberButton(
                   key: const ValueKey('plan-as-session'),
+                  focusNode: _primary,
                   label: 'Implementar como sessão',
                   onTap: _busy ? null : _asSession,
                 ),
