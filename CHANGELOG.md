@@ -2,6 +2,69 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.20.0] - 2026-11-17
+
+### Funcionalidades
+
+- **spec-079:** Núcleo da comparação de respostas (7141859)
+- **spec-079:** Interface da comparação de respostas (281a467)
+- **spec-083:** Núcleo dos prints — área de transferência, preparo, planner e cópia para docs/mockups (38ca376)
+- **spec-083:** Telas dos prints — colar, cartões, Referência visual e guarda da marca (eec7d06)
+- **db:** Tabela activity_events na migração v30 provisória (SPEC-080 R6) (eb37c13)
+- **resume:** Diário do que terminou e conferência do GitHub ao abrir (SPEC-080 R6, R7) (2291bcd)
+- **resume:** Cartão Retomar de onde parei, presença, faixa do Início, Atividades, paleta e Configurações (SPEC-080 R1–R5, R8–R15) (b004cf7)
+- **db:** Tabela usage_entries na migração v30 provisória (SPEC-081 R1) (bdb4895)
+- **custo:** Registro dos turnos, régua da cota e histórico de antes (SPEC-081 R1–R5) (dc3f757)
+- **custo:** Seção Cota no painel da spec, card sem custo e ranking nas Métricas (SPEC-081 R6–R14) (63248d1)
+- **db:** Tabela restore_points na migração v30 provisória (SPEC-084 R3) (c774ba7)
+- **sessoes:** Ponto de restauração antes e depois de cada turno, desfazer/refazer e retenção (SPEC-084 R1–R4, R6–R8, R11–R13, R15–R17) (d9635c7)
+- **sessoes:** Botão Desfazer o último turno, janela do desfazer, pontos no painel e na timeline, paleta e Configurações (SPEC-084 R5, R6, R9–R12, R14, R16) (ad6af73)
+- **segredos:** Tabela secret_waivers na migração v30 provisória (SPEC-085 R11) (26379ac)
+- **segredos:** Regras, scanner, máscara, impressão, hook em Python e gitleaks (SPEC-085 R1, R3, R4, R8, R13, R16) (608b6a8)
+- **segredos:** Cartão do bloqueio na sessão, ações, justificativa, pedidos "Segredo encontrado" e conferência sem hook (SPEC-085 R1, R2, R7–R11) (d263510)
+- **segredos:** Vigia nos commits e pushes do app, janela de achados, commit manual da tela Código e Configurações › Vigia de segredos (SPEC-085 R5, R6, R12–R15) (74595b7)
+
+### Correções
+
+- **spec-079:** Resposta interrompida marcada, peso de reserva com as conversas e prompt de volta ao descartar (99d22d7)
+- **resume:** O foco sozinho não conta como presença; título do Terminou no O que aconteceu (SPEC-080 R2, R13) (4deb890)
+- **custo:** Ajustes vistos no app real (SPEC-081) (157bd5c)
+- **sessoes:** Ponto do primeiro turno antes de o agente iniciar; aviso de desfeito some em 10 s (SPEC-084 R1, R11) (05b6e67)
+- **sessoes:** O limite de 5 s vale para a captura; um ponto capturado a tempo é gravado inteiro (SPEC-084 R4) (e51be4a)
+- **segredos:** Retoma a sessão com o aviso, log de hooks novo por processo, botões desabilitados em vez de sumirem e layout do achado (SPEC-085 R7, R9) (081ae93)
+
+### Documentação
+
+- **spec-079:** Spec e canvas de comparar respostas (b95b27b)
+- **spec-079:** Issue #272 (6d7cc6a)
+- **spec-079:** Aprovada para a 0.20.0, decisões fechadas (c4b1923)
+- **spec-083:** Spec a partir de um print, rascunho e canvas (e77cf32)
+- **spec-083:** Issue #277 (c0fae9a)
+- **spec-083:** Aprovada para a 0.20.0, decisões fechadas (4283631)
+- **spec-083:** Prints do app real e critérios conferidos (58bbf14)
+- **spec-080:** Spec e canvas de retomar de onde parei (b210104)
+- **spec-080:** Issue #274 (b5f855c)
+- **spec-080:** Aprovada para a 0.20.0, decisões fechadas (40088a8)
+- **spec-080:** Prints do app real, v30 provisória e critérios conferidos (286a02f)
+- **spec-081:** Custo por spec, rascunho e canvas (b15a995)
+- **spec-081:** Issue #271 (0e40459)
+- **spec-081:** Custo no verso do card, que vira (72fbe8b)
+- **spec-081:** Medidor de cota como gatilho do verso (45433bd)
+- **spec-081:** Custo só no painel da spec; o card não muda (3e0aab6)
+- **spec-081:** Aprovada para a 0.20.0, decisões fechadas, card sem custo (71b1f5e)
+- **spec-084:** Ponto de restauração — spec e mockups (01a86a1)
+- **spec-084:** Issue #270 (b554d64)
+- **spec-084:** Aprovada para a 0.20.0, decisões fechadas (8f48dd5)
+- **spec-084:** Prints do app real e critérios conferidos (d53a29a)
+- **spec-085:** Vigia de segredos — spec e mockups (7589b3a)
+- **spec-085:** Issue #273 (2ae9da9)
+- **spec-085:** Aprovada para a 0.20.0, decisões fechadas (b1a616b)
+- **spec-085:** Prints do app real e critérios conferidos (bc78287)
+
+### Manutenção
+
+- Desfaz formatação fora do escopo (19f1193)
+
 ## [0.19.0] - 2026-11-17
 
 ### Funcionalidades
