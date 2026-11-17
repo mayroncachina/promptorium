@@ -30,6 +30,12 @@ abstract final class AppEventTypes {
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 
+  /// A comparison of two answers (SPEC-079): `{"type":"promptorium_compare",
+  /// "status":"open|chosen","prompt":…,"sides":[…]}`. Open, it shows
+  /// nothing here (the Prompt shows the columns); chosen, the prompt and
+  /// the folded card ([CompareItem]).
+  static const compare = 'promptorium_compare';
+
   /// Stdout line that was not a JSON object: `{"type":"invalid_line","raw":…}`.
   static const invalidLine = 'invalid_line';
 
@@ -155,6 +161,15 @@ class NoticeItem extends TimelineItem {
 
   final String text;
   final NoticeLevel level;
+}
+
+/// A chosen comparison (SPEC-079 R11): the folded card with both sides.
+/// A [NoticeItem] for every view that does not know it (replay…).
+class CompareItem extends NoticeItem {
+  CompareItem(this.data, super.text, {super.at});
+
+  /// The stored event (`CompareRun.fromJson`).
+  final Map<String, dynamic> data;
 }
 
 // --- reducer -----------------------------------------------------------------
@@ -361,6 +376,8 @@ class Timeline {
         final id = j['tool_use_id'];
         if (id is String) _deniedIds.add(id);
         _tools[id]?.denied = true;
+      case AppEventTypes.compare when j['status'] == 'chosen':
+        _applyCompare(j, at);
       case AppEventTypes.note:
         items.add(
           NoticeItem(
@@ -369,6 +386,48 @@ class Timeline {
             at: at,
           ),
         );
+    }
+  }
+
+  /// The prompt, the card and the note of the chosen side (SPEC-079 R11).
+  void _applyCompare(Map<String, dynamic> j, DateTime at) {
+    final sides = [
+      for (final s in (j['sides'] as List?) ?? const [])
+        if (s is Map) s,
+    ];
+    String label(Map s) {
+      final m = '${s['model'] ?? ''}';
+      final model = m.isEmpty || m == 'inherit'
+          ? 'Padrão'
+          : m[0].toUpperCase() + m.substring(1);
+      final mode = switch (s['mode']) {
+        'plan' => 'Planejar',
+        'edit' => 'Editar',
+        _ => 'Perguntar',
+      };
+      return '$model · $mode';
+    }
+
+    final chosen = sides.where((s) => s['letter'] == j['chosen']).firstOrNull;
+    final other = sides.where((s) => s['letter'] != j['chosen']).firstOrNull;
+    items
+      ..add(UserItem('${j['prompt'] ?? ''}', at: at))
+      ..add(
+        CompareItem(
+          j,
+          other == null
+              ? 'Comparação'
+              : 'Comparação: ${label(other)} (não escolhida)',
+          at: at,
+        ),
+      );
+    if (chosen != null) {
+      items.add(
+        NoticeItem(
+          'escolhida entre ${sides.length} · ${label(chosen)}',
+          at: at,
+        ),
+      );
     }
   }
 

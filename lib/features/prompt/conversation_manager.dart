@@ -3,6 +3,7 @@ import 'dart:io' show Directory;
 import 'dart:convert' show jsonEncode;
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -311,6 +312,30 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       _note(id, text, error: error);
 
   Future<void> setMode(int id, PromptMode mode) => _repo.setMode(id, mode.name);
+
+  /// The conversation goes on from [sessionId] (the fork of the side chosen
+  /// in a comparison, SPEC-079 R11), with its model and mode. A live
+  /// process of the old session is stopped: the next message resumes the
+  /// new one. [sessionId] null keeps the session.
+  Future<void> adoptSession(
+    int id,
+    String? sessionId, {
+    required String model,
+    required PromptMode mode,
+  }) async {
+    final r = _runs[id];
+    if (r != null) await _stopRun(id, r);
+    await _repo.update(
+      id,
+      ConversationsCompanion(
+        claudeSessionId: sessionId == null
+            ? const Value.absent()
+            : Value(sessionId),
+        model: Value(model),
+        mode: Value(mode.name),
+      ),
+    );
+  }
 
   Future<void> setModel(int id, String model) => _repo.setModel(id, model);
 
