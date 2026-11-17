@@ -1,6 +1,7 @@
 ---
 id: SPEC-086
-status: rascunho
+status: aprovada
+versão: 0.19.0
 tipo: melhoria
 depende-de: SPEC-076
 issue: 276
@@ -156,11 +157,11 @@ Canvas para validar: [Notificação com o robô](https://claude.ai/artifact/TT6s
 - [ ] No app, com a janela minimizada, um pedido real mostra a notificação com o robô no GNOME (Wayland) e no KDE ou `dunst`, e o clique abre o cartão de aprovação com o foco no Aprovar [R1–R8] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-086/app/`)
 - [ ] O projeto compila e a análise estática passa [R1–R16] verificar: flutter analyze
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Ações na notificação (Aprovar, Abrir).** **Recomendação:** **só "Abrir"** (mais o clique). Aprovar às cegas, sem ver o comando inteiro, o diff e o contexto, anula o motivo de existir a aprovação. Com o Autopilot, seria fácil aprovar o pedido errado de outro agente. Se pedirem depois, um "Aprovar" pode entrar só para ferramentas de leitura (Read, Grep, Glob), atrás de uma opção desligada por padrão.
-- P2 · **Como evitar spam.** **Recomendação:** as cinco regras juntas (R9–R13): uma por agente com `replaces_id`, resumo com três ou mais em 15 s, espera de 3 s, fechar quando não serve mais e um único lembrete aos 15 min. Nenhuma depende de configuração para funcionar bem. O limite de "três" para o resumo deixa dois pedidos ainda individuais, com o robô de cada um.
-- P3 · **Biblioteca: `local_notifier` ou DBus direto.** **Recomendação:** **DBus direto** com o pacote `dbus`. O `local_notifier` 0.1.6 não manda imagem, não registra o clique (`default`) no Linux, não tem `replaces_id` nem token de ativação, e trocar o plugin C++ dele daria mais trabalho que falar o protocolo, que é pequeno e estável (Desktop Notifications Specification 1.2).
-- P4 · **Imagem: `image-data` ou arquivo.** **Recomendação:** **`image-data`** (pixels na própria mensagem). Funciona no Flatpak, onde o servidor não enxerga os arquivos do app, e não deixa arquivos temporários. Custa cerca de 64 KB por notificação a 128 × 128, o que é irrelevante.
-- P5 · **Quais notificações levam o robô.** **Recomendação:** **só as de "precisa de você"**, com o robô acenando, que é o único estado que acena (SPEC-076 R10). Robô também em "concluída" e "falhou" diluiria o sinal: o aceno passaria a ser ruído.
-- P6 · **Foco no Wayland.** **Recomendação:** usar o **token de ativação** (`ActivationToken`, `xdg-activation`). Sem ele, o GNOME no Wayland só pisca o ícone na barra e não traz a janela, e o "abrir direto no pedido" falharia justamente na sessão padrão do Ubuntu.
+- P1 · **Ações na notificação (Aprovar, Abrir).** **Decidido:** **só "Abrir"** (mais o clique). Aprovar às cegas, sem ver o comando inteiro, o diff e o contexto, anula o motivo de existir a aprovação. Com o Autopilot, seria fácil aprovar o pedido errado de outro agente. Se pedirem depois, um "Aprovar" pode entrar só para ferramentas de leitura (Read, Grep, Glob), atrás de uma opção desligada por padrão.
+- P2 · **Como evitar spam.** **Decidido:** as cinco regras juntas (R9–R13): uma por agente com `replaces_id`, resumo com três ou mais em 15 s, espera de 3 s, fechar quando não serve mais e um único lembrete aos 15 min. Nenhuma depende de configuração para funcionar bem. O limite de "três" para o resumo deixa dois pedidos ainda individuais, com o robô de cada um.
+- P3 · **Biblioteca: `local_notifier` ou DBus direto.** **Decidido:** **DBus direto** com o pacote `dbus`. O `local_notifier` 0.1.6 não manda imagem, não registra o clique (`default`) no Linux, não tem `replaces_id` nem token de ativação, e trocar o plugin C++ dele daria mais trabalho que falar o protocolo, que é pequeno e estável (Desktop Notifications Specification 1.2).
+- P4 · **Imagem: `image-data` ou arquivo.** **Decidido:** **`image-data`** (pixels na própria mensagem). Funciona no Flatpak, onde o servidor não enxerga os arquivos do app, e não deixa arquivos temporários. Custa cerca de 64 KB por notificação a 128 × 128, o que é irrelevante.
+- P5 · **Quais notificações levam o robô.** **Decidido:** **só as de "precisa de você"**, com o robô acenando, que é o único estado que acena (SPEC-076 R10). Robô também em "concluída" e "falhou" diluiria o sinal: o aceno passaria a ser ruído.
+- P6 · **Foco no Wayland.** **Decidido:** usar o **token de ativação** (`ActivationToken`, `xdg-activation`). Sem ele, o GNOME no Wayland só pisca o ícone na barra e não traz a janela, e o "abrir direto no pedido" falharia justamente na sessão padrão do Ubuntu.
