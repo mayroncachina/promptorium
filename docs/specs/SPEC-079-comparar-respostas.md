@@ -1,6 +1,7 @@
 ---
 id: SPEC-079
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 issue: 272
 ---
@@ -27,7 +28,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/G9sgBDiJxEPDSrdFWx2
 | `3-lado-a-lado.png` | As duas respostas prontas, as métricas comparadas (tempo, tokens, peso na janela de 5 h e na semana) e "Continuar com esta" | R6, R7, R9 |
 | `4-escolhida.png` | Depois de escolher o B: a resposta na timeline, o cartão recolhido da comparação e o composer de volta, já no Opus | R10–R12 |
 
-Issue: [#272](https://github.com/mayroncachina/promptorium/issues/272) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
+Issue: [#272](https://github.com/mayroncachina/promptorium/issues/272) (sub-issue de [#278](https://github.com/mayroncachina/promptorium/issues/278))
 
 ## Requisitos
 
@@ -87,14 +88,14 @@ Issue: [#272](https://github.com/mayroncachina/promptorium/issues/272) (sub-issu
 
 ## Decisões em aberto
 
-- P1 · **Onde fica o botão.** No composer (um interruptor ao lado de Enviar) ou numa ação "Comparar com outro modelo" sobre uma resposta já dada (que roda só o lado que falta). **Recomendação:** **no composer**, como interruptor. Comparar uma resposta já dada mede o lado novo num contexto diferente (já com a resposta antiga) e não seria justo. "Refazer com outro modelo" pode vir depois.
-- P2 · **Mostrar US$.** O usuário está no plano Max; o dólar do CLI é só estimativa e distrai. **Recomendação:** **não mostrar**; o custo serve só como proporção para dividir o peso (R8).
-- P3 · **Editar.** Dois agentes editando a mesma pasta se atropelam. Com worktrees por lado (como o duelo do Quadro) dá, mas aí é outro recurso. **Recomendação:** **fora**; Perguntar e Planejar cobrem o "plano × direto" sem tocar nos arquivos.
-- P4 · **Como medir o peso.** Opções: (a) a variação do `/usage` antes e depois, dividida pela proporção do custo; (b) só a regra da Atividades, pela última leitura; (c) tokens ponderados por modelo. **Recomendação:** **(a)**, com (b) quando não há as duas leituras (R8). A (c) depende de pesos que a Anthropic não publica.
-- P5 · **Onde guardar a comparação.** Uma tabela nova (`conversation_compares`) ou um evento da conversa em `conversation_events`. **Recomendação:** **evento da conversa** (`type = 'compare'`, JSON com os dois lados), **sem migração**. A timeline já carrega eventos, e a comparação só existe dentro de uma conversa.
-- P6 · **O que acontece com a resposta não escolhida.** Apagar, guardar recolhida ou virar uma conversa à parte. **Recomendação:** **guardar recolhida** no cartão da comparação (R11), só leitura. Virar conversa à parte duplicaria a lista.
-- P7 · **Layout em janela estreita.** **Recomendação:** abaixo de 1100 px de área de conversa, abas A/B com as métricas no topo (R6); o painel lateral recolhe sozinho ao comparar, para dar espaço.
-- P8 · **Padrão do lado B.** **Recomendação:** o "outro" modelo no mesmo modo (Sonnet ↔ Opus), porque é a dúvida mais comum. A última combinação usada fica lembrada por workspace em `app_settings`.
+- P1 · **Onde fica o botão.** No composer (um interruptor ao lado de Enviar) ou numa ação "Comparar com outro modelo" sobre uma resposta já dada (que roda só o lado que falta). **Decidido:** **no composer**, como interruptor. Comparar uma resposta já dada mede o lado novo num contexto diferente (já com a resposta antiga) e não seria justo. "Refazer com outro modelo" pode vir depois.
+- P2 · **Mostrar US$.** O usuário está no plano Max; o dólar do CLI é só estimativa e distrai. **Decidido:** **não mostrar**; o custo serve só como proporção para dividir o peso (R8).
+- P3 · **Editar.** Dois agentes editando a mesma pasta se atropelam. Com worktrees por lado (como o duelo do Quadro) dá, mas aí é outro recurso. **Decidido:** **fora**; Perguntar e Planejar cobrem o "plano × direto" sem tocar nos arquivos.
+- P4 · **Como medir o peso.** Opções: (a) a variação do `/usage` antes e depois, dividida pela proporção do custo; (b) só a regra da Atividades, pela última leitura; (c) tokens ponderados por modelo. **Decidido:** **(a)**, com (b) quando não há as duas leituras (R8). A (c) depende de pesos que a Anthropic não publica.
+- P5 · **Onde guardar a comparação.** Uma tabela nova (`conversation_compares`) ou um evento da conversa em `conversation_events`. **Decidido:** **evento da conversa** (`type = 'compare'`, JSON com os dois lados), **sem migração**. A timeline já carrega eventos, e a comparação só existe dentro de uma conversa.
+- P6 · **O que acontece com a resposta não escolhida.** Apagar, guardar recolhida ou virar uma conversa à parte. **Decidido:** **guardar recolhida** no cartão da comparação (R11), só leitura. Virar conversa à parte duplicaria a lista.
+- P7 · **Layout em janela estreita.** **Decidido:** abaixo de 1100 px de área de conversa, abas A/B com as métricas no topo (R6); o painel lateral recolhe sozinho ao comparar, para dar espaço.
+- P8 · **Padrão do lado B.** **Decidido:** o "outro" modelo no mesmo modo (Sonnet ↔ Opus), porque é a dúvida mais comum. A última combinação usada fica lembrada por workspace em `app_settings`.
 
 ## Design
 
