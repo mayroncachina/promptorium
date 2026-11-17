@@ -2,6 +2,7 @@
 id: SPEC-083
 status: rascunho
 tipo: recurso
+issue: 277
 ---
 
 # Spec a partir de um print
