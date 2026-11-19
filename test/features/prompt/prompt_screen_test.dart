@@ -10,6 +10,7 @@ import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/prompt_actions.dart';
 import 'package:promptorium/features/prompt/prompt_screen.dart';
+import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
@@ -23,6 +24,7 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
   bool withConversation = true,
+  String? applyRequest,
   List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
@@ -39,6 +41,9 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
             workspaceId: ws.id,
             title: 'Parser stream-json em Dart',
             model: 'sonnet',
+            mode: Value(applyRequest == null ? 'ask' : 'refine'),
+            refineOrigin: Value(applyRequest == null ? null : 'board'),
+            refineSpecCode: Value(applyRequest == null ? null : 'SPEC-020'),
             claudeSessionId: const Value('conv-sid'),
             messageCount: const Value(2),
             tokensIn: const Value(8000),
@@ -48,7 +53,8 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
         );
     final events = [
       AppEventTypes.userMessage(
-        'Como leio o stream-json? Veja @lib/core/claude_process.dart',
+        applyRequest ??
+            'Como leio o stream-json? Veja @lib/core/claude_process.dart',
         DateTime.now(),
       ),
       textLine(answer),
@@ -120,6 +126,54 @@ String fieldText(WidgetTester tester) =>
     tester.widget<TextField>(field).controller!.text;
 
 void main() {
+  test('SPEC-088: the suggestion parses with old and current wording', () {
+    const head =
+        'Aplique à spec @docs/specs/SPEC-020-a.md (SPEC-020) a sugestão da '
+        'sessão das etapas R7 : "Troque "a". Depois b';
+    final current = parseApplySuggestion(
+      '$head". $applySuggestionInstructions',
+    );
+    expect(current?.steps, 'R7');
+    expect(current?.body, 'Troque "a". Depois b');
+    final old = parseApplySuggestion('$head". Mantenha o formato.');
+    expect(old?.body, 'Troque "a". Depois b');
+    expect(parseApplySuggestion('Outro pedido qualquer'), isNull);
+  });
+
+  testWidgets('SPEC-088: the suggestion and full request are both readable', (
+    tester,
+  ) async {
+    const prompt =
+        'Aplique à spec @docs/specs/SPEC-020-teste.md (SPEC-020) a sugestão '
+        'da sessão das etapas R7,R8,R9 : "Atualize o caminho do teste.". '
+        '$applySuggestionInstructions';
+    await pumpPrompt(tester, size: const Size(1100, 700), applyRequest: prompt);
+    expect(find.text('Aplicar à spec · SPEC-020'), findsOneWidget);
+    expect(find.text('Voltar à spec SPEC-020'), findsOneWidget);
+    expect(find.text('Sugestão das etapas R7,R8,R9'), findsOneWidget);
+    expect(find.text('Atualize o caminho do teste.'), findsOneWidget);
+    expect(find.text(prompt), findsNothing);
+    await tester.tap(find.text('Ver pedido completo'));
+    await pumpFor(tester);
+    expect(find.text(prompt), findsOneWidget);
+    expect(find.text('Ocultar pedido completo'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('prompt-rename')));
+    await pumpFor(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('title-field')),
+      'Revisar caminho do teste',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await pumpFor(tester);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('prompt-title'))).data,
+      'Revisar caminho do teste',
+    );
+    expect(find.text('Aplicar à spec · SPEC-020'), findsOneWidget);
+    expect(find.text('Voltar à spec SPEC-020'), findsOneWidget);
+  });
+
   testWidgets('history, conversation, context and saved prompts render', (
     tester,
   ) async {

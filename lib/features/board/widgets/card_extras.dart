@@ -65,9 +65,7 @@ class LiveToolLine extends ConsumerWidget {
 String applySuggestionPrompt(Spec spec, SpecSuggestion s) =>
     'Aplique à spec @${spec.path} (${spec.code}) a sugestão da sessão '
     '${s.steps == null ? '' : 'das etapas ${s.steps} '}: "${s.body}". '
-    'Altere só requisitos que ainda não foram feitos (os feitos já têm '
-    'commit nesta branch) e mantenha o formato "- Rn · texto" e o '
-    'frontmatter. Antes de editar, resuma o que pretende mudar.';
+    '$applySuggestionInstructions';
 
 /// Suggestions of the card's spec: Aplicar (opens Refinar in Prompt) /
 /// Ignorar.
