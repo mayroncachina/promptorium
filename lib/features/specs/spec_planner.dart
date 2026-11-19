@@ -14,6 +14,7 @@ import '../../core/claude/readonly_run.dart'
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../issues/issue_refine.dart';
+import '../project/project_plan.dart' show PlanQuestion;
 import '../project/project_planner.dart' show ProjectPlanner;
 import '../project/project_config.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
@@ -49,7 +50,10 @@ final specPlannerSchema = _object({
       'items': _object({'text': _str, 'suggestion': _str}),
     },
   }),
-  'suggestions': _strList,
+  'questions': {
+    'type': 'array',
+    'items': _object({'text': _str, 'options': _strList}),
+  },
   // SPEC-083 R7: one item per print of the idea (empty without prints).
   'prints': {
     'type': 'array',
@@ -62,15 +66,14 @@ const specPlannerSystemPrompt =
     'um repositório que já existe. Escreva em português do Brasil. Leia o '
     'repositório quando ajudar. Não altere arquivos. Responda somente com a '
     'saída estruturada pedida. A cada mensagem: em reply, responda de forma '
-    'curta e faça no máximo duas perguntas por vez, começando pelas que mais '
-    'mudam a spec; em draft, devolva o rascunho COMPLETO atualizado (title '
+    'curta, sem repetir as perguntas; em questions, faça até duas perguntas, '
+    'começando pelas que mais mudam a spec, com até três respostas curtas '
+    'em options para cada pergunta. Em draft, devolva o rascunho COMPLETO atualizado (title '
     'curto; objective em 1 ou 2 frases; requirements sem numeração, pequenos, '
     'verificáveis e em ordem de execução, no estilo EARS: "Quando <gatilho>, '
     'o sistema deve <resposta>"; outOfScope; dependsOn com os códigos das '
     'specs listadas de que esta depende; openQuestions com text e, quando '
-    'houver, suggestion); em suggestions, até 3 respostas curtas que o '
-    'usuário poderia clicar para a sua pergunta principal (lista vazia se não '
-    'houver pergunta). Não invente requisitos que o usuário não disse: uma '
+    'houver, suggestion). Não invente requisitos que o usuário não disse: uma '
     'dúvida sem resposta vira item de openQuestions. Uma dúvida que não '
     'impede começar não segura a criação: registre-a e diga em reply que a '
     'spec já pode ser criada. No máximo ${SpecDraftData.maxRequirements} '
@@ -142,6 +145,7 @@ String specPlannerPrompt(
   String reply,
   PlannerDraft draft,
   List<String> suggestions,
+  List<PlanQuestion> questions,
   List<PrintNote> prints,
 })
 parseSpecPlannerResult(Result r) {
@@ -159,6 +163,16 @@ parseSpecPlannerResult(Result r) {
       if (s is List)
         for (final x in s.take(3))
           if ('$x'.trim().isNotEmpty) '$x'.trim(),
+    ],
+    questions: [
+      if (m['questions'] case final List questions)
+        for (final raw in questions.whereType<Map>().take(2))
+          if (PlanQuestion.fromJson(raw) case final question
+              when question.text.isNotEmpty)
+            PlanQuestion(
+              text: question.text,
+              options: question.options.take(3).toList(),
+            ),
     ],
     prints: [
       if (m['prints'] case final List l)
@@ -384,6 +398,7 @@ class SpecPlanner extends Notifier<Set<int>> {
           reply: out.reply,
           draft: out.draft,
           suggestions: out.suggestions,
+          questions: out.questions,
           knownSpecs: {for (final s in specs) s.code},
           printNotes: out.prints,
         );

@@ -295,6 +295,37 @@ void main() {
       expect(find.text('novo'), findsNothing);
     });
 
+    testWidgets('SPEC-091: an option answers its own question', (tester) async {
+      await pump(tester, size: const Size(1044, 628));
+      await plan(
+        tester,
+        output: {
+          ...plannerOutput(reply: 'Tenho **duas dúvidas**.'),
+          'questions': [
+            {
+              'text': 'Mostrar rodapé ao carregar?',
+              'options': ['Sim', 'Não'],
+            },
+            {
+              'text': 'Começar com cartão?',
+              'options': ['Sim', 'Não'],
+            },
+          ],
+        },
+      );
+      expect(key('new-spec-question-0-Sim'), findsOneWidget);
+      final second = key('new-spec-question-1-Sim');
+      await tester.ensureVisible(second);
+      await tester.tap(second);
+      await settleIo(tester, until: () => cli.processes.length == 2);
+      expect(
+        (await draft(tester))!.data,
+        contains(r'Começar com cartão?\n\nSim'),
+      );
+      cli.last.emit(resultLine(plannerOutput(reply: 'Anotei.')));
+      await settleIo(tester, until: () => c.read(specPlannerProvider).isEmpty);
+    });
+
     testWidgets('R5: the title typed by hand stays in the field and in the '
         'spec; an empty title blocks Criar', (tester) async {
       await pump(tester);

@@ -34,6 +34,19 @@ List<String> _strings(Object? v) => [
 
 String _str(Object? v) => v == null ? '' : '$v'.trim();
 
+@immutable
+class PlanQuestion {
+  const PlanQuestion({required this.text, required this.options});
+
+  final String text;
+  final List<String> options;
+
+  factory PlanQuestion.fromJson(Map j) =>
+      PlanQuestion(text: _str(j['text']), options: _strings(j['options']));
+
+  Map<String, Object?> toJson() => {'text': text, 'options': options};
+}
+
 /// One message of the Visão conversation.
 @immutable
 class PlanMessage {
@@ -41,6 +54,7 @@ class PlanMessage {
     required this.fromUser,
     required this.text,
     this.suggestions = const [],
+    this.questions = const [],
     this.note,
     this.error = false,
   });
@@ -50,6 +64,7 @@ class PlanMessage {
 
   /// Quick replies offered by the planner (clickable chips).
   final List<String> suggestions;
+  final List<PlanQuestion> questions;
 
   /// "Plano atualizado · …" line shown before a planner answer.
   final String? note;
@@ -61,6 +76,11 @@ class PlanMessage {
     fromUser: j['fromUser'] == true,
     text: _str(j['text']),
     suggestions: _strings(j['suggestions']),
+    questions: [
+      if (j['questions'] case final List questions)
+        for (final question in questions.whereType<Map>())
+          PlanQuestion.fromJson(question),
+    ],
     note: j['note'] is String ? j['note'] as String : null,
     error: j['error'] == true,
   );
@@ -69,6 +89,8 @@ class PlanMessage {
     'fromUser': fromUser,
     'text': text,
     if (suggestions.isNotEmpty) 'suggestions': suggestions,
+    if (questions.isNotEmpty)
+      'questions': [for (final question in questions) question.toJson()],
     'note': ?note,
     if (error) 'error': true,
   };
