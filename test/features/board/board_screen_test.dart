@@ -150,6 +150,52 @@ Future<bool> tabTo(WidgetTester tester, Finder target) async {
 }
 
 void main() {
+  testWidgets('SPEC-089: the spec header lists its dependencies and states', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    Future<void> openCard(String code) async {
+      final card = find.byKey(ValueKey('board-open-$code'));
+      await tester.tapAt(tester.getTopLeft(card) + const Offset(8, 8));
+      await pumpFor(tester);
+    }
+
+    await openCard('SPEC-004');
+    final block = find.byKey(const ValueKey('spec-depends-on'));
+    expect(block, findsOneWidget);
+    expect(
+      find.descendant(of: block, matching: find.text('Depende de')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: block,
+        matching: find.text('Em execução · bloqueia a execução'),
+      ),
+      findsOneWidget,
+    );
+    // The block sits above the steps.
+    expect(
+      tester.getBottomLeft(block).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const ValueKey('step-status-R1'))).dy,
+      ),
+    );
+
+    await openCard('SPEC-003');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('spec-depends-on-SPEC-001')),
+        matching: find.text('Feito'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('bloqueia a execução'), findsNothing);
+
+    await openCard('SPEC-002');
+    expect(find.byKey(const ValueKey('spec-depends-on')), findsNothing);
+  });
+
   test('moveInColumn saves the move against the shown neighbour, keeping '
       'the cards hidden by a filter in place', () {
     // Column 1..5; shown (filtered / attention first): 4, 2, 5.
