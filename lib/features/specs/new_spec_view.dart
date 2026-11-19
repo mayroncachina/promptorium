@@ -17,7 +17,8 @@ import '../../ui/widgets/app_dialog.dart';
 import '../ideas/widgets/idea_field.dart';
 import '../issues/issue_refine.dart';
 import '../project/project_config.dart';
-import '../project/project_plan.dart' show PlanMessage;
+import '../../ui/widgets/markdown/app_markdown.dart';
+import '../project/project_plan.dart' show PlanMessage, PlanQuestion;
 import '../project/widgets/project_widgets.dart';
 import '../sessions/widgets/session_style.dart';
 import 'new_spec_dialog.dart';
@@ -1081,7 +1082,7 @@ class _ConversationState extends State<_Conversation> {
             _Message(
               message: m,
               prints: i == firstUser ? widget.prints : const [],
-              suggestions: idle && i == lastPlanner ? m.suggestions : const [],
+              canAnswer: idle && i == lastPlanner,
               onSuggestion: widget.onSuggestion,
             ),
             const SizedBox(height: 16),
@@ -1117,13 +1118,13 @@ class _Message extends StatelessWidget {
   const _Message({
     required this.message,
     this.prints = const [],
-    required this.suggestions,
+    required this.canAnswer,
     required this.onSuggestion,
   });
 
   final PlanMessage message;
   final List<SpecPrint> prints;
-  final List<String> suggestions;
+  final bool canAnswer;
   final ValueChanged<String> onSuggestion;
 
   @override
@@ -1194,14 +1195,7 @@ class _Message extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            SelectableText(
-              m.text,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: AppColors.text,
-              ),
-            ),
+            AppMarkdown(data: m.text),
             if (m.note != null) ...[
               const SizedBox(height: 6),
               Text(
@@ -1209,13 +1203,25 @@ class _Message extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: AppColors.teal),
               ),
             ],
-            if (suggestions.isNotEmpty) ...[
+            for (final (index, question) in m.questions.indexed) ...[
+              const SizedBox(height: 10),
+              _QuestionBlock(
+                index: index,
+                question: question,
+                canAnswer: canAnswer,
+                onAnswer: (option) =>
+                    onSuggestion('${question.text}\n\n$option'),
+              ),
+            ],
+            if (canAnswer &&
+                m.questions.isEmpty &&
+                m.suggestions.isNotEmpty) ...[
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final s in suggestions)
+                  for (final s in m.suggestions)
                     ChipButton(
                       key: ValueKey('new-spec-suggestion-$s'),
                       label: s,
@@ -1225,6 +1231,102 @@ class _Message extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// SPEC-091 R1: one planner question with its options right under it.
+class _QuestionBlock extends StatelessWidget {
+  const _QuestionBlock({
+    required this.index,
+    required this.question,
+    required this.canAnswer,
+    required this.onAnswer,
+  });
+
+  final int index;
+  final PlanQuestion question;
+  final bool canAnswer;
+  final ValueChanged<String> onAnswer;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ValueKey('new-spec-question-$index'),
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppMarkdown(data: question.text),
+        if (canAnswer && question.options.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final option in question.options)
+                _OptionButton(
+                  key: ValueKey('new-spec-question-$index-$option'),
+                  label: option,
+                  semanticLabel: '${question.text} · $option',
+                  onTap: () => onAnswer(option),
+                ),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// Rounded answer like [ChipButton], but the text wraps on narrow windows
+/// (SPEC-091 R3) instead of overflowing a fixed height.
+class _OptionButton extends StatelessWidget {
+  const _OptionButton({
+    super.key,
+    required this.label,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  final String label;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = BorderRadius.all(Radius.circular(14));
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: Material(
+        color: AppColors.panelSolid,
+        shape: const RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: AppColors.border),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          focusColor: AppColors.amber.withValues(alpha: 0.25),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 28),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: AppColors.text),
+              ),
+            ),
+          ),
         ),
       ),
     );

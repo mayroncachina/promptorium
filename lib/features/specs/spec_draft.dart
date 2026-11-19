@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import '../project/project_plan.dart' show PlanMessage;
+import '../project/project_plan.dart' show PlanMessage, PlanQuestion;
 import 'spec_prints.dart';
 
 /// An open question of the draft (`- P1 · …`, `  - Sugestão: …`).
@@ -221,6 +221,7 @@ class SpecDraftData {
     required List<String> suggestions,
     required Set<String> knownSpecs,
     List<PrintNote> printNotes = const [],
+    List<PlanQuestion> questions = const [],
   }) {
     final kept = draft.requirements.take(maxRequirements).toList();
     final outOfScope = [...draft.outOfScope];
@@ -251,6 +252,7 @@ class SpecDraftData {
           fromUser: false,
           text: reply.isEmpty ? 'Rascunho atualizado.' : reply,
           suggestions: suggestions,
+          questions: questions,
           note: draftChanges(this, next),
         ),
       ],
