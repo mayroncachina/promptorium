@@ -29,7 +29,9 @@ String _short(String? sha) =>
 
 /// Pill of the header with the state of the resolution (R2).
 class ResolutionChip extends ConsumerWidget {
-  const ResolutionChip({super.key, required this.sessionId});
+  const ResolutionChip({super.key, required this.sessionId, this.onOpen});
+
+  final VoidCallback? onOpen;
 
   final String sessionId;
 
@@ -43,6 +45,17 @@ class ResolutionChip extends ConsumerWidget {
       ResolutionState.reprovada => ResolutionState.reprovada.label,
       _ => r.state.label,
     };
+    final open = r.state == ResolutionState.resolvendo ? onOpen : null;
+    if (open != null) {
+      return SmallButton(
+        key: const ValueKey('review-resolution-chip'),
+        icon: icon,
+        color: color,
+        label: text,
+        semanticLabel: 'Abrir sessão de resolução · $text',
+        onTap: open,
+      );
+    }
     return Semantics(
       label: r.text,
       excludeSemantics: true,
@@ -59,12 +72,14 @@ class ResolutionChip extends ConsumerWidget {
           children: [
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 5),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color,
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
               ),
             ),
           ],
