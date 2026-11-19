@@ -905,8 +905,7 @@ class _ModeSwitch extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
         children: [
           for (final m in [
             ...PromptMode.selectable,
@@ -922,14 +921,16 @@ class _ModeSwitch extends StatelessWidget {
                 child: Container(
                   height: 24,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  alignment: Alignment.center,
-                  child: Text(
-                    m.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: m == mode
-                          ? AppColors.amber
-                          : AppColors.textSecondary,
+                  child: Center(
+                    widthFactor: 1,
+                    child: Text(
+                      m.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: m == mode
+                            ? AppColors.amber
+                            : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ),

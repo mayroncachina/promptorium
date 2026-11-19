@@ -48,6 +48,29 @@ RefineOrigin? refineOriginOf(Conversation c) {
   return (specCode: code, source: source);
 }
 
+const applySuggestionInstructions =
+    'Altere só requisitos que ainda não foram feitos (os feitos já têm '
+    'commit nesta branch) e mantenha o formato "- Rn · texto" e o '
+    'frontmatter. Antes de editar, resuma o que pretende mudar.';
+
+/// Reads the opening request stored in the conversation timeline.
+///
+/// The suggestion ends at the last `". ` of the text, so requests stored
+/// with older wording of [applySuggestionInstructions] still parse; the
+/// current wording is preferred when present (its text may contain `". `).
+({String? steps, String body})? parseApplySuggestion(String text) {
+  final start = RegExp(
+    r'^Aplique à spec @.+? \(SPEC-\d+\) a sugestão da sessão (?:das etapas ([^\n]+?) )?: "',
+  ).matchAsPrefix(text);
+  if (start == null) return null;
+  const current = '". $applySuggestionInstructions';
+  final end = text.endsWith(current)
+      ? text.length - current.length
+      : text.lastIndexOf('". ');
+  if (end < start.end) return null;
+  return (steps: start.group(1), body: text.substring(start.end, end));
+}
+
 void _snack(BuildContext context, String msg) {
   ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()

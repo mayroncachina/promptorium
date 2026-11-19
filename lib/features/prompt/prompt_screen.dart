@@ -641,6 +641,16 @@ class _Header extends ConsumerWidget {
     final backLabel = origin == null
         ? null
         : 'Voltar à spec ${origin.specCode}';
+    final applying = origin?.source == RefineSource.board;
+    final backButton = backLabel == null
+        ? null
+        : SmallButton(
+            key: const ValueKey('prompt-back-to-spec'),
+            label: backLabel,
+            semanticLabel: backLabel,
+            focusColor: AppColors.amber.withValues(alpha: 0.25),
+            onTap: () => backToSpec(context, ref, c!),
+          );
     final renaming = ref.watch(renamingProvider);
     const decoration = BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
@@ -696,108 +706,122 @@ class _Header extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: decoration,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Row(
+          if (applying) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Flexible(
-                  child: Text(
-                    c?.title ?? 'Nova conversa',
-                    key: const ValueKey('prompt-title'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
+                Text(
+                  'Aplicar à spec · ${origin!.specCode}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.amber,
                   ),
                 ),
-                if (c != null) ...[
-                  const SizedBox(width: 4),
-                  RowAction(
-                    key: const ValueKey('prompt-rename'),
-                    icon: Icons.edit_outlined,
-                    tooltip: 'Renomear (F2)',
-                    onPressed: () => ref
-                        .read(renamingProvider.notifier)
-                        .start(c.id, RenamePlace.header),
-                  ),
-                ],
+                backButton!,
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          // SPEC-075: the buttons keep their own width, at the right, with
-          // the share of the row they had; on a narrow window they shrink.
-          Flexible(
-            flex: backLabel != null ? 6 : 4,
-            child: Align(
-              alignment: Alignment.centerRight,
-              heightFactor: 1,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // SPEC-021 R2 / R6 / R11: only refine conversations with a
-                  // stored origin; keyboard focusable, with an accessible
-                  // label.
-                  if (backLabel != null) ...[
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
                     Flexible(
-                      child: SmallButton(
-                        key: const ValueKey('prompt-back-to-spec'),
-                        label: backLabel,
-                        semanticLabel: backLabel,
-                        focusColor: AppColors.amber.withValues(alpha: 0.25),
-                        onTap: () => backToSpec(context, ref, c!),
+                      child: Text(
+                        c?.title ?? 'Nova conversa',
+                        key: const ValueKey('prompt-title'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    if (c != null) ...[
+                      const SizedBox(width: 4),
+                      RowAction(
+                        key: const ValueKey('prompt-rename'),
+                        icon: Icons.edit_outlined,
+                        tooltip: 'Renomear (F2)',
+                        onPressed: () => ref
+                            .read(renamingProvider.notifier)
+                            .start(c.id, RenamePlace.header),
+                      ),
+                    ],
                   ],
-                  Flexible(
-                    child: SmallButton(
-                      key: const ValueKey('prompt-to-spec'),
-                      label: 'Transformar em spec',
-                      onTap: c == null || busy || !hasAnswer
-                          ? null
-                          : () => conversationToSpec(context, ref, c, items),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: SmallButton(
-                      key: const ValueKey('prompt-continue-session'),
-                      label: 'Continuar como sessão',
-                      onTap: c == null || busy || c.claudeSessionId == null
-                          ? null
-                          : () => showContinueSessionDialog(context, c),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // SPEC-056 R1: the same menu as the right click on the row.
-          if (c != null) ...[
-            const SizedBox(width: 6),
-            Builder(
-              builder: (context) => RowAction(
-                key: const ValueKey('prompt-more'),
-                icon: Icons.more_horiz,
-                tooltip: 'Mais ações da conversa',
-                onPressed: () => showConversationMenu(
-                  context,
-                  ref,
-                  c: c,
-                  position: menuPositionBelow(context),
-                  active: active,
-                  renameIn: RenamePlace.header,
-                  items: items,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              // SPEC-075: the buttons keep their own width, at the right, with
+              // the share of the row they had; on a narrow window they shrink.
+              Flexible(
+                flex: backLabel != null ? 6 : 4,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  heightFactor: 1,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (backButton != null && !applying) ...[
+                        Flexible(child: backButton),
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: SmallButton(
+                          key: const ValueKey('prompt-to-spec'),
+                          label: 'Transformar em spec',
+                          onTap: c == null || busy || !hasAnswer
+                              ? null
+                              : () =>
+                                    conversationToSpec(context, ref, c, items),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: SmallButton(
+                          key: const ValueKey('prompt-continue-session'),
+                          label: 'Continuar como sessão',
+                          onTap: c == null || busy || c.claudeSessionId == null
+                              ? null
+                              : () => showContinueSessionDialog(context, c),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // SPEC-056 R1: the same menu as the right click on the row.
+              if (c != null) ...[
+                const SizedBox(width: 6),
+                Builder(
+                  builder: (context) => RowAction(
+                    key: const ValueKey('prompt-more'),
+                    icon: Icons.more_horiz,
+                    tooltip: 'Mais ações da conversa',
+                    onPressed: () => showConversationMenu(
+                      context,
+                      ref,
+                      c: c,
+                      position: menuPositionBelow(context),
+                      active: active,
+                      renameIn: RenamePlace.header,
+                      items: items,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -863,6 +887,11 @@ class _Conversation extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = conversation;
     final snap = ref.watch(conversationTimelineProvider(c.id));
+    final first = snap.items.firstOrNull;
+    final suggestion =
+        refineOriginOf(c)?.source == RefineSource.board && first is UserItem
+        ? parseApplySuggestion(first.text)
+        : null;
     final approvals = ref.watch(
       conversationManagerProvider.select((s) => s.approvalsOf(c.id)),
     );
@@ -1038,10 +1067,16 @@ class _Conversation extends ConsumerWidget {
         assistantName: 'Claude Code · ${modelLabel(c.model)}',
         emptyText: 'Sem mensagens ainda.',
         editInfo: progress == null ? null : (t) => progress.edits[t.id],
-        // SPEC-079 R11: the folded comparison.
-        customItem: (i) => i is CompareItem
-            ? CompareCard(item: i, root: workspace?.path)
-            : null,
+        customItem: (i) => switch (i) {
+          UserItem() when identical(i, first) && suggestion != null =>
+            _SuggestionCard(
+              steps: suggestion.steps,
+              body: suggestion.body,
+              request: i.text,
+            ),
+          CompareItem() => CompareCard(item: i, root: workspace?.path),
+          _ => null,
+        },
         answerFooter: (item) {
           final specs = detectAnswerSpecs(item.text);
           if (specs.isEmpty) return null;
@@ -1061,4 +1096,85 @@ class _Conversation extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// SPEC-088 R2: the suggestion that opened an "Aplicar à spec" conversation,
+/// highlighted, with the full request (path and instructions) on demand.
+class _SuggestionCard extends StatefulWidget {
+  const _SuggestionCard({
+    required this.steps,
+    required this.body,
+    required this.request,
+  });
+
+  final String? steps;
+  final String body;
+  final String request;
+
+  @override
+  State<_SuggestionCard> createState() => _SuggestionCardState();
+}
+
+class _SuggestionCardState extends State<_SuggestionCard> {
+  var _open = false;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('prompt-apply-suggestion'),
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.amber, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.steps == null
+                ? 'Sugestão da sessão'
+                : 'Sugestão das etapas ${widget.steps}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SelectableText(
+            widget.body,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.45,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SmallButton(
+            key: const ValueKey('prompt-apply-request-toggle'),
+            label: _open ? 'Ocultar pedido completo' : 'Ver pedido completo',
+            icon: _open ? Icons.expand_less : Icons.expand_more,
+            height: 26,
+            onTap: () => setState(() => _open = !_open),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 8),
+            SelectableText(
+              widget.request,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
