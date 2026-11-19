@@ -222,6 +222,7 @@ class SpecStepsPanel extends ConsumerWidget {
     final rows = stepRows.value ?? const [];
     final steps = stepsOf(spec, rows);
     final all = ref.watch(specsProvider(spec.workspaceId)).value ?? const [];
+    final byCode = specsByCode(all);
     final sessions = [
       for (final s
           in ref.watch(sessionsProvider(spec.workspaceId)).value ??
@@ -232,7 +233,7 @@ class SpecStepsPanel extends ConsumerWidget {
       spec: spec,
       steps: steps,
       sessions: sessions,
-      blockers: specBlockers(spec, specsByCode(all)),
+      blockers: specBlockers(spec, byCode),
     );
     final (done, total) = progressOf(steps);
     final hasCost = !ref.watch(specCostProvider(spec.id)).isEmpty;
@@ -297,11 +298,15 @@ class SpecStepsPanel extends ConsumerWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],
-        if (data.blockers.isNotEmpty && spec.stage != SpecStage.done) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Depende de ${data.blockers.join(', ')} (ainda fora de Feito).',
-            style: const TextStyle(fontSize: 12, color: AppColors.red),
+        if (spec.dependsOn.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _DependsOn(
+            codes: spec.dependsOn,
+            stages: {
+              for (final code in spec.dependsOn) code: byCode[code]?.stage,
+            },
+            // A finished spec is no longer held by its dependencies.
+            blockers: spec.stage == SpecStage.done ? const [] : data.blockers,
           ),
         ],
         if (spec.branch != null) ...[
@@ -686,4 +691,97 @@ class _StepRow extends ConsumerWidget {
       ),
     ],
   );
+}
+
+/// SPEC-089: "Depende de" block of the spec header, one line per dependency
+/// with its code and state; the ones still holding the run in red.
+class _DependsOn extends StatelessWidget {
+  const _DependsOn({
+    required this.codes,
+    required this.stages,
+    required this.blockers,
+  });
+
+  final List<String> codes;
+  final Map<String, SpecStage?> stages;
+  final List<String> blockers;
+
+  @override
+  Widget build(BuildContext context) {
+    final held = blockers.isNotEmpty;
+    return Container(
+      key: const ValueKey('spec-depends-on'),
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: held ? AppColors.red : AppColors.borderHover,
+              width: 3,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Depende de',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final code in codes) ...[
+              if (code != codes.first) const SizedBox(height: 4),
+              _dependency(code),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dependency(String code) {
+    final blocked = blockers.contains(code);
+    final stage = stages[code];
+    final label = stage == null ? 'Não encontrada' : specStageLabel(stage);
+    final status = blocked ? '$label · bloqueia a execução' : label;
+    return Wrap(
+      key: ValueKey('spec-depends-on-$code'),
+      spacing: 8,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          code,
+          style: const TextStyle(
+            fontFamily: AppFonts.mono,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        Text(
+          status,
+          style: TextStyle(
+            fontSize: 12,
+            color: blocked
+                ? AppColors.red
+                : stage == SpecStage.done
+                ? AppColors.teal
+                : AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
 }
