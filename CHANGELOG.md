@@ -2,6 +2,19 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.21.0] - 2026-11-19
+
+### Funcionalidades
+
+- **prompt:** Cabeçalho Aplicar à spec e cartão da sugestão com pedido completo (SPEC-088) (b042221)
+- **quadro:** Bloco Depende de com o estado de cada dependência no painel da spec (SPEC-089) (1674a31)
+- **specs:** Perguntas com opções no mini planejamento (SPEC-091) (0398166)
+- **revisao:** Abrir a sessão de resolução do conflito pela fila e pelo chip (SPEC-092) (f865832)
+
+### Correções
+
+- **specs:** O plano gerado não repete o título Plano (SPEC-090) (a5c1e2a)
+
 ## [0.20.0] - 2026-11-17
 
 ### Funcionalidades
