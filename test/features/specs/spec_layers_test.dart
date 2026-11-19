@@ -111,6 +111,22 @@ void main() {
     );
   });
 
+  test('withDesign removes only a standalone title at the start', () {
+    final doc = SpecDocument.parse('# A\n\n## Requisitos\n\n- R1 · x');
+    const body = '### Plano de testes\n\n- Siga o plano existente.';
+    for (final prefix in [
+      '',
+      '## Plano\n\n',
+      '### Plano ###\r\n\r\n',
+      'Plano\n-----\n\n',
+      'PLANO\r\n  =====\r\n\r\n',
+    ]) {
+      final result = doc.withDesign('$prefix$body');
+      expect('## Plano\n'.allMatches(result), hasLength(1));
+      expect(SpecDocument.parse(result).design, body);
+    }
+  });
+
   test('withDesign replaces or inserts Plano and Etapas; the generator '
       'answer becomes the sections', () {
     const plain =
