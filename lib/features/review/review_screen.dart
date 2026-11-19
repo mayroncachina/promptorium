@@ -435,6 +435,23 @@ const _sectionStyle = TextStyle(
 
 const _groupStyle = TextStyle(fontSize: 11, color: AppColors.textMuted);
 
+Future<void> _openResolutionSession(
+  BuildContext context,
+  WidgetRef ref,
+  String id,
+) async {
+  final session = await ref.read(sessionsRepoProvider).getById(id);
+  if (!context.mounted) return;
+  if (session == null) {
+    ScaffoldMessenger.maybeOf(context)?.showAppToast(
+      const SnackBar(content: Text('A sessão de resolução está indisponível.')),
+    );
+    return;
+  }
+  ref.read(selectedSessionProvider.notifier).select(session.id);
+  ref.read(navigationProvider.notifier).go(AppSection.sessions);
+}
+
 class _QueueTile extends ConsumerWidget {
   const _QueueTile({
     required this.item,
@@ -464,6 +481,12 @@ class _QueueTile extends ConsumerWidget {
         ? ref.watch(mergeReadinessProvider(s.id)).value
         : null;
     final status = watchMergeStatus(ref, item, readiness: readiness);
+    final resolving = status.state == MergeState.resolvendo;
+    final tap = onTap == null
+        ? null
+        : resolving
+        ? () => _openResolutionSession(context, ref, s.id)
+        : onTap;
     final (icon, color) = mergeStateLook(status.state);
     final code = item.spec?.code ?? item.task?.code;
     final motherCode = mother?.spec?.code ?? mother?.task?.code;
@@ -479,7 +502,7 @@ class _QueueTile extends ConsumerWidget {
       ),
       child: InkWell(
         key: ValueKey('review-item-${s.id}'),
-        onTap: onTap,
+        onTap: tap,
         borderRadius: radius,
         child: Padding(
           padding: const EdgeInsets.all(10),
@@ -554,14 +577,16 @@ class _QueueTile extends ConsumerWidget {
       container: true,
       button: true,
       selected: selected,
-      onTap: onTap,
+      onTap: tap,
       excludeSemantics: true,
-      label: queueSemanticLabel(
-        title: code ?? sessionTitle(s),
-        position: position,
-        stackSize: stackSize,
-        status: status,
-      ),
+      label:
+          (resolving ? 'Abrir sessão de resolução · ' : '') +
+          queueSemanticLabel(
+            title: code ?? sessionTitle(s),
+            position: position,
+            stackSize: stackSize,
+            status: status,
+          ),
       child: card,
     );
     if (!_stacked) return labelled;
@@ -1585,7 +1610,13 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                         // SPEC-043 R2: the state of the conflict resolution.
                         if (resolution != null) ...[
                           const SizedBox(width: 10),
-                          ResolutionChip(sessionId: _id),
+                          Flexible(
+                            child: ResolutionChip(
+                              sessionId: _id,
+                              onOpen: () =>
+                                  _openResolutionSession(context, ref, _id),
+                            ),
+                          ),
                         ],
                       ],
                     ),

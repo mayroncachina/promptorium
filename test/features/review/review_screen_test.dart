@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/review/conflict_resolution.dart';
 import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
+import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -33,6 +36,7 @@ Future<ProviderContainer> pumpReview(
     reason: 'GitHub CLI (gh) não encontrado no PATH.',
   ),
   MergeReadiness? readiness,
+  bool resolving = false,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -52,6 +56,10 @@ Future<ProviderContainer> pumpReview(
         ),
       );
   final s = session(taskId: 1);
+  if (resolving) {
+    await db.into(db.sessions).insert(session(id: 's1'));
+    await db.into(db.sessions).insert(session(id: 's2'));
+  }
   final t = task();
   final files = DiffParser.parse('$sampleDiff$secondFile');
   final container = ProviderContainer(
@@ -83,6 +91,13 @@ Future<ProviderContainer> pumpReview(
       // No real git in the root of this fake workspace (SPEC-032 R11, R15).
       rootStatusProvider.overrideWith((ref, id) async => null),
       orphanRestackProvider.overrideWith((ref, id) async => const []),
+      if (resolving)
+        conflictResolutionProvider.overrideWith(
+          (ref, id) => ConflictResolution(
+            state: ResolutionState.resolvendo,
+            workspaceId: ws.id,
+          ),
+        ),
       if (readiness != null) ...[
         mergeReadinessProvider.overrideWith((ref, id) async => readiness),
         reviewServiceProvider.overrideWith(_NoConflictReview.new),
@@ -119,6 +134,20 @@ bool menuEnabled(WidgetTester tester, String key) =>
     tester.widget<MenuItemButton>(find.byKey(ValueKey(key))).onPressed != null;
 
 void main() {
+  testWidgets('SPEC-092: card and status open their linked sessions', (
+    tester,
+  ) async {
+    final container = await pumpReview(tester, resolving: true);
+    await tester.tap(find.byKey(const ValueKey('review-item-s2')));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedSessionProvider), 's2');
+    expect(container.read(navigationProvider), AppSection.sessions);
+
+    await tester.tap(find.byKey(const ValueKey('review-resolution-chip')));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedSessionProvider), 's1');
+  });
+
   testWidgets('fits the minimum window (1100×700) without overflow; queue, '
       'files, header and disabled "Criar PR"', (tester) async {
     // Shell: sidebar 56px, title bar + footer ≈ 72px.
