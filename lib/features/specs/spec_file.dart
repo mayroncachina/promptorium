@@ -768,12 +768,18 @@ class SpecDocument {
       }
       source = lines.join('\n');
     }
-    var out = _withSection(
-      source,
-      planSection,
-      design.trim(),
-      after: 'Requisitos',
-    );
+    final planBody = design
+        .trim()
+        .replaceFirst(
+          RegExp(
+            r'^(?:#{1,6}[ \t]+Plano[ \t]*(?:[ \t]+#+[ \t]*)?'
+            r'|Plano[ \t]*\r?\n {0,3}(?:=+|-+)[ \t]*)(?:\r?\n|$)',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trimLeft();
+    var out = _withSection(source, planSection, planBody, after: 'Requisitos');
     if (plans != null && plans.isNotEmpty) {
       final lines = [
         for (final MapEntry(:key, :value) in plans.entries)
