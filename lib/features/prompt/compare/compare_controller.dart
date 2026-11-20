@@ -17,6 +17,7 @@ import '../../mcp/mcp_rules.dart';
 import '../../cost/usage_ledger.dart';
 import '../../sessions/session_manager.dart'
     show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
+import '../../context/context_tracker.dart';
 import '../../sessions/timeline.dart';
 import '../conversation_manager.dart';
 import '../plan_ready.dart' show planDraftsProvider, planOfRequest;
@@ -91,6 +92,10 @@ class _Side {
   final List<LiveTool> recent = [];
   String? lastText;
   bool stopping = false;
+
+  /// Completed by the `get_context_usage` answer asked at the end of the
+  /// side's turn (SPEC-087 R11): the process waits for it before stopping.
+  Completer<void>? contextUsage;
 }
 
 class _Live {
@@ -298,10 +303,23 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       (e) => _enqueue(s, () => _handle(id, letter, run, e)),
       onDone: () => _enqueue(s, () => _onExit(id, letter, run)),
     );
+    // SPEC-087 R7, R11: each side records what its own execution received.
+    final runJson = ContextEventTypes.runEvent(
+      autocompact: conv.provider == 'claude'
+          ? ref.read(runPrefsProvider).autocompact
+          : null,
+      model: side.model,
+      provider: conv.provider,
+    );
+    s.timeline.apply(UnknownEvent(runJson));
+    s.version++;
+    final started = live.run.side(letter);
     live.run = live.run.withSide(
-      live.run
-          .side(letter)
-          .copyWith(state: CompareSideState.running, startedAt: DateTime.now()),
+      started.copyWith(
+        state: CompareSideState.running,
+        startedAt: DateTime.now(),
+        events: [...started.events, jsonEncode(runJson)],
+      ),
     );
     _publish();
     await run.send(text);
@@ -405,7 +423,29 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     s.version++;
     live.run = live.run.withSide(side);
     _publish();
+    if (e is UnknownEvent && e.json['type'] == ContextEventTypes.usage) {
+      final wait = s.contextUsage;
+      if (wait != null && !wait.isCompleted) wait.complete();
+    }
     if (finished) {
+      // SPEC-087 R11: the side's threshold, without a turn, before closing.
+      if (run case final ContextUsageRun r) {
+        final wait = s.contextUsage = Completer<void>();
+        unawaited(r.requestContextUsage());
+        unawaited(
+          wait.future
+              .timeout(const Duration(seconds: 3), onTimeout: () {})
+              .then((_) {
+                if (identical(s.run, run)) {
+                  s.stopping = true;
+                  unawaited(run.stop());
+                }
+              }),
+        );
+        await _save(id);
+        unawaited(_measure(id));
+        return;
+      }
       // The fork is on disk: an idle process is not kept.
       s.stopping = true;
       unawaited(run.stop());

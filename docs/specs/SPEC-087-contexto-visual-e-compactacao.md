@@ -126,14 +126,14 @@ Preferir reconstruir leituras dos eventos já persistidos de sessão e conversa.
 - [x] A sondagem registra os recursos efetivamente disponíveis no CLI instalado e suas limitações no modo usado pelo app [R1, R7–R9] verificar: relatório técnico com payloads sanitizados.
 - [x] Turnos repetidos e leituras de cache não acumulam o tamanho da janela; limite ausente não produz uma porcentagem inventada [R1–R3] verificar: testes do redutor e do indicador.
 - [x] Tokens acumulados, cota do plano e contexto atual têm rótulos e cálculos distintos [R1, R11] verificar: testes de widgets do Prompt e das Sessões.
-- [ ] Fontes mostram evidência, anexos pendentes ficam separados e itens históricos após compactação não são apresentados como certamente presentes [R4, R5] verificar: testes com envio, leitura e compactação.
-- [ ] O gráfico histórico usa medições reais e leva ao turno correto; não reaproveita a leitura atual no Replay [R6] verificar: testes do painel e do Replay.
+- [x] Fontes mostram evidência, anexos pendentes ficam separados e itens históricos após compactação não são apresentados como certamente presentes [R4, R5] verificar: testes com envio, leitura e compactação.
+- [x] O gráfico histórico usa medições reais e leva ao turno correto; não reaproveita a leitura atual no Replay [R6] verificar: testes do painel e do Replay.
 - [ ] A compactação automática usa o valor efetivo da execução, preserva preferências existentes e distingue seu limiar da capacidade da janela [R7] verificar: argumentos do CLI e teste manual.
-- [ ] Acompanhamento e retomada não duplicam compactações; a leitura corrente fica pendente até chegar uma nova medição [R3, R8] verificar: eventos gravados com duplicação e reabertura.
+- [x] Acompanhamento e retomada não duplicam compactações; a leitura corrente fica pendente até chegar uma nova medição [R3, R8] verificar: eventos gravados com duplicação e reabertura.
 - [ ] Compactar agora só executa com suporte comprovado, uma vez e com a execução ociosa; falha não apaga o histórico [R9] verificar: testes do controlador e cenário manual quando suportado.
-- [ ] Os avisos respeitam 85%/75%, identificam a referência usada e não acionam com dados ausentes; retirar anexo afeta só o próximo envio [R9, R10] verificar: testes do redutor e da preparação do envio.
-- [ ] Lados de Comparar e contextos de subagentes não são somados ao principal [R11] verificar: testes de isolamento.
-- [ ] Teclado, texto alternativo e atualização por eventos funcionam sem chamadas faturáveis para atualizar o gráfico [R12] verificar: testes de widgets e inspeção dos pedidos ao agente.
+- [x] Os avisos respeitam 85%/75%, identificam a referência usada e não acionam com dados ausentes; retirar anexo afeta só o próximo envio [R9, R10] verificar: testes do redutor e da preparação do envio.
+- [x] Lados de Comparar e contextos de subagentes não são somados ao principal [R11] verificar: testes de isolamento.
+- [x] Teclado, texto alternativo e atualização por eventos funcionam sem chamadas faturáveis para atualizar o gráfico [R12] verificar: testes de widgets e inspeção dos pedidos ao agente.
 - [ ] No app isolado, acompanhar uma conversa longa, compactar automaticamente e conferir antes/depois, fontes, retomada e Comparar [R1–R12] verificar: capturas reais e relatório manual; pendente de execução com cota disponível.
 
 ## Fontes técnicas

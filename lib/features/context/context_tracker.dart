@@ -41,6 +41,7 @@ class ContextTracker {
   final List<ContextReading> _readings = [];
   final List<ContextMarker> _markers = [];
   final Set<String> _compactionKeys = {};
+  final Map<String, String> _subagents = {};
   final ContextSources sources = ContextSources();
   ContextReading? _current;
   bool _pending = false;
@@ -66,6 +67,8 @@ class ContextTracker {
 
   ContextSnapshot? _snap;
 
+  static const _subagentTools = {'Task', 'Agent'};
+
   /// Current state (cached until the next event).
   ContextSnapshot get snapshot => _snap ??= _build();
 
@@ -90,6 +93,14 @@ class ContextTracker {
         if (e.model.isNotEmpty) _changeModel(e.model, at, itemIndex);
       case AssistantMessage(parentToolUseId: null):
         _reading(e, at, itemIndex, live);
+        // R11: a subagent has its own window; the app has no measurement of
+        // it, so it is only named, never summed.
+        for (final b in e.blocks) {
+          if (b is ToolUseBlock && _subagentTools.contains(b.name)) {
+            final type = '${b.input['subagent_type'] ?? ''}';
+            _subagents[b.id] = type.isEmpty ? 'subagente' : type;
+          }
+        }
       // A `/compact` alone ends with `num_turns: 0`: not a turn.
       case Result() when e.json['num_turns'] == 0:
         break;
@@ -362,5 +373,6 @@ class ContextTracker {
     categories: _categories,
     warning: _warning,
     turn: _results,
+    subagents: List.unmodifiable(_subagents.values),
   );
 }

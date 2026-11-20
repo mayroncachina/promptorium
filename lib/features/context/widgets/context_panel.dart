@@ -327,7 +327,7 @@ class _UsageTab extends StatelessWidget {
                             ? s.pendingAfterCompaction
                                   ? 'compactado · aguardando medição'
                                   : 'aguardando medição'
-                            : !c.live && !alive
+                            : !c.live
                             ? 'leitura antiga · ${contextTime(c.at)} · turno ${c.turn}'
                             : c.turnEnd
                             ? 'medido no fim do turno ${c.turn} · ${contextTime(c.at)}'
@@ -348,6 +348,8 @@ class _UsageTab extends StatelessWidget {
               _Tiles(snapshot: s),
               const SizedBox(height: 10),
               _Composition(snapshot: s),
+              if (s.subagents.isNotEmpty)
+                SubagentContextNote(subagents: s.subagents),
             ],
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../ui/theme/tokens.dart';
 import '../../../../ui/widgets/markdown/app_markdown.dart';
+import '../../../context/widgets/context_indicator.dart';
 import '../../../sessions/session_manager.dart' show PendingApproval;
 import '../../../sessions/widgets/session_style.dart';
 import '../../../sessions/widgets/side_panel.dart' show ApprovalCard;
@@ -402,6 +403,9 @@ class _SideColumn extends StatelessWidget {
                 onResume: onResume,
               ),
               const Divider(height: 1),
+              // SPEC-087 R11: each side has its own window, reading, limit
+              // and threshold; nothing is summed between the sides.
+              _SideContext(side: s, live: live),
               Expanded(
                 child: TimelineListView(
                   key: ValueKey('compare-timeline-${s.letter}'),
@@ -624,3 +628,50 @@ Future<bool> confirmDiscardCompare(BuildContext context) async =>
       ),
     ) ??
     false;
+
+/// The meter of one side (SPEC-087 R11) and its subagents.
+class _SideContext extends StatelessWidget {
+  const _SideContext({required this.side, required this.live});
+
+  final CompareSide side;
+  final CompareLive live;
+
+  @override
+  Widget build(BuildContext context) {
+    final snap = live.timeline.context.snapshot;
+    return Padding(
+      key: ValueKey('compare-context-${side.letter}'),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Contexto do lado ${side.letter}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                'contexto próprio',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ContextIndicator(
+            snapshot: snap,
+            alive: side.state.live,
+            dense: true,
+            onOpen: () {},
+          ),
+          if (snap.subagents.isNotEmpty)
+            SubagentContextNote(subagents: snap.subagents),
+        ],
+      ),
+    );
+  }
+}
