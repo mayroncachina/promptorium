@@ -196,6 +196,53 @@ void main() {
     expect(find.byKey(const ValueKey('spec-depends-on')), findsNothing);
   });
 
+  testWidgets('SPEC-089: several dependencies stay legible in a narrow '
+      'window, and the block follows a dependency reaching Feito', (
+    tester,
+  ) async {
+    final (_, db) = await pumpBoard(tester);
+    await (db.update(db.specs)..where((s) => s.code.equals('SPEC-004'))).write(
+      const SpecsCompanion(
+        dependsOn: Value(['SPEC-001', 'SPEC-002', 'SPEC-003']),
+      ),
+    );
+    // What is left of a 1100×700 window for the screen.
+    tester.view.physicalSize = const Size(1044, 628);
+    await pumpFor(tester);
+    final card = find.byKey(const ValueKey('board-open-SPEC-004'));
+    await tester.tapAt(tester.getTopLeft(card) + const Offset(8, 8));
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    for (final code in ['SPEC-001', 'SPEC-002', 'SPEC-003']) {
+      final line = find.byKey(ValueKey('spec-depends-on-$code'));
+      expect(line, findsOneWidget, reason: code);
+      expect(
+        find.descendant(of: line, matching: find.text(code)),
+        findsOneWidget,
+        reason: code,
+      );
+    }
+    final running = find.descendant(
+      of: find.byKey(const ValueKey('spec-depends-on-SPEC-002')),
+      matching: find.text('Em execução · bloqueia a execução'),
+    );
+    expect(running, findsOneWidget);
+
+    // Live: SPEC-002 goes to Feito and the line says so.
+    await (db.update(db.specs)..where((s) => s.code.equals('SPEC-002'))).write(
+      const SpecsCompanion(stage: Value(SpecStage.done)),
+    );
+    await pumpFor(tester);
+    expect(running, findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('spec-depends-on-SPEC-002')),
+        matching: find.text('Feito'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   test('moveInColumn saves the move against the shown neighbour, keeping '
       'the cards hidden by a filter in place', () {
     // Column 1..5; shown (filtered / attention first): 4, 2, 5.

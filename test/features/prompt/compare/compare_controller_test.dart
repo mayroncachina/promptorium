@@ -16,10 +16,11 @@ import '../../../core/claude/claude_event_test.dart' show permissionRequestLine;
 import '../../../helpers/test_db.dart' show memoryDatabase;
 import '../../sessions/session_test_utils.dart' show settle;
 import '../prompt_test_utils.dart';
+import 'compare_test_utils.dart' show weekReset;
 
 String usage(int five, int week) =>
     'Current session: $five% used · resets 2pm\n'
-    'Current week (all models): $week% used · resets Nov 20, 9am\n';
+    'Current week (all models): $week% used · resets ${weekReset()}\n';
 
 Map<String, dynamic> resultOf({
   double cost = 0.01,

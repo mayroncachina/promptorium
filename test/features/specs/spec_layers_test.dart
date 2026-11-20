@@ -127,6 +127,38 @@ void main() {
     }
   });
 
+  test('SPEC-090: replanning a spec saved with Plano repeated keeps one, '
+      'and the other sections stay', () {
+    const saved =
+        '# A\n\n## Requisitos\n\n- R1 · x\n\n'
+        '## Plano\n\n## Plano\n\n**Plano**\n\nVelho 1.\n\n'
+        '## Etapas\n\n- R1 → lib/a.dart\n\n'
+        '**Plano**\n\n## Plano\n\nVelho 2.\n\n'
+        '## Plano de testes\n\n- Siga o plano.\n\n'
+        '## Critérios de aceite\n\n- [ ] ok\n';
+    final out = SpecDocument.parse(saved)
+        .withDesign('## Plano\n\n**Plano**\n\nNovo plano.');
+    expect(
+      RegExp(r'^## Plano$', multiLine: true).allMatches(out),
+      hasLength(1),
+    );
+    expect(out, isNot(contains('**Plano**')));
+    expect(out, isNot(contains('Velho')));
+    final d = SpecDocument.parse(out);
+    expect(d.design, 'Novo plano.');
+    expect(d.stepPlans.keys, ['R1']);
+    expect(d.section('Plano de testes'), '- Siga o plano.');
+    expect(d.section('Critérios de aceite'), '- [ ] ok');
+    expect(d.requirements.single.id, 'R1');
+    // Idempotent: replanning again changes only the plan.
+    final again = d.withDesign('Outro.');
+    expect(
+      RegExp(r'^## Plano$', multiLine: true).allMatches(again),
+      hasLength(1),
+    );
+    expect(SpecDocument.parse(again).design, 'Outro.');
+  });
+
   test('withDesign replaces or inserts Plano and Etapas; the generator '
       'answer becomes the sections', () {
     const plain =

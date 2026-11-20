@@ -16,7 +16,28 @@ class CompareFakeProvider extends FakeAgentProvider {
 
 String usageText(int five, int week) =>
     'Current session: $five% used · resets 2pm\n'
-    'Current week (all models): $week% used · resets Nov 20, 9am\n';
+    'Current week (all models): $week% used · resets ${weekReset()}\n';
+
+/// A week reset three days ahead: a fixed date turns stale once it passes
+/// and the reading drops the week.
+String weekReset([DateTime? now]) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final d = (now ?? DateTime.now()).add(const Duration(days: 3));
+  return '${months[d.month - 1]} ${d.day}, 9am';
+}
 
 /// The Prompt with the conversation "Parser stream-json em Dart" (Sonnet,
 /// session `conv-sid`) open; the agent is [provider] and `/usage` answers

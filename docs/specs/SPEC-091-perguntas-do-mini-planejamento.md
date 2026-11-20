@@ -1,6 +1,6 @@
 ---
 id: SPEC-091
-status: rascunho
+status: concluida
 versão: 0.21.0
 tipo: melhoria
 depende-de: []
@@ -11,9 +11,21 @@ issue: 314
 
 [Issue #314](https://github.com/mayroncachina/promptorium/issues/314)
 
-![perguntas](../mockups/spec-091/1-perguntas.png)
+## Telas
 
-![estreito e resposta](../mockups/spec-091/2-estreito-e-resposta.png)
+![Antes: opções juntas e negrito aparente (issue #314)](../mockups/spec-091/0-antes.png)
+
+![Depois: um bloco por pergunta](../mockups/spec-091/1-perguntas.png)
+
+![Janela estreita e resposta ligada à pergunta](../mockups/spec-091/2-estreito-e-resposta.png)
+
+![Janela estreita com foco de teclado](../mockups/spec-091/3-janela-estreita.png)
+
+![App 0.21.0: perguntas em blocos](../mockups/spec-091/app/1-perguntas.png)
+
+![App 0.21.0: janela de 1100 px, foco na opção da pergunta 2](../mockups/spec-091/app/2-janela-1100-teclado.png)
+
+![App 0.21.0: resposta enviada com a pergunta](../mockups/spec-091/app/3-resposta-ligada.png)
 
 ## Objetivo
 

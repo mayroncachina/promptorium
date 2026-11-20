@@ -1209,8 +1209,11 @@ class _Message extends StatelessWidget {
                 index: index,
                 question: question,
                 canAnswer: canAnswer,
-                onAnswer: (option) =>
-                    onSuggestion('${question.text}\n\n$option'),
+                // The bubble is plain text: no `**` of the question or option.
+                onAnswer: (option) => onSuggestion(
+                  '${plainMarkdown(question.text)}\n\n'
+                  '${plainMarkdown(option)}',
+                ),
               ),
             ],
             if (canAnswer &&
@@ -1274,8 +1277,10 @@ class _QuestionBlock extends StatelessWidget {
               for (final option in question.options)
                 _OptionButton(
                   key: ValueKey('new-spec-question-$index-$option'),
-                  label: option,
-                  semanticLabel: '${question.text} · $option',
+                  label: plainMarkdown(option),
+                  semanticLabel:
+                      '${plainMarkdown(question.text)} · '
+                      '${plainMarkdown(option)}',
                   onTap: () => onAnswer(option),
                 ),
             ],
@@ -1286,9 +1291,27 @@ class _QuestionBlock extends StatelessWidget {
   );
 }
 
+/// [text] without inline Markdown marks (`**bold**`, `*em*`, `` `code` ``,
+/// `[link](url)`, a leading `#`): what a plain-text bubble or label shows
+/// of the planner's question and options (SPEC-091).
+String plainMarkdown(String text) => text
+    .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m[1]!)
+    .replaceAllMapped(RegExp(r'(\*\*|__)(.+?)\1'), (m) => m[2]!)
+    .replaceAllMapped(
+      RegExp(r'(^|[^\w*])\*(?!\s)([^*\n]+?)\*(?![\w*])'),
+      (m) => '${m[1]}${m[2]}',
+    )
+    .replaceAllMapped(
+      RegExp(r'(^|[^\w])_(?!\s)([^_\n]+?)_(?!\w)'),
+      (m) => '${m[1]}${m[2]}',
+    )
+    .replaceAllMapped(RegExp(r'`([^`\n]*)`'), (m) => m[1]!)
+    .replaceAll(RegExp(r'^#{1,6}[ \t]+', multiLine: true), '');
+
 /// Rounded answer like [ChipButton], but the text wraps on narrow windows
-/// (SPEC-091 R3) instead of overflowing a fixed height.
-class _OptionButton extends StatelessWidget {
+/// (SPEC-091 R3) instead of overflowing a fixed height. One Tab stop, with
+/// a visible ring while focused.
+class _OptionButton extends StatefulWidget {
   const _OptionButton({
     super.key,
     required this.label,
@@ -1301,20 +1324,32 @@ class _OptionButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_OptionButton> createState() => _OptionButtonState();
+}
+
+class _OptionButtonState extends State<_OptionButton> {
+  var _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(14));
+    final label = widget.label;
     return Semantics(
       button: true,
-      label: semanticLabel,
+      label: widget.semanticLabel,
       excludeSemantics: true,
       child: Material(
         color: AppColors.panelSolid,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: radius,
-          side: BorderSide(color: AppColors.border),
+          side: BorderSide(
+            color: _focused ? AppColors.amber : AppColors.border,
+            width: _focused ? 1.5 : 1,
+          ),
         ),
         child: InkWell(
-          onTap: onTap,
+          onTap: widget.onTap,
+          onFocusChange: (f) => setState(() => _focused = f),
           borderRadius: radius,
           focusColor: AppColors.amber.withValues(alpha: 0.25),
           child: ConstrainedBox(

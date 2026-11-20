@@ -13,6 +13,7 @@ import '../board/widgets/spec_steps_panel.dart' show selectedStepProvider;
 import 'comment_anchor.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/git/diff_parser.dart';
@@ -482,11 +483,10 @@ class _QueueTile extends ConsumerWidget {
         : null;
     final status = watchMergeStatus(ref, item, readiness: readiness);
     final resolving = status.state == MergeState.resolvendo;
-    final tap = onTap == null
-        ? null
-        : resolving
-        ? () => _openResolutionSession(context, ref, s.id)
-        : onTap;
+    // The card always selects the item (its diff stays reachable); while the
+    // agent resolves, the status line is the way to its session (SPEC-092).
+    final tap = onTap;
+    void openSession() => _openResolutionSession(context, ref, s.id);
     final (icon, color) = mergeStateLook(status.state);
     final code = item.spec?.code ?? item.task?.code;
     final motherCode = mother?.spec?.code ?? mother?.task?.code;
@@ -553,21 +553,24 @@ class _QueueTile extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: 4),
-              Row(
-                key: ValueKey('review-item-state-${s.id}'),
-                children: [
-                  Icon(icon, color: color, size: 13),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
+              if (resolving)
+                InkWell(
+                  key: ValueKey('review-item-resolution-${s.id}'),
+                  onTap: openSession,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Tooltip(
+                    message: 'Abrir sessão de resolução',
+                    child: _stateRow(
+                      s.id,
+                      icon,
+                      color,
                       status.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: color),
+                      link: true,
                     ),
                   ),
-                ],
-              ),
+                )
+              else
+                _stateRow(s.id, icon, color, status.text),
             ],
           ),
         ),
@@ -578,15 +581,19 @@ class _QueueTile extends ConsumerWidget {
       button: true,
       selected: selected,
       onTap: tap,
+      customSemanticsActions: resolving
+          ? {
+              const CustomSemanticsAction(label: 'Abrir sessão de resolução'):
+                  openSession,
+            }
+          : null,
       excludeSemantics: true,
-      label:
-          (resolving ? 'Abrir sessão de resolução · ' : '') +
-          queueSemanticLabel(
-            title: code ?? sessionTitle(s),
-            position: position,
-            stackSize: stackSize,
-            status: status,
-          ),
+      label: queueSemanticLabel(
+        title: code ?? sessionTitle(s),
+        position: position,
+        stackSize: stackSize,
+        status: status,
+      ),
       child: card,
     );
     if (!_stacked) return labelled;
@@ -612,6 +619,37 @@ class _QueueTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Icon and text of a queue card's merge state; as the link to the
+/// resolution session, underlined (SPEC-092).
+Widget _stateRow(
+  String id,
+  IconData icon,
+  Color color,
+  String text, {
+  bool link = false,
+}) {
+  return Row(
+    key: ValueKey('review-item-state-$id'),
+    children: [
+      Icon(icon, color: color, size: 13),
+      const SizedBox(width: 4),
+      Flexible(
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            decoration: link ? TextDecoration.underline : null,
+            decorationColor: color,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// "Sem spec": a PR brought into the app (SPEC-050 R5).

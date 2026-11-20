@@ -20,6 +20,33 @@ const specPlansCommitMessage = 'Plano das specs';
 /// Commit of a spec planned again (SPEC-037 R13).
 String planUpdatedCommitMessage(String code) => 'Plano atualizado: $code';
 
+/// `git commit` of only the spec file, with [planUpdatedCommitMessage]. No
+/// `git add`: a spec never committed fails here (SPEC-037 D8).
+Future<void> commitSpecPlan(GitService git, Spec spec) => git.git([
+  'commit',
+  '-q',
+  '-m',
+  planUpdatedCommitMessage(spec.code),
+  '--',
+  spec.path,
+]);
+
+/// After a plan saved by hand ("Planejar", "Planejar de novo"), commits the
+/// spec file so the root stays clean for the merge (issue #313). A folder
+/// outside git, a spec never committed (untracked does not block the merge)
+/// or a file without changes is skipped: false. Other git failures throw.
+Future<bool> commitSavedPlan(GitService git, Spec spec) async {
+  final String status;
+  try {
+    status = await git.git(['status', '--porcelain', '--', spec.path]);
+  } on GitException {
+    return false; // not a repository, or no git
+  }
+  if (status.trim().isEmpty || status.startsWith('??')) return false;
+  await commitSpecPlan(git, spec);
+  return true;
+}
+
 /// Why Executar and Planejar wait (SPEC-037 R10, R13).
 const autoPlanQueueReason = 'Planejando as specs do projeto';
 const autoPlanUpdateReason = 'Atualizando o plano';
@@ -835,14 +862,7 @@ class SpecAutoPlanner extends Notifier<AutoPlanState> {
   /// a spec never committed fails here and the warning says so (D8).
   Future<void> _commitReplan(Workspace ws, Spec spec) async {
     try {
-      await ref.read(gitServiceFactoryProvider)(ws.path).git([
-        'commit',
-        '-q',
-        '-m',
-        planUpdatedCommitMessage(spec.code),
-        '--',
-        spec.path,
-      ]);
+      await commitSpecPlan(ref.read(gitServiceFactoryProvider)(ws.path), spec);
     } catch (e) {
       _setRounds(
         failures: {

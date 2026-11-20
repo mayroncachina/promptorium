@@ -1,6 +1,6 @@
 ---
 id: SPEC-092
-status: rascunho
+status: concluida
 versão: 0.21.0
 tipo: melhoria
 depende-de: []
@@ -11,9 +11,21 @@ issue: 312
 
 [Issue #312](https://github.com/mayroncachina/promptorium/issues/312)
 
-![review resolvendo](../mockups/spec-092/1-review-resolvendo.png)
+## Telas
 
-![sessao de resolucao](../mockups/spec-092/2-sessao-de-resolucao.png)
+![Antes: o status não leva à sessão (issue #312)](../mockups/spec-092/0-antes.png)
+
+![Depois: cartão e status abrem a sessão](../mockups/spec-092/1-review-resolvendo.png)
+
+![Depois: Sessões com a sessão de resolução selecionada](../mockups/spec-092/2-sessao-de-resolucao.png)
+
+![Sessão indisponível: aviso e a pessoa fica na Review](../mockups/spec-092/3-sessao-indisponivel.png)
+
+![App 0.21.0: duas resoluções em curso](../mockups/spec-092/app/1-review-resolvendo.png)
+
+![App 0.21.0: clique no segundo cartão abre a sessão dele](../mockups/spec-092/app/2-sessao-de-resolucao.png)
+
+![App 0.21.0: sessão removida antes do clique](../mockups/spec-092/app/3-sessao-indisponivel.png)
 
 ## Objetivo
 

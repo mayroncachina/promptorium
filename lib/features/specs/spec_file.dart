@@ -768,17 +768,19 @@ class SpecDocument {
       }
       source = lines.join('\n');
     }
-    final planBody = design
-        .trim()
-        .replaceFirst(
-          RegExp(
-            r'^(?:#{1,6}[ \t]+Plano[ \t]*(?:[ \t]+#+[ \t]*)?'
-            r'|Plano[ \t]*\r?\n {0,3}(?:=+|-+)[ \t]*)(?:\r?\n|$)',
-            caseSensitive: false,
-          ),
-          '',
-        )
-        .trimLeft();
+    // Every standalone "Plano" title at the start goes (a model may repeat
+    // it, or write it in bold): the section heading is the only one.
+    final title = RegExp(
+      r'^(?:#{1,6}[ \t]+Plano[ \t]*(?:[ \t]+#+[ \t]*)?'
+      r'|Plano[ \t]*\r?\n {0,3}(?:=+|-+)[ \t]*'
+      r'|\*\*Plano:?\*\*:?[ \t]*)(?:\r?\n|$)',
+      caseSensitive: false,
+    );
+    var planBody = design.trim();
+    for (var m = title.firstMatch(planBody); m != null;) {
+      planBody = planBody.substring(m.end).trimLeft();
+      m = title.firstMatch(planBody);
+    }
     var out = _withSection(source, planSection, planBody, after: 'Requisitos');
     if (plans != null && plans.isNotEmpty) {
       final lines = [
@@ -848,22 +850,44 @@ class SpecDocument {
       '^##\\s+${RegExp.escape(n)}${n == planSection ? r'\s*#*$' : r'\b'}',
       caseSensitive: false,
     ).hasMatch(l.trimRight());
-    final i = lines.indexWhere((l) => isHeading(l, name));
-    final block = ['## $name', '', content, ''];
-    if (i >= 0) {
+    int sectionEnd(int i) {
       var j = i + 1;
       while (j < lines.length && !RegExp(r'^##\s').hasMatch(lines[j])) {
         j++;
       }
-      lines.replaceRange(i, j, block);
+      return j;
+    }
+
+    final i = lines.indexWhere((l) => isHeading(l, name));
+    final block = ['## $name', '', content, ''];
+    if (i >= 0) {
+      // A spec saved with the section twice (older plans repeated
+      // `## Plano`) keeps one: the repeats, exact name only, go with their
+      // content, and so does a bold "**Plano**" left right above one.
+      final exact = RegExp(
+        '^##[ \t]+${RegExp.escape(name)}[ \t]*#*\$',
+        caseSensitive: false,
+      );
+      final bold = RegExp(
+        '^\\*\\*${RegExp.escape(name)}:?\\*\\*:?\$',
+        caseSensitive: false,
+      );
+      for (var k = lines.length - 1; k > i; k--) {
+        if (!exact.hasMatch(lines[k].trimRight())) continue;
+        var start = k;
+        var b = k - 1;
+        while (b > i && lines[b].trim().isEmpty) {
+          b--;
+        }
+        if (b > i && bold.hasMatch(lines[b].trim())) start = b;
+        lines.removeRange(start, sectionEnd(k));
+      }
+      lines.replaceRange(i, sectionEnd(i), block);
       return lines.join('\n');
     }
     final a = lines.indexWhere((l) => isHeading(l, after));
     if (a < 0) return '${text.trimRight()}\n\n${block.join('\n')}';
-    var j = a + 1;
-    while (j < lines.length && !RegExp(r'^##\s').hasMatch(lines[j])) {
-      j++;
-    }
+    final j = sectionEnd(a);
     if (j > 0 && lines[j - 1].trim().isNotEmpty) block.insert(0, '');
     lines.insertAll(j, block);
     return lines.join('\n');

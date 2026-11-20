@@ -67,6 +67,10 @@ String applySuggestionPrompt(Spec spec, SpecSuggestion s) =>
     '${s.steps == null ? '' : 'das etapas ${s.steps} '}: "${s.body}". '
     '$applySuggestionInstructions';
 
+/// Title of the conversation "Aplicar" opens (SPEC-088 R1): the spec's code,
+/// not the truncated start of [applySuggestionPrompt].
+String applySuggestionTitle(Spec spec) => 'Aplicar à spec ${spec.code}';
+
 /// Suggestions of the card's spec: Aplicar (opens Refinar in Prompt) /
 /// Ignorar.
 class SuggestionBanner extends ConsumerWidget {
@@ -127,6 +131,7 @@ class SuggestionBanner extends ConsumerWidget {
                       .create(
                         workspace: ws,
                         text: applySuggestionPrompt(spec, s),
+                        title: applySuggestionTitle(spec),
                         mode: PromptMode.refine,
                         origin: (
                           specCode: spec.code,
