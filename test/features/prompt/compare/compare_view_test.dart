@@ -168,4 +168,108 @@ void main() {
     expect(fieldText(tester), 'por que o cupom passa?');
     expect(c.read(compareControllerProvider), isEmpty);
   });
+
+  testWidgets('SPEC-087 R11: cada lado com o seu medidor, sem somar; o '
+      'subagente fica separado', (tester) async {
+    final p = CompareFakeProvider();
+    await pumpCompare(
+      tester,
+      provider: p,
+      usages: [usageText(38, 61), usageText(45, 62)],
+    );
+    await startByComposer(tester, 'índice em clientes.email');
+    final a = p.runs[0], b = p.runs[1];
+    Map<String, dynamic> said(
+      String id,
+      String model,
+      int tokens, {
+      List<Map<String, dynamic>> content = const [],
+    }) => {
+      'type': 'assistant',
+      'message': {
+        'id': id,
+        'model': model,
+        'role': 'assistant',
+        'content': content,
+        'usage': {
+          'input_tokens': 2,
+          'cache_creation_input_tokens': 0,
+          'cache_read_input_tokens': tokens - 2,
+          'output_tokens': 10,
+        },
+      },
+      'parent_tool_use_id': null,
+      'session_id': 's',
+    };
+    a.emit(initLine(a.options.sessionId!));
+    a.emit(
+      said(
+        'ma',
+        'claude-opus-5-5',
+        96000,
+        content: [
+          {
+            'type': 'tool_use',
+            'id': 'task1',
+            'name': 'Task',
+            'input': {'subagent_type': 'Explore', 'prompt': 'procure'},
+          },
+        ],
+      ),
+    );
+    // The subagent's own usage never enters side A.
+    a.emit({
+      ...said('sub', 'claude-haiku-5-5', 500000),
+      'parent_tool_use_id': 'task1',
+    });
+    a.emit({
+      ...resultOf(),
+      'modelUsage': {
+        'claude-opus-5-5': {'contextWindow': 1000000},
+      },
+    });
+    b.emit(initLine(b.options.sessionId!));
+    b.emit(said('mb', 'claude-sonnet-5-5', 88000));
+    b.emit({
+      ...resultOf(),
+      'modelUsage': {
+        'claude-sonnet-5-5': {'contextWindow': 200000},
+      },
+    });
+    await pumpFor(tester, 30);
+    String meter(String letter) => tester
+        .widgetList<RichText>(
+          find.descendant(
+            of: key('compare-context-$letter'),
+            matching: find.byType(RichText),
+          ),
+        )
+        .map((r) => r.text.toPlainText())
+        .join(' ');
+    expect(meter('A'), contains('96 mil / 1 milhão'));
+    expect(meter('A'), contains('10%'));
+    expect(meter('A'), isNot(contains('500 mil')));
+    expect(meter('B'), contains('88 mil / 200 mil'));
+    expect(meter('B'), contains('44%'));
+    // Nothing sums the two windows.
+    expect(find.textContaining('184 mil'), findsNothing);
+    expect(
+      find.descendant(
+        of: key('compare-context-A'),
+        matching: find.textContaining(
+          'contexto separado · medição indisponível',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: key('compare-context-B'),
+        matching: find.textContaining('contexto separado'),
+      ),
+      findsNothing,
+    );
+    // The CLI was asked for each side's threshold before closing.
+    expect(tester.takeException(), isNull);
+  });
 }

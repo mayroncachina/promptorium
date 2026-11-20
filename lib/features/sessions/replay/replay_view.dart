@@ -347,6 +347,7 @@ class _ReplayViewState extends ConsumerState<ReplayView> {
       steps,
       cur,
       context: snap.timeline.contextTokens,
+      ctx: snap.timeline.context.snapshot,
     );
     final local = _resultsOf[steps] ??= replayResultFiles(steps, _root);
     final results = _sideTab == 1

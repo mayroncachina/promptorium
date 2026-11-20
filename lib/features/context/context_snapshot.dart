@@ -210,6 +210,7 @@ class ContextSnapshot {
     this.categories = const [],
     this.warning,
     this.turn = 0,
+    this.subagents = const [],
   });
 
   static const empty = ContextSnapshot();
@@ -255,6 +256,10 @@ class ContextSnapshot {
 
   /// Turns seen (`result`s) — the running turn is [turn] + 1.
   final int turn;
+
+  /// Subagent types started in this history (R11): separate windows the
+  /// app does not measure.
+  final List<String> subagents;
 
   bool get hasReading => current != null;
 

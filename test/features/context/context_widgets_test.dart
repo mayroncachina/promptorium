@@ -118,6 +118,8 @@ void main() {
       final s = feed([assistant(96000), result()], live: false).snapshot;
       expect(spans(s, alive: false), contains('não é ao vivo'));
       expect(spans(s, alive: false), isNot(contains('medido no turno')));
+      // R3: a resume does not turn the old sample into a live one.
+      expect(spans(s, alive: true), contains('não é ao vivo'));
     });
 
     testWidgets('resumo em texto e Enter abre o painel (R12)', (tester) async {

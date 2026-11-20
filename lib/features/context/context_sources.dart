@@ -363,10 +363,18 @@ class ContextSources {
   }
 
   /// After a compaction nothing observed before is confirmed to remain.
-  void compacted() {
+  /// What the app sent in the running [turn] goes after the summary (the
+  /// CLI compacts before handling the new message): it stays current.
+  void compacted({int? turn}) {
     for (final k in _byKey.keys.toList()) {
       final s = _byKey[k]!;
       if (s.evidence == ContextEvidence.agent) continue;
+      if (turn != null &&
+          s.evidence == ContextEvidence.sent &&
+          s.turn >= turn &&
+          k != 'msg:earlier') {
+        continue;
+      }
       _byKey[k] = s.copyWith(historical: true);
     }
   }

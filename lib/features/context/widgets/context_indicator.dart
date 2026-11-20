@@ -16,6 +16,7 @@ class ContextIndicator extends StatelessWidget {
     this.alive = true,
     this.open = false,
     this.dense = false,
+    this.trailingLabel,
   });
 
   final ContextSnapshot snapshot;
@@ -29,6 +30,9 @@ class ContextIndicator extends StatelessWidget {
 
   /// Comparar: one meter per side, without the "Contexto" button.
   final bool dense;
+
+  /// Dense only: a note at the end ("contexto próprio").
+  final String? trailingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +84,16 @@ class ContextIndicator extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (dense && trailingLabel != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    trailingLabel!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
                 if (!dense) ...[
                   const SizedBox(width: 8),
                   const Text(
@@ -152,7 +166,9 @@ List<InlineSpan> contextIndicatorParts(ContextSnapshot s, {bool alive = true}) {
     ];
   }
   final cap = s.capacity;
-  final stale = !c.live && !alive;
+  // R3: a reading rebuilt from the history is old even after a resume,
+  // until the agent measures again.
+  final stale = !c.live;
   return [
     TextSpan(text: contextTokens(c.tokens), style: _mono),
     if (cap != null)
@@ -227,7 +243,7 @@ String contextSummary(ContextSnapshot s, {bool alive = true}) {
   }
   b.write('. ');
   b.write(
-    !c.live && !alive
+    !c.live
         ? 'Leitura antiga, de ${_when(c.at)}.'
         : 'Medido no turno ${c.turn}.',
   );
@@ -318,3 +334,68 @@ final contextActivateKeys = {
   LogicalKeyboardKey.numpadEnter,
   LogicalKeyboardKey.space,
 };
+
+/// Subagents of a history (R11): their own windows, not measured by the
+/// app and never summed with the main one.
+class SubagentContextNote extends StatelessWidget {
+  const SubagentContextNote({super.key, required this.subagents});
+
+  final List<String> subagents;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = <String, int>{};
+    for (final s in subagents) {
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final MapEntry(key: name, value: n) in counts.entries)
+          Container(
+            key: ValueKey('context-subagent-$name'),
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.view_week_outlined,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      text: n == 1
+                          ? 'Subagente $name · '
+                          : 'Subagentes $name ($n) · ',
+                      children: const [
+                        TextSpan(
+                          text: 'contexto separado · medição indisponível',
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}

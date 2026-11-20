@@ -327,7 +327,7 @@ class _UsageTab extends StatelessWidget {
                             ? s.pendingAfterCompaction
                                   ? 'compactado · aguardando medição'
                                   : 'aguardando medição'
-                            : !c.live && !alive
+                            : !c.live
                             ? 'leitura antiga · ${contextTime(c.at)} · turno ${c.turn}'
                             : c.turnEnd
                             ? 'medido no fim do turno ${c.turn} · ${contextTime(c.at)}'
@@ -348,12 +348,13 @@ class _UsageTab extends StatelessWidget {
               _Tiles(snapshot: s),
               const SizedBox(height: 10),
               _Composition(snapshot: s),
+              if (s.subagents.isNotEmpty)
+                SubagentContextNote(subagents: s.subagents),
             ],
           ),
         ),
         const SizedBox(height: 12),
         autocompact ?? _AutocompactText(snapshot: s),
-        if (actions != null) ...[const SizedBox(height: 12), actions!],
         const SizedBox(height: 16),
         Row(
           children: [
@@ -402,6 +403,20 @@ class _UsageTab extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Text(line, style: _label),
           ),
+        // The compaction actions (R9) come after the measured part.
+        if (actions != null) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Compactar e continuar',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          actions!,
+        ],
       ],
     );
   }

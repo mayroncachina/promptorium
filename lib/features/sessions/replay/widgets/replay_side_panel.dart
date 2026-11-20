@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../ui/theme/tokens.dart';
+import '../../../context/context_snapshot.dart' show contextTokens;
 import '../../edit_diff.dart';
 import '../replay_data.dart';
 import '../replay_state.dart';
@@ -167,9 +168,18 @@ class ReplaySidePanel extends StatelessWidget {
           ),
       ],
       const _Head('Contexto'),
+      // SPEC-087 R6: the reading of this point, not the session's now.
       _Line(
         key: const ValueKey('replay-context'),
-        left: s.contextTokens == null ? '–' : formatTokens(s.contextTokens!),
+        left: s.compactedSince
+            ? 'compactado · aguardando medição'
+            : s.contextTokens == null
+            ? '–'
+            : s.capacity == null
+            ? '${contextTokens(s.contextTokens!)} · limite desconhecido'
+            : '${contextTokens(s.contextTokens!)} de '
+                  '${contextTokens(s.capacity!)} · '
+                  '${(s.contextTokens! * 100 / s.capacity!).round()}%',
         right: s.compactions == 1
             ? '1 compactação'
             : '${s.compactions} compactações',
