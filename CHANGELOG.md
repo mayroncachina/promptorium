@@ -2,6 +2,25 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.21.1] - 2026-11-20
+
+### Correções
+
+- **prompt:** Título Aplicar à spec e sugestão em Markdown (SPEC-088) (c5f8477)
+- **specs:** Replanejar deixa um único ## Plano em spec já duplicada (SPEC-090) (e98a29c)
+- **specs:** Resposta às perguntas sem marcas de Markdown e foco visível (SPEC-091) (6addfe0)
+- **revisao:** Cartão em resolução volta a selecionar o item (SPEC-092) (d7e2359)
+- **specs:** Commitar a spec ao salvar o plano de Planejar (#313) (0c8a8af)
+
+### Documentação
+
+- **specs:** Telas e status concluída das SPEC-088 a 092 (4e1f854)
+
+### Testes
+
+- **quadro:** Dependências em janela estreita e atualização ao vivo (SPEC-089) (7ca184f)
+- **comparar:** Reset da semana relativo à data atual (556d0a2)
+
 ## [0.21.0] - 2026-11-19
 
 ### Funcionalidades
