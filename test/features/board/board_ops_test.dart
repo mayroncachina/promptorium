@@ -358,5 +358,7 @@ void main() {
     expect(conv!.mode, PromptMode.refine.name);
     expect(conv.refineSpecCode, 'SPEC-002');
     expect(conv.refineOrigin, RefineSource.board.name);
+    // SPEC-088 R1: the title names the spec, not the truncated prompt.
+    expect(conv.title, 'Aplicar à spec SPEC-002');
   });
 }

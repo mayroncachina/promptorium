@@ -174,6 +174,28 @@ void main() {
     expect(find.text('Voltar à spec SPEC-020'), findsOneWidget);
   });
 
+  testWidgets('SPEC-088: the suggestion renders its Markdown, no raw marks', (
+    tester,
+  ) async {
+    const prompt =
+        'Aplique à spec @docs/specs/SPEC-020-teste.md (SPEC-020) a sugestão '
+        'da sessão das etapas R7 : "Troque `lib/a.dart` por **lib/b.dart**.". '
+        '$applySuggestionInstructions';
+    await pumpPrompt(tester, size: const Size(1100, 700), applyRequest: prompt);
+    final body = find.byKey(const ValueKey('prompt-apply-suggestion-body'));
+    expect(body, findsOneWidget);
+    final shown = tester
+        .widgetList<RichText>(
+          find.descendant(of: body, matching: find.byType(RichText)),
+        )
+        .map((r) => r.text.toPlainText())
+        .join();
+    expect(shown, contains('lib/a.dart'));
+    expect(shown, contains('lib/b.dart'));
+    expect(shown, isNot(contains('`')));
+    expect(shown, isNot(contains('**')));
+  });
+
   testWidgets('history, conversation, context and saved prompts render', (
     tester,
   ) async {

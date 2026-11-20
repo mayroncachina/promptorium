@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../../ui/widgets/markdown/app_markdown.dart';
 import '../sessions/session_manager.dart' show PendingApproval;
 import '../sessions/timeline.dart';
 import '../sessions/widgets/session_style.dart';
@@ -1146,13 +1147,11 @@ class _SuggestionCardState extends State<_SuggestionCard> {
             ),
           ),
           const SizedBox(height: 6),
-          SelectableText(
-            widget.body,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.45,
-              color: AppColors.text,
-            ),
+          // The suggestion is Markdown (`code`, **bold**): render it, still
+          // selectable, instead of showing the raw marks.
+          AppMarkdown(
+            key: const ValueKey('prompt-apply-suggestion-body'),
+            data: widget.body,
           ),
           const SizedBox(height: 10),
           SmallButton(
