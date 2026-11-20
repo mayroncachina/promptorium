@@ -1,6 +1,6 @@
 ---
 id: SPEC-090
-status: rascunho
+status: concluida
 versão: 0.21.0
 tipo: melhoria
 depende-de: []
@@ -11,7 +11,13 @@ issue: 315
 
 [Issue #315](https://github.com/mayroncachina/promptorium/issues/315)
 
-![titulo unico](../mockups/spec-090/1-titulo-unico.png)
+## Telas
+
+![Antes: título Plano duas vezes (issue #315)](../mockups/spec-090/0-antes.png)
+
+![Depois: um único título Plano](../mockups/spec-090/1-titulo-unico.png)
+
+![App 0.21.0: plano gerado a partir de um texto que começa com ## Plano](../mockups/spec-090/app/1-titulo-unico.png)
 
 ## Objetivo
 

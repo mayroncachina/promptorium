@@ -1,6 +1,6 @@
 ---
 id: SPEC-088
-status: rascunho
+status: concluida
 versão: 0.21.0
 tipo: melhoria
 depende-de: []
@@ -11,9 +11,21 @@ issue: 317
 
 [Issue #317](https://github.com/mayroncachina/promptorium/issues/317)
 
-![aplicar a spec](../mockups/spec-088/1-aplicar-a-spec.png)
+## Telas
 
-![pedido completo](../mockups/spec-088/2-pedido-completo.png)
+![Antes: título truncado e pedido misturado (issue #317)](../mockups/spec-088/0-antes.png)
+
+![Depois: cabeçalho Aplicar à spec e cartão da sugestão](../mockups/spec-088/1-aplicar-a-spec.png)
+
+![Depois: pedido completo aberto](../mockups/spec-088/2-pedido-completo.png)
+
+![Janela estreita, com o título que a spec pede](../mockups/spec-088/3-janela-estreita.png)
+
+![App 0.21.0: cabeçalho e cartão](../mockups/spec-088/app/1-aplicar-a-spec.png)
+
+![App 0.21.0: pedido completo](../mockups/spec-088/app/2-pedido-completo.png)
+
+![App 0.21.0: janela de 1100 px](../mockups/spec-088/app/3-janela-1100.png)
 
 ## Objetivo
 

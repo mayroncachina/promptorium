@@ -1,6 +1,6 @@
 ---
 id: SPEC-089
-status: rascunho
+status: concluida
 versão: 0.21.0
 tipo: melhoria
 depende-de: []
@@ -11,9 +11,15 @@ issue: 316
 
 [Issue #316](https://github.com/mayroncachina/promptorium/issues/316)
 
-![depende de](../mockups/spec-089/1-depende-de.png)
+## Telas
 
-![estados](../mockups/spec-089/2-estados.png)
+![Antes: linha pequena entre o status e as etapas (issue #316)](../mockups/spec-089/0-antes.png)
+
+![Depois: bloco Depende de acima das etapas](../mockups/spec-089/1-depende-de.png)
+
+![Estados: várias dependências, spec em Feito, sem dependências](../mockups/spec-089/2-estados.png)
+
+![App 0.21.0: bloco Depende de](../mockups/spec-089/app/1-depende-de.png)
 
 ## Objetivo
 
