@@ -1,6 +1,6 @@
 ---
 id: SPEC-087
-status: rascunho
+status: aprovada
 versão: 0.22.0
 tipo: melhoria
 issue: 324
@@ -67,7 +67,7 @@ Exemplo ilustrativo, com números que devem vir da execução real:
 - P2 · **Automático primeiro.** A compactação fica a cargo do agente e usa a configuração já existente. “Compactar agora” depende da sondagem do protocolo; não será implementado como um prompt comum que diz “resuma”.
 - P3 · **Preservar a preferência atual.** A instalação existente mantém sua escolha, inclusive o padrão atual de 200 mil tokens. Não adotar um percentual fixo nem fixar capacidade por nome de modelo sem evidência da execução.
 - P4 · **Sem números inventados.** O gráfico usa dados medidos; a lista pode mostrar fontes observadas sem tamanho conhecido. A interface distingue medição, estimativa, dado antigo e dado ausente.
-- P5 · **Versão e visual.** 0.22.0. O documento é um rascunho; o mockup está em [Telas](#telas) e precisa ser validado antes da implementação.
+- P5 · **Versão e visual.** 0.22.0. O mockup em [Telas](#telas) foi validado e aprovado em 20/11/2026, junto com as decisões P1–P4.
 
 ## Telas
 
