@@ -600,10 +600,21 @@ void main() {
     expect(footer.sessionsActive, 0); // idle
     expect(footer.sessionsTotal, 1);
 
-    // Persistence: raw lines, no stream_event, user message first.
+    // Persistence: raw lines, no stream_event; what the execution received
+    // (SPEC-087 R7), then the user message.
     final events = await repoSessions.events(id);
     final types = events.map((e) => e.type).toList();
-    expect(types.first, AppEventTypes.user);
+    // SPEC-087 R12: after the result, the context usage is asked without
+    // a model turn.
+    expect(
+      fake.writtenAll.where(
+        (j) => j['request']?['subtype'] == 'get_context_usage',
+      ),
+      hasLength(1),
+    );
+    expect(types.first, 'promptorium_run');
+    expect(jsonDecode(events.first.json)['autocompact'], '200k');
+    expect(types[1], AppEventTypes.user);
     expect(types, containsAll(['system/init', 'assistant', 'control_request']));
     expect(types.last, 'result/success');
     expect(types.where((t) => t.startsWith('stream_event')), isEmpty);

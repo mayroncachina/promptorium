@@ -27,9 +27,18 @@ class FakeProcess implements Process {
 
   void emitErr(String line) => stderrCtl.add(utf8.encode('$line\n'));
 
-  List<Map<String, dynamic>> get writtenJson => [
+  /// Every line written to stdin.
+  List<Map<String, dynamic>> get writtenAll => [
     for (final l in const LineSplitter().convert(utf8.decode(stdinBytes)))
       jsonDecode(l) as Map<String, dynamic>,
+  ];
+
+  /// What the app said to the agent: [writtenAll] without the
+  /// `get_context_usage` requests sent after each `result` (SPEC-087), so
+  /// tests about messages and answers keep counting only those.
+  List<Map<String, dynamic>> get writtenJson => [
+    for (final j in writtenAll)
+      if (j['request']?['subtype'] != 'get_context_usage') j,
   ];
 
   Future<void> finish([int code = 0]) async {
@@ -217,6 +226,77 @@ void main() {
       '"request_id":"req-3","response":{"behavior":"deny",'
       '"message":"não pode"}}}',
     );
+    await fake.finish();
+  });
+
+  test('get_context_usage: pedido summary e resposta sanitizada '
+      '(SPEC-087)', () async {
+    final p = await startFake();
+    final events = <ClaudeEvent>[];
+    final logs = <String>[];
+    p.events.listen(events.add);
+    p.logs.listen(logs.add);
+    await p.requestContextUsage();
+    expect(fake.writtenJson, isEmpty);
+    final req = fake.writtenAll.single;
+    expect(req['type'], 'control_request');
+    expect(req['request'], {
+      'subtype': 'get_context_usage',
+      'detail': 'summary',
+    });
+    final id = req['request_id'] as String;
+    fake.emit(
+      jsonEncode({
+        'type': 'control_response',
+        'response': {
+          'subtype': 'success',
+          'request_id': id,
+          'response': {
+            'totalTokens': 26550,
+            'maxTokens': 200000,
+            'autoCompactThreshold': 167000,
+            'isAutoCompactEnabled': true,
+            'autocompactSource': 'settings',
+            'model': 'claude-haiku-5-5',
+            'apiUsage': {'input_tokens': 2},
+            'categories': [
+              {
+                'id': 'skills',
+                'name': 'Skills',
+                'tokens': 7454,
+                'kind': 'used',
+              },
+            ],
+            'skills': {
+              'skillFrontmatter': [
+                {'path': '/home/alguem/.claude/skills/x/SKILL.md'},
+              ],
+            },
+            'gridRows': [[]],
+          },
+        },
+      }),
+    );
+    // An error answer is dropped (only logged).
+    fake.emit(
+      jsonEncode({
+        'type': 'control_response',
+        'response': {
+          'subtype': 'error',
+          'request_id': '${id}x',
+          'error': 'not supported',
+        },
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+    final e = events.single as UnknownEvent;
+    expect(e.json['type'], 'promptorium_context_usage');
+    expect(e.json['threshold'], 167000);
+    expect(e.json['max'], 200000);
+    expect(e.json['measured'], isTrue);
+    expect(jsonEncode(e.json), isNot(contains('/home')));
+    expect(jsonEncode(e.json), isNot(contains('gridRows')));
+    expect(logs.single, contains('not supported'));
     await fake.finish();
   });
 

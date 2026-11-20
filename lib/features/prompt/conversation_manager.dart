@@ -30,6 +30,7 @@ import '../sessions/session_manager.dart'
         liveTextLine,
         sessionIdGeneratorProvider;
 import '../sessions/restore/restore_service.dart';
+import '../context/context_tracker.dart';
 import '../sessions/timeline.dart';
 import '../cost/usage_ledger.dart';
 import '../sessions/timeline_provider.dart';
@@ -540,6 +541,18 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       ..mcp = mcpLink
       ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _runs[conv.id] = r;
+    // SPEC-087 R7: what this execution received (effective threshold).
+    final runJson = ContextEventTypes.runEvent(
+      autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
+      model: conv.model,
+      provider: conv.provider,
+    );
+    final runRow = await _repo.appendEvent(
+      conv.id,
+      type: ContextEventTypes.run,
+      json: jsonEncode(runJson),
+    );
+    _timeline(conv.id).push(UnknownEvent(runJson), seq: runRow.seq);
     r.logSub = run.logs.listen(
       (l) => debugPrint('conversa[${conv.id}] $l'),
       onError: (_) {},
@@ -649,6 +662,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         await ref
             .read(usageLedgerProvider)
             .recordConversationTurn(id, e, costUsd: turn);
+        // SPEC-087 R7, R12: threshold and composition, without a turn.
+        if (r.run case final ContextUsageRun run) {
+          unawaited(run.requestContextUsage());
+        }
         r.busy = false;
         // SPEC-084 R1: the end of a VIBE turn (the next start waits for
         // it).
