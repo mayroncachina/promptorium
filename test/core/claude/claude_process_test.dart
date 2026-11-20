@@ -220,6 +220,76 @@ void main() {
     await fake.finish();
   });
 
+  test('get_context_usage: pedido summary e resposta sanitizada '
+      '(SPEC-087)', () async {
+    final p = await startFake();
+    final events = <ClaudeEvent>[];
+    final logs = <String>[];
+    p.events.listen(events.add);
+    p.logs.listen(logs.add);
+    await p.requestContextUsage();
+    final req = fake.writtenJson.single;
+    expect(req['type'], 'control_request');
+    expect(req['request'], {
+      'subtype': 'get_context_usage',
+      'detail': 'summary',
+    });
+    final id = req['request_id'] as String;
+    fake.emit(
+      jsonEncode({
+        'type': 'control_response',
+        'response': {
+          'subtype': 'success',
+          'request_id': id,
+          'response': {
+            'totalTokens': 26550,
+            'maxTokens': 200000,
+            'autoCompactThreshold': 167000,
+            'isAutoCompactEnabled': true,
+            'autocompactSource': 'settings',
+            'model': 'claude-haiku-5-5',
+            'apiUsage': {'input_tokens': 2},
+            'categories': [
+              {
+                'id': 'skills',
+                'name': 'Skills',
+                'tokens': 7454,
+                'kind': 'used',
+              },
+            ],
+            'skills': {
+              'skillFrontmatter': [
+                {'path': '/home/alguem/.claude/skills/x/SKILL.md'},
+              ],
+            },
+            'gridRows': [[]],
+          },
+        },
+      }),
+    );
+    // An error answer is dropped (only logged).
+    fake.emit(
+      jsonEncode({
+        'type': 'control_response',
+        'response': {
+          'subtype': 'error',
+          'request_id': '${id}x',
+          'error': 'not supported',
+        },
+      }),
+    );
+    await Future<void>.delayed(Duration.zero);
+    final e = events.single as UnknownEvent;
+    expect(e.json['type'], 'promptorium_context_usage');
+    expect(e.json['threshold'], 167000);
+    expect(e.json['max'], 200000);
+    expect(e.json['measured'], isTrue);
+    expect(jsonEncode(e.json), isNot(contains('/home')));
+    expect(jsonEncode(e.json), isNot(contains('gridRows')));
+    expect(logs.single, contains('not supported'));
+    await fake.finish();
+  });
+
   test('control_cancel_request clears the pending request', () async {
     final p = await startFake();
     p.events.listen((_) {});

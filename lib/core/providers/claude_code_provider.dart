@@ -135,7 +135,7 @@ class ClaudeCodeProvider implements AgentProvider {
   }
 }
 
-class ClaudeRun implements ManagedAgentRun {
+class ClaudeRun implements ManagedAgentRun, ContextUsageRun {
   ClaudeRun(this._p);
 
   final ClaudeProcess _p;
@@ -151,6 +151,9 @@ class ClaudeRun implements ManagedAgentRun {
   @override
   Future<void> setPermissionMode(ClaudePermissionMode mode) =>
       _p.setPermissionMode(mode);
+
+  @override
+  Future<void> requestContextUsage() => _p.requestContextUsage();
 
   @override
   Stream<ClaudeEvent> get events => _p.events;

@@ -204,6 +204,13 @@ class ComingSoonProvider implements AgentProvider {
       Future.error(AgentUnavailable('$displayName ainda não está disponível.'));
 }
 
+/// A run that can report its context usage without a model turn
+/// (Claude's `get_context_usage`, SPEC-087). Other providers do not
+/// implement it: their readings come only from `usage`.
+abstract interface class ContextUsageRun implements AgentRun {
+  Future<void> requestContextUsage();
+}
+
 /// Optional lifecycle controls used by managed sessions.
 abstract interface class ManagedAgentRun implements AgentRun {
   int get pid;

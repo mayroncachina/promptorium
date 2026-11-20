@@ -45,6 +45,7 @@ import 'app_notifier.dart';
 import '../cost/usage_ledger.dart';
 import 'restore/restore_service.dart';
 import 'session_changes.dart';
+import '../context/context_tracker.dart';
 import 'timeline.dart';
 import 'timeline_provider.dart';
 
@@ -1442,6 +1443,17 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (environment != null) {
       ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
     }
+    // SPEC-087 R7: what this execution received (effective threshold).
+    await _appEvent(
+      id,
+      ContextEventTypes.runEvent(
+        autocompact: session.provider == 'claude'
+            ? ref.read(runPrefsProvider).autocompact
+            : null,
+        model: session.model,
+        provider: session.provider,
+      ),
+    );
     p.logSub = process.logs.listen(
       (l) => debugPrint('${session.provider}[$id] $l'),
       onError: (_) {},
@@ -1697,6 +1709,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         await ref
             .read(usageLedgerProvider)
             .recordSessionTurn(id, e, costUsd: turn);
+        // SPEC-087 R7, R12: threshold and composition, without a turn.
+        if (p.process case final ContextUsageRun run) {
+          unawaited(run.requestContextUsage());
+        }
         p.subagents.clear();
         p.busy = false;
         p.busySince = null;
@@ -1987,6 +2003,15 @@ class SessionManager extends Notifier<SessionManagerState> {
       'achados': [for (final f in fresh) f.toJson()],
       'parcial': res.partial,
     });
+  }
+
+  Future<void> _appEvent(String id, Map<String, dynamic> json) async {
+    final row = await _repo.appendEvent(
+      id,
+      type: '${json['type']}',
+      json: _encode(json),
+    );
+    _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
   Future<void> _note(String id, String text, {bool error = false}) async {

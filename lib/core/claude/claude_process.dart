@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import 'claude_args.dart';
 import 'claude_event.dart';
+import 'context_usage.dart';
 
 /// `Process.start` signature subset, injected so tests can fake the CLI.
 typedef ProcessStarter = Future<Process> Function(
@@ -218,6 +219,12 @@ class ClaudeProcess {
     'request': {'subtype': 'set_permission_mode', 'mode': mode.cliValue},
   });
 
+  /// Asks for the context usage (`get_context_usage`, `detail: summary`):
+  /// no model turn (SPEC-087 R12). The answer arrives in [events] as an
+  /// [UnknownEvent] of type [contextUsageType]; an error answer is dropped.
+  Future<void> requestContextUsage() =>
+      _write(contextUsageRequest('$contextUsageRequestPrefix${++_controlSeq}'));
+
   /// `control_response` envelope (plano, Fase 0.3).
   @visibleForTesting
   static Map<String, dynamic> controlResponse(
@@ -286,12 +293,32 @@ class ClaudeProcess {
           _pending[requestId] = input;
         case ControlCancel(:final requestId):
           _pending.remove(requestId);
+        case UnknownEvent(:final json) when _isContextAnswer(json):
+          final r = json['response'] as Map;
+          final usage = r['subtype'] == 'success' && r['response'] is Map
+              ? contextUsageEvent(
+                  Map<String, dynamic>.from(r['response'] as Map),
+                )
+              : null;
+          if (usage == null) {
+            _log('get_context_usage: ${r['error'] ?? 'resposta inesperada'}');
+          } else {
+            _emit(UnknownEvent(usage));
+          }
+          continue;
         default:
           break;
       }
       _emit(event);
     }
   }
+
+  static bool _isContextAnswer(Map<String, dynamic> j) =>
+      j['type'] == 'control_response' &&
+      j['response'] is Map &&
+      '${(j['response'] as Map)['request_id']}'.startsWith(
+        contextUsageRequestPrefix,
+      );
 
   void _emit(ClaudeEvent event) {
     if (_events.hasListener) {

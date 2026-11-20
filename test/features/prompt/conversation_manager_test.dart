@@ -170,6 +170,7 @@ void main() {
 
       final events = await c.read(conversationsRepoProvider).events(id);
       expect(events.map((e) => e.type), [
+        'promptorium_run', // SPEC-087 R7
         'promptorium_user',
         'system/init',
         'assistant',

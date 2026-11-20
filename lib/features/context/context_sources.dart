@@ -1,0 +1,354 @@
+import 'package:flutter/foundation.dart';
+
+import '../../core/claude/claude_event.dart';
+import 'context_snapshot.dart';
+
+/// Groups of the Fontes tab (SPEC-087 R4), in display order.
+enum ContextSourceGroup {
+  instructions('Instruções e memória'),
+  app('Spec e mensagens do app'),
+  files('Arquivos lidos ou citados'),
+  attachments('Anexos'),
+  tools('Ferramentas e MCP');
+
+  const ContextSourceGroup(this.label);
+
+  final String label;
+}
+
+/// How the app knows about a source (R4). Configuration alone is never
+/// evidence.
+enum ContextEvidence {
+  /// Text the app put in a message (mention, spec path, attachment).
+  sent,
+
+  /// A `Read` call of the agent (its result came back).
+  read,
+
+  /// A write call of the agent (`Edit`, `Write`…): it saw the file.
+  edited,
+
+  /// The agent itself reported it (`system/init`, `get_context_usage`).
+  agent,
+}
+
+/// One observed source. [ref] is a workspace path (opens the file) or null;
+/// only the name and metadata are kept, never the content (R4).
+@immutable
+class ContextSource {
+  const ContextSource({
+    required this.group,
+    required this.label,
+    required this.evidence,
+    required this.turn,
+    required this.itemIndex,
+    this.ref,
+    this.historical = false,
+    this.tokens,
+    this.estimated = false,
+    this.method,
+    this.detail,
+  });
+
+  final ContextSourceGroup group;
+  final String label;
+  final String? ref;
+  final ContextEvidence evidence;
+  final int turn;
+
+  /// Timeline position of the event that originated it (R5).
+  final int itemIndex;
+
+  /// Observed before the last compaction, without confirmation it stayed.
+  final bool historical;
+
+  /// Weight: measured only when the agent informs it; [estimated] = "≈".
+  final int? tokens;
+  final bool estimated;
+
+  /// How [tokens] was obtained ("estimativa do agente", "caracteres ÷ 4").
+  final String? method;
+
+  /// Extra metadata ("14 ferramentas").
+  final String? detail;
+
+  ContextSource copyWith({
+    bool? historical,
+    int? turn,
+    int? itemIndex,
+    ContextEvidence? evidence,
+    int? tokens,
+    bool? estimated,
+    String? method,
+    String? detail,
+  }) => ContextSource(
+    group: group,
+    label: label,
+    ref: ref,
+    evidence: evidence ?? this.evidence,
+    turn: turn ?? this.turn,
+    itemIndex: itemIndex ?? this.itemIndex,
+    historical: historical ?? this.historical,
+    tokens: tokens ?? this.tokens,
+    estimated: estimated ?? this.estimated,
+    method: method ?? this.method,
+    detail: detail ?? this.detail,
+  );
+
+  /// The state label (R4) relative to [currentTurn].
+  String stateLabel(int currentTurn) {
+    if (historical) return 'histórico · antes de compactar';
+    return switch (evidence) {
+      ContextEvidence.sent =>
+        turn >= currentTurn ? 'enviado neste turno' : 'referência no histórico',
+      ContextEvidence.read => 'leitura observada · t$turn',
+      ContextEvidence.edited => 'edição observada · t$turn',
+      ContextEvidence.agent => 'informado pelo agente',
+    };
+  }
+
+  /// "peso indisponível", "≈ 3,4 mil · estimado".
+  String get weightLabel {
+    final t = tokens;
+    if (t == null) return 'peso indisponível';
+    return estimated ? '≈ ${contextTokens(t)} · estimado' : contextTokens(t);
+  }
+}
+
+/// Collects [ContextSource]s from the events of one execution history.
+class ContextSources {
+  final Map<String, ContextSource> _byKey = {};
+  final Map<String, String> _toolNames = {};
+  int _turn = 1;
+
+  /// Sources by group, newest first inside each group.
+  Map<ContextSourceGroup, List<ContextSource>> get grouped {
+    final out = {
+      for (final g in ContextSourceGroup.values) g: <ContextSource>[],
+    };
+    for (final s in _byKey.values.toList().reversed) {
+      out[s.group]!.add(s);
+    }
+    out.removeWhere((_, v) => v.isEmpty);
+    return out;
+  }
+
+  int get length => _byKey.length;
+
+  /// Turn the sources are relative to (the running / last turn).
+  int get turn => _turn;
+
+  static const _readTools = {'Read', 'NotebookRead'};
+  static const _editTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+
+  void apply(
+    AgentEvent e, {
+    required int turn,
+    required DateTime at,
+    required int itemIndex,
+  }) {
+    switch (e) {
+      case SystemInit():
+        _mcp(e, itemIndex);
+      case AssistantMessage(parentToolUseId: null):
+        for (final b in e.blocks) {
+          if (b is! ToolUseBlock) continue;
+          final path =
+              '${b.input['file_path'] ?? b.input['notebook_path'] ?? ''}';
+          if (path.isEmpty) continue;
+          if (_readTools.contains(b.name)) {
+            _toolNames[b.id] = path;
+            _put(
+              'file:$path',
+              ContextSource(
+                group: ContextSourceGroup.files,
+                label: path,
+                ref: path,
+                evidence: ContextEvidence.read,
+                turn: turn,
+                itemIndex: itemIndex,
+              ),
+            );
+          } else if (_editTools.contains(b.name)) {
+            final old = _byKey['file:$path'];
+            if (old != null && old.evidence == ContextEvidence.read) {
+              continue;
+            }
+            _put(
+              'file:$path',
+              ContextSource(
+                group: ContextSourceGroup.files,
+                label: path,
+                ref: path,
+                evidence: ContextEvidence.edited,
+                turn: turn,
+                itemIndex: itemIndex,
+              ),
+            );
+          }
+        }
+      case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
+        _turn = turn;
+        _message('${json['text'] ?? ''}', turn, itemIndex);
+      case Result():
+        _turn = turn;
+      default:
+        break;
+    }
+  }
+
+  static final _mention = RegExp(r'(?:^|\s)@([^\s@]+)');
+  static final _spec = RegExp(
+    r'(?:^|[\s`(])((?:[\w.-]+/)*docs/specs/SPEC-[\w.-]+\.md)',
+  );
+  static final _image = RegExp(r'\(image(?:m|ns) anexadas?: ([^)]+)\)');
+
+  void _message(String text, int turn, int itemIndex) {
+    for (final m in _spec.allMatches(text)) {
+      final path = m.group(1)!;
+      _put(
+        'spec:$path',
+        ContextSource(
+          group: ContextSourceGroup.app,
+          label: path,
+          ref: path,
+          evidence: ContextEvidence.sent,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
+    }
+    for (final m in _mention.allMatches(text)) {
+      final path = m.group(1)!;
+      if (_byKey.containsKey('spec:$path')) continue;
+      final attachment = path.contains('.promptorium/attachments/');
+      _put(
+        attachment ? 'att:$path' : 'mention:$path',
+        ContextSource(
+          group: attachment
+              ? ContextSourceGroup.attachments
+              : ContextSourceGroup.files,
+          label: attachment ? path.split('/').last : path,
+          ref: path,
+          evidence: ContextEvidence.sent,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
+    }
+    for (final m in _image.allMatches(text)) {
+      for (final name in m.group(1)!.split(',')) {
+        final n = name.trim();
+        if (n.isEmpty) continue;
+        _put(
+          'img:$n:$turn',
+          ContextSource(
+            group: ContextSourceGroup.attachments,
+            label: n,
+            evidence: ContextEvidence.sent,
+            turn: turn,
+            itemIndex: itemIndex,
+          ),
+        );
+      }
+    }
+    // The message itself: the app's own text, an estimate by length.
+    final body = text.replaceAll(_image, '').replaceAll(_mention, ' ').trim();
+    if (body.isNotEmpty) {
+      _put(
+        'msg:$turn',
+        ContextSource(
+          group: ContextSourceGroup.app,
+          label: 'Mensagem do turno $turn',
+          evidence: ContextEvidence.sent,
+          turn: turn,
+          itemIndex: itemIndex,
+          tokens: (body.length / 4).ceil(),
+          estimated: true,
+          method: 'caracteres ÷ 4',
+        ),
+      );
+    }
+  }
+
+  void _mcp(SystemInit e, int itemIndex) {
+    for (final s in e.mcpServers) {
+      if (!s.isConnected) continue;
+      final count = e.tools
+          .where((t) => t.startsWith('mcp__${s.name}__'))
+          .length;
+      final key = 'mcp:${s.name}';
+      final old = _byKey[key];
+      if (old != null && !old.historical) continue;
+      _put(
+        key,
+        ContextSource(
+          group: ContextSourceGroup.tools,
+          label: s.name,
+          evidence: ContextEvidence.agent,
+          turn: _turn,
+          itemIndex: itemIndex,
+          detail: count == 1 ? '1 ferramenta' : '$count ferramentas',
+        ),
+      );
+    }
+  }
+
+  /// `get_context_usage` categories become agent-reported sources with the
+  /// agent's estimate (never presented as measured).
+  void categories(List<ContextCategory> cats) {
+    for (final c in cats) {
+      if (!c.used) continue;
+      final (group, label) = switch (c.id) {
+        'memory_files' => (
+          ContextSourceGroup.instructions,
+          'Arquivos de memória (CLAUDE.md)',
+        ),
+        'system_prompt' => (
+          ContextSourceGroup.instructions,
+          'Prompt de sistema do agente',
+        ),
+        'skills' => (ContextSourceGroup.instructions, 'Skills disponíveis'),
+        'custom_agents' => (
+          ContextSourceGroup.instructions,
+          'Agentes personalizados',
+        ),
+        'mcp_tools' => (ContextSourceGroup.tools, 'Ferramentas MCP'),
+        'mcp_instructions' => (
+          ContextSourceGroup.tools,
+          'Instruções dos servidores MCP',
+        ),
+        'system_tools' => (ContextSourceGroup.tools, 'Ferramentas do agente'),
+        _ => (null, ''),
+      };
+      if (group == null) continue;
+      _put(
+        'cat:${c.id}',
+        ContextSource(
+          group: group,
+          label: label,
+          evidence: ContextEvidence.agent,
+          turn: _turn,
+          itemIndex: _byKey['cat:${c.id}']?.itemIndex ?? 0,
+          tokens: c.tokens,
+          estimated: true,
+          method: 'estimativa do agente',
+        ),
+      );
+    }
+  }
+
+  /// After a compaction nothing observed before is confirmed to remain.
+  void compacted() {
+    for (final k in _byKey.keys.toList()) {
+      final s = _byKey[k]!;
+      if (s.evidence == ContextEvidence.agent) continue;
+      _byKey[k] = s.copyWith(historical: true);
+    }
+  }
+
+  void _put(String key, ContextSource s) {
+    _byKey.remove(key);
+    _byKey[key] = s;
+  }
+}
