@@ -47,3 +47,36 @@ final timelineJumpProvider =
     NotifierProvider.family<TimelineJumpController, TimelineJump?, String>(
       TimelineJumpController.new,
     );
+
+/// The tab the panel of a screen shows (the warning's "Revisar próximos
+/// anexos" opens Fontes).
+class ContextPanelTab extends Notifier<int> {
+  ContextPanelTab(this.place);
+
+  final ContextPlace place;
+
+  /// 0 = Uso, 1 = Fontes.
+  @override
+  int build() => 0;
+
+  void set(int tab) => state = tab;
+}
+
+final contextPanelTabProvider =
+    NotifierProvider.family<ContextPanelTab, int, ContextPlace>(
+      ContextPanelTab.new,
+    );
+
+/// Warnings dismissed in this run of the app (R10: one per crossing). The
+/// key names the history, the turn and the reference of the warning.
+class DismissedContextWarnings extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void dismiss(String key) => state = {...state, key};
+}
+
+final dismissedContextWarningsProvider =
+    NotifierProvider<DismissedContextWarnings, Set<String>>(
+      DismissedContextWarnings.new,
+    );

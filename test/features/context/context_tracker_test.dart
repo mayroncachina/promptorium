@@ -334,6 +334,16 @@ void main() {
       expect(t.snapshot.warning, isNotNull, reason: 'rearmado abaixo de 75%');
     });
 
+    test('o aviso acompanha a leitura mais nova do mesmo cruzamento', () {
+      final t = feed([result(), usageAnswer(threshold: 67000)]);
+      t.apply(base(61000, id: 'a').single, at: t0);
+      expect(t.snapshot.warning!.tokens, 61000);
+      t.apply(base(69000, id: 'b').single, at: t0);
+      expect(t.snapshot.warning!.tokens, 69000);
+      expect(t.snapshot.warning!.remaining, 0);
+      expect(t.snapshot.warning!.turn, 2);
+    });
+
     test('sem limiar usa a capacidade e identifica a referência', () {
       final t = feed([result(window: 200000), ...base(171000, id: 'b')]);
       expect(t.snapshot.warning!.kind, ContextReference.capacity);

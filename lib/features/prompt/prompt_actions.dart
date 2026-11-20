@@ -43,6 +43,34 @@ String? lastUserMessage(List<TimelineItem> items) {
   return null;
 }
 
+/// The summary a new conversation can start with (SPEC-087 R9), built by
+/// the app from what is on screen — no model call. The person reviews and
+/// edits it before sending.
+String conversationSummary(
+  Conversation c,
+  List<TimelineItem> items,
+  List<String> files, {
+  int maxAnswer = 1500,
+}) {
+  String cut(String t, int max) {
+    final s = t.trim();
+    return s.length <= max ? s : '${s.substring(0, max).trimRight()}…';
+  }
+
+  final b = StringBuffer('Continuação da conversa "${c.title}".\n');
+  final ask = lastUserMessage(items);
+  if (ask != null) b.write('\nÚltimo pedido:\n${cut(ask, 600)}\n');
+  final answer = lastAnswer(items);
+  if (answer != null) {
+    b.write('\nÚltima resposta (trecho):\n${cut(answer, maxAnswer)}\n');
+  }
+  if (files.isNotEmpty) {
+    b.write('\nArquivos citados: ${files.map((f) => '@$f').join(' ')}\n');
+  }
+  b.write('\nContinue a partir daqui.');
+  return b.toString();
+}
+
 /// `@path` mentions in [texts] (in order, without duplicates).
 List<String> mentionedFiles(Iterable<String> texts) {
   final out = <String>[];

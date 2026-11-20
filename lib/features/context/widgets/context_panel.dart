@@ -27,6 +27,8 @@ class ContextPanel extends StatefulWidget {
     this.actions,
     this.nextSend,
     this.initialTab = ContextTab.usage,
+    this.tab,
+    this.onTab,
   });
 
   final ContextSnapshot snapshot;
@@ -52,6 +54,10 @@ class ContextPanel extends StatefulWidget {
   final Widget? nextSend;
   final ContextTab initialTab;
 
+  /// Controlled tab (the screen's); null = the panel keeps its own.
+  final ContextTab? tab;
+  final ValueChanged<ContextTab>? onTab;
+
   @override
   State<ContextPanel> createState() => _ContextPanelState();
 }
@@ -75,10 +81,19 @@ class _ContextPanelState extends State<ContextPanel> {
     super.dispose();
   }
 
+  void _setTab(ContextTab t) {
+    if (widget.onTab != null) {
+      widget.onTab!(t);
+    } else {
+      setState(() => _tab = t);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.snapshot;
     final count = widget.sources.length;
+    final tab = widget.tab ?? _tab;
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
@@ -143,16 +158,16 @@ class _ContextPanelState extends State<ContextPanel> {
                     children: [
                       _TabButton(
                         label: 'Uso',
-                        on: _tab == ContextTab.usage,
-                        onTap: () => setState(() => _tab = ContextTab.usage),
+                        on: tab == ContextTab.usage,
+                        onTap: () => _setTab(ContextTab.usage),
                         tabKey: const ValueKey('context-tab-usage'),
                       ),
                       const SizedBox(width: 16),
                       _TabButton(
                         label: 'Fontes',
                         count: count,
-                        on: _tab == ContextTab.sources,
-                        onTap: () => setState(() => _tab = ContextTab.sources),
+                        on: tab == ContextTab.sources,
+                        onTap: () => _setTab(ContextTab.sources),
                         tabKey: const ValueKey('context-tab-sources'),
                       ),
                     ],
@@ -160,7 +175,7 @@ class _ContextPanelState extends State<ContextPanel> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: _tab == ContextTab.usage
+                  child: tab == ContextTab.usage
                       ? _UsageTab(
                           snapshot: s,
                           alive: widget.alive,
