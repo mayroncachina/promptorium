@@ -5,6 +5,7 @@ versao: 0.23.0
 tipo: recurso
 epico: 332
 relacionada: 83
+issue: 338
 depende-de: [SPEC-094, SPEC-095, SPEC-096, SPEC-098]
 ---
 
