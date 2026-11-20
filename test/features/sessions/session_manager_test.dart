@@ -607,7 +607,7 @@ void main() {
     // SPEC-087 R12: after the result, the context usage is asked without
     // a model turn.
     expect(
-      fake.writtenJson.where(
+      fake.writtenAll.where(
         (j) => j['request']?['subtype'] == 'get_context_usage',
       ),
       hasLength(1),

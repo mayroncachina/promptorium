@@ -27,9 +27,18 @@ class FakeProcess implements Process {
 
   void emitErr(String line) => stderrCtl.add(utf8.encode('$line\n'));
 
-  List<Map<String, dynamic>> get writtenJson => [
+  /// Every line written to stdin.
+  List<Map<String, dynamic>> get writtenAll => [
     for (final l in const LineSplitter().convert(utf8.decode(stdinBytes)))
       jsonDecode(l) as Map<String, dynamic>,
+  ];
+
+  /// What the app said to the agent: [writtenAll] without the
+  /// `get_context_usage` requests sent after each `result` (SPEC-087), so
+  /// tests about messages and answers keep counting only those.
+  List<Map<String, dynamic>> get writtenJson => [
+    for (final j in writtenAll)
+      if (j['request']?['subtype'] != 'get_context_usage') j,
   ];
 
   Future<void> finish([int code = 0]) async {
@@ -228,7 +237,8 @@ void main() {
     p.events.listen(events.add);
     p.logs.listen(logs.add);
     await p.requestContextUsage();
-    final req = fake.writtenJson.single;
+    expect(fake.writtenJson, isEmpty);
+    final req = fake.writtenAll.single;
     expect(req['type'], 'control_request');
     expect(req['request'], {
       'subtype': 'get_context_usage',
