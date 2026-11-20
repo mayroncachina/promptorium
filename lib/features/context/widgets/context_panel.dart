@@ -355,7 +355,6 @@ class _UsageTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         autocompact ?? _AutocompactText(snapshot: s),
-        if (actions != null) ...[const SizedBox(height: 12), actions!],
         const SizedBox(height: 16),
         Row(
           children: [
@@ -404,6 +403,20 @@ class _UsageTab extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Text(line, style: _label),
           ),
+        // The compaction actions (R9) come after the measured part.
+        if (actions != null) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Compactar e continuar',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          actions!,
+        ],
       ],
     );
   }

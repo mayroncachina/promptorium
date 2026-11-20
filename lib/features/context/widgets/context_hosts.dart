@@ -150,7 +150,11 @@ class ContextBar extends ConsumerWidget {
     final alive = target.watchAlive(ref);
     final w = s.warning;
     final dismissed = ref.watch(dismissedContextWarningsProvider);
-    final showWarning = w != null && !dismissed.contains(target.warningKey(w));
+    // While the agent compacts, the compaction row says it all.
+    final showWarning =
+        w != null &&
+        s.phase != CompactionPhase.compacting &&
+        !dismissed.contains(target.warningKey(w));
     void openPanel([int tab = 0]) {
       ref.read(contextPanelTabProvider(target.place).notifier).set(tab);
       ref.read(contextPanelOpenProvider(target.place).notifier).set(true);

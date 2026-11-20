@@ -466,6 +466,23 @@ void main() {
     );
   });
 
+  test('a mensagem do turno em que compactou continua atual (R4)', () {
+    final t = feed([
+      user('primeira'),
+      assistant(2, 0, 70000, id: 'a'),
+      result(),
+      user('segunda'),
+      boundary(),
+      assistant(2, 0, 9000, id: 'b'),
+    ]);
+    final app = t.sources.grouped[ContextSourceGroup.app]!;
+    final last = app.firstWhere((s) => s.label == 'Mensagem do turno 2');
+    expect(last.historical, isFalse);
+    expect(last.stateLabel(2), 'enviado neste turno');
+    final earlier = app.firstWhere((s) => s.label == '1 mensagem anterior');
+    expect(earlier.historical, isTrue);
+  });
+
   group('timeline', () {
     test('a timeline alimenta o rastreador; o histórico não é ao vivo', () {
       final tl = Timeline()

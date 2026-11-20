@@ -268,7 +268,7 @@ class ContextTracker {
     _phaseSince = at;
     _phaseTurn = _results + 1;
     _compactError = null;
-    sources.compacted();
+    sources.compacted(turn: _results + 1);
     // R10: a confirmed compaction re-arms the warning.
     _armed = true;
     _warning = null;
