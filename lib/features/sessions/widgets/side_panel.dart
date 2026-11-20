@@ -706,10 +706,14 @@ class _DetailsState extends ConsumerState<_Details> {
       children: [
         row('Spec', Text(spec ?? '—', style: value)),
         row('Duração', Text(formatDuration(dur), style: mono)),
+        // SPEC-087 R11: the sum of every call, not the window's size (the
+        // meter above the composer shows that).
         row(
-          'Tokens',
+          'Tokens acumulados',
           Tooltip(
-            message: 'entrada (com cache) ${s.tokensIn} · saída ${s.tokensOut}',
+            message:
+                'Soma de todas as chamadas: entrada (com cache) ${s.tokensIn} '
+                '· saída ${s.tokensOut}. O contexto atual fica no medidor.',
             child: Text(formatTokens(s.tokensIn + s.tokensOut), style: mono),
           ),
         ),

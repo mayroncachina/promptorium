@@ -8,6 +8,8 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../context/context_panel_state.dart';
+import '../context/widgets/context_hosts.dart';
 import '../../ui/widgets/markdown/app_markdown.dart';
 import '../sessions/session_manager.dart' show PendingApproval;
 import '../sessions/timeline.dart';
@@ -412,6 +414,13 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
             }
             // P7: the panel folds while a comparison is on screen.
             final collapsed = _panelCollapsed || compare != null;
+            // SPEC-087 P1: the Contexto panel takes the right side (and the
+            // list) while open; the meter stays above the composer.
+            final ctxOpen =
+                conv != null &&
+                compare == null &&
+                ref.watch(contextPanelOpenProvider(ContextPlace.prompt));
+            final ctxWidth = (c.maxWidth * .40).clamp(380.0, 560.0);
             final left = narrow ? 230.0 : 260.0;
             final right = collapsed ? sideStripWidth : (narrow ? 250.0 : 280.0);
             return ColoredBox(
@@ -419,14 +428,16 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: left,
-                    child: ConversationListPanel(
-                      lists: lists,
-                      selectedId: conv?.id,
+                  if (!ctxOpen) ...[
+                    SizedBox(
+                      width: left,
+                      child: ConversationListPanel(
+                        lists: lists,
+                        selectedId: conv?.id,
+                      ),
                     ),
-                  ),
-                  const VerticalDivider(width: 1),
+                    const VerticalDivider(width: 1),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -480,6 +491,9 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                   busy: busy,
                                 ),
                         ),
+                        // SPEC-087 R2: the context meter of the conversation.
+                        if (conv != null && compare == null)
+                          ContextBar(target: ConversationTarget(conv.id)),
                         DropTarget(
                           key: const ValueKey('prompt-drop'),
                           onDragEntered: (_) =>
@@ -587,28 +601,37 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                     ),
                   ),
                   const VerticalDivider(width: 1),
-                  SizedBox(
-                    width: right,
-                    child: collapsed
-                        ? PromptSideStrip(
-                            key: const ValueKey('prompt-side-strip'),
-                            workspace: ws,
-                            conversation: conv,
-                            mode: mode,
-                            files: files,
-                            onInsert: _insertPrompt,
-                            onExpand: _togglePanel,
-                          )
-                        : PromptSidePanel(
-                            key: const ValueKey('prompt-side-panel'),
-                            workspace: ws,
-                            conversation: conv,
-                            mode: mode,
-                            files: files,
-                            onInsert: _insertPrompt,
-                            onCollapse: _togglePanel,
-                          ),
-                  ),
+                  if (ctxOpen)
+                    SizedBox(
+                      width: ctxWidth,
+                      child: ContextPanelHost(
+                        target: ConversationTarget(conv.id),
+                        title: conv.title,
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: right,
+                      child: collapsed
+                          ? PromptSideStrip(
+                              key: const ValueKey('prompt-side-strip'),
+                              workspace: ws,
+                              conversation: conv,
+                              mode: mode,
+                              files: files,
+                              onInsert: _insertPrompt,
+                              onExpand: _togglePanel,
+                            )
+                          : PromptSidePanel(
+                              key: const ValueKey('prompt-side-panel'),
+                              workspace: ws,
+                              conversation: conv,
+                              mode: mode,
+                              files: files,
+                              onInsert: _insertPrompt,
+                              onCollapse: _togglePanel,
+                            ),
+                    ),
                 ],
               ),
             );
@@ -1059,6 +1082,7 @@ class _Conversation extends ConsumerWidget {
       origin: SnippetOrigin.conversation(c),
       child: TimelineListView(
         key: ValueKey('conversation-timeline-${c.id}'),
+        jump: ref.watch(timelineJumpProvider('conv:${c.id}')),
         items: snap.items,
         loading: snap.loading,
         root: workspace?.path,

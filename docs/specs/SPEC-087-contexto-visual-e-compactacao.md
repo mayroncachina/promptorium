@@ -124,8 +124,8 @@ Preferir reconstruir leituras dos eventos já persistidos de sessão e conversa.
 ## Critérios de aceite
 
 - [x] A sondagem registra os recursos efetivamente disponíveis no CLI instalado e suas limitações no modo usado pelo app [R1, R7–R9] verificar: relatório técnico com payloads sanitizados.
-- [ ] Turnos repetidos e leituras de cache não acumulam o tamanho da janela; limite ausente não produz uma porcentagem inventada [R1–R3] verificar: testes do redutor e do indicador.
-- [ ] Tokens acumulados, cota do plano e contexto atual têm rótulos e cálculos distintos [R1, R11] verificar: testes de widgets do Prompt e das Sessões.
+- [x] Turnos repetidos e leituras de cache não acumulam o tamanho da janela; limite ausente não produz uma porcentagem inventada [R1–R3] verificar: testes do redutor e do indicador.
+- [x] Tokens acumulados, cota do plano e contexto atual têm rótulos e cálculos distintos [R1, R11] verificar: testes de widgets do Prompt e das Sessões.
 - [ ] Fontes mostram evidência, anexos pendentes ficam separados e itens históricos após compactação não são apresentados como certamente presentes [R4, R5] verificar: testes com envio, leitura e compactação.
 - [ ] O gráfico histórico usa medições reais e leva ao turno correto; não reaproveita a leitura atual no Replay [R6] verificar: testes do painel e do Replay.
 - [ ] A compactação automática usa o valor efetivo da execução, preserva preferências existentes e distingue seu limiar da capacidade da janela [R7] verificar: argumentos do CLI e teste manual.

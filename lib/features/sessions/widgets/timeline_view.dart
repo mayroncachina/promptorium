@@ -15,6 +15,7 @@ import '../../../ui/widgets/copy_button.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../ui/widgets/motion_enter.dart';
+import '../../context/context_panel_state.dart';
 import '../../snippets/snippet_scope.dart';
 import '../edit_diff.dart';
 import '../restore/restore_service.dart';
@@ -95,6 +96,7 @@ class TimelineView extends ConsumerWidget {
           child: TimelineListView(
             key: ValueKey('timeline-$sessionId'),
             reveal: reveal,
+            jump: ref.watch(timelineJumpProvider('session:$sessionId')),
             editInfo: (t) =>
                 diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
             userMarker: markers.isEmpty
@@ -157,6 +159,7 @@ class TimelineListView extends StatefulWidget {
     this.reveal,
     this.customItem,
     this.userMarker,
+    this.jump,
   });
 
   final List<TimelineItem> items;
@@ -188,6 +191,10 @@ class TimelineListView extends StatefulWidget {
   /// Beside the time of a message (the restore point, SPEC-084 R10).
   final Widget? Function(UserItem item)? userMarker;
 
+  /// "Ir ao turno" of the Contexto panel (SPEC-087 R6): scrolls item
+  /// [TimelineJump.index] into view.
+  final TimelineJump? jump;
+
   @override
   State<TimelineListView> createState() => _TimelineListViewState();
 }
@@ -217,6 +224,9 @@ class _TimelineListViewState extends State<TimelineListView> {
   /// Positions of the items built now (on screen or in the cache extent).
   final _built = <int>{};
 
+  /// Contexts of the built items (SPEC-087 "Ir ao turno").
+  final _contexts = <int, BuildContext>{};
+
   Duration get _frame => SchedulerBinding.instance.currentSystemFrameTimeStamp;
 
   bool _isArriving(int idx) =>
@@ -227,6 +237,32 @@ class _TimelineListViewState extends State<TimelineListView> {
     super.initState();
     _seen = _arrivedFrom = widget.items.length;
     if (widget.reveal != null) _reveal(widget.reveal!);
+    if (widget.jump != null) _jumpTo(widget.jump!.index);
+  }
+
+  /// Scrolls item [idx] into view, a viewport at a time towards it.
+  void _jumpTo(int idx) {
+    if (idx < 0 || idx >= widget.items.length) return;
+    var tries = 0;
+    void step(Duration _) {
+      if (!mounted || !_scroll.hasClients) return;
+      final ctx = _contexts[idx];
+      if (ctx != null && ctx.mounted) {
+        Scrollable.ensureVisible(ctx, alignment: .5);
+        return;
+      }
+      final pos = _scroll.position;
+      final older = _built.isEmpty || idx < _built.reduce(math.min);
+      final to = (pos.pixels + (older ? .8 : -.8) * pos.viewportDimension)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (++tries > 200 || to == pos.pixels) return;
+      pos.jumpTo(to);
+      SchedulerBinding.instance
+        ..addPostFrameCallback(step)
+        ..scheduleFrame();
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback(step);
   }
 
   @override
@@ -291,6 +327,8 @@ class _TimelineListViewState extends State<TimelineListView> {
     super.didUpdateWidget(old);
     final r = widget.reveal;
     if (r != null && !identical(r, old.reveal)) _reveal(r);
+    final j = widget.jump;
+    if (j != null && !identical(j, old.jump)) _jumpTo(j.index);
     // The list is mutated in place, so old.items cannot tell what is new.
     final items = widget.items;
     final count = items.length;
@@ -385,6 +423,7 @@ class _TimelineListViewState extends State<TimelineListView> {
           key: ValueKey(idx),
           index: idx,
           built: _built,
+          contexts: _contexts,
           arriving: _isArriving(idx),
           settled: idx < _settled,
           child: _wrap(
@@ -413,6 +452,7 @@ class _ItemEntrance extends StatefulWidget {
     super.key,
     required this.index,
     required this.built,
+    required this.contexts,
     required this.arriving,
     required this.settled,
     required this.child,
@@ -421,6 +461,7 @@ class _ItemEntrance extends StatefulWidget {
   /// Position in the list, kept in [built] while mounted.
   final int index;
   final Set<int> built;
+  final Map<int, BuildContext> contexts;
   final bool arriving;
 
   /// A burst caught up with this item: it stops moving, if it still is.
@@ -438,11 +479,15 @@ class _ItemEntranceState extends State<_ItemEntrance> {
   void initState() {
     super.initState();
     widget.built.add(widget.index);
+    widget.contexts[widget.index] = context;
   }
 
   @override
   void dispose() {
     widget.built.remove(widget.index);
+    if (identical(widget.contexts[widget.index], context)) {
+      widget.contexts.remove(widget.index);
+    }
     super.dispose();
   }
 
