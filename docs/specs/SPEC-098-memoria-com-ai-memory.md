@@ -5,6 +5,7 @@ versao: 0.23.0
 tipo: integracao
 epico: 332
 relacionada: 83
+issue: 337
 depende-de: [SPEC-093, SPEC-094, SPEC-096]
 ---
 
