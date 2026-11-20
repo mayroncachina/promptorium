@@ -185,6 +185,7 @@ class SessionsScreen extends ConsumerWidget {
                   width: ctxWidth,
                   child: ContextPanelHost(
                     target: SessionTarget(selected.id),
+                    provider: selected.provider,
                     title: selected.title,
                   ),
                 ),

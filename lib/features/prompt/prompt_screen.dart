@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/providers/agent_registry.dart';
 import '../../data/providers.dart';
@@ -307,6 +308,33 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     }
   }
 
+  /// Attachments of the next message, as paths (SPEC-087 R5).
+  List<String> _pendingPaths(Workspace? ws) => [
+    ..._files,
+    for (final a in _attached) ws == null ? a : p.join(ws.path, a),
+  ];
+
+  /// Removes an attachment of the next message only (R9).
+  void _removePending(Workspace? ws, String path) => setState(() {
+    if (_files.remove(path)) return;
+    final rel = ws == null ? path : p.relative(path, from: ws.path);
+    _attached.remove(rel);
+    _text.text = _text.text.replaceAll('@$rel ', '').replaceAll('@$rel', '');
+  });
+
+  /// "Nova conversa" of the Contexto panel (R9): a new draft, empty or with
+  /// the summary the person reviewed (sent only when they send it).
+  void _newConversation(String? summary) {
+    ref.read(selectedConversationProvider.notifier).select(null);
+    ref.read(contextPanelOpenProvider(ContextPlace.prompt).notifier).set(false);
+    setState(() {
+      _attached.clear();
+      _files.clear();
+    });
+    _text.text = summary ?? '';
+    _focus.requestFocus();
+  }
+
   Future<void> _insertPrompt(SavedPrompt p) async {
     await insertSavedPrompt(ref, _text, p);
     _focus.requestFocus();
@@ -493,7 +521,11 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                         ),
                         // SPEC-087 R2: the context meter of the conversation.
                         if (conv != null && compare == null)
-                          ContextBar(target: ConversationTarget(conv.id)),
+                          ContextBar(
+                            target: ConversationTarget(conv.id),
+                            attachments: _files.length + _attached.length,
+                            onReviewAttachments: () {},
+                          ),
                         DropTarget(
                           key: const ValueKey('prompt-drop'),
                           onDragEntered: (_) =>
@@ -606,7 +638,12 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                       width: ctxWidth,
                       child: ContextPanelHost(
                         target: ConversationTarget(conv.id),
+                        provider: conv.provider,
                         title: conv.title,
+                        pendingAttachments: _pendingPaths(ws),
+                        onRemoveAttachment: (path) => _removePending(ws, path),
+                        onNewConversation: _newConversation,
+                        summary: () => conversationSummary(conv, items, files),
                       ),
                     )
                   else

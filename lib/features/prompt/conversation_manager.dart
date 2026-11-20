@@ -30,6 +30,7 @@ import '../sessions/session_manager.dart'
         liveTextLine,
         sessionIdGeneratorProvider;
 import '../sessions/restore/restore_service.dart';
+import '../context/compaction_controller.dart';
 import '../context/context_tracker.dart';
 import '../sessions/timeline.dart';
 import '../cost/usage_ledger.dart';
@@ -131,6 +132,9 @@ class _Run {
   DateTime? busySince;
   bool stopping = false;
   bool sawInit = false;
+
+  /// "Compactar agora" is running (SPEC-087 R9).
+  bool compacting = false;
 
   /// SPEC-076 R3.
   final List<LiveTool> recent = [];
@@ -275,6 +279,33 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       ..calls = 0;
     _publish();
     await run.run.send(msg, images: images);
+  }
+
+  /// "Compactar agora" (SPEC-087 R9): the native `/compact` on the idle
+  /// agent (started with `--resume` when closed), one request at a time.
+  /// The access mode stays the conversation's; a failure keeps the history.
+  Future<void> compactNow(int id, {String? focus}) async {
+    final conv = await _repo.getById(id);
+    if (conv == null) throw ConversationException('Conversa $id não existe.');
+    if (conv.provider != 'claude') {
+      throw const ConversationException(
+        'Este agente não tem um comando nativo de compactação confirmado.',
+      );
+    }
+    var r = _runs[id];
+    if (r != null && (r.busy || r.compacting)) {
+      throw const ConversationException(
+        'Espere a resposta atual: compactar só com o agente ocioso.',
+      );
+    }
+    r ??= await _ensureStarted(conv);
+    final run = r
+      ..busy = true
+      ..compacting = true
+      ..busySince = DateTime.now();
+    _publish();
+    await _note(id, 'Compactação pedida pelo app (/compact).');
+    await run.run.send(compactCommand(focus));
   }
 
   /// Restore point of the start of a VIBE turn, in its worktree (SPEC-084
@@ -657,7 +688,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
               u.cacheReadInputTokens,
           tokensOut: u.outputTokens,
         );
-        await _repo.countMessage(id);
+        // SPEC-087 R9: a compaction is not a message of the conversation.
+        if (!r.compacting) await _repo.countMessage(id);
         // SPEC-081 R1: one entry per turn (VIBE, refinement, Prompt).
         await ref
             .read(usageLedgerProvider)
@@ -667,9 +699,13 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           unawaited(run.requestContextUsage());
         }
         r.busy = false;
-        // SPEC-084 R1: the end of a VIBE turn (the next start waits for
-        // it).
-        unawaited(ref.read(restoreServiceProvider).end(conversationId: id));
+        if (r.compacting) {
+          r.compacting = false;
+        } else {
+          // SPEC-084 R1: the end of a VIBE turn (the next start waits for
+          // it).
+          unawaited(ref.read(restoreServiceProvider).end(conversationId: id));
+        }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
       default:

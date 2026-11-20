@@ -876,6 +876,65 @@ void main() {
     expect((await r.getById('live'))!.status, SessionStatus.interrupted);
   });
 
+  test('SPEC-087 R9: Compactar agora na sessão ociosa; o fim não muda o '
+      'status nem notifica', () async {
+    final db = memoryDatabase();
+    final cli = FakeCli();
+    final notifier = FakeNotifier();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: db,
+        cli: cli,
+        notifier: notifier,
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    await c.read(workspaceActionsProvider).select(ws.id);
+    final repoSessions = c.read(sessionsRepoProvider);
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Compactar', prompt: 'Oi'),
+    );
+    final fake = cli.last;
+    // Running: refused.
+    await expectLater(m.compactNow(id), throwsA(isA<SessionException>()));
+    for (final l in fixtureLines()) {
+      fake.emit(l);
+    }
+    await settle();
+    expect((await repoSessions.getById(id))!.status, SessionStatus.completed);
+    final shown = notifier.shown.length;
+    await m.compactNow(id, focus: 'decisões');
+    expect(fake.writtenJson.last['message']['content'], '/compact decisões');
+    fake.emit(
+      jsonEncode({
+        'type': 'system',
+        'subtype': 'compact_boundary',
+        'uuid': 'cb',
+        'compact_metadata': {'trigger': 'manual', 'pre_tokens': 30000},
+      }),
+    );
+    fake.emit(
+      jsonEncode({
+        'type': 'result',
+        'subtype': 'success',
+        'num_turns': 0,
+        'usage': {'input_tokens': 0, 'output_tokens': 0},
+      }),
+    );
+    await settle();
+    expect((await repoSessions.getById(id))!.status, SessionStatus.completed);
+    expect(notifier.shown, hasLength(shown));
+    final ctx = c.read(sessionTimelineProvider(id)).timeline.context.snapshot;
+    expect(ctx.pendingAfterCompaction, isTrue);
+    expect(ctx.markers.single.trigger, 'manual');
+  });
+
   test('sessionSlug is a valid git slug', () {
     expect(
       sessionSlug('Ação: Parser stream-json!', 'abcdef12-0000'),
