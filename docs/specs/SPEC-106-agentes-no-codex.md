@@ -4,6 +4,7 @@ status: rascunho
 versao: 0.24.0
 tipo: melhoria
 epico: 332
+issue: 341
 depende-de: [SPEC-094, SPEC-096, SPEC-101, SPEC-102]
 ---
 
