@@ -49,6 +49,14 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 - R12 · **Nunca trocar em silêncio.** Se o provedor resolvido não serve para o fluxo, a execução não começa e a tela diz o motivo antes do clique, com a opção explícita de rodar com o outro provedor. Nenhum caminho cai para o Claude sozinho.
 - R13 · **Fim das comparações soltas.** As decisões de `== 'claude'` / `!= 'claude'` fora dos adaptadores e do registro passam a consultar capacidades ou `providerFlows`. Sobram comparações só em `lib/core/claude/`, `lib/core/codex/` e `lib/core/providers/`.
 
+### Identidade visual do provedor
+
+- R14 · **Cor de identidade por provedor.** Dois tokens novos: `providerClaude` = argila `#D97757` e `providerCodex` = porcelana `#E8E4DA` (ver Design). Três regras:
+  1. **Só identidade, nunca estado.** A cor diz *quem* roda, não *como está*. Rodando, falhou, feita, aguardando e verificando continuam com as cores de hoje (`teal`, `red`, `CanvasColors.*`). Um seletor de provedor marca a opção escolhida com o âmbar de sempre, não com a cor do provedor.
+  2. **Nunca só a cor.** A cor sempre vem com o nome ou com o glifo do provedor. Glifos desenhados por nós, simples e de traço: Claude = arco aberto; Codex = livro aberto ("códice"). Nada dos logos da Anthropic ou da OpenAI.
+  3. **Três formas, e só elas.** (a) **Chip** preenchido com glifo e nome ("Claude" / "Codex"), texto escuro `#1A1206` (`onAmber`), canto 5 px: a forma de estado é a pílula translúcida com canto 10 px, então as duas não se confundem. (b) **Marca** de 14 px (bolinha com o glifo dentro) nos cards do Quadro e nos robôs, onde não cabe o chip. (c) **Borda** de cada lado no Comparar.
+- R15 · **Onde aparece.** Rodapé (o chip ao lado do estado do provedor ativo; o ponto de estado continua); cabeçalho e lista de sessões; lista e cabeçalho de conversas do Prompt; autor de cada turno na timeline e no replay; painel de detalhes ("Provedor"); seletor de provedor da Nova sessão, do Executar spec e do menu do rodapé (marca ao lado do nome); cards do Quadro e robôs dos agentes (marca); Comparar (borda de cada lado e chip no topo); Histórico e Custo por etapa (chip na linha). Provedores sem token (agentes ACP, Gemini) aparecem só com o nome, sem cor, até ganharem um.
+
 ## Fora do escopo
 
 - Ligar o Codex em qualquer fluxo (SPEC-096 em diante).
@@ -78,6 +86,28 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 - `lib/core/claude/readonly_run.dart`: repassa `maxBudgetUsd` e `agent` a qualquer provedor.
 - Configurações → Consumo: modelo e esforço por tipo, só Claude.
 
+### Tokens novos (futuro `lib/ui/theme/tokens.dart`)
+
+Ainda não entram no código; ficam registrados aqui para a tarefa T4.
+
+```dart
+// AppColors — identidade do provedor (R14). Nunca para estado.
+static const providerClaude = Color(0xFFD97757); // argila
+static const providerCodex = Color(0xFFE8E4DA);  // porcelana
+// Texto e glifo sobre os dois: AppColors.onAmber (0xFF1A1206).
+```
+
+| Par | Contraste WCAG | Leitura |
+|---|---|---|
+| `#1A1206` sobre argila `#D97757` | 5,94:1 | AA para texto normal |
+| `#1A1206` sobre porcelana `#E8E4DA` | 14,60:1 | AAA |
+| argila sobre o painel `#14171D` | 5,75:1 | passa 3:1 de elemento gráfico (e 4,5:1) |
+| porcelana sobre o painel `#14171D` | 14,14:1 | passa |
+| argila × `running` `#F08A4B` | 1,26:1 · ΔE00 9,7 | perto demais como cor solta |
+| argila × falhou `#F27A6E` | 1,16:1 · ΔE00 8,1 | perto demais como cor solta |
+
+**Checagem com o `running`.** Como bolinha solta, a argila se confunde com o laranja de "Em execução" e com o vermelho de "Falhou". Lado a lado no mock 4, o chip preenchido com nome contra a pílula translúcida de estado, e a marca com glifo contra o ponto pulsante, se distinguem bem no tamanho real. Por isso a argila fica `#D97757` e a regra 2 é obrigatória. Trocar o tom não resolveria: o que se afasta do `running` chega mais perto do vermelho. Exemplo: `#C96A55` vai a ΔE00 15 do `running`, mas fica a 9,4 do vermelho, e o contraste com o texto cai para 5,0:1.
+
 ### Arquivos tocados
 
 | Arquivo | Mudança |
@@ -93,6 +123,9 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 | `lib/core/claude/readonly_run.dart` | Monta só o suportado (R5) |
 | `lib/features/settings/` (Consumo) | Abas por provedor, modelos do `model/list` |
 | `lib/ui/widgets/only_provider_tag.dart` | Novo: etiqueta "Só Claude Code" |
+| `lib/ui/theme/tokens.dart` | `providerClaude`, `providerCodex` (R14) |
+| `lib/ui/widgets/provider_badge.dart` | Novo: chip, marca e glifos do provedor (R14, R15) |
+| Rodapé, Sessões, Prompt, timeline, replay, Quadro, robôs, Histórico, Custo | Usam o chip ou a marca no lugar do nome solto (R15) |
 | Os 15 arquivos com `== 'claude'` (R13) | Consultam capacidades ou fluxos |
 
 **Migração do banco:** não. As preferências ficam em `app_settings` (chaves existentes + `codex.models.cache`).
@@ -110,6 +143,7 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 | T1 · Capacidades e fluxos | `capabilities.dart`, valores por provedor, `providerFlows` | R1–R3 |
 | T2 · Opções | Intenção + extras, adaptadores, acesso, `readonly_run` | R4–R7 |
 | T3 · Modelo, versão e etiqueta | Aba Codex em Consumo, versão mínima, "Só Claude Code", sem troca silenciosa, fim das comparações | R8–R13 |
+| T4 · Identidade do provedor | Tokens, glifos, `provider_badge.dart` e troca do nome solto pelo chip ou pela marca nas telas de R15 | R14, R15 |
 
 ## Critérios de aceite
 
@@ -122,6 +156,7 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 - [ ] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
 - [ ] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
 - [ ] `grep -rn "== 'claude'\|!= 'claude'" lib` só encontra adaptadores e registro [R13] verificar: o próprio grep.
+- [ ] Claude e Codex aparecem com o chip (argila / porcelana, glifo e nome) ou com a marca de 14 px em todos os lugares de R15; nenhuma cor de provedor aparece sem nome ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje [R14, R15] verificar: teste de widget do `ProviderBadge` (cor, glifo e nome por provedor) e conferência das telas contra o mock `4-identidade-provedor.png`.
 
 ## Telas
 
@@ -133,3 +168,6 @@ Canvas: [SPEC-094 · Capacidades e opções por provedor](https://claude.ai/arti
 | `docs/mockups/spec-094/1-consumo-por-provedor.png` | Configurações → Consumo com as abas Claude Code e Codex: modelo e esforço por tipo vindos do `model/list`, versão e hora da leitura, e o quadro "O que o Codex faz neste app" | R1, R8, R9, R11 |
 | `docs/mockups/spec-094/2-so-claude-code.png` | Nova sessão com o Codex: Agente e Orçamento desabilitados com "Só Claude Code", modelo do Codex, acesso com a política de cada modo | R5, R7, R11 |
 | `docs/mockups/spec-094/3-versao-incompativel.png` | Menu do provedor no rodapé: Codex 0.168 incompatível com a orientação, e o aviso de versão mais nova que a testada; Executar spec com "Codex · Só Claude Code por enquanto" | R3, R10, R12 |
+| `docs/mockups/spec-094/4-identidade-provedor.png` | Identidade do provedor: tokens argila e porcelana com os contrastes, glifos próprios, chips em três tamanhos, onde aparece (rodapé, sessão, card do Quadro, robô, Histórico, seletor, Comparar) e a checagem lado a lado da argila contra "Em execução" e "Falhou" | R14, R15 |
+
+Todos os mocks mostram o provedor com o chip ou a marca de R14.
