@@ -126,3 +126,5 @@ Canvas: [SPEC-095 · Eventos neutros](https://claude.ai/artifact/BFMnuiE8SRRALoL
 | `docs/mockups/spec-095/1-timeline-neutra.png` | A mesma sessão com os tipos neutros: cartão de arquivo com caminho, tipo e diff, cartão de comando com código de saída, item desconhecido recolhido, arquivos citados e arquivos do turno preenchidos | R1, R2, R6, R9 |
 | `docs/mockups/spec-095/2-replay-e-contexto.png` | Replay de um passo do Codex com o "antes" reconstruído pelo diff e o medidor de contexto vindo do `tokenUsage` com a janela do modelo e a marca de compactação | R3, R4, R9, R12 |
 | `docs/mockups/spec-095/3-fluxo.png` | Diagrama: Claude e Codex → tipos neutros → consumidores | R1–R9 |
+
+Os mocks mostram o provedor com o chip ou a marca de identidade da SPEC-094 (R14: Claude = argila `#D97757`, Codex = porcelana `#E8E4DA`, sempre com nome ou glifo, nunca como estado).
