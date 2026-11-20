@@ -16,6 +16,7 @@ class ContextIndicator extends StatelessWidget {
     this.alive = true,
     this.open = false,
     this.dense = false,
+    this.trailingLabel,
   });
 
   final ContextSnapshot snapshot;
@@ -29,6 +30,9 @@ class ContextIndicator extends StatelessWidget {
 
   /// Comparar: one meter per side, without the "Contexto" button.
   final bool dense;
+
+  /// Dense only: a note at the end ("contexto próprio").
+  final String? trailingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +84,16 @@ class ContextIndicator extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (dense && trailingLabel != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    trailingLabel!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
                 if (!dense) ...[
                   const SizedBox(width: 8),
                   const Text(

@@ -267,6 +267,7 @@ class _Tabs extends StatelessWidget {
                         side: s,
                         calls: view.liveOf(s.letter).calls,
                       ),
+                      _SideContext(side: s, live: view.liveOf(s.letter)),
                     ],
                   ),
                 ),
@@ -403,9 +404,6 @@ class _SideColumn extends StatelessWidget {
                 onResume: onResume,
               ),
               const Divider(height: 1),
-              // SPEC-087 R11: each side has its own window, reading, limit
-              // and threshold; nothing is summed between the sides.
-              _SideContext(side: s, live: live),
               Expanded(
                 child: TimelineListView(
                   key: ValueKey('compare-timeline-${s.letter}'),
@@ -424,6 +422,9 @@ class _SideColumn extends StatelessWidget {
               ),
               if (metrics) ...[
                 const Divider(height: 1),
+                // SPEC-087 R11: each side has its own window, reading, limit
+                // and threshold; nothing is summed between the sides.
+                _SideContext(side: s, live: live),
                 CompareMetricsView(run: run, side: s, calls: live.calls),
               ],
             ],
@@ -641,31 +642,16 @@ class _SideContext extends StatelessWidget {
     final snap = live.timeline.context.snapshot;
     return Padding(
       key: ValueKey('compare-context-${side.letter}'),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Text(
-                'Contexto do lado ${side.letter}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              const Text(
-                'contexto próprio',
-                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
           ContextIndicator(
             snapshot: snap,
             alive: side.state.live,
             dense: true,
+            trailingLabel: 'contexto próprio',
             onOpen: () {},
           ),
           if (snap.subagents.isNotEmpty)
