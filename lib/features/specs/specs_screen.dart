@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show FileSystemException;
+import 'dart:io' show File, FileSystemException;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -11,6 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/providers/agent_provider.dart' show PromptMode;
+import '../../core/git/git_service.dart'
+    show GitException, gitServiceFactoryProvider;
+import '../../core/git/repo_setup.dart' show repoSetupError;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
@@ -621,6 +624,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   Future<void> _load(Workspace ws, Spec spec) async {
     // SPEC-027 R6: another spec makes the deletion final.
     if (_loadedSpecId != spec.id) _undo.discardLater();
+    if (_planToCommit != spec.id) _planToCommit = null;
     _loadedSpecId = spec.id;
     final turn = ++_loadTurn;
     bool stale() => turn != _loadTurn || _loadedSpecId != spec.id;
@@ -709,6 +713,28 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   String? _lastText;
+
+  /// The spec whose plan "Planejar" put in the editor: its next save also
+  /// commits the file, so the root is clean for the merge (issue #313).
+  int? _planToCommit;
+
+  /// Commits only the spec file after a plan was saved; outside git, never
+  /// committed or unchanged it is skipped. A failure is only a warning.
+  Future<void> _commitPlan(Workspace ws, Spec spec) async {
+    final file = ref.read(specServiceProvider).fileOf(ws, spec).path;
+    final repo = file == File('${ws.path}/${spec.path}').path
+        ? ws.path
+        : spec.worktreePath ?? ws.path;
+    try {
+      await commitSavedPlan(ref.read(gitServiceFactoryProvider)(repo), spec);
+    } catch (e) {
+      if (!mounted) return;
+      _snack(
+        'Plano salvo, mas o commit da spec falhou: '
+        '${e is GitException ? repoSetupError(e) : e}',
+      );
+    }
+  }
 
   /// Structure warnings of [text] and the editor marks of the suggestions
   /// counted as questions (SPEC-028 R2).
@@ -809,6 +835,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           return null;
         }
         saved = await service.save(ws, spec, text, expectedText: disk);
+      }
+      // #313: the plan "Planejar" brought is committed once written; the
+      // editor does not wait for git.
+      if (_planToCommit == spec.id) {
+        _planToCommit = null;
+        unawaited(_commitPlan(ws, spec));
       }
       if (!mounted || _docSpecId != spec.id) return saved;
       setState(() => _saved = text);
@@ -1098,6 +1130,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final text = c.text;
     await _runAction(SpecActionKind.approve, spec, (a) async {
       final r = await ref.read(specServiceProvider).approve(ws, spec, text);
+      // A plan approved without a separate save is committed too (#313).
+      if (_planToCommit == spec.id) {
+        _planToCommit = null;
+        await _commitPlan(ws, spec);
+      }
       // R7: never applied to another spec.
       if (!mounted || _loadedSpecId != spec.id || _controller == null) return;
       _saved = r.text;
@@ -1167,6 +1204,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         return;
       }
       _controller!.text = text;
+      _planToCommit = spec.id;
       _snack('Plano pronto. Revise e salve.');
     });
   }

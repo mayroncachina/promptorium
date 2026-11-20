@@ -79,6 +79,47 @@ void main() {
     expect(listStatus(tester), isNot('Planejada'));
   });
 
+  testWidgets('#313: the saved plan is committed, and the root stays clean '
+      'for the merge; a later plain save commits nothing', (tester) async {
+    Future<String> git(List<String> args) async {
+      final r = (await tester.runAsync(
+        () => Process.run('git', ['-C', tmp.path, ...args]),
+      ))!;
+      expect(r.exitCode, 0, reason: '${r.stderr}');
+      return '${r.stdout}'.trim();
+    }
+
+    await git(['init', '-q', '-b', 'main']);
+    await git(['config', 'user.email', 't@t']);
+    await git(['config', 'user.name', 't']);
+    await git(['add', '.']);
+    await git(['commit', '-q', '-m', 'inicial']);
+    await pumpSpecs(tester, tmp, designer: make);
+    await plan(tester);
+    await tester.tap(key('spec-save'));
+    await settleIo(tester, until: () => key('spec-unsaved').evaluate().isEmpty);
+    for (var i = 0; i < 50; i++) {
+      if (await git(['rev-list', '--count', 'HEAD']) == '2') break;
+      await settleIo(tester);
+    }
+    expect(
+      await git(['log', '-1', '--format=%s']),
+      'Plano atualizado: SPEC-002',
+    );
+    expect(await git(['status', '--porcelain']), isEmpty);
+
+    // An edit saved without a new plan stays for the person to commit.
+    editorOf(tester).controller!.text = File(specPath(tmp))
+        .readAsStringSync()
+        .replaceFirst('Fazer X.', 'Fazer Y.');
+    await tester.pump();
+    await tester.tap(key('spec-save'));
+    await settleIo(tester, until: () => key('spec-unsaved').evaluate().isEmpty);
+    await settleIo(tester);
+    expect(await git(['rev-list', '--count', 'HEAD']), '2');
+    expect(await git(['status', '--porcelain']), isNotEmpty);
+  });
+
   testWidgets('R2: the list shows "Planejada" in yellow once the plan is '
       'saved, and the status again when the plan leaves the file', (
     tester,
