@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../context/context_panel_state.dart';
+import '../context/widgets/context_hosts.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
@@ -105,12 +107,19 @@ class SessionsScreen extends ConsumerWidget {
         final narrow = c.maxWidth < 1100;
         final left = narrow ? 240.0 : 280.0;
         final right = narrow ? 260.0 : 300.0;
+        // SPEC-087 P1: the Contexto panel of the selected session.
+        final ctxOpen =
+            !replayFull &&
+            second == null &&
+            selected != null &&
+            ref.watch(contextPanelOpenProvider(ContextPlace.sessions));
+        final ctxWidth = (c.maxWidth * .40).clamp(380.0, 560.0);
         final layout = ColoredBox(
           color: AppColors.background,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!replayFull) ...[
+              if (!replayFull && !ctxOpen) ...[
                 SizedBox(
                   width: left,
                   child: SessionListPanel(
@@ -170,7 +179,16 @@ class SessionsScreen extends ConsumerWidget {
                         ],
                       ),
               ),
-              if (!replayFull) ...[
+              if (ctxOpen) ...[
+                const VerticalDivider(width: 1),
+                SizedBox(
+                  width: ctxWidth,
+                  child: ContextPanelHost(
+                    target: SessionTarget(selected.id),
+                    title: selected.title,
+                  ),
+                ),
+              ] else if (!replayFull) ...[
                 const VerticalDivider(width: 1),
                 SizedBox(
                   width: right,
@@ -416,6 +434,8 @@ class _SessionMain extends ConsumerWidget {
           Expanded(
             child: TimelineView(sessionId: s.id, root: s.worktreePath),
           ),
+          // SPEC-087 R2: the context meter (one per pane, its own window).
+          ContextBar(target: SessionTarget(s.id)),
           SessionComposer(
             sessionId: s.id,
             provider: s.provider,

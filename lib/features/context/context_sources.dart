@@ -48,6 +48,7 @@ class ContextSource {
     this.estimated = false,
     this.method,
     this.detail,
+    this.count,
   });
 
   final ContextSourceGroup group;
@@ -72,6 +73,9 @@ class ContextSource {
   /// Extra metadata ("14 ferramentas").
   final String? detail;
 
+  /// Items folded into this row (earlier messages).
+  final int? count;
+
   ContextSource copyWith({
     bool? historical,
     int? turn,
@@ -93,6 +97,7 @@ class ContextSource {
     estimated: estimated ?? this.estimated,
     method: method ?? this.method,
     detail: detail ?? this.detail,
+    count: count,
   );
 
   /// The state label (R4) relative to [currentTurn].
@@ -199,7 +204,7 @@ class ContextSources {
 
   static final _mention = RegExp(r'(?:^|\s)@([^\s@]+)');
   static final _spec = RegExp(
-    r'(?:^|[\s`(])((?:[\w.-]+/)*docs/specs/SPEC-[\w.-]+\.md)',
+    r'(?:^|[\s`(@])((?:[\w.-]+/)*docs/specs/SPEC-[\w.-]+\.md)',
   );
   static final _image = RegExp(r'\(image(?:m|ns) anexadas?: ([^)]+)\)');
 
@@ -220,7 +225,7 @@ class ContextSources {
     }
     for (final m in _mention.allMatches(text)) {
       final path = m.group(1)!;
-      if (_byKey.containsKey('spec:$path')) continue;
+      if (_spec.hasMatch(' $path')) continue;
       final attachment = path.contains('.promptorium/attachments/');
       _put(
         attachment ? 'att:$path' : 'mention:$path',
@@ -252,23 +257,42 @@ class ContextSources {
         );
       }
     }
-    // The message itself: the app's own text, an estimate by length.
+    // The message itself: the app's own text, an estimate by length. One
+    // row for the last message and one for the earlier ones (no flood).
     final body = text.replaceAll(_image, '').replaceAll(_mention, ' ').trim();
-    if (body.isNotEmpty) {
+    if (body.isEmpty) return;
+    final last = _byKey['msg:last'];
+    if (last != null && last.turn < turn) {
+      final old = _byKey['msg:earlier'];
+      final count = (old?.count ?? 0) + 1;
       _put(
-        'msg:$turn',
+        'msg:earlier',
         ContextSource(
           group: ContextSourceGroup.app,
-          label: 'Mensagem do turno $turn',
+          label: count == 1
+              ? '1 mensagem anterior'
+              : '$count mensagens anteriores',
           evidence: ContextEvidence.sent,
-          turn: turn,
-          itemIndex: itemIndex,
-          tokens: (body.length / 4).ceil(),
-          estimated: true,
-          method: 'caracteres ÷ 4',
+          turn: last.turn,
+          itemIndex: last.itemIndex,
+          historical: last.historical || (old?.historical ?? false),
+          count: count,
         ),
       );
     }
+    _put(
+      'msg:last',
+      ContextSource(
+        group: ContextSourceGroup.app,
+        label: 'Mensagem do turno $turn',
+        evidence: ContextEvidence.sent,
+        turn: turn,
+        itemIndex: itemIndex,
+        tokens: (body.length / 4).ceil(),
+        estimated: true,
+        method: 'caracteres ÷ 4',
+      ),
+    );
   }
 
   void _mcp(SystemInit e, int itemIndex) {
@@ -302,11 +326,11 @@ class ContextSources {
       final (group, label) = switch (c.id) {
         'memory_files' => (
           ContextSourceGroup.instructions,
-          'Arquivos de memória (CLAUDE.md)',
+          'CLAUDE.md e memória',
         ),
         'system_prompt' => (
           ContextSourceGroup.instructions,
-          'Prompt de sistema do agente',
+          'Prompt de sistema',
         ),
         'skills' => (ContextSourceGroup.instructions, 'Skills disponíveis'),
         'custom_agents' => (

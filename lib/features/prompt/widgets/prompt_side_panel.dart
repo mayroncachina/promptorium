@@ -105,12 +105,37 @@ class PromptContextSection extends StatelessWidget {
           _value,
           key: const ValueKey('context-access'),
         ),
+        // SPEC-087 R11: the sum of every call is not the window's size.
         row(
-          'Tokens',
+          'Tokens acumulados',
           c == null ? '—' : formatTokens(c.tokensIn + c.tokensOut),
           _mono,
           key: const ValueKey('context-tokens'),
         ),
+        if (c != null) ...[
+          const Text(
+            'Soma de entrada e saída de todas as chamadas desta conversa. '
+            'Não é o tamanho do contexto: esse fica no medidor.',
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              key: const ValueKey('context-tokens-note'),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.teal.withValues(alpha: .18),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'acumulado ≠ contexto atual',
+                style: TextStyle(fontSize: 11, color: AppColors.teal),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
         if (withFiles && files.isNotEmpty) ...[
           const SizedBox(height: 4),
           PromptFilesSection(files: files),

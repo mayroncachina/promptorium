@@ -431,6 +431,31 @@ void main() {
     });
   });
 
+  group('fontes: mensagens e spec (R4)', () {
+    test(
+      'mensagens antigas viram uma linha; spec com @ entra no grupo do app',
+      () {
+        final t = feed([
+          user('primeira'),
+          assistant(2, 0, 1000, id: 'a'),
+          result(),
+          user('segunda'),
+          assistant(2, 0, 2000, id: 'b'),
+          result(),
+          user('veja @docs/specs/SPEC-087-x.md'),
+        ]);
+        final app = t.sources.grouped[ContextSourceGroup.app]!;
+        expect(app.map((s) => s.label), [
+          'Mensagem do turno 3',
+          '2 mensagens anteriores',
+          'docs/specs/SPEC-087-x.md',
+        ]);
+        expect(t.sources.grouped[ContextSourceGroup.files], isNull);
+        expect(app[1].weightLabel, 'peso indisponível');
+      },
+    );
+  });
+
   group('timeline', () {
     test('a timeline alimenta o rastreador; o histórico não é ao vivo', () {
       final tl = Timeline()

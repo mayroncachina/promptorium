@@ -26,6 +26,7 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
   bool withConversation = true,
   String? applyRequest,
   List<Override> overrides = const [],
+  List<Map<String, dynamic>> extraEvents = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -59,6 +60,7 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
       ),
       textLine(answer),
       resultLine(),
+      ...extraEvents,
     ];
     var seq = 0;
     for (final e in events) {
@@ -415,5 +417,105 @@ void main() {
     await pumpFor(tester);
     expect(find.byKey(const ValueKey('save-prompt-dialog')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('SPEC-087 medidor de contexto', () {
+    testWidgets('sem medição: aguardando, acumulado separado do medidor', (
+      tester,
+    ) async {
+      await pumpPrompt(tester);
+      final meter = find.byKey(const ValueKey('context-indicator'));
+      expect(meter, findsOneWidget);
+      final text = tester
+          .widgetList<RichText>(
+            find.descendant(of: meter, matching: find.byType(RichText)),
+          )
+          .map((r) => r.text.toPlainText())
+          .join(' ');
+      expect(text, contains('Aguardando medição'));
+      expect(text, isNot(contains('%')));
+      // R11: the accumulated number keeps its own label, out of the meter.
+      expect(find.text('Tokens acumulados'), findsOneWidget);
+      expect(find.text('acumulado ≠ contexto atual'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('medição real: o medidor abre o painel e Esc fecha', (
+      tester,
+    ) async {
+      final assistant = {
+        'type': 'assistant',
+        'message': {
+          'id': 'msg_2',
+          'model': 'claude-sonnet-5-5',
+          'content': [
+            {'type': 'text', 'text': 'segunda'},
+          ],
+          'usage': {
+            'input_tokens': 3100,
+            'cache_creation_input_tokens': 9400,
+            'cache_read_input_tokens': 169500,
+            'output_tokens': 50,
+          },
+        },
+        'parent_tool_use_id': null,
+      };
+      final result = {
+        ...resultLine(),
+        'modelUsage': {
+          'claude-sonnet-5-5': {'contextWindow': 1000000},
+        },
+      };
+      await pumpPrompt(
+        tester,
+        size: const Size(1366, 768),
+        extraEvents: [
+          AppEventTypes.userMessage('mais', DateTime.now()),
+          assistant,
+          result,
+          {
+            'type': 'promptorium_context_usage',
+            'v': 1,
+            'total': 182000,
+            'threshold': 200000,
+            'max': 233000,
+            'model': 'claude-sonnet-5-5',
+            'measured': true,
+            'categories': [],
+          },
+        ],
+      );
+      final meter = find.byKey(const ValueKey('context-indicator'));
+      final text = tester
+          .widgetList<RichText>(
+            find.descendant(of: meter, matching: find.byType(RichText)),
+          )
+          .map((r) => r.text.toPlainText())
+          .join(' ');
+      expect(text, contains('182 mil / 1 milhão'));
+      expect(text, contains('18%'));
+      // Rebuilt from the stored events, without a process: an old reading
+      // (R3), never presented as live.
+      expect(text, contains('não é ao vivo'));
+      expect(text, isNot(contains('medido no turno')));
+      // The accumulated stays the conversation's sum (8k), not 182 mil.
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('context-tokens'))).data,
+        '8k',
+      );
+      await tester.tap(meter);
+      await pumpFor(tester);
+      expect(find.byKey(const ValueKey('context-usage')), findsOneWidget);
+      expect(
+        find.textContaining('capacidade da janela · 1 milhão'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('prompt-side-panel')), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await pumpFor(tester);
+      expect(find.byKey(const ValueKey('context-usage')), findsNothing);
+      expect(find.byKey(const ValueKey('prompt-side-panel')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
