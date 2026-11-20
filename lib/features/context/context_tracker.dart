@@ -332,6 +332,14 @@ class ContextTracker {
         kind: kind,
         turn: c.turn,
       );
+    } else if (_warning != null && c.live) {
+      // The same crossing: the warning follows the newest reading.
+      _warning = ContextWarning(
+        tokens: c.tokens,
+        reference: ref,
+        kind: kind,
+        turn: _warning!.turn,
+      );
     }
   }
 

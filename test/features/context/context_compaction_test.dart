@@ -187,6 +187,14 @@ void main() {
     });
   });
 
+  test('acima do limiar o aviso diz que compacta antes do próximo envio', () {
+    final s = feed([result, usage(67000), assistant(69000)]);
+    expect(
+      contextWarningText(s),
+      contains('Passou do limiar: o agente compacta antes do próximo envio.'),
+    );
+  });
+
   group('ações (R9)', () {
     testWidgets('Compactar agora desabilitado explica o motivo', (
       tester,

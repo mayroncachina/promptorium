@@ -169,6 +169,8 @@ List<InlineSpan> contextIndicatorParts(ContextSnapshot s, {bool alive = true}) {
       TextSpan(
         text: s.untilCompaction == null
             ? thresholdText
+            : s.untilCompaction == 0
+            ? '$thresholdText · limiar atingido'
             : '$thresholdText, faltam ${contextTokens(s.untilCompaction!)}',
         style: s.warning != null
             ? const TextStyle(color: AppColors.amberLight)

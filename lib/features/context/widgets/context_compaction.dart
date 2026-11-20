@@ -283,8 +283,11 @@ String contextWarningText(ContextSnapshot s) {
     final cap = s.capacity == null
         ? ''
         : ', não da janela (${contextTokens(s.capacity!)})';
+    final rest = w.remaining == 0
+        ? 'Passou do limiar: o agente compacta antes do próximo envio.'
+        : 'Faltam $left tokens.';
     return '$tokens = ${w.percent}% do limiar de compactação ($ref)$cap. '
-        'Faltam $left tokens. O envio segue liberado.';
+        '$rest O envio segue liberado.';
   }
   return '$tokens = ${w.percent}% da capacidade da janela ($ref); o limiar '
       'de compactação não foi informado. Faltam $left tokens. O envio segue '
@@ -413,7 +416,6 @@ class _Button extends StatelessWidget {
       child: Container(
         height: 30,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
@@ -424,16 +426,19 @@ class _Button extends StatelessWidget {
                 : AppColors.border,
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: primary && enabled
-                ? AppColors.onAmber
-                : enabled
-                ? AppColors.text
-                : AppColors.textDisabled,
+        child: Center(
+          widthFactor: 1,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: primary && enabled
+                  ? AppColors.onAmber
+                  : enabled
+                  ? AppColors.text
+                  : AppColors.textDisabled,
+            ),
           ),
         ),
       ),
