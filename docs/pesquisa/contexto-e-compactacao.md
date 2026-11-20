@@ -141,3 +141,18 @@ Leituras: 74.139 → (falhou) 121.881 → (compactou) 74.993 → (compactou) 27.
    `success`, mas o `get_context_usage` seguinte continua com `maxTokens` 200.000 e limiar 167.000.
    Sem confirmação de aplicação em tempo de execução, a alteração vale para as próximas execuções e o
    painel mantém visível o valor efetivo da atual (R7). Nenhuma sessão viva é reiniciada.
+
+## Teste no app isolado (20/11/2026)
+
+Build de release da `spec/087-t4-comparar-replay`, `XDG_DATA_HOME` temporário, Xephyr 1366×768, projeto descartável com três arquivos de texto (~5,5 mil palavras cada). Conversa no Prompt, modo Perguntar, Haiku, compactação automática em 100k.
+
+| Passo | Resultado |
+|---|---|
+| 1. "Leia notas-a.txt…" | Medidor 39 mil / 1 milhão · 4%; limiar 67 mil informado pelo `get_context_usage` (sem turno a mais); Tokens acumulados 78k, separado |
+| 2. "Agora leia notas-b.txt…" | 69 mil; aviso "103% do limiar (67 mil), não da janela"; medidor "limiar atingido" |
+| 3. "Responda só: certo" | `compacting` → "Compactando… iniciada às 16:30"; `compact_boundary` → leitura invalidada; nova leitura 10 mil no turno 3; gráfico com o marcador e "69 mil → 10 mil, duas leituras da mesma execução" |
+| 4. Compactar agora | `/compact` com o agente ocioso; "Compactação concluída · aguardando medição"; `result` sem contar mensagem |
+| 5. Comparar Haiku × Sonnet | Dois medidores próprios (9,7 mil e 9 mil), sem total somado |
+| 6. Reabrir como sessão e Replay | Leitura antiga marcada "não é ao vivo"; Replay no passo 11 com 69 mil de 1 milhão · 7%; no fim, "compactado · aguardando medição" |
+
+Poucas chamadas, todas com Haiku; nenhuma consulta de diagnóstico abriu turno.

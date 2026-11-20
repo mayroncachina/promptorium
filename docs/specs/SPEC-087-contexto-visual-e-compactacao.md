@@ -1,6 +1,6 @@
 ---
 id: SPEC-087
-status: aprovada
+status: concluida
 versão: 0.22.0
 tipo: melhoria
 issue: 324
@@ -81,6 +81,31 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NTFEEHXmwEsxiSgE24i
 | `4-compactacao.png` | Aviso aos 85% do limiar com ação, estados “compactando”, “concluída”, “Contexto compactado · aguardando medição”, “falhou” e “não informado”; ações Ajustar compactação, Revisar próximos anexos e Nova conversa (vazia ou com resumo) e “Compactar agora” desabilitado com o motivo | R3, R8–R10 |
 | `5-estados.png` | Estados especiais: “Aguardando medição” nas Sessões e leitura antiga ao reabrir, limite desconhecido (total sem %), “Detalhamento indisponível” e Comparar com dois lados, cada um com o seu medidor, sem somar, e o subagente com “contexto separado · medição indisponível” | R2, R3, R5, R11 |
 
+### Capturas do app
+
+App compilado, dados isolados (`XDG_DATA_HOME` temporário), 1366×768, conversa real com o Claude Code 2.1.329 (Haiku) e `--autocompact 100k`. Os números vêm da execução, sem simulação: o CLI informou capacidade de 1 milhão e limiar de 67 mil. A sessão e o Replay usam os mesmos eventos gravados, reabertos.
+
+| PNG | O que mostra | Requisitos |
+|---|---|---|
+| `real-1-prompt-medidor.png` | Medidor depois da primeira leitura: 39 mil / 1 milhão · 4% · compacta em 67 mil, faltam 28 mil · medido no turno 1. "Tokens acumulados" (78k) no painel lateral | R1–R3, R7, R11 |
+| `real-2-aviso.png` | Aviso: 69 mil = 103% do limiar (67 mil), não da janela; "limiar atingido" no medidor | R10 |
+| `real-3-painel-uso.png` | Aba Uso: limiar distinto da capacidade, composição medida, Auto compactar com o valor efetivo e o limiar informado, Evolução | R1–R3, R6, R7, R12 |
+| `real-4-painel-fontes.png` | Aba Fontes: evidências, "peso indisponível" e "≈ estimado", MCP informado pelo agente, Próximo envio | R4, R5 |
+| `real-5-compactando.png` | Compactação automática em curso, vinda do evento `status: compacting` | R8 |
+| `real-6-evolucao-compactou.png` | Depois da compactação: marcador no gráfico e "Turno 3: compactou (69 mil → 10 mil, duas leituras da mesma execução)" | R3, R6, R8 |
+| `real-7-compactar-agora.png` | "Compactar agora" executado (`/compact` nativo): concluída, "Contexto compactado · aguardando medição" | R3, R9 |
+| `real-8-comparar.png` | Comparar Haiku × Sonnet: cada lado com o seu medidor, sem somar | R11 |
+| `real-9-sessoes.png` | Sessões: medidor com o histórico reaberto e "Tokens acumulados" | R2, R3, R11 |
+| `real-10-replay.png` | Replay no passo 11: a leitura daquele ponto (69 mil de 1 milhão · 7%), não a atual | R6 |
+
+### Diferenças em relação ao mock
+
+- **Limiar**: o mock marca "compacta em 200 mil" com `--autocompact 200k`. A sonda mostrou que o CLI compacta antes, em `janela − 33 mil` (167 mil com 200k, 67 mil com 100k). O app mostra o limiar informado pelo agente e deixa o valor enviado como configuração.
+- **Compactar agora**: o mock mostra o botão desabilitado. A sonda confirmou o `/compact` nativo no modo do app, então o botão funciona em Claude. O estado desabilitado com o motivo continua para outros agentes, com o agente ocupado e sem medição.
+- **Fontes**: clicar leva ao evento que originou a fonte na timeline, uma das duas opções do R5. Mensagens antigas do app ficam numa linha só.
+- **Resumo da nova conversa**: montado pelo app com o último pedido, a última resposta e os arquivos citados. Não chama o modelo e é revisado antes do envio.
+- **Comparar**: o medidor de cada lado fica junto das métricas, para caber em 1366×768, e não abre um painel próprio.
+
 ## Design
 
 ### O que já existe
@@ -128,13 +153,13 @@ Preferir reconstruir leituras dos eventos já persistidos de sessão e conversa.
 - [x] Tokens acumulados, cota do plano e contexto atual têm rótulos e cálculos distintos [R1, R11] verificar: testes de widgets do Prompt e das Sessões.
 - [x] Fontes mostram evidência, anexos pendentes ficam separados e itens históricos após compactação não são apresentados como certamente presentes [R4, R5] verificar: testes com envio, leitura e compactação.
 - [x] O gráfico histórico usa medições reais e leva ao turno correto; não reaproveita a leitura atual no Replay [R6] verificar: testes do painel e do Replay.
-- [ ] A compactação automática usa o valor efetivo da execução, preserva preferências existentes e distingue seu limiar da capacidade da janela [R7] verificar: argumentos do CLI e teste manual.
+- [x] A compactação automática usa o valor efetivo da execução, preserva preferências existentes e distingue seu limiar da capacidade da janela [R7] verificar: argumentos do CLI e teste manual.
 - [x] Acompanhamento e retomada não duplicam compactações; a leitura corrente fica pendente até chegar uma nova medição [R3, R8] verificar: eventos gravados com duplicação e reabertura.
-- [ ] Compactar agora só executa com suporte comprovado, uma vez e com a execução ociosa; falha não apaga o histórico [R9] verificar: testes do controlador e cenário manual quando suportado.
+- [x] Compactar agora só executa com suporte comprovado, uma vez e com a execução ociosa; falha não apaga o histórico [R9] verificar: testes do controlador e cenário manual quando suportado.
 - [x] Os avisos respeitam 85%/75%, identificam a referência usada e não acionam com dados ausentes; retirar anexo afeta só o próximo envio [R9, R10] verificar: testes do redutor e da preparação do envio.
 - [x] Lados de Comparar e contextos de subagentes não são somados ao principal [R11] verificar: testes de isolamento.
 - [x] Teclado, texto alternativo e atualização por eventos funcionam sem chamadas faturáveis para atualizar o gráfico [R12] verificar: testes de widgets e inspeção dos pedidos ao agente.
-- [ ] No app isolado, acompanhar uma conversa longa, compactar automaticamente e conferir antes/depois, fontes, retomada e Comparar [R1–R12] verificar: capturas reais e relatório manual; pendente de execução com cota disponível.
+- [x] No app isolado, acompanhar uma conversa longa, compactar automaticamente e conferir antes/depois, fontes, retomada e Comparar [R1–R12] verificar: capturas reais e relatório manual (docs/pesquisa/contexto-e-compactacao.md, "Teste no app isolado").
 
 ## Fontes técnicas
 
