@@ -154,3 +154,5 @@ Canvas: [SPEC-096 · Codex no Prompt e nas Sessões](https://claude.ai/artifact/
 | `docs/mockups/spec-096/2-nova-sessao.png` | Nova sessão com o Codex em worktree: modelo e esforço do Codex, acesso com YOLO só em worktree e o aviso, raízes graváveis incluindo o `.git` da raiz | R9–R11 |
 | `docs/mockups/spec-096/3-sessao-codex.png` | Sessão Codex interrompida: status "Interrompida" (não falha), Retomar e Fork, painel com thread, provedor e "bifurcada de …", aba Terminal com `codex resume` | R3, R12, R13, R16 |
 | `docs/mockups/spec-096/4-estados-e-fluxos.png` | Rodapé com o Codex sem login e a orientação, Configurações → Provedores com o interruptor de emergência, e Executar spec com "Só Claude Code por enquanto" | R1, R2, R15 |
+
+Os mocks mostram o provedor com o chip ou a marca de identidade da SPEC-094 (R14: Claude = argila `#D97757`, Codex = porcelana `#E8E4DA`, sempre com nome ou glifo, nunca como estado).
