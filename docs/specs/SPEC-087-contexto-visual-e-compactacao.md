@@ -3,6 +3,7 @@ id: SPEC-087
 status: rascunho
 versão: 0.22.0
 tipo: melhoria
+issue: 324
 depende-de: []
 ---
 
