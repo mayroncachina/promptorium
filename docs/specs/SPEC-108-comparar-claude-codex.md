@@ -4,6 +4,7 @@ status: rascunho
 versao: 0.25.0
 tipo: recurso
 epico: 332
+issue: 336
 depende-de: [SPEC-079, SPEC-094, SPEC-095, SPEC-096, SPEC-097, SPEC-099]
 ---
 
