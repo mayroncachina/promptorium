@@ -326,6 +326,76 @@ void main() {
       await settleIo(tester, until: () => c.read(specPlannerProvider).isEmpty);
     });
 
+    testWidgets('SPEC-091: the bubble shows the question and option without '
+        'Markdown marks; Tab goes from option to option', (tester) async {
+      await pump(tester, size: const Size(1044, 628));
+      await plan(
+        tester,
+        output: {
+          ...plannerOutput(reply: 'Tenho **duas dúvidas**.'),
+          'questions': [
+            {
+              'text': '**Rodapé:** mostrar ao carregar?',
+              'options': ['Sim', 'Não'],
+            },
+            {
+              'text': '**Início com cartão:** começar com `Card`?',
+              'options': ['**Sim**, com cartão', 'Não'],
+            },
+          ],
+        },
+      );
+      // Tab: option → option, across the questions, no stop in between.
+      final order = [
+        'new-spec-question-0-Sim',
+        'new-spec-question-0-Não',
+        'new-spec-question-1-**Sim**, com cartão',
+        'new-spec-question-1-Não',
+      ];
+      Element textOf(String k) => tester.element(
+        find.descendant(of: key(k), matching: find.byType(Text)),
+      );
+      await tester.ensureVisible(key(order.first));
+      Focus.of(textOf(order.first)).requestFocus();
+      await tester.pump();
+      for (final k in order) {
+        expect(
+          FocusManager.instance.primaryFocus,
+          Focus.of(textOf(k)),
+          reason: k,
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(find.text('Sim, com cartão'), findsOneWidget);
+
+      final option = key(order[2]);
+      await tester.ensureVisible(option);
+      await tester.tap(option);
+      await settleIo(tester, until: () => cli.processes.length == 2);
+      const sent = 'Início com cartão: começar com Card?\n\nSim, com cartão';
+      expect(find.text(sent), findsOneWidget);
+      expect(find.textContaining('**'), findsNothing);
+      cli.last.emit(resultLine(plannerOutput(reply: 'Anotei.')));
+      await settleIo(tester, until: () => c.read(specPlannerProvider).isEmpty);
+    });
+
+    test('SPEC-091: plainMarkdown drops inline marks only', () {
+      expect(
+        plainMarkdown('**Início:** `a_b` e *ênfase*'),
+        'Início: a_b e ênfase',
+      );
+      expect(
+        plainMarkdown('[docs](https://x.y) __forte__ _x_'),
+        'docs forte x',
+      );
+      expect(
+        plainMarkdown('snake_case_name 2 * 3 * 4'),
+        'snake_case_name 2 * 3 * 4',
+      );
+      expect(plainMarkdown('## Título'), 'Título');
+    });
+
     testWidgets('R5: the title typed by hand stays in the field and in the '
         'spec; an empty title blocks Criar', (tester) async {
       await pump(tester);
