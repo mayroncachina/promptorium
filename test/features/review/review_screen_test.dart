@@ -138,14 +138,26 @@ void main() {
     tester,
   ) async {
     final container = await pumpReview(tester, resolving: true);
-    await tester.tap(find.byKey(const ValueKey('review-item-s2')));
-    await tester.pumpAndSettle();
-    expect(container.read(selectedSessionProvider), 's2');
-    expect(container.read(navigationProvider), AppSection.sessions);
-
+    // The header chip opens the selected item's session.
     await tester.tap(find.byKey(const ValueKey('review-resolution-chip')));
     await tester.pumpAndSettle();
     expect(container.read(selectedSessionProvider), 's1');
+    expect(container.read(navigationProvider), AppSection.sessions);
+    container.read(navigationProvider.notifier).go(AppSection.review);
+    await tester.pumpAndSettle();
+
+    // The card still selects the item, so its diff can be opened.
+    await tester.tap(find.byKey(const ValueKey('review-item-s2')));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedReviewProvider), 's2');
+    expect(container.read(selectedSessionProvider), isNot('s2'));
+    expect(container.read(navigationProvider), isNot(AppSection.sessions));
+    expect(find.text('Tema escuro e tokens'), findsWidgets);
+    // The status line opens the resolution session.
+    await tester.tap(find.byKey(const ValueKey('review-item-resolution-s2')));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedSessionProvider), 's2');
+    expect(container.read(navigationProvider), AppSection.sessions);
   });
 
   testWidgets('fits the minimum window (1100×700) without overflow; queue, '
