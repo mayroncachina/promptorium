@@ -600,10 +600,21 @@ void main() {
     expect(footer.sessionsActive, 0); // idle
     expect(footer.sessionsTotal, 1);
 
-    // Persistence: raw lines, no stream_event, user message first.
+    // Persistence: raw lines, no stream_event; what the execution received
+    // (SPEC-087 R7), then the user message.
     final events = await repoSessions.events(id);
     final types = events.map((e) => e.type).toList();
-    expect(types.first, AppEventTypes.user);
+    // SPEC-087 R12: after the result, the context usage is asked without
+    // a model turn.
+    expect(
+      fake.writtenAll.where(
+        (j) => j['request']?['subtype'] == 'get_context_usage',
+      ),
+      hasLength(1),
+    );
+    expect(types.first, 'promptorium_run');
+    expect(jsonDecode(events.first.json)['autocompact'], '200k');
+    expect(types[1], AppEventTypes.user);
     expect(types, containsAll(['system/init', 'assistant', 'control_request']));
     expect(types.last, 'result/success');
     expect(types.where((t) => t.startsWith('stream_event')), isEmpty);
@@ -863,6 +874,65 @@ void main() {
     );
     expect(await r.markLiveAsInterrupted(), 1);
     expect((await r.getById('live'))!.status, SessionStatus.interrupted);
+  });
+
+  test('SPEC-087 R9: Compactar agora na sessão ociosa; o fim não muda o '
+      'status nem notifica', () async {
+    final db = memoryDatabase();
+    final cli = FakeCli();
+    final notifier = FakeNotifier();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: db,
+        cli: cli,
+        notifier: notifier,
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    await c.read(workspaceActionsProvider).select(ws.id);
+    final repoSessions = c.read(sessionsRepoProvider);
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Compactar', prompt: 'Oi'),
+    );
+    final fake = cli.last;
+    // Running: refused.
+    await expectLater(m.compactNow(id), throwsA(isA<SessionException>()));
+    for (final l in fixtureLines()) {
+      fake.emit(l);
+    }
+    await settle();
+    expect((await repoSessions.getById(id))!.status, SessionStatus.completed);
+    final shown = notifier.shown.length;
+    await m.compactNow(id, focus: 'decisões');
+    expect(fake.writtenJson.last['message']['content'], '/compact decisões');
+    fake.emit(
+      jsonEncode({
+        'type': 'system',
+        'subtype': 'compact_boundary',
+        'uuid': 'cb',
+        'compact_metadata': {'trigger': 'manual', 'pre_tokens': 30000},
+      }),
+    );
+    fake.emit(
+      jsonEncode({
+        'type': 'result',
+        'subtype': 'success',
+        'num_turns': 0,
+        'usage': {'input_tokens': 0, 'output_tokens': 0},
+      }),
+    );
+    await settle();
+    expect((await repoSessions.getById(id))!.status, SessionStatus.completed);
+    expect(notifier.shown, hasLength(shown));
+    final ctx = c.read(sessionTimelineProvider(id)).timeline.context.snapshot;
+    expect(ctx.pendingAfterCompaction, isTrue);
+    expect(ctx.markers.single.trigger, 'manual');
   });
 
   test('sessionSlug is a valid git slug', () {

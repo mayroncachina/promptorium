@@ -71,6 +71,39 @@ void main() {
     });
   });
 
+  group('SPEC-087 R6: leitura do ponto, compactação no histórico', () {
+    test(
+      'o ponto usa a sua leitura; depois de compactar, aguardando medição',
+      () {
+        final b = TimelineBuilder();
+        b.user('faça');
+        b.read('/w/a.dart');
+        b.say('lendo', contextTokens: 171000);
+        b.bash('flutter test');
+        b.compact();
+        b.bash('git status');
+        b.say('seguindo', contextTokens: 46000);
+        b.bash('git diff');
+        final steps = replaySteps(b.items);
+        final ctx = b.t.context.snapshot;
+        ReplayState at(int i) =>
+            replayStateAt(steps, i, context: b.t.contextTokens, ctx: ctx);
+        // Steps: 0 user, 1 read, 2 answer, 3 run, 4 compaction, 5 run,
+        // 6 answer, 7 run.
+        expect(at(3).contextTokens, 171000);
+        expect(at(3).compactedSince, isFalse);
+        expect(at(4).contextTokens, 171000, reason: 'a própria compactação');
+        expect(at(5).compactedSince, isTrue);
+        expect(at(5).contextTokens, isNull);
+        expect(at(7).contextTokens, 46000);
+        expect(at(7).compactedSince, isFalse);
+        // The current state of the session (46 mil) never leaks into an
+        // earlier point.
+        expect(at(3).reading!.tokens, 171000);
+      },
+    );
+  });
+
   group('filters (R9)', () {
     test('kinds, errors, search and file', () {
       final b = TimelineBuilder();

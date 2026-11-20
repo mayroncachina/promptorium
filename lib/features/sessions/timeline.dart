@@ -5,6 +5,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/managed_hooks.dart' show secretBlockTitle;
 import '../../core/providers/permission_policy.dart';
 import '../../core/secrets/secret_scanner.dart';
+import '../context/context_tracker.dart';
 
 /// Event types written by the app itself into `session_events` (they never
 /// come from the CLI; `ClaudeEvent.fromJson` turns them into [UnknownEvent]).
@@ -303,13 +304,22 @@ class Timeline {
     }
     if (decoded is! Map<String, dynamic>) return;
     for (final e in ClaudeEvent.expand(decoded)) {
-      apply(e, at: at);
+      apply(e, at: at, stored: true);
     }
   }
 
-  void apply(ClaudeEvent e, {DateTime? at}) {
+  /// Context window of this history (SPEC-087).
+  final ContextTracker context = ContextTracker();
+
+  /// [stored] = rebuilt from a persisted row (not a live reading).
+  void apply(ClaudeEvent e, {DateTime? at, bool stored = false}) {
     applied++;
     final now = at ?? DateTime.now();
+    _applyItems(e, now);
+    context.apply(e, at: now, itemIndex: items.length, live: !stored);
+  }
+
+  void _applyItems(ClaudeEvent e, DateTime now) {
     switch (e) {
       case SystemInit():
         model ??= e.model.isEmpty ? null : e.model;

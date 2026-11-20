@@ -506,4 +506,88 @@ void main() {
     expect(cli.processes, hasLength(1));
     expect(sent, hasLength(1));
   });
+
+  group('SPEC-087 medidor nas Sessões', () {
+    String meterText(WidgetTester tester) => tester
+        .widgetList<RichText>(
+          find.descendant(
+            of: find.byKey(const ValueKey('context-indicator')),
+            matching: find.byType(RichText),
+          ),
+        )
+        .map((r) => r.text.toPlainText())
+        .join(' ');
+
+    testWidgets(
+      'sem usage: "Aguardando medição", nunca 0%; acumulado à parte',
+      (tester) async {
+        await pumpScreen(tester);
+        expect(meterText(tester), contains('Aguardando medição'));
+        expect(meterText(tester), isNot(contains('0%')));
+        expect(find.text('Tokens acumulados'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('subagente não soma; o painel abre e mostra as fontes', (
+      tester,
+    ) async {
+      Map<String, dynamic> withUsage(
+        Map<String, dynamic> e,
+        int read, {
+        String model = 'claude-opus-5-5',
+      }) => {
+        ...e,
+        'message': {
+          ...(e['message'] as Map<String, dynamic>),
+          'model': model,
+          'usage': {
+            'input_tokens': 2,
+            'cache_creation_input_tokens': 0,
+            'cache_read_input_tokens': read,
+          },
+        },
+      };
+      await pumpScreen(
+        tester,
+        events: [
+          AppEventTypes.userMessage('Leia', DateTime(2026, 11, 20, 14)),
+          withUsage(
+            assistant([
+              toolUse('t_read', 'Read', {'file_path': '$root/lib/a.dart'}),
+            ]),
+            95998,
+          ),
+          toolResult('t_read', 'l1'),
+          withUsage(
+            assistant(
+              [
+                {'type': 'text', 'text': 'sub'},
+              ],
+              parent: 't_task',
+              id: 'msg_sub',
+            ),
+            700000,
+          ),
+          {
+            'type': 'result',
+            'subtype': 'success',
+            'num_turns': 1,
+            'modelUsage': {
+              'claude-opus-5-5': {'contextWindow': 1000000},
+            },
+          },
+        ],
+      );
+      expect(meterText(tester), contains('96 mil / 1 milhão'));
+      expect(meterText(tester), contains('10%'));
+      await tester.tap(find.byKey(const ValueKey('context-indicator')));
+      await pumpFor(tester);
+      expect(find.byKey(const ValueKey('context-usage')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('context-tab-sources')));
+      await pumpFor(tester);
+      expect(find.text('leitura observada · t1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

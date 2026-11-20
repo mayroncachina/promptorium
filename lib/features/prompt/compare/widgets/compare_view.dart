@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../ui/theme/tokens.dart';
 import '../../../../ui/widgets/markdown/app_markdown.dart';
+import '../../../context/widgets/context_indicator.dart';
 import '../../../sessions/session_manager.dart' show PendingApproval;
 import '../../../sessions/widgets/session_style.dart';
 import '../../../sessions/widgets/side_panel.dart' show ApprovalCard;
@@ -266,6 +267,7 @@ class _Tabs extends StatelessWidget {
                         side: s,
                         calls: view.liveOf(s.letter).calls,
                       ),
+                      _SideContext(side: s, live: view.liveOf(s.letter)),
                     ],
                   ),
                 ),
@@ -420,6 +422,9 @@ class _SideColumn extends StatelessWidget {
               ),
               if (metrics) ...[
                 const Divider(height: 1),
+                // SPEC-087 R11: each side has its own window, reading, limit
+                // and threshold; nothing is summed between the sides.
+                _SideContext(side: s, live: live),
                 CompareMetricsView(run: run, side: s, calls: live.calls),
               ],
             ],
@@ -624,3 +629,35 @@ Future<bool> confirmDiscardCompare(BuildContext context) async =>
       ),
     ) ??
     false;
+
+/// The meter of one side (SPEC-087 R11) and its subagents.
+class _SideContext extends StatelessWidget {
+  const _SideContext({required this.side, required this.live});
+
+  final CompareSide side;
+  final CompareLive live;
+
+  @override
+  Widget build(BuildContext context) {
+    final snap = live.timeline.context.snapshot;
+    return Padding(
+      key: ValueKey('compare-context-${side.letter}'),
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ContextIndicator(
+            snapshot: snap,
+            alive: side.state.live,
+            dense: true,
+            trailingLabel: 'contexto próprio',
+            onOpen: () {},
+          ),
+          if (snap.subagents.isNotEmpty)
+            SubagentContextNote(subagents: snap.subagents),
+        ],
+      ),
+    );
+  }
+}

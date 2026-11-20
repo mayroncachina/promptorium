@@ -126,6 +126,42 @@ void main() {
 
     tearDown(() => c.dispose());
 
+    test('SPEC-087 R9: Compactar agora manda o /compact nativo uma vez, com '
+        'o agente ocioso, e o fim não conta como mensagem', () async {
+      final m = c.read(conversationManagerProvider.notifier);
+      final id = await m.create(workspace: ws, text: 'Oi', model: 'haiku');
+      final run = provider.last;
+      // Busy: refused, nothing sent.
+      await expectLater(
+        m.compactNow(id, focus: 'testes'),
+        throwsA(isA<ConversationException>()),
+      );
+      run.emit(initLine(run.options.sessionId!));
+      run.emit(textLine('Olá.'));
+      run.emit(resultLine());
+      await settle();
+      final before = (await c.read(conversationsRepoProvider).getById(id))!;
+      await m.compactNow(id, focus: 'manter os testes');
+      expect(run.sent.last, '/compact manter os testes');
+      expect(c.read(conversationManagerProvider).isBusy(id), isTrue);
+      run.emit({
+        'type': 'system',
+        'subtype': 'status',
+        'status': null,
+        'compact_result': 'failed',
+        'compact_error': 'too_few_groups',
+      });
+      run.emit({...resultLine(), 'num_turns': 0});
+      await settle();
+      expect(c.read(conversationManagerProvider).isBusy(id), isFalse);
+      final after = (await c.read(conversationsRepoProvider).getById(id))!;
+      expect(after.messageCount, before.messageCount);
+      // R9: a failure keeps the history.
+      final tl = c.read(conversationTimelineProvider(id));
+      expect(tl.items.whereType<UserItem>().single.text, 'Oi');
+      expect(tl.timeline.context.snapshot.phase.name, 'failed');
+    });
+
     test('create → runs in the workspace root, init stores the session id, '
         'result closes the turn', () async {
       final m = c.read(conversationManagerProvider.notifier);
@@ -170,6 +206,7 @@ void main() {
 
       final events = await c.read(conversationsRepoProvider).events(id);
       expect(events.map((e) => e.type), [
+        'promptorium_run', // SPEC-087 R7
         'promptorium_user',
         'system/init',
         'assistant',

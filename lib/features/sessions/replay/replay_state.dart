@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../edit_diff.dart';
+import '../../context/context_snapshot.dart';
 import 'replay_step.dart';
 
 /// A file in "Já leu" / "Já editou" (SPEC-082 R6).
@@ -57,6 +58,9 @@ class ReplayState {
     this.lastCommand,
     this.contextTokens,
     this.compactions = 0,
+    this.reading,
+    this.compactedSince = false,
+    this.capacity,
   });
 
   /// Files read up to here, in the order of the first read.
@@ -73,6 +77,17 @@ class ReplayState {
 
   /// Compactions up to the step.
   final int compactions;
+
+  /// The reading of the selected point (SPEC-087 R6): never the session's
+  /// current state.
+  final ContextReading? reading;
+
+  /// A compaction came after [reading] and before the step: the window is
+  /// waiting for a measurement there.
+  final bool compactedSince;
+
+  /// Capacity reported for the session's model (null = unknown, no %).
+  final int? capacity;
 }
 
 /// State of the session at step [index] of the top-level [steps] (R6).
@@ -82,6 +97,7 @@ ReplayState replayStateAt(
   List<ReplayStep> steps,
   int index, {
   List<({int items, int tokens})> context = const [],
+  ContextSnapshot? ctx,
 }) {
   if (steps.isEmpty) return const ReplayState();
   final end = index.clamp(0, steps.length - 1);
@@ -128,12 +144,34 @@ ReplayState replayStateAt(
       tokens = c.tokens;
     }
   }
+  // SPEC-087 R6: the reading at the step, from the history's readings;
+  // a compaction after it leaves the point waiting for a measurement.
+  ContextReading? reading;
+  var compactedSince = false;
+  if (ctx != null && item >= 0) {
+    for (final r in ctx.readings) {
+      if (r.itemIndex > item) break;
+      reading = r;
+    }
+    for (final m in ctx.markers) {
+      if (m.kind != ContextMarkerKind.compaction) continue;
+      if (m.itemIndex <= item &&
+          (reading == null ||
+              m.readingsBefore > ctx.readings.indexOf(reading))) {
+        compactedSince = true;
+      }
+    }
+    tokens = compactedSince ? null : reading?.tokens;
+  }
   return ReplayState(
     read: read.values.toList(),
     edited: edited.values.toList(),
     lastCommand: lastCommand,
     contextTokens: tokens,
     compactions: compactions,
+    reading: compactedSince ? null : reading,
+    compactedSince: compactedSince,
+    capacity: ctx?.capacity,
   );
 }
 

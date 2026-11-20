@@ -45,6 +45,8 @@ import 'app_notifier.dart';
 import '../cost/usage_ledger.dart';
 import 'restore/restore_service.dart';
 import 'session_changes.dart';
+import '../context/compaction_controller.dart';
+import '../context/context_tracker.dart';
 import 'timeline.dart';
 import 'timeline_provider.dart';
 
@@ -322,6 +324,10 @@ class _Proc {
   /// When [busy] became true.
   DateTime? busySince;
 
+  /// "Compactar agora" is running (SPEC-087 R9): its `result` only closes
+  /// the request — no status, gate, review or notification.
+  bool compacting = false;
+
   /// Set by [SessionManager.release]: the exit records nothing.
   bool released = false;
 
@@ -586,6 +592,39 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _specs.onActive(id);
     });
     await proc.process.send(msg, images: images);
+  }
+
+  /// "Compactar agora" (SPEC-087 R9): the native `/compact` on the idle
+  /// process (resumed when closed), one request at a time. The session's
+  /// permissions stay as they are; a failure keeps the history.
+  Future<void> compactNow(String id, {String? focus}) async {
+    final s = await _repo.getById(id);
+    if (s == null) throw SessionException('Sessão $id não existe.');
+    if (s.provider != 'claude') {
+      throw const SessionException(
+        'Este agente não tem um comando nativo de compactação confirmado.',
+      );
+    }
+    var p = await _liveProc(id);
+    if (p != null && (p.busy || p.compacting)) {
+      throw const SessionException(
+        'Espere a resposta atual: compactar só com o agente ocioso.',
+      );
+    }
+    if (p == null) {
+      await resume(id);
+      p = _procs[id];
+      if (p == null) return;
+    }
+    final proc = p;
+    proc
+      ..busy = true
+      ..compacting = true
+      ..busySince = DateTime.now()
+      ..lastActivity = DateTime.now();
+    _publish();
+    await _note(id, 'Compactação pedida pelo app (/compact).');
+    await proc.process.send(compactCommand(focus));
   }
 
   /// Whether a message with images can go to the live process of [id] as
@@ -1442,6 +1481,17 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (environment != null) {
       ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
     }
+    // SPEC-087 R7: what this execution received (effective threshold).
+    await _appEvent(
+      id,
+      ContextEventTypes.runEvent(
+        autocompact: session.provider == 'claude'
+            ? ref.read(runPrefsProvider).autocompact
+            : null,
+        model: session.model,
+        provider: session.provider,
+      ),
+    );
     p.logSub = process.logs.listen(
       (l) => debugPrint('${session.provider}[$id] $l'),
       onError: (_) {},
@@ -1697,6 +1747,19 @@ class SessionManager extends Notifier<SessionManagerState> {
         await ref
             .read(usageLedgerProvider)
             .recordSessionTurn(id, e, costUsd: turn);
+        // SPEC-087 R7, R12: threshold and composition, without a turn.
+        if (p.process case final ContextUsageRun run) {
+          unawaited(run.requestContextUsage());
+        }
+        // SPEC-087 R9: the end of "Compactar agora" is not a work turn.
+        if (p.compacting) {
+          p
+            ..compacting = false
+            ..busy = false
+            ..busySince = null;
+          _publish();
+          break;
+        }
         p.subagents.clear();
         p.busy = false;
         p.busySince = null;
@@ -1987,6 +2050,15 @@ class SessionManager extends Notifier<SessionManagerState> {
       'achados': [for (final f in fresh) f.toJson()],
       'parcial': res.partial,
     });
+  }
+
+  Future<void> _appEvent(String id, Map<String, dynamic> json) async {
+    final row = await _repo.appendEvent(
+      id,
+      type: '${json['type']}',
+      json: _encode(json),
+    );
+    _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
   Future<void> _note(String id, String text, {bool error = false}) async {
