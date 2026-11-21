@@ -35,6 +35,22 @@ String providerBrandName(String provider) => switch (provider) {
   _ => provider,
 };
 
+/// "Codex · gpt-6.2-sol" / "Claude Code · Sonnet" (SPEC-096 R3): who
+/// answered and with which model, wherever a run is listed. `inherit` is
+/// the provider default.
+String providerModelLabel(String provider, String? model) {
+  final name = switch (provider) {
+    'claude' => 'Claude Code',
+    'codex' => 'Codex',
+    _ => provider,
+  };
+  final m = model ?? '';
+  if (m.isEmpty || m == 'inherit') return '$name · modelo padrão';
+  // Claude aliases read as names ("Sonnet"); Codex ids stay as they are.
+  final shown = provider == 'claude' ? m[0].toUpperCase() + m.substring(1) : m;
+  return '$name · $shown';
+}
+
 /// Identity color of the provider (glyph mark, border, chip). Never state,
 /// never the logo. Null when the provider has no token.
 Color? providerIdentityColor(String provider) => switch (provider) {

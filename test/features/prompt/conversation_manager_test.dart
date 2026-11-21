@@ -96,7 +96,11 @@ void main() {
       ]);
       // Codex is the App Server adapter; its flows say where it runs.
       expect(all[2], isA<CodexProvider>());
-      expect(c.read(providerFlowsProvider).anyFor('codex'), isFalse);
+      // SPEC-096 R1: Prompt and Sessões are released for the Codex.
+      expect(
+        c.read(providerFlowsProvider).allows('codex', AppFlow.prompt),
+        isTrue,
+      );
     });
   });
 

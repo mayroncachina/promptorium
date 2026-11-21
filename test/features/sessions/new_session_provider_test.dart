@@ -68,7 +68,8 @@ void main() {
   testWidgets('SPEC-094 R12: a locked flow never starts and offers Claude', (
     tester,
   ) async {
-    await _open(tester);
+    // Codex switched off ("Desligar o Codex", SPEC-096 P1).
+    await _open(tester, flows: ProviderFlows.defaults.copyWith('codex', {}));
     expect(_key('new-session-flow-locked'), findsOneWidget);
     expect(find.textContaining('Sessões ainda não roda com o Codex'), findsOne);
     await tester.tap(_key('new-session-provider'));
@@ -88,7 +89,10 @@ void main() {
       sandboxWarning: 'bubblewrap sem user namespaces',
     );
     expect(_key('new-session-no-sandbox'), findsOneWidget);
-    expect(find.textContaining('Sandbox do Codex indisponível'), findsOneWidget);
+    expect(
+      find.textContaining('Sandbox do Codex indisponível'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('apparmor_restrict_unprivileged_userns=0'),
       findsOneWidget,
@@ -96,7 +100,10 @@ void main() {
     await tester.tap(_key('new-session-mode'));
     await tester.pumpAndSettle();
     // Perguntar / Editar / Planejar are not offered; YOLO is.
-    expect(find.textContaining('editar — escreve com confirmação'), findsNothing);
+    expect(
+      find.textContaining('editar — escreve com confirmação'),
+      findsNothing,
+    );
     expect(find.textContaining('planejar — o sandbox'), findsNothing);
     await tester.tap(find.textContaining('YOLO').last);
     await tester.pumpAndSettle();

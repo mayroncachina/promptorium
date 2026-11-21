@@ -275,17 +275,19 @@ void main() {
       warning: 'versão mais nova que a testada (0.170)',
       sandboxWarning: 'bubblewrap',
     );
-    await tester.tap(find.byKey(const ValueKey('footer-provider-recheck-codex')));
+    await tester.tap(
+      find.byKey(const ValueKey('footer-provider-recheck-codex')),
+    );
     await tester.pumpAndSettle();
     expect(checks, greaterThan(before));
     await tester.tap(find.byKey(const ValueKey('footer-provider-selector')));
     await tester.pumpAndSettle();
     expect(find.text('Codex · conectado'), findsOneWidget);
+    expect(find.text('versão mais nova que a testada (0.170)'), findsOneWidget);
     expect(
-      find.text('versão mais nova que a testada (0.170)'),
+      find.textContaining('Sandbox do Codex indisponível'),
       findsOneWidget,
     );
-    expect(find.textContaining('Sandbox do Codex indisponível'), findsOneWidget);
     expect(
       find.textContaining('apparmor_restrict_unprivileged_userns=0'),
       findsOneWidget,

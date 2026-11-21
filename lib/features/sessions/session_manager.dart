@@ -11,6 +11,7 @@ import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
@@ -381,6 +382,10 @@ class _Proc {
 
   final ManagedAgentRun process;
   String title;
+
+  /// "Codex · gpt-6.2-sol" of a session not run by the Claude Code: goes
+  /// with its notifications (SPEC-096 R3). Null for Claude.
+  String? who;
 
   /// Started with `--dangerously-skip-permissions` (a start flag: a live
   /// switch to another mode does not undo it).
@@ -1581,6 +1586,9 @@ class SessionManager extends Notifier<SessionManagerState> {
             skipPermissions:
                 options.permissionMode == ClaudePermissionMode.skipPermissions,
           )
+          ..who = isClaudeCode(session.provider)
+              ? null
+              : providerModelLabel(session.provider, session.model)
           ..markedRoot = marking.isEmpty ? null : (root ?? cwd)
           ..mcp = mcpLink
           ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
@@ -2199,7 +2207,10 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// click goes back to the screen the session was created from. Approvals
   /// go to the bell pointing at Sessões; the system notification is
   /// [AgentAlerts]'s (SPEC-086).
-  void _notify(String title, String body, String id, {bool approval = false}) {
+  void _notify(String title, String text, String id, {bool approval = false}) {
+    // SPEC-096 R3: who ran it, when it is not the Claude Code.
+    final who = _procs[id]?.who;
+    final body = who == null ? text : '$text · $who';
     final section = approval
         ? AppSection.sessions
         : (_origins[id] ?? AppSection.sessions);

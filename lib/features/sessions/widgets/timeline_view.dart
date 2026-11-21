@@ -42,9 +42,17 @@ Map<String, EditDiff> sessionEditDiffs(TimelineSnapshot snap, String? root) =>
 /// while streaming), tool cards with results, subagent messages nested under
 /// their Task card. Scrolls internally and sticks to the end (reversed list).
 class TimelineView extends ConsumerWidget {
-  const TimelineView({super.key, required this.sessionId, this.root});
+  const TimelineView({
+    super.key,
+    required this.sessionId,
+    this.root,
+    this.assistantName = 'Claude',
+  });
 
   final String sessionId;
+
+  /// Who speaks in the timeline ("Codex" in a Codex session, SPEC-096 R3).
+  final String assistantName;
 
   /// Worktree path (tool targets are shown relative to it).
   final String? root;
@@ -96,6 +104,7 @@ class TimelineView extends ConsumerWidget {
           sessionId: sessionId,
           child: TimelineListView(
             key: ValueKey('timeline-$sessionId'),
+            assistantName: assistantName,
             reveal: reveal,
             jump: ref.watch(timelineJumpProvider('session:$sessionId')),
             editInfo: (t) =>

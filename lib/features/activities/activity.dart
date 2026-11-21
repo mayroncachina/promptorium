@@ -132,6 +132,7 @@ class Activity {
     this.specCode,
     this.seed,
     this.model,
+    this.provider,
     this.mode,
     this.branch,
     this.agentName,
@@ -187,6 +188,9 @@ class Activity {
   /// The robot's identity (R5); null = an icon (release, dev server).
   final String? seed;
   final String? model;
+
+  /// `claude` / `codex` (SPEC-096 R3): the panel shows "Codex · gpt-…".
+  final String? provider;
   final String? mode;
   final String? branch;
 
@@ -475,6 +479,7 @@ List<Activity> _ofWorkspace(
           specCode: spec?.code,
           seed: seed,
           model: s.model,
+          provider: s.provider,
           mode: s.permissionMode,
           branch: s.branch,
           agentName: s.agentName,
@@ -517,6 +522,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: seed,
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         agentName: s.agentName,
@@ -560,6 +566,7 @@ List<Activity> _ofWorkspace(
             ? 'session:${s?.id ?? p.key}'
             : specSeed(ws.id, spec.code),
         model: s?.model,
+        provider: s?.provider,
         mode: s?.permissionMode,
         branch: s?.branch,
         agentName: s?.agentName,
@@ -621,6 +628,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: spec == null ? 'session:${s.id}' : specSeed(ws.id, spec.code),
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         tasks: tasks(spec),
@@ -671,6 +679,7 @@ List<Activity> _ofWorkspace(
           specCode: spec.code,
           seed: specSeed(ws.id, spec.code),
           model: s?.model,
+          provider: s?.provider,
           mode: s?.permissionMode,
           branch: s?.branch,
           tasks: tasks(spec),
@@ -725,6 +734,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: spec == null ? 'session:${s.id}' : specSeed(ws.id, spec.code),
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         agentName: s.agentName,
@@ -876,6 +886,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: 'conv:${c.id}',
         model: c.model,
+        provider: c.provider,
         mode: c.mode,
         recent: _recent(l.recent, ws.path),
         lastText: l.lastText,

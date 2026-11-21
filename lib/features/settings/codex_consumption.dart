@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../ui/providers/provider_logos.dart';
@@ -11,6 +13,7 @@ import '../../core/codex/codex_probe.dart'
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../core/providers/provider_preferences.dart';
+import '../../core/system/worktree_launcher.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/only_provider_tag.dart';
@@ -320,7 +323,31 @@ class CodexStatusCard extends ConsumerWidget {
           key: const ValueKey('codex-status'),
           style: const TextStyle(fontSize: 12, color: AppColors.text),
         ),
-        if (v != null && !v.available)
+        if (v?.status == ProviderStatus.loginRequired) ...[
+          // SPEC-096 R2: the login is the person's; the app never logs in
+          // nor reads ~/.codex/auth.json.
+          const Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: 'Rode '),
+                TextSpan(
+                  text: 'codex login',
+                  style: TextStyle(
+                    fontFamily: AppFonts.mono,
+                    color: AppColors.amber,
+                  ),
+                ),
+                TextSpan(
+                  text:
+                      ' no terminal. O Promptorium não faz login nem lê suas '
+                      'credenciais.',
+                ),
+              ],
+            ),
+            key: ValueKey('codex-login-hint'),
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ] else if (v != null && !v.available)
           Text(
             v.message,
             style: const TextStyle(fontSize: 11, color: AppColors.red),
@@ -357,16 +384,136 @@ class CodexStatusCard extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: SmallButton(
-            key: const ValueKey('codex-recheck'),
-            label: 'Verificar de novo',
-            onTap: () {
-              ref.invalidate(codexCliInfoProvider);
-              ref.invalidate(providerAvailabilityProvider('codex'));
-            },
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 6,
+          children: [
+            if (v?.status == ProviderStatus.loginRequired)
+              SmallButton(
+                key: const ValueKey('codex-open-terminal'),
+                label: 'Abrir terminal',
+                onTap: () => _openTerminal(context, ref),
+              ),
+            SmallButton(
+              key: const ValueKey('codex-recheck'),
+              label: 'Verificar de novo',
+              onTap: () {
+                ref.invalidate(codexCliInfoProvider);
+                ref.invalidate(providerAvailabilityProvider('codex'));
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const _CodexFlows(),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Divider(height: 1, color: AppColors.border),
+        ),
+        const _CodexKillSwitch(),
+      ],
+    );
+  }
+
+  /// A plain shell in the home folder: the person types `codex login`.
+  static Future<void> _openTerminal(BuildContext context, WidgetRef ref) async {
+    final home = Platform.environment['HOME'] ?? Directory.current.path;
+    final used = await ref.read(worktreeLauncherProvider).terminal(home);
+    if (used == null && context.mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Nenhum terminal encontrado. Rode codex login num terminal.',
           ),
+        ),
+      );
+    }
+  }
+}
+
+/// Where the Codex runs (mock 4): released flows in teal, the others with
+/// the spec that releases them.
+class _CodexFlows extends ConsumerWidget {
+  const _CodexFlows();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flows = ref.watch(providerFlowsProvider);
+    Widget chip(String label, {required bool on, Key? key}) => Container(
+      key: key,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: on ? AppColors.teal.withValues(alpha: 0.12) : null,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: on ? AppColors.teal : AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: on ? AppColors.teal : AppColors.textSecondary,
+        ),
+      ),
+    );
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final f in [AppFlow.prompt, AppFlow.sessions])
+          chip(
+            f.label,
+            on: flows.allows('codex', f),
+            key: ValueKey('codex-flow-${f.name}'),
+          ),
+        for (final MapEntry(key: f, value: spec) in codexFlowSpecs.entries)
+          chip(
+            '${f.label} · $spec',
+            on: false,
+            key: ValueKey('codex-flow-${f.name}'),
+          ),
+      ],
+    );
+  }
+}
+
+/// "Desligar o Codex" (SPEC-096 P1): hides the Codex in every flow without
+/// a new version, because the App Server is experimental.
+class _CodexKillSwitch extends ConsumerWidget {
+  const _CodexKillSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final off = ref.watch(
+      appSettingsProvider.select((s) => s[codexKillSwitchKey] == '1'),
+    );
+    return Row(
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Desligar o Codex',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              Text(
+                'Interruptor de emergência: esconde o Codex em todos os fluxos '
+                'sem precisar de outra versão.',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          key: const ValueKey('codex-kill-switch'),
+          value: off,
+          onChanged: (v) => ref
+              .read(appSettingsProvider.notifier)
+              .set(codexKillSwitchKey, v ? '1' : '0'),
         ),
       ],
     );
