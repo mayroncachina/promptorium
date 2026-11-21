@@ -1,7 +1,7 @@
 ---
 id: SPEC-104
 status: rascunho
-versao: 0.24.0
+versao: 0.25.0
 tipo: melhoria
 epico: 332
 issue: 339
