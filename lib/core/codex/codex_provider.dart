@@ -25,12 +25,16 @@ class CodexProvider implements AgentProvider {
     String executable = 'codex',
     String Function()? resolveExecutable,
     this.starter,
+    this.clientVersion,
   }) : _resolve = resolveExecutable ?? (() => executable);
 
   /// Resolved only when used: listing the provider never runs the CLI.
   final String Function() _resolve;
   String get executable => _resolve();
   final ProcessStarter? starter;
+
+  /// The app version sent in `initialize.clientInfo` (SPEC-093 D13).
+  final String? Function()? clientVersion;
 
   @override
   String get id => 'codex';
@@ -58,8 +62,10 @@ class CodexProvider implements AgentProvider {
       args.addAll(['-c', '$key=$value']);
     }
     final Process process;
+    // SPEC-096 R15: the real App Server leads its own process group.
+    final group = starter == null && _setsidAvailable();
     try {
-      process = await (starter ?? _start)(
+      process = await (starter ?? (group ? _startGroup : _start))(
         executable,
         args,
         workingDirectory: options.workingDirectory,
@@ -70,7 +76,12 @@ class CodexProvider implements AgentProvider {
         'Codex CLI não encontrado. Instale o Codex e confira o PATH em Configurações → Provedores.',
       );
     }
-    final run = CodexRun(CodexRpc(process), options, args: args);
+    final run = CodexRun(
+      CodexRpc(process, group: group),
+      options,
+      args: args,
+      clientVersion: clientVersion?.call(),
+    );
     try {
       await run.open();
       return run;
@@ -102,6 +113,29 @@ class CodexProvider implements AgentProvider {
     }
   }
 
+  static bool _setsidAvailable() =>
+      File('/usr/bin/setsid').existsSync() || File('/bin/setsid').existsSync();
+
+  /// `setsid codex app-server …`: Dart's children are not group leaders, so
+  /// `setsid` does not fork and the pid stays the App Server's. A missing
+  /// executable fails here, as without `setsid`.
+  static Future<Process> _startGroup(
+    String exe,
+    List<String> args, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
+    if (exe.contains('/') && !File(exe).existsSync()) {
+      throw ProcessException(exe, args, 'não encontrado');
+    }
+    return Process.start(
+      'setsid',
+      [exe, ...args],
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
+  }
+
   static Future<Process> _start(
     String exe,
     List<String> args, {
@@ -117,7 +151,7 @@ class CodexProvider implements AgentProvider {
 
 /// The App Server persists threads; local ids are never passed as Codex ids.
 class CodexRun implements ManagedAgentRun {
-  CodexRun(this.rpc, this.options, {required this.args}) {
+  CodexRun(this.rpc, this.options, {required this.args, this.clientVersion}) {
     _sub = rpc.messages.stream.listen(
       _message,
       onDone: () {
@@ -127,6 +161,9 @@ class CodexRun implements ManagedAgentRun {
   }
   final CodexRpc rpc;
   final AgentStartOptions options;
+
+  /// Version of the app in `clientInfo` (null in tests = `0.0.0`).
+  final String? clientVersion;
   @override
   final List<String> args;
   late final StreamSubscription<Map<String, dynamic>> _sub;
@@ -136,6 +173,14 @@ class CodexRun implements ManagedAgentRun {
   final _finishedItems = <String>{};
   final _startedTools = <String>{};
   final _models = <CodexModel>[];
+
+  /// `fileChange` items seen in this turn, by id: the approval request
+  /// does not carry the changes (SPEC-093 D5).
+  final _fileItems = <String, Map<String, dynamic>>{};
+
+  /// "Interromper" was asked: the turn ends as interrupted by the person
+  /// (SPEC-096 P3).
+  bool _interruptAsked = false;
   String? _thread;
   String? _turn;
   bool _busy = false;
@@ -193,13 +238,20 @@ class CodexRun implements ManagedAgentRun {
     _events.add(FileChangeEvent.live(clean, full));
   }
 
-  bool get _readOnly =>
-      options.mode == PromptMode.ask ||
-      options.mode == PromptMode.plan ||
-      _permissionMode == ClaudePermissionMode.plan;
+  bool get _readOnly => _access != null
+      ? _access == AgentAccess.ask || _access == AgentAccess.plan
+      : options.mode == PromptMode.ask ||
+            options.mode == PromptMode.plan ||
+            _permissionMode == ClaudePermissionMode.plan;
+
+  /// Access chosen with the turn stopped (SPEC-096 R14): the Codex takes
+  /// a policy per `turn/start`, so the next turn uses it.
+  AgentAccess? _access;
+
+  AgentAccess get access => _access ?? options.access;
 
   ({String sandbox, String approval}) get _policy => codexAccessPolicy(
-    _readOnly ? AgentAccess.ask : options.access,
+    _readOnly ? AgentAccess.ask : access,
     extras: options.codex,
   );
   String get _sandbox => _policy.sandbox;
@@ -211,7 +263,7 @@ class CodexRun implements ManagedAgentRun {
       'clientInfo': {
         'name': 'promptorium',
         'title': 'Promptorium',
-        'version': '0.2.0',
+        'version': clientVersion ?? '0.0.0',
       },
     });
     await rpc.write({'method': 'initialized', 'params': <String, dynamic>{}});
@@ -274,6 +326,10 @@ class CodexRun implements ManagedAgentRun {
           int.parse(unit.replaceAll(RegExp('[km]'), '')) * mult;
     }
     final resume = options.resumeId;
+    // SPEC-093 D1, SPEC-096 R10: the thread always opens `read-only` +
+    // `never` — a writable sandbox on `thread/*` makes the App Server save
+    // trust in ~/.codex/config.toml. The real policy goes on each
+    // `turn/start`.
     final result = await rpc.request(
       resume == null
           ? 'thread/start'
@@ -284,36 +340,14 @@ class CodexRun implements ManagedAgentRun {
         'threadId': ?resume,
         if (resume != null) 'excludeTurns': true,
         'cwd': options.workingDirectory,
-        'sandbox': _sandbox,
-        'approvalPolicy': _approval,
+        'sandbox': codexThreadSandbox,
+        'approvalPolicy': codexThreadApproval,
         if (requested != null && requested != 'inherit') 'model': requested,
         if (options.appendSystemPrompt != null)
           'developerInstructions': options.appendSystemPrompt,
         if (config.isNotEmpty) 'config': config,
       },
     );
-    final sandboxType = result['sandbox'] is Map
-        ? (result['sandbox'] as Map)['type']
-        : result['sandbox'];
-    final expectedType = switch (_sandbox) {
-      'danger-full-access' => 'dangerFullAccess',
-      'read-only' => 'readOnly',
-      _ => 'workspaceWrite',
-    };
-    final yolo =
-        !_readOnly && _permissionMode == ClaudePermissionMode.skipPermissions;
-    if ((yolo &&
-            (result['approvalPolicy'] != _approval ||
-                sandboxType != expectedType)) ||
-        (result['approvalPolicy'] != null &&
-            result['approvalPolicy'] != _approval) ||
-        (sandboxType != null &&
-            sandboxType != expectedType &&
-            sandboxType != _sandbox)) {
-      throw const AgentUnavailable(
-        'Codex não aplicou o modo de permissão solicitado.',
-      );
-    }
     final thread = result['thread'];
     _thread = thread is Map ? thread['id'] as String? : null;
     if (_thread == null || _thread!.isEmpty) {
@@ -346,6 +380,9 @@ class CodexRun implements ManagedAgentRun {
       ),
       'sandbox': _sandbox,
       'approvalPolicy': _approval,
+      if (_sandbox == 'workspace-write' &&
+          options.codex.writableRoots.isNotEmpty)
+        'writableRoots': options.codex.writableRoots,
       'codex_version': init['userAgent'],
       'models': [
         for (final m in _models)
@@ -364,13 +401,37 @@ class CodexRun implements ManagedAgentRun {
           .contains('image') ??
       false;
 
+  /// `UserInput` of a message: text plus images as data URLs (SPEC-093
+  /// R11 proved both data URL and `localImage`).
+  static List<Map<String, dynamic>> _input(
+    String text,
+    List<ImagePart> images,
+  ) => [
+    {'type': 'text', 'text': text},
+    for (final image in images)
+      {
+        'type': 'image',
+        'url': 'data:${image.mediaType};base64,${image.base64}',
+      },
+  ];
+
+  /// The turn's sandbox policy (SPEC-096 R10): `workspaceWrite` carries the
+  /// writable roots (the worktree's slice of the git common dir).
+  Map<String, dynamic> get _sandboxPolicy => switch (_sandbox) {
+    'danger-full-access' => {'type': 'dangerFullAccess'},
+    'read-only' => {'type': 'readOnly'},
+    _ => {
+      'type': 'workspaceWrite',
+      if (options.codex.writableRoots.isNotEmpty)
+        'writableRoots': options.codex.writableRoots,
+    },
+  };
+
+  /// Whether a message sent now goes into the running turn (`turn/steer`).
+  bool get steering => _busy && _turn != null;
+
   @override
   Future<void> send(String text, {List<ImagePart> images = const []}) async {
-    if (_busy) {
-      throw const AgentUnavailable(
-        'Codex já está respondendo. Aguarde ou interrompa o turno.',
-      );
-    }
     if (images.isNotEmpty) {
       final model = options.model;
       final selected = _models.where((m) => m.id == model).firstOrNull;
@@ -380,38 +441,43 @@ class CodexRun implements ManagedAgentRun {
         );
       }
     }
+    if (_busy) {
+      // SPEC-096 R7: a message during the turn directs it (`turn/steer`,
+      // proved by SPEC-093 R13); before the turn has an id, it waits.
+      final turn = _turn;
+      if (turn == null) {
+        throw const AgentUnavailable(
+          'Codex já está respondendo. Aguarde ou interrompa o turno.',
+        );
+      }
+      await rpc.request('turn/steer', {
+        'threadId': _thread,
+        'expectedTurnId': turn,
+        'input': _input(text, images),
+      });
+      return;
+    }
     _busy = true;
+    _interruptAsked = false;
     _answer = '';
     _texts.clear();
     _finishedItems.clear();
     _startedTools.clear();
+    _fileItems.clear();
     _lastUsage = const {};
     _baselineUsage = _totalUsage;
     try {
       final r = await rpc.request('turn/start', {
         'threadId': _thread,
         'approvalPolicy': _approval,
-        'sandboxPolicy': {
-          'type': switch (_sandbox) {
-            'danger-full-access' => 'dangerFullAccess',
-            'read-only' => 'readOnly',
-            _ => 'workspaceWrite',
-          },
-        },
-        'input': [
-          {'type': 'text', 'text': text},
-          for (final image in images)
-            {
-              'type': 'image',
-              'url': 'data:${image.mediaType};base64,${image.base64}',
-            },
-        ],
+        'sandboxPolicy': _sandboxPolicy,
+        'input': _input(text, images),
         if (options.effort != null && options.effort != 'default')
           'effort': options.effort,
         if (options.jsonSchema != null)
           'outputSchema': jsonDecode(options.jsonSchema!),
       });
-      if (_busy) _turn = (r['turn'] as Map?)?['id'] as String?;
+      if (_busy) _turn ??= (r['turn'] as Map?)?['id'] as String?;
     } catch (_) {
       _busy = false;
       rethrow;
@@ -523,7 +589,9 @@ class CodexRun implements ManagedAgentRun {
               : turn['status'] == 'interrupted'
               ? 'interrupted'
               : 'error_during_execution',
-          'is_error': !ok,
+          'is_error': !ok && turn['status'] != 'interrupted',
+          if (turn['status'] == 'interrupted')
+            'interrupt_reason': _interruptAsked ? 'user' : 'agent',
           'result': _answer,
           'cost_available': false,
           'num_turns': 1,
@@ -575,6 +643,7 @@ class CodexRun implements ManagedAgentRun {
     // vocabulary; no more `Edit` / `Bash` pretending to be Claude.
     switch (type) {
       case 'fileChange':
+        _fileItems[id] = item;
         _fileChange(id, item, complete: complete);
         return;
       case 'commandExecution':
@@ -696,9 +765,10 @@ class CodexRun implements ManagedAgentRun {
 
   void _request(Object id, String method, Map<String, dynamic> p) {
     final question = method == 'item/tool/requestUserInput';
-    final approval =
-        method == 'item/commandExecution/requestApproval' ||
-        method == 'item/fileChange/requestApproval';
+    final command = method == 'item/commandExecution/requestApproval';
+    final file = method == 'item/fileChange/requestApproval';
+    final permissions = method == 'item/permissions/requestApproval';
+    final approval = command || file || permissions;
     if (!question && !approval) {
       unawaited(
         rpc.write({
@@ -715,7 +785,9 @@ class CodexRun implements ManagedAgentRun {
       unawaited(
         rpc.write({
           'id': id,
-          'result': {'decision': 'decline'},
+          'result': permissions
+              ? {'permissions': <String, dynamic>{}, 'scope': 'turn'}
+              : {'decision': 'decline'},
         }),
       );
       return;
@@ -729,13 +801,24 @@ class CodexRun implements ManagedAgentRun {
         'subtype': 'can_use_tool',
         'tool_name': question
             ? 'AskUserQuestion'
-            : method.contains('commandExecution')
+            : command
             ? 'Bash'
+            : permissions
+            ? codexPermissionsTool
             : 'Edit',
         'tool_use_id': p['itemId'],
-        'description': p['reason'],
-        'input': question ? {'questions': p['questions']} : p,
-        'permission_suggestions': const [],
+        'description': permissions ? codexPermissionsSummary(p) : p['reason'],
+        'input': question
+            ? {'questions': p['questions']}
+            : file
+            ? codexFileApprovalInput(p, _fileItems['${p['itemId']}'])
+            : p,
+        // SPEC-096 R6: "Aprovar nesta conversa" = `acceptForSession`, only
+        // where the App Server offers it (never under `untrusted`, never
+        // for permissions, which are granted for the turn only).
+        'permission_suggestions': [
+          if (!permissions && codexOffersSession(p)) codexSessionSuggestion,
+        ],
       },
     });
   }
@@ -762,12 +845,22 @@ class CodexRun implements ManagedAgentRun {
     if (p == null) {
       throw const AgentUnavailable('A solicitação Codex já foi resolvida.');
     }
+    var decision = 'accept';
     if (updatedPermissions != null) {
-      throw const AgentUnavailable(
-        'Codex: persistência dessa permissão ainda não validada.',
+      // Only "Aprovar nesta conversa" (acceptForSession); nothing that
+      // writes in the global (no execpolicy amendment, SPEC-093 D6).
+      final session = updatedPermissions.any(
+        (s) => s is Map && s['type'] == codexSessionSuggestion['type'],
       );
+      if (!session || !codexOffersSession(p.$3)) {
+        throw const AgentUnavailable(
+          'Codex: persistência dessa permissão ainda não validada.',
+        );
+      }
+      decision = 'acceptForSession';
     }
     final question = p.$2 == 'item/tool/requestUserInput';
+    final permissions = p.$2 == 'item/permissions/requestApproval';
     final answers = <String, dynamic>{};
     if (question) {
       final input = updatedInput?['answers'] as Map? ?? const {};
@@ -784,7 +877,19 @@ class CodexRun implements ManagedAgentRun {
     }
     await rpc.write({
       'id': p.$1,
-      'result': question ? {'answers': answers} : {'decision': 'accept'},
+      'result': question
+          ? {'answers': answers}
+          : permissions
+          // R6: what was asked, for this turn only.
+          ? {
+              'permissions': {
+                for (final k in ['fileSystem', 'network'])
+                  if ((p.$3['permissions'] as Map?)?[k] != null)
+                    k: (p.$3['permissions'] as Map)[k],
+              },
+              'scope': 'turn',
+            }
+          : {'decision': decision},
     });
     _cancel(requestId);
   }
@@ -795,9 +900,14 @@ class CodexRun implements ManagedAgentRun {
     if (p == null) return;
     await rpc.write({
       'id': p.$1,
-      'result': p.$2 == 'item/tool/requestUserInput'
-          ? {'answers': <String, dynamic>{}}
-          : {'decision': 'decline'},
+      'result': switch (p.$2) {
+        'item/tool/requestUserInput' => {'answers': <String, dynamic>{}},
+        'item/permissions/requestApproval' => {
+          'permissions': <String, dynamic>{},
+          'scope': 'turn',
+        },
+        _ => {'decision': 'decline'},
+      },
     });
     _cancel(requestId);
   }
@@ -805,6 +915,7 @@ class CodexRun implements ManagedAgentRun {
   @override
   Future<void> interrupt() async {
     if (_turn != null && _busy) {
+      _interruptAsked = true;
       await rpc.request('turn/interrupt', {
         'threadId': _thread,
         'turnId': _turn,
@@ -819,9 +930,9 @@ class CodexRun implements ManagedAgentRun {
         'Pare o turno antes de alterar as permissões Codex.',
       );
     }
-    throw const AgentUnavailable(
-      'Reinicie a sessão para aplicar o modo de permissão Codex.',
-    );
+    // R14: valid from the next `turn/start`; the thread stays read-only.
+    _access = codexAccessFor(mode);
+    _permissionMode = mode;
   }
 
   @override
@@ -835,4 +946,88 @@ class CodexRun implements ManagedAgentRun {
     unawaited(_events.close());
     return code;
   }
+}
+
+/// Sandbox and approval of every `thread/start|resume|fork` (SPEC-093 D1):
+/// read-only never saves trust in ~/.codex/config.toml; the turn raises it.
+const codexThreadSandbox = 'read-only';
+const codexThreadApproval = 'never';
+
+/// Tool name of `item/permissions/requestApproval` in the approval card.
+const codexPermissionsTool = 'Permissões';
+
+/// The suggestion behind "Aprovar nesta conversa" (SPEC-096 R6, P2): the
+/// App Server's `acceptForSession`, valid until the process ends.
+const codexSessionSuggestion = <String, dynamic>{
+  'type': 'codexAcceptForSession',
+  'destination': 'session',
+};
+
+/// Whether the request offers `acceptForSession`: always for file changes;
+/// for commands, only when `availableDecisions` lists it (absent = the
+/// `on-request` default, which offers it; `untrusted` does not, SPEC-093 R7).
+bool codexOffersSession(Map<String, dynamic> p) {
+  final decisions = p['availableDecisions'];
+  if (decisions is! List) return true;
+  return decisions.contains('acceptForSession');
+}
+
+/// "rede; gravar em /a, /b" of a permissions request (SPEC-096 R6).
+String codexPermissionsSummary(Map<String, dynamic> p) {
+  final perms = p['permissions'] as Map? ?? const {};
+  final parts = <String>[];
+  final net = perms['network'];
+  if (net is Map && net['enabled'] == true) parts.add('acesso à rede');
+  final fs = perms['fileSystem'];
+  if (fs is Map) {
+    final write = [
+      for (final w in fs['write'] as List? ?? const []) '$w',
+      for (final e in fs['entries'] as List? ?? const [])
+        if (e is Map && e['access'] == 'write' && e['path'] is Map)
+          '${(e['path'] as Map)['path'] ?? (e['path'] as Map)['pattern'] ?? ''}',
+    ].where((w) => w.isNotEmpty).toList();
+    final read = [
+      for (final r in fs['read'] as List? ?? const []) '$r',
+      for (final e in fs['entries'] as List? ?? const [])
+        if (e is Map && e['access'] == 'read' && e['path'] is Map)
+          '${(e['path'] as Map)['path'] ?? (e['path'] as Map)['pattern'] ?? ''}',
+    ].where((r) => r.isNotEmpty).toList();
+    if (write.isNotEmpty) parts.add('gravar em ${write.join(', ')}');
+    if (read.isNotEmpty) parts.add('ler ${read.join(', ')}');
+  }
+  final what = parts.isEmpty ? 'permissões extras' : parts.join('; ');
+  final reason = p['reason'];
+  return 'O Codex quer liberar $what neste turno'
+      '${reason is String && reason.isNotEmpty ? ': $reason' : ''}.';
+}
+
+/// Input of a file approval card (SPEC-093 D5): the request has no
+/// changes, so they come from the `fileChange` item with the same id —
+/// the first path and the whole diff of every file.
+Map<String, dynamic> codexFileApprovalInput(
+  Map<String, dynamic> p,
+  Map<String, dynamic>? item,
+) {
+  final changes = item?['changes'] as List? ?? const [];
+  final files = <String>[];
+  final diffs = <String>[];
+  for (var i = 0; i < changes.length; i++) {
+    final c = changes[i];
+    if (c is! Map<String, dynamic>) continue;
+    final f = codexFileChange(
+      c,
+      toolUseId: '${p['itemId']}',
+      index: i,
+      status: null,
+    );
+    final path = '${f.json['path'] ?? ''}';
+    if (path.isNotEmpty) files.add(path);
+    if (f.diff case final d?) diffs.add(d);
+  }
+  return {
+    ...p,
+    'file_path': ?files.firstOrNull,
+    if (files.length > 1) 'files': files,
+    if (diffs.isNotEmpty) 'unified_diff': diffs.join(),
+  };
 }

@@ -133,19 +133,19 @@ void main() {
     });
     // SPEC-095: one neutral FileChangeEvent per file, no fake `Edit`.
     expect(_tools(r), isEmpty);
-    final files = r
-        .of<FileChangeEvent>()
-        .where((f) => f.status == FileChangeStatus.applied);
+    final files = r.of<FileChangeEvent>().where(
+      (f) => f.status == FileChangeStatus.applied,
+    );
     expect(files.map((f) => f.kind), [FileChangeKind.add, FileChangeKind.add]);
   });
 
   test(
-    'R4/D1 safe thread (read-only, policy per turn) fails the current check',
+    'R4/D1 safe thread (read-only, policy per turn) is what the adapter does '
+    '(SPEC-096 R10)',
     () async {
       // The probe opened the thread read-only and raised the sandbox on
-      // turn/start, which keeps ~/.codex/config.toml untouched. The current
-      // adapter asks for workspace-write on thread/start and rejects the
-      // read-only answer: SPEC-096 changes both sides.
+      // turn/start, which keeps ~/.codex/config.toml untouched. SPEC-096
+      // does the same: the adapter's requests match the probe's.
       final t = readCodexTranscript('$_dir/edicao-turno.jsonl');
       final turn = t.firstWhere((l) => l.msg['method'] == 'turn/start');
       expect(turn.msg['params']['sandboxPolicy'], {'type': 'workspaceWrite'});
@@ -158,17 +158,19 @@ void main() {
         'type': 'update',
         'move_path': null,
       });
-      await expectLater(
-        _start(
-          'edicao-turno',
-          const AgentStartOptions(
-            workingDirectory: '/w',
-            mode: PromptMode.edit,
-            model: 'gpt-5.6-luna',
-          ),
+      final r = await _start(
+        'edicao-turno',
+        const AgentStartOptions(
+          workingDirectory: '/w',
+          mode: PromptMode.edit,
+          model: 'gpt-5.6-luna',
         ),
-        throwsA(isA<AgentUnavailable>()),
       );
+      final thread = r.fake.writtenJson.firstWhere(
+        (m) => m['method'] == 'thread/start',
+      );
+      expect(thread['params']['sandbox'], 'read-only');
+      expect(thread['params']['approvalPolicy'], 'never');
     },
   );
 
@@ -284,20 +286,25 @@ void main() {
     expect(r.run.supportsImages, isTrue);
   });
 
-  test('R13 interrupt: status interrupted becomes an error result', () async {
-    final r = await _start(
-      'interromper',
-      const AgentStartOptions(
-        workingDirectory: '/w',
-        mode: PromptMode.ask,
-        model: 'gpt-5.6-luna',
-      ),
-    );
-    final res = await _turn(r, 'Escreva os números de 1 a 300.');
-    expect(res.subtype, 'interrupted');
-    expect(res.isError, isTrue);
-    expect(res.usage.outputTokens, 98);
-  });
+  test(
+    'R13 interrupt: status interrupted is not a failure (SPEC-096 R7)',
+    () async {
+      final r = await _start(
+        'interromper',
+        const AgentStartOptions(
+          workingDirectory: '/w',
+          mode: PromptMode.ask,
+          model: 'gpt-5.6-luna',
+        ),
+      );
+      final res = await _turn(r, 'Escreva os números de 1 a 300.');
+      expect(res.subtype, 'interrupted');
+      expect(res.isInterrupted, isTrue);
+      expect(res.isError, isFalse);
+      expect(res.isSuccess, isFalse);
+      expect(res.usage.outputTokens, 98);
+    },
+  );
 
   test('R15 YOLO + untrusted -c hook: rm runs, nothing is denied', () async {
     final r = await _start(

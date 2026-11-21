@@ -14,6 +14,9 @@ import '../../core/claude/usage_tracker.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../core/providers/provider_availability.dart';
 import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
@@ -123,6 +126,10 @@ class _Run {
   final PromptMode mode;
   final String model;
   String title;
+
+  /// Workspace of the conversation (SPEC-096 R15: switching workspaces
+  /// ends its idle Codex processes).
+  int? workspaceId;
 
   /// Claude session id used by this process (`--session-id` / `--resume`).
   final String sid;
@@ -247,11 +254,33 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (conv.archivedAt != null) await _repo.unarchive(id);
     if (conv.specId != null) await _vibeMessage(conv);
     var r = _runs[id];
+    // SPEC-096 R7: with the Codex turn running, the message directs it
+    // (`turn/steer`); it does not open a turn nor restart the process.
+    final steer = r != null && r.busy && r.run is CodexRun
+        ? r.run as CodexRun
+        : null;
+    if (r != null && steer != null && steer.steering) {
+      final run = r;
+      final codex = steer;
+      await _enqueue(id, run, () async {
+        final json = AppEventTypes.userMessage(msg, DateTime.now());
+        final row = await _repo.appendEvent(
+          id,
+          type: AppEventTypes.user,
+          json: jsonEncode(json),
+        );
+        await _repo.countMessage(id);
+        _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      });
+      await codex.send(msg, images: images);
+      return;
+    }
     final mode = PromptMode.fromName(conv.mode);
     if (r != null && (r.mode != mode || r.model != conv.model)) {
       await _note(
         id,
-        'Modo/modelo alterado (${mode.label} · ${modelLabel(conv.model)}); '
+        'Modo/modelo alterado (${mode.label} · '
+        '${isClaudeCode(conv.provider) ? modelLabel(conv.model) : conv.model}); '
         'reiniciando com --resume',
       );
       await _stopRun(id, r);
@@ -460,6 +489,44 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await r.run.deny(requestId, message);
   }
 
+  /// SPEC-096 R15: leaving [workspaceId] ends its idle Codex processes (no
+  /// turn running, nothing waiting for an answer); the next message resumes
+  /// the thread. A turn on its way keeps running. Returns the ids ended.
+  Future<List<int>> releaseCodexOf(int workspaceId) async {
+    final ended = <int>[];
+    for (final MapEntry(key: id, value: r) in _runs.entries.toList()) {
+      if (r.workspaceId != workspaceId ||
+          r.run is! CodexRun ||
+          r.busy ||
+          r.stopping ||
+          r.pending.isNotEmpty) {
+        continue;
+      }
+      ended.add(id);
+      await _stopRun(id, r);
+    }
+    return ended;
+  }
+
+  /// "Interromper" (SPEC-096 R7): the Codex turn ends as interrupted
+  /// (`turn/interrupt`) and the process stays; other providers stop.
+  Future<void> interrupt(int id) async {
+    final r = _runs[id];
+    if (r == null) return;
+    if (r.run case final CodexRun codex) {
+      await codex.interrupt();
+      return;
+    }
+    await _stopRun(id, r);
+  }
+
+  /// "Executar plano" of a Codex conversation (SPEC-096 R5): the Codex has
+  /// no `ExitPlanMode`, so a new turn in Editar carries the plan.
+  Future<void> executePlan(int id, String plan) async {
+    await setMode(id, PromptMode.edit);
+    await send(id, planExecutionMessage(plan));
+  }
+
   /// Stops the process (the next message resumes it).
   Future<void> stop(int id) async {
     final r = _runs[id];
@@ -521,6 +588,16 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       throw ConversationException(
         flowLockedMessage(provider.displayName, AppFlow.prompt),
       );
+    }
+    // SPEC-096 R10a: no sandbox, no Codex in the Prompt (nothing runs in
+    // the project root without it).
+    if (conv.provider == ProviderCapabilities.codex.providerId &&
+        ref
+                .read(providerAvailabilityProvider(conv.provider))
+                .value
+                ?.sandboxWarning !=
+            null) {
+      throw ConversationException(codexNoSandboxMessage());
     }
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
@@ -589,6 +666,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       );
     }
     final r = _Run(run, mode, conv.model, conv.title, conv.costUsd, sid)
+      ..workspaceId = conv.workspaceId
       ..mcp = mcpLink
       ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _runs[conv.id] = r;
@@ -900,6 +978,10 @@ final promptDraftProvider =
     NotifierProvider<PromptDraftController, PromptDraft>(
       PromptDraftController.new,
     );
+
+/// The message of "Executar plano" (SPEC-096 R5).
+String planExecutionMessage(String plan) =>
+    'Execute o plano abaixo, editando os arquivos necessários.\n\n$plan';
 
 /// `sonnet` → `Sonnet`; `inherit` → `Modelo padrão`.
 String modelLabel(String model) {

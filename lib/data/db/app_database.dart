@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 34;
+const appSchemaVersion = 35;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -601,6 +601,14 @@ class Sessions extends Table {
   /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
   /// result does not move the spec's steps, the user picks a winner.
   IntColumn get duelId => integer().nullable()();
+
+  /// Session this one was forked from (schema v35, SPEC-096 R16); null for
+  /// sessions that did not come from a fork. Claude and Codex.
+  TextColumn get parentSessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -1493,6 +1501,13 @@ class AppDatabase extends _$AppDatabase {
               if (!await _hasColumn('usage_entries', c.name)) {
                 await m.addColumn(v.usageEntries, c);
               }
+            }
+          },
+          // v35: the parent of a forked session (SPEC-096 R16).
+          from34To35: (m, v) async {
+            if (await _hasTable('sessions') &&
+                !await _hasColumn('sessions', 'parent_session_id')) {
+              await m.addColumn(v.sessions, v.sessions.parentSessionId);
             }
           },
           // v33: waivers of the Vigia de segredos (SPEC-085 R11).

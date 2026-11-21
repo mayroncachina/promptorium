@@ -6,6 +6,7 @@ import 'package:promptorium/core/providers/agent_registry.dart'
     show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -35,6 +36,11 @@ void main() {
           cli: claude,
           notifier: FakeNotifier(),
           worktreesBase: '${tmp.path}/wt',
+        ),
+        // The sandbox check would start one more App Server (R10a).
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, 'ok'),
         ),
         codexProcessStarterProvider.overrideWithValue((
           exe,
@@ -100,10 +106,8 @@ void main() {
         )['params']['threadId'],
         'external-0',
       );
-      expect(
-        servers.last.writtenJson.last['params']['sandbox'],
-        'danger-full-access',
-      );
+      // SPEC-096 R10: the thread reopens read-only; YOLO goes per turn.
+      expect(servers.last.writtenJson.last['params']['sandbox'], 'read-only');
       await settle();
       final child = await m.fork(id, prompt: 'Continue');
       await settle();
@@ -117,9 +121,12 @@ void main() {
         )['params']['threadId'],
         'external-1',
       );
+      // SPEC-096 R14: the idle process takes the new access on the next
+      // turn, without restarting.
+      final before = servers.length;
       await m.setPermissionMode(id, ClaudePermissionMode.plan);
       await m.resume(id);
-      expect(servers.last.writtenJson.last['params']['sandbox'], 'read-only');
+      expect(servers, hasLength(before));
       expect(claude.processes, isEmpty);
       await m.shutdown();
     },
@@ -177,6 +184,11 @@ void main() {
         cli: claude,
         notifier: FakeNotifier(),
         worktreesBase: '${tmp.path}/wt',
+      ),
+      // The sandbox check would start one more App Server (R10a).
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async =>
+            const ProviderAvailability(ProviderStatus.ready, 'ok'),
       ),
       codexProcessStarterProvider.overrideWithValue((
         exe,

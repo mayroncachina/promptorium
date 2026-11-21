@@ -359,7 +359,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   minLines: 4,
                   maxLines: 10,
                   style: const TextStyle(fontSize: 13),
-                  decoration: deco('O que o Claude deve fazer?'),
+                  decoration: deco(
+                    'O que o ${_provider == 'codex' ? 'Codex' : 'Claude'} deve fazer?',
+                  ),
                 ),
                 if (fork == null) ...[
                   Row(
@@ -590,6 +592,45 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       ),
                     ),
                   ),
+                  // SPEC-096 R10: what the sandbox opens in a worktree.
+                  if (_provider == 'codex' &&
+                      _worktree &&
+                      !noSandbox &&
+                      _mode != ClaudePermissionMode.skipPermissions)
+                    Container(
+                      key: const ValueKey('new-session-writable-roots'),
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(
+                              text: 'Raízes graváveis do sandbox\n',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                            const TextSpan(text: 'o worktree da sessão\n'),
+                            TextSpan(
+                              text:
+                                  '${ws == null ? '' : '${ws.path.split('/').last}/'}'
+                                  '.git: worktrees/<wt>, objects, refs, logs',
+                              style: const TextStyle(fontFamily: AppFonts.mono),
+                            ),
+                            const TextSpan(
+                              text:
+                                  ' (git common dir: permite git commit; '
+                                  'hooks e config ficam fora). O que sobrar '
+                                  'sem commit, o app commita no fim do turno.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
                 ],
                 if (noSandbox && fork == null)
                   _Notice(

@@ -15,6 +15,7 @@ import 'core/git/git_service.dart';
 import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
+import 'features/sessions/codex_workspace_release.dart';
 import 'features/activities/quota_forecast.dart';
 import 'features/cost/quota_ruler.dart';
 import 'features/board/autopilot.dart';
@@ -100,6 +101,8 @@ Future<void> main() async {
         .set(s == AppLifecycleState.resumed),
   );
   container.listen(agentAlertsProvider, (_, _) {});
+  // SPEC-096 R15: leaving a workspace ends its idle Codex processes.
+  container.listen(codexWorkspaceReleaseProvider, (_, _) {});
   // SPEC-076 R7: the readings of the quota feed the forecast from now on.
   container.read(quotaSamplesProvider);
   // SPEC-081 R3: and the ruler of the cost per spec.

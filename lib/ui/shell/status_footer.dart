@@ -75,6 +75,9 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
         ? legacyColor
         : s.providerStatus == 'conectado'
         ? AppColors.teal
+        // SPEC-096 R2: waiting for the person (login), not broken.
+        : s.providerStatus == 'login pendente'
+        ? AppColors.amber
         : AppColors.textMuted;
 
     String ratio(int? a, int? b) => a == null || b == null ? '—' : '$a/$b';
@@ -427,6 +430,10 @@ bool _needsAction(ProviderAvailability? a) =>
 String? _fixCommand(ProviderAvailability? a) {
   if (a == null) return null;
   if (a.sandboxWarning != null) return codexSandboxFixCommand;
+  if (a.status == ProviderStatus.loginRequired &&
+      a.message.contains('codex login')) {
+    return 'codex login';
+  }
   if (a.status == ProviderStatus.incompatible &&
       a.message.contains('codex update')) {
     return 'codex update';
@@ -501,6 +508,8 @@ class _ProviderSelector extends ConsumerWidget {
       itemBuilder: (context) {
         final ws = ref.read(activeWorkspaceProvider);
         final all = ref.read(agentProvidersProvider);
+        // "Desligar o Codex" (SPEC-096 P1) hides it from the menu.
+        final flows = ref.read(providerFlowsProvider);
         return [
           PopupMenuItem<String>(
             enabled: false,
@@ -512,7 +521,7 @@ class _ProviderSelector extends ConsumerWidget {
             enabled: false,
             child: Text('Aplicar às novas execuções'),
           ),
-          for (final p in all.where((p) => p.enabled))
+          for (final p in all.where((p) => p.enabled && flows.anyFor(p.id)))
             PopupMenuItem<String>(
               value: p.id,
               key: ValueKey('footer-provider-${p.id}'),
@@ -529,7 +538,14 @@ class _ProviderSelector extends ConsumerWidget {
                   );
                   // R10, R7a: why it is not usable, or what to watch for.
                   final notes = [
-                    if (a != null && !a.available) (a.message, AppColors.red),
+                    // SPEC-096 R2: the login is the person's, in a terminal.
+                    if (a?.status == ProviderStatus.loginRequired)
+                      (
+                        'rode ${p.id == 'codex' ? 'codex login' : 'claude auth login'} no terminal',
+                        AppColors.amber,
+                      )
+                    else if (a != null && !a.available)
+                      (a.message, AppColors.red),
                     if (a?.version != null && a!.available)
                       ('versão ${a.version}', AppColors.textMuted),
                     if (a?.warning != null) (a!.warning!, AppColors.amber),

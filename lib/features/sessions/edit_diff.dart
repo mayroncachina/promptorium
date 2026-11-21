@@ -43,6 +43,15 @@ EditDiff? editDiffOfChange(FileChangeEvent c) {
   return EditDiff(rows: rows, section: _sectionOf(rows, null));
 }
 
+/// Diff of a Codex file approval (SPEC-096 R6): the adapter puts the
+/// whole diff of the `fileChange` item in `unified_diff` (SPEC-093 D5).
+EditDiff? codexApprovalDiff(Map<String, dynamic> input) {
+  final d = input['unified_diff'];
+  if (d is! String || d.isEmpty) return null;
+  final rows = unifiedDiffRows(d);
+  return EditDiff(rows: rows, section: _sectionOf(rows, null));
+}
+
 /// Diff of a card: the neutral change, or the Claude input ([editDiffOf]).
 EditDiff? editDiffOfTool(ToolItem t, {String? before, int context = 3}) {
   final c = t.change;

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/git/agent_trailer.dart';
 import 'package:promptorium/core/providers/acp_provider.dart';
@@ -127,6 +128,11 @@ void main() {
         worktreesBase: '${tmp.path}/wt',
       ),
       agentGitHooksProvider.overrideWithValue(hooks),
+      // The sandbox check would start one more App Server (R10a).
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async =>
+            const ProviderAvailability(ProviderStatus.ready, 'ok'),
+      ),
       codexProcessStarterProvider.overrideWithValue((
         exe,
         args, {

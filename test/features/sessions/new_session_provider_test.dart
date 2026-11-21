@@ -68,7 +68,8 @@ void main() {
   testWidgets('SPEC-094 R12: a locked flow never starts and offers Claude', (
     tester,
   ) async {
-    await _open(tester);
+    // Codex switched off ("Desligar o Codex", SPEC-096 P1).
+    await _open(tester, flows: ProviderFlows.defaults.copyWith('codex', {}));
     expect(_key('new-session-flow-locked'), findsOneWidget);
     expect(find.textContaining('Sessões ainda não roda com o Codex'), findsOne);
     await tester.tap(_key('new-session-provider'));
@@ -88,7 +89,10 @@ void main() {
       sandboxWarning: 'bubblewrap sem user namespaces',
     );
     expect(_key('new-session-no-sandbox'), findsOneWidget);
-    expect(find.textContaining('Sandbox do Codex indisponível'), findsOneWidget);
+    expect(
+      find.textContaining('Sandbox do Codex indisponível'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('apparmor_restrict_unprivileged_userns=0'),
       findsOneWidget,
@@ -96,7 +100,10 @@ void main() {
     await tester.tap(_key('new-session-mode'));
     await tester.pumpAndSettle();
     // Perguntar / Editar / Planejar are not offered; YOLO is.
-    expect(find.textContaining('editar — escreve com confirmação'), findsNothing);
+    expect(
+      find.textContaining('editar — escreve com confirmação'),
+      findsNothing,
+    );
     expect(find.textContaining('planejar — o sandbox'), findsNothing);
     await tester.tap(find.textContaining('YOLO').last);
     await tester.pumpAndSettle();
@@ -114,5 +121,21 @@ void main() {
     await tester.tap(find.text('Verificar de novo'));
     await tester.pumpAndSettle();
     expect(checks, greaterThan(0));
+  });
+
+  testWidgets('SPEC-096 R9, R10: Codex in a worktree shows the writable roots '
+      '(the slice of the git common dir) and none without a worktree', (
+    tester,
+  ) async {
+    await _open(tester);
+    expect(_key('new-session-flow-locked'), findsNothing);
+    expect(_key('new-session-writable-roots'), findsOneWidget);
+    expect(
+      find.textContaining('worktrees/<wt>, objects, refs, logs'),
+      findsOneWidget,
+    );
+    await tester.tap(_key('new-session-worktree'));
+    await tester.pumpAndSettle();
+    expect(_key('new-session-writable-roots'), findsNothing);
   });
 }

@@ -77,21 +77,30 @@ void main() {
       );
       expect(CodexProvider().capabilities, same(ProviderCapabilities.codex));
       expect(
-        AcpProvider(id: 'g', displayName: 'G', command: const ['g'])
-            .capabilities
-            .supports(ProviderCapability.structuredOutput),
+        AcpProvider(
+          id: 'g',
+          displayName: 'G',
+          command: const ['g'],
+        ).capabilities.supports(ProviderCapability.structuredOutput),
         isFalse,
       );
     });
   });
 
   group('providerFlows (R3)', () {
-    test('o Codex nasce com todos os fluxos desligados', () {
+    test('SPEC-096 R1: o Codex roda só em Prompt e Sessões', () {
       for (final f in AppFlow.values) {
-        expect(ProviderFlows.defaults.allows('codex', f), isFalse);
+        expect(
+          ProviderFlows.defaults.allows('codex', f),
+          f == AppFlow.prompt || f == AppFlow.sessions,
+          reason: f.name,
+        );
         expect(ProviderFlows.defaults.allows('claude', f), isTrue);
       }
-      expect(ProviderFlows.defaults.anyFor('codex'), isFalse);
+      // Each flow still locked names the spec that releases it (mock 4).
+      expect(codexFlowSpecs.keys, isNot(contains(AppFlow.prompt)));
+      expect(codexFlowSpecs[AppFlow.runSpec], 'SPEC-101');
+      expect(flowLockedLabel('Codex'), 'Codex · Só Claude Code por enquanto');
     });
 
     test('ligar um fluxo não liga os outros', () {
@@ -111,7 +120,8 @@ void main() {
       final all = c.read(agentProvidersProvider);
       expect(all.whereType<CodexProvider>(), hasLength(1));
       final probe = Provider(
-        (ref) => () => agentProviderForFlow(ref, 'codex', AppFlow.autoReview),
+        (ref) =>
+            () => agentProviderForFlow(ref, 'codex', AppFlow.autoReview),
       );
       expect(
         () => c.read(probe)(),
