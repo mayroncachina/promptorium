@@ -185,7 +185,7 @@ class QuotaSnapshot {
   final DateTime? errorAt;
 
   /// Whether there are values to show (a reading worked once).
-  bool get hasReading => readAt != null && main.windows.isNotEmpty;
+  bool get hasReading => main.windows.isNotEmpty;
 
   QuotaSnapshot copyWith({
     QuotaBucket? main,

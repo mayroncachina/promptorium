@@ -14,6 +14,7 @@ import 'package:promptorium/ui/shell/status_footer.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../helpers/test_db.dart';
+import 'quota_footer_cases.dart' as quota;
 
 void main() {
   testWidgets(
@@ -67,8 +68,16 @@ void main() {
         'codex',
       );
       expect(find.text('Codex CLI conectado'), findsOneWidget);
-      expect(find.text('Consumo indisponível'), findsOneWidget);
-      expect(find.text('Uso 5h'), findsNothing);
+      // SPEC-097 R5: the Codex windows, never the Claude values.
+      expect(find.text('Consumo indisponível'), findsNothing);
+      expect(find.text('Uso 5h'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('footer-quota')),
+          matching: find.text('—'),
+        ),
+        findsNWidgets(2),
+      );
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
@@ -275,17 +284,19 @@ void main() {
       warning: 'versão mais nova que a testada (0.170)',
       sandboxWarning: 'bubblewrap',
     );
-    await tester.tap(find.byKey(const ValueKey('footer-provider-recheck-codex')));
+    await tester.tap(
+      find.byKey(const ValueKey('footer-provider-recheck-codex')),
+    );
     await tester.pumpAndSettle();
     expect(checks, greaterThan(before));
     await tester.tap(find.byKey(const ValueKey('footer-provider-selector')));
     await tester.pumpAndSettle();
     expect(find.text('Codex · conectado'), findsOneWidget);
+    expect(find.text('versão mais nova que a testada (0.170)'), findsOneWidget);
     expect(
-      find.text('versão mais nova que a testada (0.170)'),
+      find.textContaining('Sandbox do Codex indisponível'),
       findsOneWidget,
     );
-    expect(find.textContaining('Sandbox do Codex indisponível'), findsOneWidget);
     expect(
       find.textContaining('apparmor_restrict_unprivileged_userns=0'),
       findsOneWidget,
@@ -295,4 +306,6 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(Duration.zero);
   });
+
+  quota.main();
 }
