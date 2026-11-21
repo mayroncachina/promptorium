@@ -25,6 +25,8 @@ import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show
         LiveTool,
+        liveToolOfNeutral,
+        recordLiveTool,
         PendingApproval,
         SessionManager,
         liveTextLine,
@@ -619,7 +621,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> _handle(int id, _Run r, ClaudeEvent e) async {
     if (!ref.mounted) return;
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, r.lastJson) && e.json.isNotEmpty) {
         seq = r.lastSeq;
       } else {
@@ -651,15 +653,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case AssistantMessage() when e.parentToolUseId == null:
         for (final b in e.blocks) {
           if (b is ToolUseBlock && !r.recent.any((t) => t.id == b.id)) {
-            r.recent.insert(
-              0,
-              LiveTool(
-                id: b.id,
-                name: b.name,
-                input: b.input,
-                at: DateTime.now(),
-              ),
-            );
+            r.recent.insert(0, LiveTool.fromBlock(b));
             if (r.recent.length > 5) r.recent.removeLast();
             r.calls++;
           }
@@ -670,6 +664,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case ToolResult() when e.parentToolUseId == null:
         final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) r.recent[i] = r.recent[i].finished();
+      // SPEC-095: a file change or command of any provider.
+      case FileChangeEvent() || CommandEvent():
+        if (recordLiveTool(r.recent, liveToolOfNeutral(e)!)) r.calls++;
       case Result():
         final turn = turnCost(
           e.totalCostUsd,
