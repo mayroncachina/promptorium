@@ -16,7 +16,6 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/only_provider_tag.dart';
 import '../agents/widgets/agent_style.dart';
 import '../sessions/widgets/session_style.dart';
-import 'settings_choices.dart';
 
 /// Flow each run kind belongs to (R3), for the "Só Claude Code por
 /// enquanto" tag of the Codex tab.
@@ -163,29 +162,39 @@ class CodexConsumptionTab extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 8),
-        const FieldLabel('Modelo'),
-        choices(
-          keyPrefix: 'codex-model-${k.name}',
-          values: [
-            ('inherit', 'Padrão do Codex'),
-            for (final m in cache?.models ?? const <CodexModelInfo>[])
-              (m.id, m.id),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _Select(
+                key: ValueKey('codex-model-${k.name}'),
+                label: 'Modelo',
+                value: current,
+                items: [
+                  ('inherit', 'Padrão do Codex'),
+                  for (final m in cache?.models ?? const <CodexModelInfo>[])
+                    (m.id, m.id),
+                ],
+                onChanged: onModel,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: _Select(
+                key: ValueKey('codex-effort-${k.name}'),
+                label: 'Esforço',
+                value: effort,
+                items: [
+                  ('default', 'Padrão do Codex'),
+                  for (final e in efforts) (e, e),
+                  if (effort != 'default' && !efforts.contains(effort))
+                    (effort, effort),
+                ],
+                onChanged: onEffort,
+              ),
+            ),
           ],
-          selected: current,
-          onTap: onModel,
-        ),
-        const SizedBox(height: 8),
-        const FieldLabel('Esforço'),
-        choices(
-          keyPrefix: 'codex-effort-${k.name}',
-          values: [
-            ('default', 'Padrão do Codex'),
-            for (final e in efforts) (e, e),
-            if (effort != 'default' && !efforts.contains(effort))
-              (effort, effort),
-          ],
-          selected: effort,
-          onTap: onEffort,
         ),
       ],
     );
@@ -362,4 +371,66 @@ class CodexStatusCard extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Labeled dropdown of the Codex tab (the catalog has many models).
+class _Select extends StatelessWidget {
+  const _Select({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final List<(String, String)> items;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      FieldLabel(label),
+      DropdownButtonFormField<String>(
+        key: ValueKey('$value-${items.length}'),
+        initialValue: items.any((i) => i.$1 == value) ? value : items.first.$1,
+        isDense: true,
+        isExpanded: true,
+        dropdownColor: AppColors.panelSolid,
+        style: const TextStyle(
+          fontSize: 13,
+          fontFamily: AppFonts.mono,
+          color: AppColors.text,
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppColors.background,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+        ),
+        items: [
+          for (final (v, l) in items)
+            DropdownMenuItem(
+              key: ValueKey(
+                '${key is ValueKey ? (key as ValueKey).value : ''}-$v',
+              ),
+              value: v,
+              child: Text(l, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
+    ],
+  );
 }

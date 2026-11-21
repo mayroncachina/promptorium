@@ -342,6 +342,8 @@ class _ProviderSelector extends ConsumerWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('footer-provider-selector'),
       tooltip: 'Selecionar provedor',
+      // Room for the version, the warnings and their actions (R10, R7a).
+      constraints: const BoxConstraints(minWidth: 280, maxWidth: 460),
       initialValue: selected,
       position: PopupMenuPosition.over,
       onSelected: (id) async {
@@ -433,7 +435,7 @@ class _ProviderSelector extends ConsumerWidget {
                       ),
                   ];
                   return SizedBox(
-                    width: 340,
+                    width: 420,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

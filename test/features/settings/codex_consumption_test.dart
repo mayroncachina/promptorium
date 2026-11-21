@@ -64,15 +64,29 @@ void main() {
       findsOneWidget,
     );
     // Models and efforts come from model/list; no Claude alias.
-    expect(
-      find.byKey(const ValueKey('codex-model-session-gpt-6.2-sol')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('codex-effort-session-medium')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('codex-model-session-opus')), findsNothing);
+    String? selected(String key) => tester
+        .widget<DropdownButtonFormField<String>>(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(DropdownButtonFormField<String>),
+          ),
+        )
+        .initialValue;
+    expect(selected('codex-model-session'), 'gpt-6.2-sol');
+    expect(selected('codex-model-conversation'), 'inherit');
+    await tester.tap(find.byKey(const ValueKey('codex-model-session')));
+    await tester.pumpAndSettle();
+    expect(find.text('gpt-6-luna'), findsWidgets);
+    expect(find.text('opus'), findsNothing);
+    await tester.tap(find.text('gpt-6-luna').last);
+    await tester.pumpAndSettle();
+    expect(c.read(appSettingsProvider)['codex.model.session'], 'gpt-6-luna');
+    await tester.tap(find.byKey(const ValueKey('codex-effort-session')));
+    await tester.pumpAndSettle();
+    expect(find.text('low'), findsWidgets);
+    await tester.tap(find.text('low').last);
+    await tester.pumpAndSettle();
+    expect(c.read(appSettingsProvider)['codex.effort.session'], 'low');
     // R9: the vanished model, and the default used instead.
     expect(
       find.byKey(const ValueKey('codex-model-missing-conversation')),
@@ -91,10 +105,6 @@ void main() {
     );
     expect(find.text('O QUE O CODEX FAZ NESTE APP'), findsOneWidget);
     expect(find.text('Só Claude Code'), findsWidgets);
-
-    await tester.tap(find.byKey(const ValueKey('codex-model-session-gpt-6-luna')));
-    await tester.pumpAndSettle();
-    expect(c.read(appSettingsProvider)['codex.model.session'], 'gpt-6-luna');
 
     // "Atualizar lista" reads the catalog again (a new detection).
     final before = reads;
