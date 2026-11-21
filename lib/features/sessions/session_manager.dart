@@ -386,6 +386,9 @@ class _Proc {
   final ManagedAgentRun process;
   String title;
 
+  /// Workspace of the session (SPEC-096 R15).
+  int? workspaceId;
+
   /// "Codex · gpt-6.2-sol" of a session not run by the Claude Code: goes
   /// with its notifications (SPEC-096 R3). Null for Claude.
   String? who;
@@ -1461,6 +1464,39 @@ class SessionManager extends Notifier<SessionManagerState> {
     );
   }
 
+  /// SPEC-096 R15: leaving [workspaceId] ends the idle Codex processes of
+  /// its sessions (like [closeIdle], without waiting the idle time). A
+  /// session with a turn, an approval or a sub-agent on its way keeps
+  /// running; sessions of other workspaces are untouched. "Retomar"
+  /// resumes the thread. Returns the ids ended.
+  Future<List<String>> releaseCodexOf(int workspaceId) async {
+    if (_shuttingDown) return const [];
+    final ended = <String>[];
+    for (final e in _procs.entries.toList()) {
+      final p = e.value;
+      if (p.workspaceId != workspaceId ||
+          p.process is! CodexRun ||
+          p.busy ||
+          p.stopping ||
+          p.pending.isNotEmpty ||
+          p.subagents.isNotEmpty) {
+        continue;
+      }
+      ended.add(e.key);
+      try {
+        await release(e.key);
+        await _note(
+          e.key,
+          'Processo do Codex encerrado ao trocar de workspace (Retomar '
+          'continua de onde parou)',
+        );
+      } catch (err) {
+        debugPrint('sessão ${e.key}: não encerrada — $err');
+      }
+    }
+    return ended;
+  }
+
   /// Closes the process of every session idle for the configured time (no
   /// turn running, no approval or sub-agent pending). The session stays as
   /// it was and "Retomar" / sending a message resumes it (`--resume`).
@@ -1692,6 +1728,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             skipPermissions:
                 options.permissionMode == ClaudePermissionMode.skipPermissions,
           )
+          ..workspaceId = session.workspaceId
           ..who = isClaudeCode(session.provider)
               ? null
               : providerModelLabel(session.provider, session.model)

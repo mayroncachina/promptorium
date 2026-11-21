@@ -141,8 +141,12 @@ void main() {
     // The Codex wrote and did not commit.
     File('${s.worktreePath}/ledger.txt').writeAsStringSync('provider\n');
     complete(f, 'completed', answer: 'Gravei o provedor no ledger.');
-    await settle(400);
-    final log = await gitIn(s.worktreePath, ['log', '-1', '--format=%B']);
+    // The app's commit runs after the turn (git is slow under load).
+    var log = '';
+    for (var i = 0; i < 100 && !log.contains('Ledger com provedor'); i++) {
+      await settle(100);
+      log = await gitIn(s.worktreePath, ['log', '-1', '--format=%B']);
+    }
     expect(log, contains('Ledger com provedor'));
     expect(log, contains('Gravei o provedor no ledger.'));
     final status = await gitIn(s.worktreePath, ['status', '--porcelain']);
