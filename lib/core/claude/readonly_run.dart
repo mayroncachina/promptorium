@@ -232,6 +232,8 @@ Future<Result> runReadOnlyClaude(
           model: resultModel(result, options.model),
           usage: result.usage,
           costUsd: result.totalCostUsd,
+          provider: chosen,
+          reasoningTokens: reasoningTokensOf(result),
         );
     return result;
   } finally {
