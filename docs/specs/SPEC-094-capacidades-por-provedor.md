@@ -55,7 +55,7 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
   1. **Só identidade, nunca estado.** A cor diz *quem* roda, não *como está*. Rodando, falhou, feita, aguardando e verificando continuam com as cores de hoje (`teal`, `red`, `CanvasColors.*`). Um seletor de provedor marca a opção escolhida com o âmbar de sempre, não com a cor do provedor.
   2. **Nunca só a cor.** A cor sempre vem com o nome e com o logo ou o glifo do provedor.
   3. **Logo oficial onde identifica, glifo onde é pequeno.**
-     - (a) **Chip de marca:** logo oficial sem alterar a forma, sempre ao lado do nome ("Claude" / "Codex"), sobre fundo neutro (`#222732`, borda `#3A4250`, canto 5 px). Claude = símbolo do Claude em argila; Codex = logo da OpenAI (Blossom) monocromático em porcelana. Logo com 16 px (14 px no mínimo, em listas).
+     - (a) **Chip de marca:** logo oficial sem alterar a forma, sempre ao lado do nome ("Claude" / "Codex"), sobre fundo neutro (`#222732`, canto 5 px), com a borda do chip na cor do provedor (argila ou porcelana, translúcida). Claude = símbolo do Claude, sempre em argila `#D97757`; Codex = logo da OpenAI (Blossom) no branco oficial, como fornecido, nunca recolorido. A porcelana é a cor de identidade do Codex (marca de glifo, borda do Comparar, borda do chip), mas nunca pinta o logo. Logo com 16 px (14 px no mínimo, em listas).
      - (b) **Glifo próprio** onde um logo ficaria ilegível: Claude = arco aberto; Codex = livro aberto ("códice"). Aparece como marca de 14 px (bolinha com o glifo) ou como chip preenchido na cor do provedor com texto `#1A1206` (`onAmber`).
      - (c) **Borda** de cada lado no Comparar.
      - A forma de estado continua sendo a pílula translúcida com canto 10 px, então nenhuma das duas formas se confunde com ela.
@@ -104,6 +104,8 @@ Ainda não entram no código; ficam registrados aqui para a tarefa T4.
 static const providerClaude = Color(0xFFD97757); // argila
 static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 // Texto e glifo sobre os dois: AppColors.onAmber (0xFF1A1206).
+// Só para marca de glifo, borda e chip. Os logos têm cor fixa fora do tema
+// (Claude 0xFFD97757, OpenAI 0xFFFFFFFF) e não usam estes tokens.
 ```
 
 | Par | Contraste WCAG | Leitura |
@@ -113,7 +115,7 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 | argila sobre o painel `#14171D` | 5,75:1 | passa 3:1 de elemento gráfico (e 4,5:1) |
 | porcelana sobre o painel `#14171D` | 14,14:1 | passa |
 | logo argila sobre o fundo do chip de marca `#222732` | 4,79:1 | passa 3:1 de elemento gráfico |
-| logo porcelana sobre o fundo do chip de marca | 11,78:1 | passa |
+| logo OpenAI branco `#FFFFFF` sobre o fundo do chip de marca | 14,95:1 | passa |
 | argila × `running` `#F08A4B` | 1,26:1 · ΔE00 9,7 | perto demais como cor solta |
 | argila × falhou `#F27A6E` | 1,16:1 · ΔE00 8,1 | perto demais como cor solta |
 
@@ -122,8 +124,8 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 ### Uso de marca
 
 - O símbolo do Claude é marca da Anthropic e o logo da OpenAI é marca da OpenAI. Aqui eles servem só para identificar qual provedor roda. Não indicam parceria, patrocínio nem endosso, e nunca são usados como ícone ou marca do Promptorium.
-- Forma intacta: sem recortar, distorcer, contornar ou aplicar efeito. Sempre ao lado do nome, nunca maior que a marca do próprio app.
-- **Antes da release:** conferir as regras em [anthropic.com/brand](https://www.anthropic.com/brand) e [openai.com/brand](https://openai.com/brand). A página da OpenAI pede o logo "exatamente como fornecido", sem modificação, e o uso dentro dos termos ou com permissão. O pacote oficial só traz preto e branco, então a porcelana é uma troca de cor que precisa ser confirmada. Se a OpenAI não permitir (ou não permitir a porcelana), o Codex usa o glifo do livro em todos os pontos, ou o Blossom branco como fornecido, se só a cor for o problema.
+- Forma e cor intactas: sem distorcer, contornar, recolorir ou aplicar efeito. O Claude fica em argila (a cor da própria marca) e a OpenAI no branco oficial do pacote. O único ajuste é o enquadramento, que corta só a margem vazia do arquivo (ver abaixo). Sempre ao lado do nome, nunca maior que a marca do próprio app.
+- **Antes da release:** conferir as regras em [anthropic.com/brand](https://www.anthropic.com/brand) e [openai.com/brand](https://openai.com/brand). A página da OpenAI pede o logo "exatamente como fornecido", sem modificação, e o uso dentro dos termos ou com permissão. Por isso o Blossom vai no branco oficial, sem recolorir. Se a OpenAI não permitir o uso, o Codex usa o glifo do livro em todos os pontos (um único ponto de troca, ver "Plano de implementação").
 
 **Origem dos SVGs**
 
@@ -132,7 +134,20 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 | Claude | `claude.svg` (viewBox 24×24, um `path`) | [Simple Icons 16.38.0](https://cdn.jsdelivr.net/npm/simple-icons@16.38.0/icons/claude.svg), slug `claude`, cor da marca `#D97757` nos metadados | O SVG do Simple Icons é CC0; a marca é da Anthropic |
 | OpenAI (Codex) | `OAI_OpenAI-Blossom_White.svg` (viewBox 716×716, um `path`) | Pacote oficial [cdn.openai.com/brand/openai-logos.zip](https://cdn.openai.com/brand/openai-logos.zip), linkado em openai.com/brand. O Simple Icons 16.38.0 não tem mais o `openai.svg` (o CDN devolve 404) | Marca da OpenAI, uso sob os termos de openai.com/brand |
 
-O Blossom ocupa cerca de metade da área do arquivo oficial. No mock, o enquadramento (viewBox `176 176 364 364`) foi apertado sem mexer no desenho, para o logo ter 16 px de verdade dentro do chip. Em 14 px o Blossom ainda se reconhece, mas os traços internos já borram, por isso o mínimo é 14 px e o tamanho padrão é 16 px.
+O Blossom ocupa cerca de metade da área do arquivo oficial. O enquadramento (viewBox `176 176 364 364`) corta só a margem vazia, sem mexer no desenho, para o logo ter 16 px de verdade dentro do chip. Em 14 px o Blossom ainda se reconhece, mas os traços internos já borram, por isso o mínimo é 14 px e o tamanho padrão é 16 px.
+
+### Plano de implementação da identidade (T4)
+
+1. **SVGs originais no repositório, sem alteração:** `assets/providers/claude.svg` e `assets/providers/openai-blossom.svg`, com `assets/providers/LICENSES.md` registrando a origem (Simple Icons 16.38.0, CC0, para o Claude; pacote oficial de marca da OpenAI para o Blossom) e que as marcas são da Anthropic e da OpenAI.
+2. **Sem `flutter_svg`.** O app não tem essa dependência hoje e os dois logos são um `path` cada. `lib/ui/providers/provider_logos.dart` guarda o path copiado dos SVGs e pinta com um `CustomPainter`, como o `RobotPainter` (`lib/features/activities/widgets/robot_avatar.dart`). O enquadramento do Blossom (viewBox `176 176 364 364`) vira a escala do painter.
+3. **Cores fixas fora do tema:** o logo do Claude é sempre `#D97757` e o da OpenAI sempre branco. Os tokens `providerClaude` / `providerCodex` (porcelana) do `tokens.dart` servem só para marca de glifo, borda e chip, nunca para o logo.
+4. **Widgets:**
+   - `ProviderLogo(provider, size: 16)`, mínimo 14;
+   - `ProviderGlyph(provider, size: 14)`, com o arco e o livro, para os pontos pequenos;
+   - `ProviderChip(provider)`, o chip neutro com logo e nome. As telas usam este.
+5. **Um único ponto de troca:** se os termos da OpenAI não permitirem o uso, o `ProviderLogo` passa a desenhar o glifo do livro para o Codex, no app inteiro, sem mexer nas telas.
+6. **Testes:** goldens em 14 e 16 px; o chip nunca mostra o logo sem o nome; a cor do logo não muda com o tema.
+7. **Entrega:** T4 desta spec (0.22.0). As outras specs do épico adotam o `ProviderChip` à medida que forem implementadas.
 
 ### Arquivos tocados
 
@@ -150,8 +165,9 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. No mock, o enquadra
 | `lib/features/settings/` (Consumo) | Abas por provedor, modelos do `model/list` |
 | `lib/ui/widgets/only_provider_tag.dart` | Novo: etiqueta "Só Claude Code" |
 | `lib/ui/theme/tokens.dart` | `providerClaude`, `providerCodex` (R14) |
-| `lib/ui/widgets/provider_badge.dart` | Novo: chip de marca (logo oficial), chip e marca de glifo (R14, R15) |
-| `assets/providers/claude.svg`, `assets/providers/openai-blossom.svg` | Logos oficiais, sem alteração de forma (R14a; origem em "Uso de marca") |
+| `lib/ui/providers/provider_logos.dart` | Novo: paths dos logos, `CustomPainter`, `ProviderLogo`, `ProviderGlyph`, `ProviderChip` (R14, R15) |
+| `assets/providers/claude.svg`, `assets/providers/openai-blossom.svg`, `assets/providers/LICENSES.md` | SVGs originais sem alteração e origem/licença (R14a) |
+| `test/ui/providers/` | Goldens 14 e 16 px, chip com nome, cor do logo fixa |
 | Rodapé, Sessões, Prompt, timeline, replay, Quadro, robôs, Histórico, Custo | Usam o chip ou a marca no lugar do nome solto (R15) |
 | Os 15 arquivos com `== 'claude'` (R13) | Consultam capacidades ou fluxos |
 
@@ -170,7 +186,7 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. No mock, o enquadra
 | T1 · Capacidades e fluxos | `capabilities.dart`, valores por provedor, `providerFlows` | R1–R3 |
 | T2 · Opções | Intenção + extras, adaptadores, acesso, `readonly_run` | R4–R7 |
 | T3 · Modelo, versão e etiqueta | Aba Codex em Consumo, versão mínima, "Só Claude Code", sem troca silenciosa, fim das comparações | R8–R13 |
-| T4 · Identidade do provedor | Tokens, logos oficiais, glifos, `provider_badge.dart` e troca do nome solto pelo chip de marca ou pelo glifo nas telas de R15; conferir os termos de marca antes da release | R14, R15 |
+| T4 · Identidade do provedor | Plano de implementação da identidade (Design): SVGs originais e `LICENSES.md`, `provider_logos.dart` com `CustomPainter` (sem `flutter_svg`), tokens só para glifo, borda e chip, `ProviderLogo` / `ProviderGlyph` / `ProviderChip`, troca única para o glifo, goldens; telas de R15 usando o `ProviderChip` ou o glifo; termos de marca conferidos antes da release | R14, R15 |
 
 ## Critérios de aceite
 
@@ -183,7 +199,8 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. No mock, o enquadra
 - [ ] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
 - [ ] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
 - [ ] `grep -rn "== 'claude'\|!= 'claude'" lib` só encontra adaptadores e registro [R13] verificar: o próprio grep.
-- [ ] Nos pontos de identificação de R15, Claude e Codex aparecem com o logo oficial (sem alteração de forma) ao lado do nome; nos pontos pequenos, com o glifo; nenhuma cor de provedor aparece sem nome, logo ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje; os termos de marca da Anthropic e da OpenAI foram conferidos (ou o Codex caiu para o glifo) [R14, R15] verificar: teste de widget do `ProviderBadge` (logo ou glifo, cor e nome por provedor), conferência das telas contra o mock `4-identidade-provedor.png` e registro da checagem de marca no PR.
+- [ ] Nos pontos de identificação de R15, Claude e Codex aparecem com o logo oficial (sem alteração de forma) ao lado do nome; nos pontos pequenos, com o glifo; nenhuma cor de provedor aparece sem nome, logo ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje; os termos de marca da Anthropic e da OpenAI foram conferidos (ou o Codex caiu para o glifo) [R14, R15] verificar: testes de `ProviderChip` e `ProviderGlyph`, conferência das telas contra o mock `4-identidade-provedor.png` e registro da checagem de marca no PR.
+- [ ] Os SVGs originais estão em `assets/providers/` sem alteração, com `LICENSES.md`; o app não ganhou `flutter_svg`; o logo do Claude é sempre `#D97757` e o da OpenAI sempre branco, em qualquer tema; o chip nunca mostra o logo sem o nome; trocar o Codex para o glifo é uma mudança só no `ProviderLogo` [R14] verificar: goldens de `ProviderLogo` em 14 e 16 px, teste de tema (claro/escuro) com a mesma cor de logo, teste do `ProviderChip` sem nome falhando, `grep flutter_svg pubspec.yaml` vazio.
 
 ## Telas
 
@@ -195,6 +212,6 @@ Canvas: [SPEC-094 · Capacidades e opções por provedor](https://claude.ai/arti
 | `docs/mockups/spec-094/1-consumo-por-provedor.png` | Configurações → Consumo com as abas Claude Code e Codex: modelo e esforço por tipo vindos do `model/list`, versão e hora da leitura, e o quadro "O que o Codex faz neste app" | R1, R8, R9, R11 |
 | `docs/mockups/spec-094/2-so-claude-code.png` | Nova sessão com o Codex: Agente e Orçamento desabilitados com "Só Claude Code", modelo do Codex, acesso com a política de cada modo | R5, R7, R11 |
 | `docs/mockups/spec-094/3-versao-incompativel.png` | Menu do provedor no rodapé: Codex 0.168 incompatível com a orientação, e o aviso de versão mais nova que a testada; Executar spec com "Codex · Só Claude Code por enquanto" | R3, R10, R12 |
-| `docs/mockups/spec-094/4-identidade-provedor.png` | Identidade do provedor: tokens argila e porcelana com os contrastes, logos oficiais e chips de marca em três tamanhos, glifos próprios para os pontos pequenos, onde aparece cada um (rodapé, sessão, seletor e Comparar com logo; card do Quadro, robô e Histórico com glifo) e a checagem lado a lado contra "Em execução" e "Falhou" | R14, R15 |
+| `docs/mockups/spec-094/4-identidade-provedor.png` | Identidade do provedor: tokens argila e porcelana com os contrastes, logos oficiais (Claude em argila, OpenAI no branco oficial) e chips de marca em três tamanhos, glifos próprios para os pontos pequenos, onde aparece cada um (rodapé, sessão, seletor e Comparar com logo; card do Quadro, robô e Histórico com glifo) e a checagem lado a lado contra "Em execução" e "Falhou" | R14, R15 |
 
 Todos os mocks mostram o provedor com o logo oficial ou o glifo de R14, conforme o ponto (R15).
