@@ -16930,6 +16930,30 @@ class $UsageEntriesTable extends UsageEntries
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('claude'),
+  );
+  static const VerificationMeta _tokensReasoningMeta = const VerificationMeta(
+    'tokensReasoning',
+  );
+  @override
+  late final GeneratedColumn<int> tokensReasoning = GeneratedColumn<int>(
+    'tokens_reasoning',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -16949,6 +16973,8 @@ class $UsageEntriesTable extends UsageEntries
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -17069,6 +17095,21 @@ class $UsageEntriesTable extends UsageEntries
         estimated.isAcceptableOrUnknown(data['estimated']!, _estimatedMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('tokens_reasoning')) {
+      context.handle(
+        _tokensReasoningMeta,
+        tokensReasoning.isAcceptableOrUnknown(
+          data['tokens_reasoning']!,
+          _tokensReasoningMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -17148,6 +17189,14 @@ class $UsageEntriesTable extends UsageEntries
         DriftSqlType.bool,
         data['${effectivePrefix}estimated'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      tokensReasoning: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_reasoning'],
+      )!,
     );
   }
 
@@ -17189,6 +17238,14 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
 
   /// Rebuilt from the events of before (R5): weighed by today's ruler.
   final bool estimated;
+
+  /// Who ran the turn (SPEC-097 R8, schema v34): a provider without cost in
+  /// US\$ (the Codex) has "custo indisponível", never a measured 0.
+  final String provider;
+
+  /// Reasoning output tokens (Codex `reasoningOutputTokens`): part of
+  /// [tokensOut], shown apart (SPEC-097 R8).
+  final int tokensReasoning;
   const UsageEntry({
     required this.id,
     this.workspaceId,
@@ -17207,6 +17264,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     this.fiveHourPct,
     this.weekPct,
     required this.estimated,
+    required this.provider,
+    required this.tokensReasoning,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -17248,6 +17307,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       map['week_pct'] = Variable<double>(weekPct);
     }
     map['estimated'] = Variable<bool>(estimated);
+    map['provider'] = Variable<String>(provider);
+    map['tokens_reasoning'] = Variable<int>(tokensReasoning);
     return map;
   }
 
@@ -17284,6 +17345,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ? const Value.absent()
           : Value(weekPct),
       estimated: Value(estimated),
+      provider: Value(provider),
+      tokensReasoning: Value(tokensReasoning),
     );
   }
 
@@ -17312,6 +17375,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       fiveHourPct: serializer.fromJson<double?>(json['fiveHourPct']),
       weekPct: serializer.fromJson<double?>(json['weekPct']),
       estimated: serializer.fromJson<bool>(json['estimated']),
+      provider: serializer.fromJson<String>(json['provider']),
+      tokensReasoning: serializer.fromJson<int>(json['tokensReasoning']),
     );
   }
   @override
@@ -17337,6 +17402,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       'fiveHourPct': serializer.toJson<double?>(fiveHourPct),
       'weekPct': serializer.toJson<double?>(weekPct),
       'estimated': serializer.toJson<bool>(estimated),
+      'provider': serializer.toJson<String>(provider),
+      'tokensReasoning': serializer.toJson<int>(tokensReasoning),
     };
   }
 
@@ -17358,6 +17425,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     Value<double?> fiveHourPct = const Value.absent(),
     Value<double?> weekPct = const Value.absent(),
     bool? estimated,
+    String? provider,
+    int? tokensReasoning,
   }) => UsageEntry(
     id: id ?? this.id,
     workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
@@ -17378,6 +17447,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct: fiveHourPct.present ? fiveHourPct.value : this.fiveHourPct,
     weekPct: weekPct.present ? weekPct.value : this.weekPct,
     estimated: estimated ?? this.estimated,
+    provider: provider ?? this.provider,
+    tokensReasoning: tokensReasoning ?? this.tokensReasoning,
   );
   UsageEntry copyWithCompanion(UsageEntriesCompanion data) {
     return UsageEntry(
@@ -17408,6 +17479,10 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           : this.fiveHourPct,
       weekPct: data.weekPct.present ? data.weekPct.value : this.weekPct,
       estimated: data.estimated.present ? data.estimated.value : this.estimated,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      tokensReasoning: data.tokensReasoning.present
+          ? data.tokensReasoning.value
+          : this.tokensReasoning,
     );
   }
 
@@ -17430,7 +17505,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -17454,6 +17531,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   );
   @override
   bool operator ==(Object other) =>
@@ -17475,7 +17554,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           other.costUsd == this.costUsd &&
           other.fiveHourPct == this.fiveHourPct &&
           other.weekPct == this.weekPct &&
-          other.estimated == this.estimated);
+          other.estimated == this.estimated &&
+          other.provider == this.provider &&
+          other.tokensReasoning == this.tokensReasoning);
 }
 
 class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
@@ -17496,6 +17577,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
   final Value<double?> fiveHourPct;
   final Value<double?> weekPct;
   final Value<bool> estimated;
+  final Value<String> provider;
+  final Value<int> tokensReasoning;
   const UsageEntriesCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -17514,6 +17597,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   });
   UsageEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -17533,6 +17618,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   }) : source = Value(source),
        at = Value(at);
   static Insertable<UsageEntry> custom({
@@ -17553,6 +17640,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Expression<double>? fiveHourPct,
     Expression<double>? weekPct,
     Expression<bool>? estimated,
+    Expression<String>? provider,
+    Expression<int>? tokensReasoning,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -17572,6 +17661,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       if (fiveHourPct != null) 'five_hour_pct': fiveHourPct,
       if (weekPct != null) 'week_pct': weekPct,
       if (estimated != null) 'estimated': estimated,
+      if (provider != null) 'provider': provider,
+      if (tokensReasoning != null) 'tokens_reasoning': tokensReasoning,
     });
   }
 
@@ -17593,6 +17684,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Value<double?>? fiveHourPct,
     Value<double?>? weekPct,
     Value<bool>? estimated,
+    Value<String>? provider,
+    Value<int>? tokensReasoning,
   }) {
     return UsageEntriesCompanion(
       id: id ?? this.id,
@@ -17612,6 +17705,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       fiveHourPct: fiveHourPct ?? this.fiveHourPct,
       weekPct: weekPct ?? this.weekPct,
       estimated: estimated ?? this.estimated,
+      provider: provider ?? this.provider,
+      tokensReasoning: tokensReasoning ?? this.tokensReasoning,
     );
   }
 
@@ -17671,6 +17766,12 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     if (estimated.present) {
       map['estimated'] = Variable<bool>(estimated.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (tokensReasoning.present) {
+      map['tokens_reasoning'] = Variable<int>(tokensReasoning.value);
+    }
     return map;
   }
 
@@ -17693,7 +17794,9 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -34648,6 +34751,8 @@ typedef $$UsageEntriesTableCreateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 typedef $$UsageEntriesTableUpdateCompanionBuilder =
     UsageEntriesCompanion Function({
@@ -34668,6 +34773,8 @@ typedef $$UsageEntriesTableUpdateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 
 final class $$UsageEntriesTableReferences
@@ -34816,6 +34923,16 @@ class $$UsageEntriesTableFilterComposer
 
   ColumnFilters<bool> get estimated => $composableBuilder(
     column: $table.estimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34986,6 +35103,16 @@ class $$UsageEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -35133,6 +35260,14 @@ class $$UsageEntriesTableAnnotationComposer
   GeneratedColumn<bool> get estimated =>
       $composableBuilder(column: $table.estimated, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => column,
+  );
+
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -35276,6 +35411,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -35294,6 +35431,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           createCompanionCallback:
               ({
@@ -35314,6 +35453,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -35332,6 +35473,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           withReferenceMapper: (p0) => p0
               .map(

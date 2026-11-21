@@ -7,7 +7,11 @@ import '../providers/agent_provider.dart';
 /// A single App Server connection. Requests and notifications are separate:
 /// the server also sends requests whose ids can collide with client ids.
 class CodexRpc {
-  CodexRpc(this.process, {this.timeout = const Duration(seconds: 30)}) {
+  CodexRpc(
+    this.process, {
+    this.timeout = const Duration(seconds: 30),
+    this.ephemeral = false,
+  }) {
     process.stdin.done.catchError((Object _) {});
     process.stdout
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -19,6 +23,7 @@ class CodexRpc {
         .listen((s) => _log(s), onError: (Object _) {});
     exitCode = process.exitCode.then((code) {
       exited = true;
+      live.remove(this);
       _failCalls('O Codex encerrou (código $code).');
       return code;
     });
@@ -26,6 +31,16 @@ class CodexRpc {
 
   final Process process;
   final Duration timeout;
+
+  /// A connection of a handshake or a quota reading, not of a run.
+  final bool ephemeral;
+
+  /// Open connections that finished `initialize` (SPEC-097 R1): a reading
+  /// without a turn (`account/rateLimits/read`) can go through one of them.
+  static final live = <CodexRpc>{};
+
+  /// Whether a Codex run (not a handshake nor a reading) is open.
+  static bool get runAlive => live.any((r) => !r.ephemeral && !r.exited);
   late final Future<int> exitCode;
   bool exited = false;
   int _id = 0;
@@ -101,7 +116,9 @@ class CodexRpc {
       if (!c.isCompleted) c.completeError(e);
     }
     try {
-      return await response;
+      final result = await response;
+      if (method == 'initialize' && !exited) live.add(this);
+      return result;
     } finally {
       _calls.remove(id);
     }
@@ -143,11 +160,13 @@ class CodexRpc {
   }
 
   void _done() {
+    live.remove(this);
     _failCalls('O Codex fechou a conexão.');
     unawaited(messages.close());
   }
 
   Future<int> stop({Duration timeout = const Duration(seconds: 5)}) async {
+    live.remove(this);
     if (!exited) {
       process.kill(ProcessSignal.sigterm);
       try {

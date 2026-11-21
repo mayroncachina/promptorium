@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/app_shutdown.dart';
 import 'core/claude/usage_poller.dart';
+import 'core/providers/quota_source.dart';
 import 'core/dev/dev_server.dart';
 import 'core/dev/preview_browser.dart';
 import 'core/git/git_service.dart';
@@ -107,6 +108,12 @@ Future<void> main() async {
   final usage = container.read(usagePollerProvider);
   unawaited(usage.refresh());
   Timer.periodic(const Duration(minutes: 5), (_) => usage.refresh());
+  // SPEC-097 R1, P1: the Codex quota without a turn, at start and every 5
+  // minutes while the Codex is active or running.
+  container.read(codexQuotaProvider);
+  final codexQuota = container.read(codexQuotaPollerProvider);
+  unawaited(codexQuota.start());
+  Timer.periodic(const Duration(minutes: 5), (_) => codexQuota.tick());
   // Idle sessions (no activity for the configured time) free their process.
   Timer.periodic(const Duration(minutes: 1), (_) {
     container.read(sessionManagerProvider.notifier).closeIdle();

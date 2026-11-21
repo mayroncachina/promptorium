@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/agent_provider.dart';
 import '../../../data/providers.dart';
+import '../../../core/providers/capabilities.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -105,6 +106,15 @@ class PromptContextSection extends StatelessWidget {
           _value,
           key: const ValueKey('context-access'),
         ),
+        // SPEC-097 R9: the Codex tells tokens, never a cost in US\$.
+        if (c != null &&
+            !capabilitiesFor(c.provider).supports(ProviderCapability.costUsd))
+          row(
+            'Custo',
+            'indisponível',
+            _value,
+            key: const ValueKey('context-cost'),
+          ),
         // SPEC-087 R11: the sum of every call is not the window's size.
         row(
           'Tokens acumulados',
