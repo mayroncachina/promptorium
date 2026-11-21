@@ -407,7 +407,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     final compare = conv == null ? null : ref.watch(compareProvider(conv.id));
     final canCompare =
         ws != null &&
-        providerId == 'claude' &&
+        ref.watch(providerFlowsProvider).allows(providerId, AppFlow.compare) &&
         conv?.specId == null &&
         compare == null;
     final comparing = _compareOn && canCompare;

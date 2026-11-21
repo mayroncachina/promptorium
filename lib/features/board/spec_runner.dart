@@ -1,3 +1,4 @@
+import '../../core/providers/capabilities.dart';
 import '../../core/secrets/secret_guard.dart';
 
 import 'dart:async';
@@ -929,7 +930,12 @@ class SpecRunner {
       runModel =
           model ??
           last?.model ??
-          (runProvider != 'claude' ? 'inherit' : prefs.model(RunKind.session));
+          providerModelFrom(
+            prefs,
+            _ref.read(appSettingsProvider),
+            runProvider,
+            RunKind.session,
+          );
       runEffort = effort ?? last?.effort;
     } else if (keepModel && model != null) {
       runModel = model;
@@ -938,7 +944,7 @@ class SpecRunner {
       // R20: the model the step used last, else its plan.
       final own = rows.where((r) => r.step == todo.first).firstOrNull;
       final used = sessions
-          .where((x) => x.id == own?.sessionId && x.provider == 'claude')
+          .where((x) => x.id == own?.sessionId && isClaudeCode(x.provider))
           .firstOrNull;
       runModel = used?.model ?? plan.rule.model;
       runEffort = used == null ? plan.rule.effort : used.effort;
@@ -1638,7 +1644,7 @@ class SpecRunner {
       effort: last?.effort,
       ignoreBlockers: true,
       previousAttempt: previous,
-      keepModel: last?.provider == 'claude',
+      keepModel: last != null && isClaudeCode(last.provider),
     );
   }
 
@@ -1936,7 +1942,7 @@ class SpecRunner {
         ? 'o plano muda de ${current.label} para ${plan.label}'
         : limit <= 0
         ? 'continuar na mesma sessão está desligado'
-        : s.provider != 'claude'
+        : !isClaudeCode(s.provider)
         ? 'só sessões do Claude continuam'
         : !_manager.isAlive(s.id)
         ? 'a sessão foi encerrada'

@@ -174,7 +174,26 @@ class LiveTool {
     required this.input,
     required this.at,
     this.done = false,
+    this.kind = LiveToolKind.tool,
+    this.files = const [],
   });
+
+  /// A Claude tool call, seen through its neutral events (SPEC-095 R9).
+  factory LiveTool.fromBlock(ToolUseBlock b, {DateTime? at}) {
+    final files = b.fileChanges;
+    return LiveTool(
+      id: b.id,
+      name: b.name,
+      input: b.input,
+      at: at ?? DateTime.now(),
+      kind: files.isNotEmpty
+          ? LiveToolKind.file
+          : b.command != null
+          ? LiveToolKind.command
+          : LiveToolKind.tool,
+      files: [for (final f in files) f.path],
+    );
+  }
 
   final String id;
   final String name;
@@ -184,12 +203,72 @@ class LiveTool {
   /// Its result arrived: the agent is between tools (thinking).
   final bool done;
 
-  LiveTool finished() =>
-      LiveTool(id: id, name: name, input: input, at: at, done: true);
+  /// What the call does, whatever the provider.
+  final LiveToolKind kind;
+
+  /// Files it changes.
+  final List<String> files;
+
+  LiveTool finished() => LiveTool(
+    id: id,
+    name: name,
+    input: input,
+    at: at,
+    done: true,
+    kind: kind,
+    files: files,
+  );
 }
 
-/// Tools that write files (SPEC-076 R3: "arquivos" of the turn).
-const fileEditTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+/// What a live tool call does (SPEC-095): the Atividades pick the pose from
+/// it, not from a tool name.
+enum LiveToolKind { tool, file, command }
+
+/// The live tool of a neutral event (a Codex file change or command), or
+/// null (SPEC-095 R9).
+LiveTool? liveToolOfNeutral(AgentEvent e, {DateTime? at}) => switch (e) {
+  FileChangeEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.file,
+    input: {'path': e.path},
+    at: at ?? DateTime.now(),
+    done: e.status != FileChangeStatus.proposed,
+    kind: LiveToolKind.file,
+    files: [e.path],
+  ),
+  CommandEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.command,
+    input: {'command': e.displayCommand},
+    at: at ?? DateTime.now(),
+    done: e.done,
+    kind: LiveToolKind.command,
+  ),
+  _ => null,
+};
+
+/// Records the neutral live tool [t] in [recent] (newest first, five at
+/// most): a new call is inserted (true), a known one updated (its files
+/// merged, done when it ends).
+bool recordLiveTool(List<LiveTool> recent, LiveTool t) {
+  final i = recent.indexWhere((x) => x.id == t.id);
+  if (i < 0) {
+    recent.insert(0, t);
+    if (recent.length > 5) recent.removeLast();
+    return true;
+  }
+  final old = recent[i];
+  recent[i] = LiveTool(
+    id: old.id,
+    name: old.name,
+    input: old.input,
+    at: old.at,
+    done: t.done,
+    kind: old.kind,
+    files: {...old.files, ...t.files}.toList(),
+  );
+  return false;
+}
 
 /// Runtime state of a session with a live process.
 @immutable
@@ -266,16 +345,24 @@ class SessionException implements Exception {
 /// Records the top-level tool call [b] in [p] (SPEC-076 R3).
 void _trackTool(_Proc p, ToolUseBlock b) {
   if (p.recent.any((t) => t.id == b.id)) return;
-  p.recent.insert(
-    0,
-    LiveTool(id: b.id, name: b.name, input: b.input, at: DateTime.now()),
-  );
+  final t = LiveTool.fromBlock(b);
+  p.recent.insert(0, t);
   if (p.recent.length > 5) p.recent.removeLast();
   p.calls++;
-  if (fileEditTools.contains(b.name)) {
-    final path = b.input['file_path'] ?? b.input['notebook_path'];
-    if (path is String) p.files.add(path);
+  p.files.addAll(t.files);
+}
+
+/// Records a neutral file change or command in [p] (SPEC-095 R9): one call
+/// per item, every file it changes.
+void _trackNeutral(_Proc p, AgentEvent e) {
+  final t = liveToolOfNeutral(e);
+  if (t == null) return;
+  if (!p.seenNeutral.contains(t.id)) {
+    p.seenNeutral.add(t.id);
+    p.calls++;
   }
+  recordLiveTool(p.recent, t);
+  p.files.addAll(t.files);
 }
 
 /// The agent's text as one line of at most 200 characters.
@@ -317,6 +404,9 @@ class _Proc {
   /// Context of the last top-level answer (input + cache read + cache
   /// write): what the next call sends again (SPEC-017 R4).
   int? contextTokens;
+
+  /// Ids of the neutral calls of the turn already counted (SPEC-095).
+  final Set<String> seenNeutral = {};
 
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
@@ -469,9 +559,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final effort =
         r.effort ??
-        (provider == 'claude'
-            ? ref.read(runPrefsProvider).effort(RunKind.session)
-            : 'default');
+        providerEffortFrom(
+          ref.read(runPrefsProvider),
+          ref.read(appSettingsProvider),
+          provider,
+          RunKind.session,
+        );
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
@@ -479,7 +572,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       branch: branch,
       model: r.model,
       provider: provider,
-      externalId: provider == 'claude' ? id : null,
+      externalId: isClaudeCode(provider) ? id : null,
       effort: effort,
       agentName: r.agent,
       title: title,
@@ -571,7 +664,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     // A new turn counts its own calls and files (SPEC-076 R3).
     proc
       ..calls = 0
-      ..files.clear();
+      ..files.clear()
+      ..seenNeutral.clear();
     _publish();
     // SPEC-084 R1: the restore point of the turn, before the message goes
     // (the first one was recorded by [create]).
@@ -600,7 +694,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> compactNow(String id, {String? focus}) async {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não existe.');
-    if (s.provider != 'claude') {
+    if (!isClaudeCode(s.provider)) {
       throw const SessionException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -899,7 +993,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ClaudeOptions(
         resumeId: id,
         model: _model(s.model),
-        effort: s.provider != 'claude'
+        effort: !isClaudeCode(s.provider)
             ? effortArg(s.effort)
             : _effort(s.effort),
         agent: s.agentName,
@@ -1009,7 +1103,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
-        effort: parent.provider != 'claude'
+        effort: !isClaudeCode(parent.provider)
             ? effortArg(parent.effort)
             : _effort(parent.effort),
         agent: parent.agentName,
@@ -1122,7 +1216,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final session = await _repo.getById(id);
     final current = _procs[id];
     if (session != null &&
-        session.provider != 'claude' &&
+        !isClaudeCode(session.provider) &&
         current != null &&
         (current.busy ||
             current.pending.isNotEmpty ||
@@ -1132,7 +1226,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       );
     }
     await _repo.setPermissionMode(id, mode.cliValue);
-    if (session != null && session.provider != 'claude') {
+    if (session != null && !isClaudeCode(session.provider)) {
       if (session.runConfig != null) {
         final config = jsonDecode(session.runConfig!) as Map<String, dynamic>;
         config['permissionMode'] = mode.cliValue;
@@ -1364,7 +1458,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final ManagedAgentRun process;
     McpRunLink? mcpLink;
     try {
-      if (session.provider != 'claude') {
+      if (!isClaudeCode(session.provider)) {
         final saved = session.runConfig == null
             ? <String, dynamic>{}
             : jsonDecode(session.runConfig!) as Map<String, dynamic>;
@@ -1384,25 +1478,47 @@ class SessionManager extends Notifier<SessionManagerState> {
             );
           }
         }
-        final effective = AgentStartOptions(
+        final provider = agentProviderForFlow(
+          ref,
+          session.provider,
+          session.specId == null ? AppFlow.sessions : AppFlow.runSpec,
+        );
+        final caps = provider.capabilities;
+        final mode = options.permissionMode;
+        // R7: the stored mode becomes the app's access; Claude-only modes
+        // (`auto`, `dontAsk`) fail closed.
+        final access = mode == null
+            ? AgentAccess.edit
+            : AgentAccess.fromClaudeMode(mode) ??
+                  (throw AgentUnavailable(
+                    '${provider.displayName}: o modo ${mode.cliValue} é só '
+                    'do Claude Code.',
+                  ));
+        final compact = saved['autocompact'] as String?;
+        final effective = AgentStartOptions.forAccess(
+          access,
           workingDirectory: cwd,
-          mode: PromptMode.edit,
           resumeId: externalId,
           forkSession: options.forkSession,
           model: options.model,
           effort: options.effort,
-          permissionMode: options.permissionMode,
           environment: processEnv,
-          autocompact: saved['autocompact'] as String?,
-          agent: options.agent,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTurns: options.maxTurns,
-          mcpAllowedTools: options.allowedTools,
-          mcpDisallowedTools: options.disallowedTools,
+          // R5: agent, budget and turns only where the provider has them.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: compact,
+              agent: options.agent,
+              maxBudgetUsd: options.maxBudgetUsd,
+              maxTurns: options.maxTurns,
+              mcpAllowedTools: options.allowedTools,
+              mcpDisallowedTools: options.disallowedTools,
+              permissionMode: mode,
+            ),
+            codex: CodexExtras(compactLimit: compact),
+          ),
         );
-        final run = await ref
-            .read(agentProviderByIdProvider(session.provider))
-            .start(effective);
+        final run = await provider.start(effective);
         process = run as ManagedAgentRun;
         await _repo.setRunConfig(
           id,
@@ -1412,11 +1528,10 @@ class SessionManager extends Notifier<SessionManagerState> {
             'permissionMode': options.permissionMode?.cliValue,
             'model': session.model,
             'effort': session.effort,
-            if (effective.autocompact != null)
-              'autocompact': effective.autocompact,
+            'autocompact': ?compact,
           }),
         );
-      } else if (session.provider == 'claude') {
+      } else if (isClaudeCode(session.provider)) {
         final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
         // SPEC-052 R1: the app's MCP server, with a token of this process.
         mcpLink = await openMcpRun(
@@ -1485,7 +1600,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _appEvent(
       id,
       ContextEventTypes.runEvent(
-        autocompact: session.provider == 'claude'
+        autocompact: isClaudeCode(session.provider)
             ? ref.read(runPrefsProvider).autocompact
             : null,
         model: session.model,
@@ -1661,7 +1776,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     p.lastActivity = DateTime.now();
     // 1. Persist (one row per stdout line; stream deltas are not stored).
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, p.lastJson) && e.json.isNotEmpty) {
         seq = p.lastSeq; // same line expanded into several ToolResults
       } else {
@@ -1800,6 +1915,13 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
+      // SPEC-095 R9: files and commands of any provider.
+      case FileChangeEvent():
+        _trackNeutral(p, e);
+      case CommandEvent():
+        _trackNeutral(p, e);
+      case ContextUsageEvent(:final tokens):
+        if (tokens > 0) p.contextTokens = tokens;
       default:
         break;
     }
@@ -1809,7 +1931,9 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (e is AssistantMessage ||
         e is ToolResult ||
         e is Result ||
-        e is PermissionRequest) {
+        e is PermissionRequest ||
+        e is FileChangeEvent ||
+        e is CommandEvent) {
       _publish();
     }
   }

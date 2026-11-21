@@ -3,6 +3,7 @@ import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart';
 import 'agent_provider.dart';
+import 'capabilities.dart';
 
 /// Claude Code CLI as an [AgentProvider] (reuses [ClaudeProcess]).
 class ClaudeCodeProvider implements AgentProvider {
@@ -73,12 +74,17 @@ class ClaudeCodeProvider implements AgentProvider {
     'fable',
   ];
 
+  @override
+  ProviderCapabilities get capabilities => ProviderCapabilities.claude;
+
   /// Modes that never auto-approve MCP tools ("Permitido" keeps asking).
   static bool ignoresMcpAllow(PromptMode m) =>
       m == PromptMode.ask || m == PromptMode.refine;
 
-  /// CLI options for [o] (pure; tested).
+  /// CLI options for [o] (pure; tested): the intent plus [ClaudeExtras].
   static ClaudeOptions optionsFor(AgentStartOptions o) {
+    checkExtras(providerId, o.extras);
+    final e = o.claude;
     final model = o.model == null || o.model!.isEmpty || o.model == 'inherit'
         ? null
         : o.model;
@@ -88,39 +94,42 @@ class ClaudeCodeProvider implements AgentProvider {
       forkSession: o.forkSession,
       model: model,
       effort: o.effort,
-      autocompact: o.autocompact,
-      maxBudgetUsd: o.maxBudgetUsd,
-      maxTurns: o.maxTurns,
-      agent: o.agent,
+      autocompact: e.autocompact,
+      maxBudgetUsd: e.maxBudgetUsd,
+      maxTurns: e.maxTurns,
+      agent: e.agent,
       appendSystemPrompt: o.appendSystemPrompt,
       jsonSchema: o.jsonSchema,
-      settingsFile: o.settingsFile,
-      mcpConfigs: o.mcpConfigs,
-      agentsJson: o.agentsJson,
-      permissionMode:
-          o.permissionMode ??
-          switch (o.mode) {
-            PromptMode.ask => ClaudePermissionMode.defaultMode,
-            PromptMode.plan => ClaudePermissionMode.plan,
-            PromptMode.edit => ClaudePermissionMode.acceptEdits,
-            PromptMode.refine => ClaudePermissionMode.defaultMode,
-          },
+      settingsFile: e.settingsFile,
+      mcpConfigs: [...o.appMcpConfigs, ...e.mcpConfigs],
+      agentsJson: e.agentsJson,
+      permissionMode: e.permissionMode ?? permissionModeFor(o.access),
       // MCP rules (Fase 11): "Perguntar" / "Refinar" ignore "Permitido" (an
       // MCP tool may write; it keeps asking) and respect "Bloqueado".
       allowedTools: [
-        if (!ignoresMcpAllow(o.mode)) ...o.mcpAllowedTools,
+        if (!ignoresMcpAllow(o.mode)) ...e.mcpAllowedTools,
         ...o.appAllowedTools,
       ],
       disallowedTools: [
         if (o.mode == PromptMode.ask) ...readOnlyDisallowedTools,
-        ...o.mcpDisallowedTools,
+        ...e.mcpDisallowedTools,
       ],
       // "Perguntar": an allow list and no MCP server of the user (F12); the
       // app's own server (SPEC-052) comes in `mcpConfigs` and stays.
-      tools: o.mode == PromptMode.ask ? readOnlyTools : o.tools,
-      strictMcpConfig: o.mode == PromptMode.ask || o.strictMcpConfig,
+      tools: o.mode == PromptMode.ask ? readOnlyTools : e.tools,
+      strictMcpConfig: o.mode == PromptMode.ask || e.strictMcpConfig,
     );
   }
+
+  /// Access → `--permission-mode` (R7): Perguntar is read-only by the tool
+  /// list, Planejar = `plan`, Editar = `acceptEdits`, Refinar = `default`
+  /// (each edit asks), YOLO = `bypassPermissions`.
+  static ClaudePermissionMode permissionModeFor(AgentAccess a) => switch (a) {
+    AgentAccess.ask || AgentAccess.refine => ClaudePermissionMode.defaultMode,
+    AgentAccess.plan => ClaudePermissionMode.plan,
+    AgentAccess.edit => ClaudePermissionMode.acceptEdits,
+    AgentAccess.yolo => ClaudePermissionMode.skipPermissions,
+  };
 
   @override
   Future<AgentRun> start(AgentStartOptions options) async {
