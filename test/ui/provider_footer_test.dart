@@ -226,8 +226,8 @@ void main() {
     addTearDown(tester.view.reset);
     var codex = const ProviderAvailability(
       ProviderStatus.incompatible,
-      'Versão instalada 0.168.0, mínimo 0.170. Atualize o Codex CLI '
-      '(`codex update`).',
+      'Versão instalada 0.168.0, mínimo 0.170. Atualize o Codex CLI'
+      ': codex update.',
       version: '0.168.0',
     );
     var checks = 0;

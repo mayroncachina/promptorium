@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -340,6 +342,8 @@ class _ProviderSelector extends ConsumerWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('footer-provider-selector'),
       tooltip: 'Selecionar provedor',
+      // Room for the version, the warnings and their actions (R10, R7a).
+      constraints: const BoxConstraints(minWidth: 280, maxWidth: 460),
       initialValue: selected,
       position: PopupMenuPosition.over,
       onSelected: (id) async {
@@ -431,7 +435,7 @@ class _ProviderSelector extends ConsumerWidget {
                       ),
                   ];
                   return SizedBox(
-                    width: 340,
+                    width: 420,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -442,6 +446,10 @@ class _ProviderSelector extends ConsumerWidget {
                           size: 16,
                         ),
                         const SizedBox(width: 8),
+                        if (hasProviderIdentity(p.id)) ...[
+                          ProviderLogo(p.id),
+                          const SizedBox(width: 6),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,6 +521,11 @@ class _ProviderSelector extends ConsumerWidget {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
+              // R15: who runs, with the official logo next to the name.
+              if (hasProviderIdentity(selected)) ...[
+                ProviderChip(selected, dense: true),
+                const SizedBox(width: 6),
+              ],
               Flexible(
                 child: Text(
                   text,

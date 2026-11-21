@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../ui/providers/provider_logos.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
@@ -264,6 +267,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       required T value,
       required List<(T, String)> items,
       required ValueChanged<T> onChanged,
+      Widget? Function(T)? leading,
     }) => DropdownButtonFormField<T>(
       key: key,
       initialValue: value,
@@ -276,7 +280,15 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         for (final (v, l) in items)
           DropdownMenuItem(
             value: v,
-            child: Text(l, overflow: TextOverflow.ellipsis),
+            child: Row(
+              children: [
+                if (leading?.call(v) case final w?) ...[
+                  w,
+                  const SizedBox(width: 8),
+                ],
+                Flexible(child: Text(l, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
           ),
       ],
       onChanged: (v) => onChanged(v as T),
@@ -421,6 +433,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 ),
                               ],
                               onChanged: (v) => setState(() => _setProvider(v)),
+                              // R15: official logo next to the name.
+                              leading: (v) => hasProviderIdentity(v)
+                                  ? ProviderLogo(v)
+                                  : null,
                             ),
                             label('Modelo'),
                             // Rebuilt when an agent changes the value.

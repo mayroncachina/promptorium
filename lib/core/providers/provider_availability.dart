@@ -122,7 +122,7 @@ Future<ProviderAvailability> inspectProvider(
         return ProviderAvailability(
           ProviderStatus.incompatible,
           'Versão instalada $v, mínimo ${codexMinVersion.substring(0, 5)}. '
-          'Atualize o Codex CLI (`codex update`).',
+          'Atualize o Codex CLI: codex update.',
           version: v,
         );
       }
@@ -141,7 +141,7 @@ Future<ProviderAvailability> inspectProvider(
           ProviderStatus.incompatible,
           'O Codex $v não tem ${missing.length == 1 ? 'o método' : 'os métodos'} '
           '${missing.join(', ')} do App Server usado${missing.length == 1 ? '' : 's'} '
-          'pelo app. Atualize o Codex CLI (`codex update`).',
+          'pelo app. Atualize o Codex CLI: codex update.',
           version: v,
         );
       }

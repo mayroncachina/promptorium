@@ -1,5 +1,7 @@
 import '../../secrets/secret_blocks.dart';
 
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -319,6 +321,11 @@ class _SessionTile extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
+                        // R15: the provider's chip (logo + name).
+                        if (hasProviderIdentity(session.provider)) ...[
+                          ProviderChip(session.provider, dense: true),
+                          const SizedBox(width: 6),
+                        ],
                         Flexible(
                           child: Text(
                             session.agentName ?? 'sem agente',
