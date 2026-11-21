@@ -1,3 +1,5 @@
+import '../../../core/providers/capabilities.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -102,9 +104,10 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
     final prefs = ref.read(runPrefsProvider);
     final effort = effortArg(
       s.effort ??
-          (s.provider == 'claude' ? prefs.effort(RunKind.session) : null),
+          (isClaudeCode(s.provider) ? prefs.effort(RunKind.session) : null),
     );
-    if (s.provider != 'claude' && s.provider != 'codex') {
+    // Only the CLIs with an interactive terminal (Claude, Codex).
+    if (!isClaudeCode(s.provider) && s.provider != 'codex') {
       throw AgentUnavailable('Terminal não disponível para ${s.provider}.');
     }
     final codex = s.provider == 'codex';

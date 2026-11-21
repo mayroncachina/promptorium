@@ -1,3 +1,5 @@
+import '../../core/providers/capabilities.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -122,7 +124,10 @@ final verificationAgentProvider = Provider<VerificationAgent>(
                 'Para verificações manuais use kind manual e um registro de validação, nunca a própria spec. '
                 'Não invente evidências, relatórios, resultados nem itens.',
             jsonSchema: jsonEncode(verificationSchema),
-            maxBudgetUsd: provider == 'claude' ? 1.0 : null,
+            maxBudgetUsd:
+                capabilitiesFor(provider).supports(ProviderCapability.budgetUsd)
+                ? 1.0
+                : null,
             includePartialMessages: false,
           ),
           prompt: prompt,

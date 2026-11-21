@@ -6,7 +6,7 @@ import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/core/providers/agent_registry.dart'
-    show codexEnabledProvider;
+    show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/activities/activity.dart';
@@ -155,7 +155,9 @@ void main() {
     final root = await createRepo(tmp);
     final servers = <FakeCodex>[];
     final c = sessionContainer([
-      codexEnabledProvider.overrideWithValue(true),
+      providerFlowsProvider.overrideWithValue(
+        ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+      ),
       ...sessionOverrides(
         db: memoryDatabase(),
         cli: FakeCli(),

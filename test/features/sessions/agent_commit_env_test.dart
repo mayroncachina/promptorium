@@ -6,7 +6,7 @@ import 'package:promptorium/core/git/agent_trailer.dart';
 import 'package:promptorium/core/providers/acp_provider.dart';
 import 'package:promptorium/core/providers/agent_provider.dart';
 import 'package:promptorium/core/providers/agent_registry.dart'
-    show codexEnabledProvider;
+    show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_config.dart';
@@ -117,7 +117,9 @@ void main() {
   test('Codex: the marking goes in the App Server environment', () async {
     final envs = <Map<String, String>?>[];
     final c = sessionContainer([
-      codexEnabledProvider.overrideWithValue(true),
+      providerFlowsProvider.overrideWithValue(
+        ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+      ),
       ...sessionOverrides(
         db: memoryDatabase(),
         cli: FakeCli(),

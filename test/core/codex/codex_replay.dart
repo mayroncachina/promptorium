@@ -57,9 +57,17 @@ Future<List<AgentEvent>> replayCodex(
               workingDirectory: '/w',
               mode:
                   mode ??
-                  (fixture == 'contexto' ? PromptMode.ask : PromptMode.edit),
+                  (fixture == 'contexto'
+                      ? PromptMode.ask
+                      : permissionMode == ClaudePermissionMode.defaultMode
+                      ? PromptMode.refine
+                      : PromptMode.edit),
               model: 'gpt-5.6-luna',
-              permissionMode: permissionMode,
+              // Legacy session modes (SPEC-095 tests) → SPEC-094 access.
+              yolo: permissionMode == ClaudePermissionMode.skipPermissions,
+              extras: permissionMode == ClaudePermissionMode.dontAsk
+                  ? const CodexExtras(approval: 'never')
+                  : null,
             ),
           )
           as CodexRun;

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -771,6 +774,10 @@ class _ProviderButton extends StatelessWidget {
     return Consumer(
       builder: (context, ref, _) {
         final all = ref.watch(agentProvidersProvider);
+        final flows = ref.watch(providerFlowsProvider);
+        // R11: a provider not released for the Prompt stays listed, locked.
+        bool usable(AgentProvider p) =>
+            p.enabled && flows.allows(p.id, AppFlow.prompt);
         return PopupMenuButton<String>(
           key: const ValueKey('prompt-provider'),
           tooltip: 'Provedor',
@@ -782,18 +789,21 @@ class _ProviderButton extends StatelessWidget {
               PopupMenuItem<String>(
                 key: ValueKey('provider-${p.id}'),
                 value: p.id,
-                enabled: p.enabled,
+                enabled: usable(p),
                 height: 36,
                 child: Row(
                   children: [
-                    Dot(p.enabled ? AppColors.amber : AppColors.textMuted),
+                    if (hasProviderIdentity(p.id))
+                      ProviderLogo(p.id, size: 14)
+                    else
+                      Dot(usable(p) ? AppColors.amber : AppColors.textMuted),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         p.displayName,
                         style: TextStyle(
                           fontSize: 12,
-                          color: p.enabled
+                          color: usable(p)
                               ? AppColors.text
                               : AppColors.textSecondary,
                         ),
@@ -802,7 +812,11 @@ class _ProviderButton extends StatelessWidget {
                     Text(
                       p.id == active.id
                           ? 'ativo'
-                          : (p.enabled ? '' : 'em breve'),
+                          : !p.enabled
+                          ? 'em breve'
+                          : usable(p)
+                          ? ''
+                          : 'Só Claude Code por enquanto',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -823,7 +837,10 @@ class _ProviderButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppIcon(active.icon, size: 14, color: AppColors.amber),
+                if (hasProviderIdentity(active.id))
+                  ProviderLogo(active.id, size: 14)
+                else
+                  AppIcon(active.icon, size: 14, color: AppColors.amber),
                 const SizedBox(width: 6),
                 Text(
                   active.displayName,
