@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../notifications/alert_target.dart' show AlertSpotlight;
 
+import '../../../core/codex/codex_provider.dart' show codexSessionSuggestion;
 import '../../../core/providers/agent_event.dart' show PermissionRequest;
 import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
@@ -83,6 +84,10 @@ String approvalVerb(String tool) => switch (tool) {
 String? alwaysAllowLabel(List<Map<String, dynamic>> suggestions) {
   if (suggestions.isEmpty) return null;
   final s = suggestions.first;
+  // SPEC-096 R6: the Codex `acceptForSession`, valid until the process ends.
+  if (s['type'] == codexSessionSuggestion['type']) {
+    return 'Aprovar nesta conversa';
+  }
   final where = switch (s['destination']) {
     'session' => ' nesta sessão',
     'localSettings' => ' neste projeto (local)',
@@ -210,7 +215,10 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
   /// section, "+N −M" and the diff in a box that scrolls by itself.
   Widget _editCard(PendingApproval a, PermissionRequest r, String? always) {
     final info = widget.edit;
-    final diff = info?.diff ?? editDiffOf(r.toolName, r.input);
+    final diff =
+        info?.diff ??
+        codexApprovalDiff(r.input) ??
+        editDiffOf(r.toolName, r.input);
     final path = editFilePath(r.input) ?? toolTarget(r.toolName, r.input);
     final outside = info?.outside ?? false;
     final onSpec = info?.target != null && !outside;

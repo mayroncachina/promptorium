@@ -5,7 +5,9 @@ import '../../../ui/providers/provider_logos.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/codex/codex_probe.dart' show CodexModelInfo;
 import '../../../core/providers/agent_registry.dart';
+import '../../../core/providers/provider_preferences.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
@@ -80,6 +82,9 @@ class PromptComposer extends ConsumerStatefulWidget {
     this.onToggleCompare,
     this.onCompareSend,
     this.sendLabel,
+    this.canSteer = false,
+    this.stopLabel = 'Parar',
+    this.effort,
   });
 
   final TextEditingController controller;
@@ -132,6 +137,16 @@ class PromptComposer extends ConsumerStatefulWidget {
   /// Label of Enviar when free ("Enviar os dois").
   final String? sendLabel;
 
+  /// A message during the turn directs it (Codex `turn/steer`, SPEC-096
+  /// R7): Enviar stays on while busy.
+  final bool canSteer;
+
+  /// "Parar" / "Interromper" (the Codex turn is interrupted, R7).
+  final String stopLabel;
+
+  /// Effort shown next to the model ("gpt-6.2-sol · medium", R4).
+  final String? effort;
+
   @override
   ConsumerState<PromptComposer> createState() => _PromptComposerState();
 }
@@ -174,6 +189,21 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
     }
     if (t == null && _trigger == null) return;
     setState(() => _trigger = t);
+  }
+
+  /// Models of the composer: the Codex catalog read from `model/list`
+  /// (SPEC-094 R8) — never the Claude aliases.
+  List<String> _models() {
+    if (widget.provider.id != ProviderCapabilities.codex.providerId) {
+      return widget.provider.models;
+    }
+    final cache = codexModelsCache(ref.watch(appSettingsProvider));
+    return [
+      'inherit',
+      for (final m in cache?.models ?? const <CodexModelInfo>[]) m.id,
+      if (widget.model != 'inherit' && !(cache?.has(widget.model) ?? false))
+        widget.model,
+    ];
   }
 
   List<String> _files() {
@@ -242,7 +272,9 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
 
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
-        if (!widget.busy && widget.blockedReason == null) widget.onSend();
+        if ((!widget.busy || widget.canSteer) && widget.blockedReason == null) {
+          widget.onSend();
+        }
       },
       if (widget.onCompareSend case final compare?)
         const SingleActivator(
@@ -353,10 +385,12 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           color: AppColors.text,
                         ),
                         decoration: InputDecoration.collapsed(
-                          hintText:
-                              widget.hintText ??
-                              'Pergunte qualquer coisa…  @ anexa arquivo  '
-                                  '/ usa um prompt salvo',
+                          hintText: widget.busy && widget.canSteer
+                              ? 'Mensagem com o turno rodando vai como '
+                                    'direcionamento (turn/steer)…'
+                              : widget.hintText ??
+                                    'Pergunte qualquer coisa…  @ anexa arquivo  '
+                                        '/ usa um prompt salvo',
                           hintStyle: const TextStyle(
                             fontSize: 14,
                             color: AppColors.textMuted,
@@ -410,8 +444,10 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                                 )
                               else ...[
                                 _ModelButton(
-                                  models: widget.provider.models,
+                                  models: _models(),
                                   model: widget.model,
+                                  effort: widget.effort,
+                                  raw: !isClaudeCode(widget.provider.id),
                                   onSelected: widget.onModel,
                                 ),
                                 _ModeSwitch(
@@ -454,7 +490,7 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                         if (widget.busy) ...[
                           SmallButton(
                             key: const ValueKey('prompt-stop'),
-                            label: 'Parar',
+                            label: widget.stopLabel,
                             color: AppColors.red,
                             border: SessionColors.stopBorder,
                             height: 32,
@@ -466,14 +502,18 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           message: widget.blockedReason ?? '',
                           child: AmberButton(
                             key: const ValueKey('prompt-send'),
-                            label: widget.busy
+                            label: widget.busy && widget.canSteer
+                                ? 'Direcionar'
+                                : widget.busy
                                 ? 'Respondendo…'
                                 : widget.sendLabel ??
                                       (widget.blockedReason != null
                                           ? 'Verificando…'
                                           : 'Enviar'),
                             height: 32,
-                            onTap: widget.busy || widget.blockedReason != null
+                            onTap:
+                                (widget.busy && !widget.canSteer) ||
+                                    widget.blockedReason != null
                                 ? null
                                 : widget.onSend,
                           ),
@@ -862,11 +902,20 @@ class _ModelButton extends StatelessWidget {
     required this.models,
     required this.model,
     required this.onSelected,
+    this.effort,
+    this.raw = false,
   });
 
   final List<String> models;
   final String model;
   final ValueChanged<String> onSelected;
+  final String? effort;
+
+  /// Codex ids are shown as they are ("gpt-6.2-sol", not "Gpt-6.2-sol").
+  final bool raw;
+
+  String _label(String m) =>
+      raw && m != 'inherit' && m.isNotEmpty ? m : modelLabel(m);
 
   @override
   Widget build(BuildContext context) {
@@ -881,7 +930,7 @@ class _ModelButton extends StatelessWidget {
           PopupMenuItem(
             value: m,
             height: 34,
-            child: Text(modelLabel(m), style: const TextStyle(fontSize: 12)),
+            child: Text(_label(m), style: const TextStyle(fontSize: 12)),
           ),
       ],
       child: Container(
@@ -895,7 +944,10 @@ class _ModelButton extends StatelessWidget {
         child: Center(
           widthFactor: 1,
           child: Text(
-            modelLabel(model),
+            effort == null || effort == 'default'
+                ? _label(model)
+                : '${_label(model)} · $effort',
+            key: const ValueKey('prompt-model-label'),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,

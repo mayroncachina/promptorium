@@ -736,6 +736,16 @@ class Timeline {
         at: at,
       );
     }
+    // SPEC-096 R7: an interrupted turn is not a failure.
+    if (r.isInterrupted) {
+      return NoticeItem(
+        r.interruptReason == 'user'
+            ? 'Interrompido por você · dá para continuar'
+            : 'Interrompido · dá para continuar',
+        level: NoticeLevel.info,
+        at: at,
+      );
+    }
     final why = switch (r.subtype) {
       'error_max_turns' => 'limite de turnos atingido',
       'error_max_budget_usd' => 'orçamento esgotado',

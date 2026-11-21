@@ -68,10 +68,7 @@ void main() {
       permissionModeLabel(ClaudePermissionMode.skipPermissions),
       isNot(contains('YOLO')),
     );
-    expect(
-      codexAccessPolicy(AgentAccess.ask).sandbox,
-      'read-only',
-    );
+    expect(codexAccessPolicy(AgentAccess.ask).sandbox, 'read-only');
   });
 
   for (final operation in ['start', 'resume', 'fork']) {
@@ -97,8 +94,10 @@ void main() {
       final thread = fake.writtenJson.singleWhere(
         (m) => m['method'] == 'thread/$operation',
       );
+      // SPEC-096 R10 / SPEC-093 D1: the thread opens read-only (no trust
+      // saved in ~/.codex/config.toml); the turn carries YOLO.
       expect(thread['params']['approvalPolicy'], 'never');
-      expect(thread['params']['sandbox'], 'danger-full-access');
+      expect(thread['params']['sandbox'], 'read-only');
       await run.send('Execute');
       final turn = fake.writtenJson.last;
       expect(turn['params']['approvalPolicy'], 'never');
@@ -106,21 +105,33 @@ void main() {
     });
   }
 
-  test('server that does not apply YOLO is rejected and stopped', () async {
-    final fake = FakeCodex(rejectYolo: true);
-    await expectLater(
-      CodexProvider(
-        starter: (exe, args, {workingDirectory, environment}) async => fake,
-      ).start(
-        const AgentStartOptions(
-          workingDirectory: '/w',
-          mode: PromptMode.edit,
-          yolo: true,
-        ),
-      ),
-      throwsA(isA<AgentUnavailable>()),
-    );
-    expect(fake.signals, contains(ProcessSignal.sigterm));
+  test('SPEC-096 R10: whatever the access, every thread opens read-only + '
+      'never and the turn raises the sandbox', () async {
+    for (final yolo in [false, true]) {
+      final fake = FakeCodex();
+      final run =
+          await CodexProvider(
+            starter: (exe, args, {workingDirectory, environment}) async => fake,
+          ).start(
+            AgentStartOptions(
+              workingDirectory: '/w',
+              mode: PromptMode.edit,
+              yolo: yolo,
+            ),
+          );
+      run.events.listen((_) {});
+      final thread = fake.writtenJson.singleWhere(
+        (m) => m['method'] == 'thread/start',
+      )['params'];
+      expect(thread['sandbox'], 'read-only');
+      expect(thread['approvalPolicy'], 'never');
+      await run.send('Olá');
+      expect(
+        fake.writtenJson.last['params']['sandboxPolicy']['type'],
+        yolo ? 'dangerFullAccess' : 'workspaceWrite',
+      );
+      await run.stop();
+    }
   });
 
   for (final mode in [PromptMode.ask, PromptMode.plan, PromptMode.edit]) {
@@ -132,14 +143,11 @@ void main() {
       run.events.listen((_) {});
       addTearDown(run.stop);
       final thread = fake.writtenJson.last['params'];
-      expect(
-        thread['sandbox'],
-        mode == PromptMode.edit ? 'workspace-write' : 'read-only',
-      );
+      expect(thread['sandbox'], 'read-only');
       await run.send('Olá');
       expect(
         fake.writtenJson.last['params']['sandboxPolicy']['type'],
-        isNot('dangerFullAccess'),
+        mode == PromptMode.edit ? 'workspaceWrite' : 'readOnly',
       );
     });
   }
