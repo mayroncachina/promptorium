@@ -25,6 +25,8 @@ import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show
         LiveTool,
+        liveToolOfNeutral,
+        recordLiveTool,
         PendingApproval,
         SessionManager,
         liveTextLine,
@@ -287,7 +289,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> compactNow(int id, {String? focus}) async {
     final conv = await _repo.getById(id);
     if (conv == null) throw ConversationException('Conversa $id não existe.');
-    if (conv.provider != 'claude') {
+    if (!isClaudeCode(conv.provider)) {
       throw const ConversationException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -513,6 +515,13 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         '${provider.displayName} ainda não está disponível.',
       );
     }
+    if (!ref
+        .read(providerFlowsProvider)
+        .allows(conv.provider, AppFlow.prompt)) {
+      throw ConversationException(
+        flowLockedMessage(provider.displayName, AppFlow.prompt),
+      );
+    }
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
     final resume = conv.claudeSessionId;
@@ -522,7 +531,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final prefs = ref.read(runPrefsProvider);
     // SPEC-052 R1, R8: the app's MCP server for Claude conversations;
     // "Perguntar" only reads. "Refinar" is an internal run (out of scope).
-    final mcpLink = conv.provider == 'claude' && mode != PromptMode.refine
+    final caps = provider.capabilities;
+    final mcpLink =
+        caps.supports(ProviderCapability.appMcpServer) &&
+            mode != PromptMode.refine
         ? await openMcpRun(
             ref,
             workspaceId: ws.id,
@@ -544,15 +556,23 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           effort: effortArg(
             providerEffort(ref, conv.provider, RunKind.conversation),
           ),
-          autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
-          mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: [...mcp.disallowed, ...?mcpLink?.disallowedTools],
-          mcpConfigs: [?mcpLink?.configPath],
+          appMcpConfigs: [?mcpLink?.configPath],
           appAllowedTools: mcpLink?.allowedTools ?? const [],
-          // Other providers refuse Claude's --settings.
-          settingsFile: conv.provider == 'claude'
-              ? await runSettingsFile(ref)
-              : null,
+          // R5: each provider gets only its own extras.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: prefs.autocompact,
+              mcpAllowedTools: mcp.allowed,
+              mcpDisallowedTools: [
+                ...mcp.disallowed,
+                ...?mcpLink?.disallowedTools,
+              ],
+              settingsFile: caps.supports(ProviderCapability.managedHooks)
+                  ? await runSettingsFile(ref)
+                  : null,
+            ),
+          ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
         ),
@@ -574,7 +594,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     _runs[conv.id] = r;
     // SPEC-087 R7: what this execution received (effective threshold).
     final runJson = ContextEventTypes.runEvent(
-      autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
+      autocompact: isClaudeCode(conv.provider) ? prefs.autocompact : null,
       model: conv.model,
       provider: conv.provider,
     );
@@ -619,7 +639,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> _handle(int id, _Run r, ClaudeEvent e) async {
     if (!ref.mounted) return;
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, r.lastJson) && e.json.isNotEmpty) {
         seq = r.lastSeq;
       } else {
@@ -651,15 +671,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case AssistantMessage() when e.parentToolUseId == null:
         for (final b in e.blocks) {
           if (b is ToolUseBlock && !r.recent.any((t) => t.id == b.id)) {
-            r.recent.insert(
-              0,
-              LiveTool(
-                id: b.id,
-                name: b.name,
-                input: b.input,
-                at: DateTime.now(),
-              ),
-            );
+            r.recent.insert(0, LiveTool.fromBlock(b));
             if (r.recent.length > 5) r.recent.removeLast();
             r.calls++;
           }
@@ -670,6 +682,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case ToolResult() when e.parentToolUseId == null:
         final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) r.recent[i] = r.recent[i].finished();
+      // SPEC-095: a file change or command of any provider.
+      case FileChangeEvent() || CommandEvent():
+        if (recordLiveTool(r.recent, liveToolOfNeutral(e)!)) r.calls++;
       case Result():
         final turn = turnCost(
           e.totalCostUsd,

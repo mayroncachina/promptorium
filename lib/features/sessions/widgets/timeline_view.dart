@@ -8,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/claude/claude_event.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
@@ -818,8 +819,42 @@ Color toolColor(String name) => switch (name) {
   'Read' || 'Glob' || 'Grep' || 'LS' => AppColors.blue,
   'Edit' || 'Write' || 'MultiEdit' || 'NotebookEdit' => AppColors.amber,
   'Bash' || 'Task' || 'Agent' => AppColors.lilac,
+  // SPEC-095: the cards of neutral events.
+  NeutralToolNames.file => AppColors.amber,
+  NeutralToolNames.command => AppColors.lilac,
   _ => AppColors.textSecondary,
 };
+
+/// "novo", "alterado", "removido", "movido" (SPEC-095 R1).
+String fileChangeKindLabel(FileChangeKind k) => switch (k) {
+  FileChangeKind.add => 'novo',
+  FileChangeKind.update => 'alterado',
+  FileChangeKind.delete => 'removido',
+  FileChangeKind.move => 'movido',
+};
+
+/// "4,2 s", "120 ms".
+String commandDuration(int ms) => ms < 1000
+    ? '$ms ms'
+    : '${(ms / 1000).toStringAsFixed(1).replaceAll('.', ',')} s';
+
+/// A small outlined label of a card ("alterado", "exit 1").
+class ToolBadge extends StatelessWidget {
+  const ToolBadge(this.text, {super.key, this.color = AppColors.textSecondary});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: color.withValues(alpha: .6)),
+    ),
+    child: Text(text, style: TextStyle(color: color, fontSize: 11)),
+  );
+}
 
 /// One tool call: name + target + summary. A click expands the result over
 /// the Sessions screen (SPEC-058), or in place where no [ToolExpandHost] is
@@ -945,12 +980,14 @@ class _ToolCardState extends State<ToolCard>
   Widget build(BuildContext context) {
     final t = widget.tool;
     final info = widget.edit;
-    final isEdit = isEditTool(t.name);
-    final diff = isEdit ? (info?.diff ?? editDiffOf(t.name, t.input)) : null;
+    final isEdit = isFileTool(t);
+    final diff = isEdit ? (info?.diff ?? editDiffOfTool(t)) : null;
+    final change = t.change;
+    final neutralCommand = t.commandEvent;
     final denied = t.denied;
     final waiting = !denied && widget.waitingTools.contains(t.id);
     final running = !t.done && !waiting && !denied;
-    final stats = editStats(t.name, t.input);
+    final stats = t.stats;
     final expands = _host != null;
     // The expanded view also follows a call still running (SPEC-058 R1).
     final canOpen = t.done || denied || (expands && running);
@@ -975,6 +1012,14 @@ class _ToolCardState extends State<ToolCard>
             style: TextStyle(color: AppColors.amber, fontSize: 11),
           ),
         ),
+      if (change != null)
+        ToolBadge(
+          fileChangeKindLabel(change.kind),
+          key: ValueKey('tool-kind-${t.id}'),
+          color: change.kind == FileChangeKind.add
+              ? AppColors.teal
+              : AppColors.blue,
+        ),
       if (denied)
         Row(
           key: ValueKey('tool-denied-${t.id}'),
@@ -995,6 +1040,23 @@ class _ToolCardState extends State<ToolCard>
         )
       else if (running)
         const Text('executando', style: TextStyle(color: AppColors.teal))
+      else if (neutralCommand?.exitCode case final code?) ...[
+        ToolBadge(
+          'exit $code',
+          key: ValueKey('tool-exit-${t.id}'),
+          color: code == 0 ? AppColors.textSecondary : AppColors.red,
+        ),
+        if ((neutralCommand!.durationMs ?? 0) > 0)
+          Text(
+            commandDuration(neutralCommand.durationMs!),
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+      ] else if (t.other != null)
+        Text(
+          _open ? 'aberto' : 'recolhido ›',
+          key: ValueKey('tool-other-${t.id}'),
+          style: const TextStyle(color: AppColors.textMuted),
+        )
       else if (t.isError)
         const Text('erro', style: TextStyle(color: AppColors.red))
       else if (t.isSubagent) ...[
@@ -1021,8 +1083,8 @@ class _ToolCardState extends State<ToolCard>
         ),
     ];
 
-    final cmd = t.name == 'Bash' ? t.input['command'] : null;
-    final command = cmd is String && cmd.trim().isNotEmpty ? cmd : null;
+    final cmd = neutralCommand?.displayCommand ?? t.command?.command;
+    final command = cmd != null && cmd.trim().isNotEmpty ? cmd : null;
 
     final target = info?.outside ?? false
         ? (editFilePath(t.input) ?? toolTarget(t.name, t.input))
@@ -1174,6 +1236,18 @@ class _ToolCardState extends State<ToolCard>
                           ),
                         ),
                       DiffView(rows: diff.rows, muted: denied, collapseSame: 3),
+                      if (change?.cutLabel case final cut?)
+                        Padding(
+                          key: ValueKey('tool-diff-cut-${t.id}'),
+                          padding: const EdgeInsets.fromLTRB(10, 4, 10, 2),
+                          child: Text(
+                            '$cut · abra o arquivo para ver tudo',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 )

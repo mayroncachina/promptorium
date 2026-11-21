@@ -2,6 +2,32 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.22.0] - 2026-11-21
+
+### Funcionalidades
+
+- **contexto:** Sondagem do CLI, contrato da medição e redutor (SPEC-087 T1) (4f0cdfe)
+- **contexto:** Medidor e painel Contexto no Prompt e nas Sessões (SPEC-087 T2) (82b0226)
+- **contexto:** Compactação automática visível, aviso e ações (SPEC-087 T3) (66df732)
+- **contexto:** Comparar, Replay e retomada com leituras próprias (SPEC-087 T4) (bd44399)
+
+### Correções
+
+- **contexto:** Aviso segue a leitura mais nova e diz quando o limiar passou (20340af)
+- **contexto:** Ajustes do teste no app isolado (045d3cb)
+- **comparar:** Medidor de cada lado junto das métricas (0ee77f2)
+
+### Documentação
+
+- **spec:** SPEC-087 contexto visual e compactação, com mocks (0ce3c22)
+- **spec:** SPEC-087 aponta a issue #324 (c63acda)
+- **spec:** SPEC-087 aprovada (4eaa905)
+- **spec:** SPEC-087 concluída, com capturas do app e teste manual (48e489e)
+
+### Testes
+
+- O FakeProcess separa os pedidos de get_context_usage das mensagens (6b6402b)
+
 ## [0.21.1] - 2026-11-20
 
 ### Correções

@@ -7,6 +7,8 @@ depende-de: [SPEC-003]
 # Seleção de provedor pelo indicador de conexão do rodapé
 
 > **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). A parte Codex desta spec fica inativa enquanto `codexEnabledProvider` estiver desligado; o comportamento com Claude Code e agentes ACP continua valendo.
+>
+> **Revalidar no MVP ([SPEC-096](SPEC-096-codex-prompt-e-sessoes.md))** (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12). Mantida: quando o Codex voltar no Prompt e nas Sessões, o seletor do rodapé é conferido com o Codex ligado e a nota de "inativa" acima sai.
 
 ## Objetivo
 

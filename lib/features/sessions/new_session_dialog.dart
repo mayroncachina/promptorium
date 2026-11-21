@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+
+import '../../ui/providers/provider_logos.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
-import '../../core/providers/agent_registry.dart' show codexEnabledProvider;
+import '../../core/codex/codex_cli.dart';
+import '../../core/codex/codex_probe.dart' show codexSandboxFixCommand;
+import '../../core/providers/agent_registry.dart';
+import '../../core/providers/provider_availability.dart';
+import '../../ui/widgets/only_provider_tag.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../ui/theme/tokens.dart';
@@ -74,12 +81,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       widget.forkOf?.provider ?? ref.read(activeAgentProvider);
 
   /// Defaults of Configurações → Consumo (an agent may change them).
-  late String _model = _provider == 'claude'
-      ? ref.read(runPrefsProvider).model(RunKind.session)
-      : 'inherit';
-  late String _effort = _provider == 'claude'
-      ? ref.read(runPrefsProvider).effort(RunKind.session)
-      : 'default';
+  late String _model = _defaultModel(_provider);
+  late String _effort = _defaultEffort(_provider);
+
+  String _defaultModel(String provider) => providerModelFrom(
+    ref.read(runPrefsProvider),
+    ref.read(appSettingsProvider),
+    provider,
+    RunKind.session,
+  );
+
+  String _defaultEffort(String provider) => providerEffortFrom(
+    ref.read(runPrefsProvider),
+    ref.read(appSettingsProvider),
+    provider,
+    RunKind.session,
+  );
 
   /// Last mode chosen here (remembered), else `default`.
   late ClaudePermissionMode _mode = () {
@@ -115,6 +132,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         uiPermissionModes.contains(mode)) {
       _mode = mode;
     }
+  }
+
+  void _setProvider(String v) {
+    _provider = v;
+    _model = _defaultModel(v);
+    _effort = _defaultEffort(v);
+    _agent = null;
+    _mode = ClaudePermissionMode.defaultMode;
   }
 
   bool _worktree = true;
@@ -188,6 +213,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       _modeFromAgent = true;
       _pickAgent(_agent, agents);
     }
+    final caps = capabilitiesFor(_provider);
+    final providerName = _provider == 'codex' ? 'Codex' : 'Claude Code';
+    // R12: a provider not released for sessions never starts here, and the
+    // screen says why before the click.
+    final flowLocked =
+        fork == null &&
+        !ref.watch(providerFlowsProvider).allows(_provider, AppFlow.sessions);
+    // R7a: without the OS sandbox, Codex only runs in a worktree with full
+    // access (YOLO).
+    final availability = caps.providerId == 'codex'
+        ? ref.watch(providerAvailabilityProvider(_provider)).value
+        : null;
+    final noSandbox = availability?.sandboxWarning != null;
+    final codexCache = caps.providerId == 'codex'
+        ? codexModelsCache(ref.watch(appSettingsProvider))
+        : null;
     // A preselected agent that is not in the list (yet) stays selectable.
     final agentItems = [
       for (final a in agents)
@@ -226,6 +267,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       required T value,
       required List<(T, String)> items,
       required ValueChanged<T> onChanged,
+      Widget? Function(T)? leading,
     }) => DropdownButtonFormField<T>(
       key: key,
       initialValue: value,
@@ -238,7 +280,15 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         for (final (v, l) in items)
           DropdownMenuItem(
             value: v,
-            child: Text(l, overflow: TextOverflow.ellipsis),
+            child: Row(
+              children: [
+                if (leading?.call(v) case final w?) ...[
+                  w,
+                  const SizedBox(width: 8),
+                ],
+                Flexible(child: Text(l, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
           ),
       ],
       onChanged: (v) => onChanged(v as T),
@@ -308,17 +358,55 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            label('Agente (--agent)'),
-                            dropdown<String?>(
-                              key: const ValueKey('new-session-agent'),
-                              value: _agent,
-                              items: [
-                                (null, 'nenhum'),
-                                for (final (n, l) in agentItems) (n, l),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _pickAgent(v, agents)),
-                            ),
+                            if (caps.supports(
+                              ProviderCapability.agentFiles,
+                            )) ...[
+                              label('Agente (--agent)'),
+                              dropdown<String?>(
+                                key: const ValueKey('new-session-agent'),
+                                value: _agent,
+                                items: [
+                                  (null, 'nenhum'),
+                                  for (final (n, l) in agentItems) (n, l),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _pickAgent(v, agents)),
+                              ),
+                            ] else ...[
+                              // R11: disabled with the reason, not hidden.
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 12,
+                                  bottom: 6,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      'Agente',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: OnlyProviderTag(
+                                        key: const ValueKey(
+                                          'new-session-agent-only',
+                                        ),
+                                        provider: 'Claude Code',
+                                        reason: caps.reasonFor(
+                                          ProviderCapability.agentFiles,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              _DisabledField(
+                                caps.reasonFor(ProviderCapability.agentFiles),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -331,19 +419,24 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                             dropdown<String>(
                               key: const ValueKey('new-session-provider'),
                               value: _provider,
+                              // R11: a provider not released here shows up
+                              // with the tag, it does not disappear.
                               items: [
                                 ('claude', 'Claude Code'),
-                                if (ref.watch(codexEnabledProvider) ||
-                                    _provider == 'codex')
-                                  ('codex', 'Codex'),
+                                (
+                                  'codex',
+                                  ref
+                                          .watch(providerFlowsProvider)
+                                          .allows('codex', AppFlow.sessions)
+                                      ? 'Codex'
+                                      : flowLockedLabel('Codex'),
+                                ),
                               ],
-                              onChanged: (v) => setState(() {
-                                _provider = v;
-                                _model = 'inherit';
-                                _effort = 'default';
-                                _agent = null;
-                                _mode = ClaudePermissionMode.defaultMode;
-                              }),
+                              onChanged: (v) => setState(() => _setProvider(v)),
+                              // R15: official logo next to the name.
+                              leading: (v) => hasProviderIdentity(v)
+                                  ? ProviderLogo(v)
+                                  : null,
                             ),
                             label('Modelo'),
                             // Rebuilt when an agent changes the value.
@@ -354,7 +447,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 value: _model,
                                 items: [
                                   for (final m in {
-                                    ...(_provider == 'codex'
+                                    ...(codexCache != null
+                                        ? [
+                                            'inherit',
+                                            for (final m in codexCache.models)
+                                              m.id,
+                                          ]
+                                        : caps.providerId == 'codex'
                                         ? const ['inherit']
                                         : sessionModels),
                                     _model,
@@ -387,7 +486,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 key: const ValueKey('new-session-effort'),
                                 value: _effort,
                                 items: [
-                                  for (final e in {...effortChoices, _effort})
+                                  for (final e in {
+                                    ...(codexCache == null
+                                        ? effortChoices
+                                        : [
+                                            'default',
+                                            ...?codexCache
+                                                .byId(_model)
+                                                ?.efforts,
+                                          ]),
+                                    _effort,
+                                  })
                                     (e, effortLabel(e)),
                                 ],
                                 onChanged: (v) => setState(() => _effort = v),
@@ -418,9 +527,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       value: _mode,
                       items: [
                         for (final m in uiPermissionModes)
-                          if (_worktree ||
-                              m != ClaudePermissionMode.skipPermissions)
+                          if ((_worktree ||
+                                  m != ClaudePermissionMode.skipPermissions) &&
+                              (!noSandbox ||
+                                  m == ClaudePermissionMode.skipPermissions))
                             (m, permissionModeOption(m, provider: _provider)),
+                        // Keeps the dropdown valid while nothing applies.
+                        if (noSandbox &&
+                            _mode != ClaudePermissionMode.skipPermissions)
+                          (
+                            _mode,
+                            permissionModeOption(_mode, provider: _provider),
+                          ),
                       ],
                       onChanged: (v) => setState(() => _mode = v),
                     ),
@@ -462,6 +580,28 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     ),
                   ),
                 ],
+                if (noSandbox && fork == null)
+                  _Notice(
+                    key: const ValueKey('new-session-no-sandbox'),
+                    text:
+                        'Sandbox do Codex indisponível nesta máquina: '
+                        'Perguntar, Planejar e Editar não rodam. O Codex só '
+                        'roda em worktree com acesso total (YOLO), e o app '
+                        'commita no fim do turno. Para liberar: '
+                        '$codexSandboxFixCommand',
+                    action: 'Verificar de novo',
+                    onAction: () {
+                      ref.invalidate(codexCliInfoProvider);
+                      ref.invalidate(providerAvailabilityProvider(_provider));
+                    },
+                  ),
+                if (flowLocked)
+                  _Notice(
+                    key: const ValueKey('new-session-flow-locked'),
+                    text: flowLockedMessage(providerName, AppFlow.sessions),
+                    action: 'Usar Claude Code',
+                    onAction: () => setState(() => _setProvider('claude')),
+                  ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -484,7 +624,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       label: _busy
                           ? 'Iniciando…'
                           : (fork == null ? 'Iniciar sessão' : 'Criar fork'),
-                      onTap: _busy ? null : _submit,
+                      onTap:
+                          _busy ||
+                              flowLocked ||
+                              (noSandbox &&
+                                  _mode != ClaudePermissionMode.skipPermissions)
+                          ? null
+                          : _submit,
                     ),
                   ],
                 ),
@@ -495,4 +641,67 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       ),
     );
   }
+}
+
+/// A field that does not apply to the selected provider (R11).
+class _DisabledField extends StatelessWidget {
+  const _DisabledField(this.reason);
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 38,
+    alignment: Alignment.centerLeft,
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Text(
+      reason,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+    ),
+  );
+}
+
+/// Amber notice with one action (R7a, R12).
+class _Notice extends StatelessWidget {
+  const _Notice({
+    super.key,
+    required this.text,
+    required this.action,
+    required this.onAction,
+  });
+
+  final String text;
+  final String action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12, color: AppColors.text),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SmallButton(label: action, onTap: onAction),
+        ],
+      ),
+    ),
+  );
 }

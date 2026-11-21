@@ -94,16 +94,9 @@ void main() {
         'Gemini CLI',
         'Codex',
       ]);
-      expect(all.map((p) => p.enabled), [true, true, false]);
-      expect(all[2], isA<ComingSoonProvider>());
-    });
-
-    test('Codex switched on uses the App Server adapter', () {
-      final c = ProviderContainer(
-        overrides: [codexEnabledProvider.overrideWithValue(true)],
-      );
-      addTearDown(c.dispose);
-      expect(c.read(agentProvidersProvider)[2], isA<CodexProvider>());
+      // Codex is the App Server adapter; its flows say where it runs.
+      expect(all[2], isA<CodexProvider>());
+      expect(c.read(providerFlowsProvider).anyFor('codex'), isFalse);
     });
   });
 
@@ -175,7 +168,7 @@ void main() {
       expect(run.options.mode, PromptMode.ask);
       expect(run.options.model, 'haiku');
       expect(run.options.effort, 'medium');
-      expect(run.options.autocompact, '200k');
+      expect(run.options.claude.autocompact, '200k');
       expect(run.options.sessionId, '00000000-0000-4000-8000-000000000001');
       expect(run.options.resumeId, isNull);
       expect(run.sent, ['Como funciona o parser?\nDetalhes…']);
@@ -270,7 +263,7 @@ void main() {
       await m.create(workspace: ws, text: 'de novo');
       expect(provider.last.options.model, 'opus');
       expect(provider.last.options.effort, isNull); // CLI default
-      expect(provider.last.options.autocompact, 'auto');
+      expect(provider.last.options.claude.autocompact, 'auto');
       expect(c.read(promptDraftProvider).model, 'opus');
     });
 

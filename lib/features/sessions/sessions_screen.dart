@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -645,6 +647,8 @@ class _Header extends ConsumerWidget {
                       InfoTag('SPEC${s.steps == null ? '' : ' ${s.steps}'}')
                     else if (s.taskId != null)
                       InfoTag('TASK #${s.taskId}'),
+                    if (hasProviderIdentity(s.provider))
+                      ProviderChip(s.provider, dense: true),
                     InfoTag(agentModel),
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
