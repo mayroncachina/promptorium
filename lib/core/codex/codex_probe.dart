@@ -111,9 +111,7 @@ class CodexModelInfo {
   factory CodexModelInfo.fromJson(Map<String, dynamic> j) => CodexModelInfo(
     '${j['id']}',
     [for (final e in j['efforts'] as List? ?? const []) '$e'],
-    [
-      for (final e in j['modalities'] as List? ?? const ['text']) '$e',
-    ],
+    [for (final e in j['modalities'] as List? ?? const ['text']) '$e'],
   );
 
   final String id;
