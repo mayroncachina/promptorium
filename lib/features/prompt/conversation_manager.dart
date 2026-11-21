@@ -619,7 +619,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> _handle(int id, _Run r, ClaudeEvent e) async {
     if (!ref.mounted) return;
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, r.lastJson) && e.json.isNotEmpty) {
         seq = r.lastSeq;
       } else {

@@ -132,10 +132,12 @@ void main() {
     expect(r.fake.recordedAnswers.values.single['result'], {
       'decision': 'acceptForSession',
     });
-    final edit = _tools(r).singleWhere((t) => t.name == 'Edit');
-    final changes = edit.input['changes'] as List;
-    expect(changes.first['kind'], {'type': 'add'});
-    expect(edit.input.containsKey('file_path'), isFalse);
+    // SPEC-095: one neutral FileChangeEvent per file, no fake `Edit`.
+    expect(_tools(r), isEmpty);
+    final files = r
+        .of<FileChangeEvent>()
+        .where((f) => f.status == FileChangeStatus.applied);
+    expect(files.map((f) => f.kind), [FileChangeKind.add, FileChangeKind.add]);
   });
 
   test(
@@ -199,9 +201,11 @@ void main() {
         'Bash',
         'Bash',
       ]);
-      final results = r.of<ToolResult>();
-      expect(results.map((t) => t.isError), [false, true, false]);
-      expect(results.last.content, contains('agente=codex'));
+      // SPEC-095: CommandEvents with the exit code, no fake `Bash`.
+      final done = r.of<CommandEvent>().where((c) => c.done).toList();
+      expect(done.map((c) => c.failed), [false, true, false]);
+      expect(done.map((c) => c.exitCode), [0, 1, 0]);
+      expect(done.last.output, contains('agente=codex'));
       expect(r.fake.appAnswers.length, 3);
     },
   );
@@ -220,7 +224,7 @@ void main() {
       );
       final res = await _turn(r, 'Crie o arquivo e rode git commit.');
       expect(res.isSuccess, isTrue);
-      expect(r.of<ToolResult>().single.isError, isTrue);
+      expect(r.of<FileChangeEvent>().last.status, FileChangeStatus.failed);
     },
   );
 
@@ -309,9 +313,9 @@ void main() {
     );
     final res = await _turn(r, 'Rode rm apagar.txt.');
     expect(res.isSuccess, isTrue);
-    final bash = _tools(r).singleWhere((t) => t.name == 'Bash');
-    expect(bash.input['command'], contains('rm apagar.txt'));
-    expect(r.of<ToolResult>().single.isError, isFalse);
+    final bash = r.of<CommandEvent>().last;
+    expect(bash.displayCommand, contains('rm apagar.txt'));
+    expect(bash.failed, isFalse);
   });
 
   test('transcripts carry no credentials or personal paths', () {

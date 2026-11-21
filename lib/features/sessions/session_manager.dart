@@ -1661,7 +1661,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     p.lastActivity = DateTime.now();
     // 1. Persist (one row per stdout line; stream deltas are not stored).
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, p.lastJson) && e.json.isNotEmpty) {
         seq = p.lastSeq; // same line expanded into several ToolResults
       } else {
