@@ -51,11 +51,19 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 
 ### Identidade visual do provedor
 
-- R14 · **Cor de identidade por provedor.** Dois tokens novos: `providerClaude` = argila `#D97757` e `providerCodex` = porcelana `#E8E4DA` (ver Design). Três regras:
+- R14 · **Identidade por provedor: cor, logo oficial e glifo.** Dois tokens novos: `providerClaude` = argila `#D97757` e `providerCodex` = porcelana `#E8E4DA` (ver Design). Três regras:
   1. **Só identidade, nunca estado.** A cor diz *quem* roda, não *como está*. Rodando, falhou, feita, aguardando e verificando continuam com as cores de hoje (`teal`, `red`, `CanvasColors.*`). Um seletor de provedor marca a opção escolhida com o âmbar de sempre, não com a cor do provedor.
-  2. **Nunca só a cor.** A cor sempre vem com o nome ou com o glifo do provedor. Glifos desenhados por nós, simples e de traço: Claude = arco aberto; Codex = livro aberto ("códice"). Nada dos logos da Anthropic ou da OpenAI.
-  3. **Três formas, e só elas.** (a) **Chip** preenchido com glifo e nome ("Claude" / "Codex"), texto escuro `#1A1206` (`onAmber`), canto 5 px: a forma de estado é a pílula translúcida com canto 10 px, então as duas não se confundem. (b) **Marca** de 14 px (bolinha com o glifo dentro) nos cards do Quadro e nos robôs, onde não cabe o chip. (c) **Borda** de cada lado no Comparar.
-- R15 · **Onde aparece.** Rodapé (o chip ao lado do estado do provedor ativo; o ponto de estado continua); cabeçalho e lista de sessões; lista e cabeçalho de conversas do Prompt; autor de cada turno na timeline e no replay; painel de detalhes ("Provedor"); seletor de provedor da Nova sessão, do Executar spec e do menu do rodapé (marca ao lado do nome); cards do Quadro e robôs dos agentes (marca); Comparar (borda de cada lado e chip no topo); Histórico e Custo por etapa (chip na linha). Provedores sem token (agentes ACP, Gemini) aparecem só com o nome, sem cor, até ganharem um.
+  2. **Nunca só a cor.** A cor sempre vem com o nome e com o logo ou o glifo do provedor.
+  3. **Logo oficial onde identifica, glifo onde é pequeno.**
+     - (a) **Chip de marca:** logo oficial sem alterar a forma, sempre ao lado do nome ("Claude" / "Codex"), sobre fundo neutro (`#222732`, borda `#3A4250`, canto 5 px). Claude = símbolo do Claude em argila; Codex = logo da OpenAI (Blossom) monocromático em porcelana. Logo com 16 px (14 px no mínimo, em listas).
+     - (b) **Glifo próprio** onde um logo ficaria ilegível: Claude = arco aberto; Codex = livro aberto ("códice"). Aparece como marca de 14 px (bolinha com o glifo) ou como chip preenchido na cor do provedor com texto `#1A1206` (`onAmber`).
+     - (c) **Borda** de cada lado no Comparar.
+     - A forma de estado continua sendo a pílula translúcida com canto 10 px, então nenhuma das duas formas se confunde com ela.
+  - O logo nunca vira ícone do Promptorium nem aparece de um jeito que sugira parceria ou endosso. Ver "Uso de marca" no Design.
+- R15 · **Onde aparece.**
+  - **Logo oficial (R14a):** seletor de provedor no rodapé, com o chip ao lado do estado do provedor ativo (o ponto de estado continua) e o menu do provedor; Configurações (Provedores, abas de Consumo, "O que o Codex faz neste app"); chip de sessão e de conversa (lista, cabeçalho, painel de detalhes, autor do turno na timeline e no replay, seletor do compositor); seletores da Nova sessão e do Executar spec; topo de cada lado do Comparar.
+  - **Glifo (R14b):** ponto nos cards do Quadro, robôs dos agentes, Histórico, Custo por etapa e listas de specs.
+  - Provedores sem token (agentes ACP, Gemini) aparecem só com o nome, sem cor e sem logo, até ganharem um.
 
 ## Fora do escopo
 
@@ -72,6 +80,7 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 - P3 · **Conferência de métodos.** (a) Rodar `generate-json-schema` a cada versão nova e guardar o resultado; (b) só comparar a versão. **Recomendação:** (a) se a SPEC-093 medir menos de 2 s; senão (b) com a lista de métodos fixa por versão testada.
 - P4 · **Etiqueta.** "Só Claude Code" em lilás (cor de recursos de IA) ou âmbar. **Recomendação:** âmbar claro, mesma família dos avisos, para não parecer um recurso a mais.
 - P5 · **Capacidades por modelo ou por provedor.** **Recomendação:** por provedor com sobrescrita por modelo só para `images` e esforços, que são os únicos campos que o `model/list` informa por modelo.
+- P6 · **Logo oficial ou glifo próprio nos pontos de identificação.** (a) Logos oficiais (Claude; OpenAI para o Codex) no seletor, no chip e no Comparar, e glifos só nos pontos pequenos; (b) glifos próprios em tudo, sem marca de terceiros. **Recomendação:** (a), aprovada em 20/11. O provedor é reconhecido pelo logo que a pessoa já conhece, e os glifos ficam onde o logo não se lê (card, robô, Histórico). Volta para (b) no Codex se a OpenAI não autorizar o uso (ver "Uso de marca").
 
 ## Design
 
@@ -103,10 +112,27 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 | `#1A1206` sobre porcelana `#E8E4DA` | 14,60:1 | AAA |
 | argila sobre o painel `#14171D` | 5,75:1 | passa 3:1 de elemento gráfico (e 4,5:1) |
 | porcelana sobre o painel `#14171D` | 14,14:1 | passa |
+| logo argila sobre o fundo do chip de marca `#222732` | 4,79:1 | passa 3:1 de elemento gráfico |
+| logo porcelana sobre o fundo do chip de marca | 11,78:1 | passa |
 | argila × `running` `#F08A4B` | 1,26:1 · ΔE00 9,7 | perto demais como cor solta |
 | argila × falhou `#F27A6E` | 1,16:1 · ΔE00 8,1 | perto demais como cor solta |
 
-**Checagem com o `running`.** Como bolinha solta, a argila se confunde com o laranja de "Em execução" e com o vermelho de "Falhou". Lado a lado no mock 4, o chip preenchido com nome contra a pílula translúcida de estado, e a marca com glifo contra o ponto pulsante, se distinguem bem no tamanho real. Por isso a argila fica `#D97757` e a regra 2 é obrigatória. Trocar o tom não resolveria: o que se afasta do `running` chega mais perto do vermelho. Exemplo: `#C96A55` vai a ΔE00 15 do `running`, mas fica a 9,4 do vermelho, e o contraste com o texto cai para 5,0:1.
+**Checagem com o `running`.** Como bolinha solta, a argila se confunde com o laranja de "Em execução" e com o vermelho de "Falhou". Lado a lado no mock 4, o chip com o logo e o nome contra a pílula translúcida de estado, e a marca com glifo contra o ponto pulsante, se distinguem bem no tamanho real. Por isso a argila fica `#D97757` e a regra 2 é obrigatória. Trocar o tom não resolveria: o que se afasta do `running` chega mais perto do vermelho. Exemplo: `#C96A55` vai a ΔE00 15 do `running`, mas fica a 9,4 do vermelho, e o contraste com o texto cai para 5,0:1.
+
+### Uso de marca
+
+- O símbolo do Claude é marca da Anthropic e o logo da OpenAI é marca da OpenAI. Aqui eles servem só para identificar qual provedor roda. Não indicam parceria, patrocínio nem endosso, e nunca são usados como ícone ou marca do Promptorium.
+- Forma intacta: sem recortar, distorcer, contornar ou aplicar efeito. Sempre ao lado do nome, nunca maior que a marca do próprio app.
+- **Antes da release:** conferir as regras em [anthropic.com/brand](https://www.anthropic.com/brand) e [openai.com/brand](https://openai.com/brand). A página da OpenAI pede o logo "exatamente como fornecido", sem modificação, e o uso dentro dos termos ou com permissão. O pacote oficial só traz preto e branco, então a porcelana é uma troca de cor que precisa ser confirmada. Se a OpenAI não permitir (ou não permitir a porcelana), o Codex usa o glifo do livro em todos os pontos, ou o Blossom branco como fornecido, se só a cor for o problema.
+
+**Origem dos SVGs**
+
+| Logo | Arquivo | Origem | Licença |
+|---|---|---|---|
+| Claude | `claude.svg` (viewBox 24×24, um `path`) | [Simple Icons 16.38.0](https://cdn.jsdelivr.net/npm/simple-icons@16.38.0/icons/claude.svg), slug `claude`, cor da marca `#D97757` nos metadados | O SVG do Simple Icons é CC0; a marca é da Anthropic |
+| OpenAI (Codex) | `OAI_OpenAI-Blossom_White.svg` (viewBox 716×716, um `path`) | Pacote oficial [cdn.openai.com/brand/openai-logos.zip](https://cdn.openai.com/brand/openai-logos.zip), linkado em openai.com/brand. O Simple Icons 16.38.0 não tem mais o `openai.svg` (o CDN devolve 404) | Marca da OpenAI, uso sob os termos de openai.com/brand |
+
+O Blossom ocupa cerca de metade da área do arquivo oficial. No mock, o enquadramento (viewBox `176 176 364 364`) foi apertado sem mexer no desenho, para o logo ter 16 px de verdade dentro do chip. Em 14 px o Blossom ainda se reconhece, mas os traços internos já borram, por isso o mínimo é 14 px e o tamanho padrão é 16 px.
 
 ### Arquivos tocados
 
@@ -124,7 +150,8 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 | `lib/features/settings/` (Consumo) | Abas por provedor, modelos do `model/list` |
 | `lib/ui/widgets/only_provider_tag.dart` | Novo: etiqueta "Só Claude Code" |
 | `lib/ui/theme/tokens.dart` | `providerClaude`, `providerCodex` (R14) |
-| `lib/ui/widgets/provider_badge.dart` | Novo: chip, marca e glifos do provedor (R14, R15) |
+| `lib/ui/widgets/provider_badge.dart` | Novo: chip de marca (logo oficial), chip e marca de glifo (R14, R15) |
+| `assets/providers/claude.svg`, `assets/providers/openai-blossom.svg` | Logos oficiais, sem alteração de forma (R14a; origem em "Uso de marca") |
 | Rodapé, Sessões, Prompt, timeline, replay, Quadro, robôs, Histórico, Custo | Usam o chip ou a marca no lugar do nome solto (R15) |
 | Os 15 arquivos com `== 'claude'` (R13) | Consultam capacidades ou fluxos |
 
@@ -143,7 +170,7 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 | T1 · Capacidades e fluxos | `capabilities.dart`, valores por provedor, `providerFlows` | R1–R3 |
 | T2 · Opções | Intenção + extras, adaptadores, acesso, `readonly_run` | R4–R7 |
 | T3 · Modelo, versão e etiqueta | Aba Codex em Consumo, versão mínima, "Só Claude Code", sem troca silenciosa, fim das comparações | R8–R13 |
-| T4 · Identidade do provedor | Tokens, glifos, `provider_badge.dart` e troca do nome solto pelo chip ou pela marca nas telas de R15 | R14, R15 |
+| T4 · Identidade do provedor | Tokens, logos oficiais, glifos, `provider_badge.dart` e troca do nome solto pelo chip de marca ou pelo glifo nas telas de R15; conferir os termos de marca antes da release | R14, R15 |
 
 ## Critérios de aceite
 
@@ -156,7 +183,7 @@ static const providerCodex = Color(0xFFE8E4DA);  // porcelana
 - [ ] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
 - [ ] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
 - [ ] `grep -rn "== 'claude'\|!= 'claude'" lib` só encontra adaptadores e registro [R13] verificar: o próprio grep.
-- [ ] Claude e Codex aparecem com o chip (argila / porcelana, glifo e nome) ou com a marca de 14 px em todos os lugares de R15; nenhuma cor de provedor aparece sem nome ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje [R14, R15] verificar: teste de widget do `ProviderBadge` (cor, glifo e nome por provedor) e conferência das telas contra o mock `4-identidade-provedor.png`.
+- [ ] Nos pontos de identificação de R15, Claude e Codex aparecem com o logo oficial (sem alteração de forma) ao lado do nome; nos pontos pequenos, com o glifo; nenhuma cor de provedor aparece sem nome, logo ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje; os termos de marca da Anthropic e da OpenAI foram conferidos (ou o Codex caiu para o glifo) [R14, R15] verificar: teste de widget do `ProviderBadge` (logo ou glifo, cor e nome por provedor), conferência das telas contra o mock `4-identidade-provedor.png` e registro da checagem de marca no PR.
 
 ## Telas
 
@@ -168,6 +195,6 @@ Canvas: [SPEC-094 · Capacidades e opções por provedor](https://claude.ai/arti
 | `docs/mockups/spec-094/1-consumo-por-provedor.png` | Configurações → Consumo com as abas Claude Code e Codex: modelo e esforço por tipo vindos do `model/list`, versão e hora da leitura, e o quadro "O que o Codex faz neste app" | R1, R8, R9, R11 |
 | `docs/mockups/spec-094/2-so-claude-code.png` | Nova sessão com o Codex: Agente e Orçamento desabilitados com "Só Claude Code", modelo do Codex, acesso com a política de cada modo | R5, R7, R11 |
 | `docs/mockups/spec-094/3-versao-incompativel.png` | Menu do provedor no rodapé: Codex 0.168 incompatível com a orientação, e o aviso de versão mais nova que a testada; Executar spec com "Codex · Só Claude Code por enquanto" | R3, R10, R12 |
-| `docs/mockups/spec-094/4-identidade-provedor.png` | Identidade do provedor: tokens argila e porcelana com os contrastes, glifos próprios, chips em três tamanhos, onde aparece (rodapé, sessão, card do Quadro, robô, Histórico, seletor, Comparar) e a checagem lado a lado da argila contra "Em execução" e "Falhou" | R14, R15 |
+| `docs/mockups/spec-094/4-identidade-provedor.png` | Identidade do provedor: tokens argila e porcelana com os contrastes, logos oficiais e chips de marca em três tamanhos, glifos próprios para os pontos pequenos, onde aparece cada um (rodapé, sessão, seletor e Comparar com logo; card do Quadro, robô e Histórico com glifo) e a checagem lado a lado contra "Em execução" e "Falhou" | R14, R15 |
 
-Todos os mocks mostram o provedor com o chip ou a marca de R14.
+Todos os mocks mostram o provedor com o logo oficial ou o glifo de R14, conforme o ponto (R15).
