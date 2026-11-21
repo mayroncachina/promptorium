@@ -374,10 +374,8 @@ class CodexRun implements ManagedAgentRun {
       'permissionMode': _readOnly
           ? 'plan'
           : _permissionMode?.cliValue ?? options.mode.name,
-      'permission_label': permissionModeLabel(
-        _readOnly ? ClaudePermissionMode.plan : _permissionMode,
-        provider: 'codex',
-      ),
+      // Perguntar and Planejar share the sandbox but keep their names.
+      'permission_label': codexAccessLabel(access),
       'sandbox': _sandbox,
       'approvalPolicy': _approval,
       if (_sandbox == 'workspace-write' &&
