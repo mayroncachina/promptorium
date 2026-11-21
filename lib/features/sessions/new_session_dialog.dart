@@ -672,7 +672,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 if (flowLocked)
                   _Notice(
                     key: const ValueKey('new-session-flow-locked'),
-                    text: flowLockedMessage(providerName, AppFlow.sessions),
+                    text: ref
+                        .watch(providerFlowsProvider)
+                        .refusal(_provider, providerName, AppFlow.sessions),
                     action: 'Usar Claude Code',
                     onAction: () => setState(() => _setProvider('claude')),
                   ),

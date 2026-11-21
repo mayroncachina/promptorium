@@ -532,7 +532,9 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
             children: [
               Expanded(
                 child: Text(
-                  flowLockedMessage(caps.displayName, AppFlow.runSpec),
+                  ref
+                      .watch(providerFlowsProvider)
+                      .refusal(_provider, caps.displayName, AppFlow.runSpec),
                   style: const TextStyle(fontSize: 12, color: AppColors.amber),
                 ),
               ),

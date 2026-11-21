@@ -859,7 +859,9 @@ class _ProviderButton extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      p.id == active.id
+                      flows.isOff(p.id)
+                          ? providerOffLabel
+                          : p.id == active.id
                           ? 'ativo'
                           : !p.enabled
                           ? 'em breve'

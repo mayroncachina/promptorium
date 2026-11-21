@@ -231,9 +231,17 @@ enum AppFlow {
 /// (SPEC-096 turns on Prompt and Sessions for Codex).
 @immutable
 class ProviderFlows {
-  const ProviderFlows(this.enabled, {this.others = acpFlows});
+  const ProviderFlows(
+    this.enabled, {
+    this.others = acpFlows,
+    this.off = const {},
+  });
 
   final Map<String, Set<AppFlow>> enabled;
+
+  /// Providers turned off by the user in Configurações ("Desligar o Codex",
+  /// SPEC-096 P1): no flow runs them, and the reason is the switch.
+  final Set<String> off;
 
   /// Flows of providers not listed (ACP agents): what they ran in before.
   final Set<AppFlow> others;
@@ -261,7 +269,24 @@ class ProviderFlows {
   bool anyFor(String provider) => (enabled[provider] ?? others).isNotEmpty;
 
   ProviderFlows copyWith(String provider, Set<AppFlow> flows) =>
-      ProviderFlows({...enabled, provider: flows}, others: others);
+      ProviderFlows({...enabled, provider: flows}, others: others, off: off);
+
+  /// [provider] turned off in Configurações: no flow at all.
+  ProviderFlows turnOff(String provider) => ProviderFlows(
+    {...enabled, provider: const {}},
+    others: others,
+    off: {...off, provider},
+  );
+
+  /// Whether the user turned [provider] off in Configurações.
+  bool isOff(String provider) => off.contains(provider);
+
+  /// Why [flow] refuses [provider] (R12): the switch of Configurações when
+  /// the user turned it off, else the flow not released yet.
+  String refusal(String provider, String displayName, AppFlow flow) =>
+      isOff(provider)
+      ? providerOffMessage(displayName)
+      : flowLockedMessage(displayName, flow);
 }
 
 /// `app_settings` key of the emergency switch (SPEC-096 P1): `1` turns the
@@ -282,10 +307,18 @@ final providerFlowsProvider = Provider<ProviderFlows>((ref) {
   final off = ref.watch(
     appSettingsProvider.select((s) => s[codexKillSwitchKey] == '1'),
   );
-  return off
-      ? ProviderFlows.defaults.copyWith('codex', const {})
-      : ProviderFlows.defaults;
+  return off ? ProviderFlows.defaults.turnOff('codex') : ProviderFlows.defaults;
 });
+
+/// Label of a provider turned off in Configurações (SPEC-096 P1).
+const providerOffLabel = 'Desligado nas Configurações';
+
+/// Message when something tries to run a provider turned off in
+/// Configurações (SPEC-096 P1).
+String providerOffMessage(String displayName) =>
+    'O $displayName está desligado nas Configurações '
+    '(Desligar o $displayName). Escolha o Claude Code ou religue o '
+    '$displayName em Configurações → Consumo.';
 
 /// "Codex · Só Claude Code por enquanto" (R11): label of a provider not
 /// released in a flow.
