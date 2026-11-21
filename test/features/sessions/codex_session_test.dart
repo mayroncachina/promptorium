@@ -44,7 +44,8 @@ void main() {
         }) async {
           final fake = FakeCodex(threadId: 'external-${servers.length}');
           servers.add(fake);
-          expect(args, ['app-server']);
+          // Read-only access (Planejar) also turns the user's MCP off.
+          expect(args.first, 'app-server');
           return fake;
         }),
       ]);

@@ -212,14 +212,14 @@ void main() {
     final m = c.read(conversationManagerProvider.notifier);
 
     await m.create(workspace: ws, text: 'oi');
-    expect(provider.last.options.settingsFile, isNull);
+    expect(provider.last.options.claude.settingsFile, isNull);
 
     await settings.set(
       AppSettingKeys.disabledPlugins,
       jsonEncode(['claude-mem@thedotmack']),
     );
     await m.create(workspace: ws, text: 'oi de novo');
-    final path = provider.last.options.settingsFile!;
+    final path = provider.last.options.claude.settingsFile!;
     expect(jsonDecode(File(path).readAsStringSync()), {
       'enabledPlugins': {'claude-mem@thedotmack': false},
     });

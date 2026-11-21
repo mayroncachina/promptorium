@@ -48,10 +48,12 @@ class CodexProvider implements AgentProvider {
   Future<AgentRun> start(AgentStartOptions options) async {
     validateOptions(options);
     final args = ['app-server'];
-    if (options.mode == PromptMode.ask ||
-        options.mode == PromptMode.plan ||
-        options.strictMcpConfig) {
+    if (options.access.readOnly) {
       args.addAll(['-c', 'mcp_servers={}']);
+    }
+    for (final MapEntry(:key, :value)
+        in options.codex.configOverrides.entries) {
+      args.addAll(['-c', '$key=$value']);
     }
     final Process process;
     try {
@@ -77,31 +79,21 @@ class CodexProvider implements AgentProvider {
   }
 
   /// Fail closed rather than send Claude flags or silently drop a control.
+  /// Extras of another provider and app MCP are programming errors: the
+  /// services consult [capabilities] and never build them (SPEC-094 R5, R6).
   static void validateOptions(AgentStartOptions o) {
-    final unsupported = <String>[
-      if (o.maxBudgetUsd != null) 'limite monetário',
-      if (o.maxTurns != null) 'limite de turnos internos',
-      if (o.agent != null) 'perfil de agente Claude',
-      if (o.agentsJson != null) 'definições de subagentes Claude',
-      if (o.settingsFile != null) 'hooks/settings Claude',
-      if (o.mcpConfigs.isNotEmpty) 'arquivos MCP Claude',
-      if (o.tools.isNotEmpty) 'restrição de ferramentas Claude',
-      if (o.mcpAllowedTools.isNotEmpty || o.mcpDisallowedTools.isNotEmpty)
-        'regras de ferramentas MCP Claude',
-      if (o.permissionMode == ClaudePermissionMode.auto)
-        'aprovação automática Claude',
-    ];
-    if (unsupported.isNotEmpty) {
-      throw AgentUnavailable(
-        'Codex: opções ainda sem equivalente validado: '
-        '${unsupported.join(', ')}. Ajuste a configuração antes de executar.',
+    checkExtras('codex', o.extras);
+    if (o.appMcpConfigs.isNotEmpty || o.appAllowedTools.isNotEmpty) {
+      throw ArgumentError(
+        'MCP do app entregue ao Codex sem a capacidade appMcpServer '
+        '(SPEC-094 R6).',
       );
     }
     if (o.forkSession && o.resumeId == null) {
       throw const AgentUnavailable('Codex: fork exige a thread de origem.');
     }
-    if (o.autocompact != null && o.autocompact != 'auto') {
-      final raw = o.autocompact!;
+    final raw = o.codex.compactLimit;
+    if (raw != null && raw != 'auto') {
       if (!RegExp(r'^\d+[kKmM]?$').hasMatch(raw)) {
         throw const AgentUnavailable('Codex: limiar de compactação inválido.');
       }
@@ -180,16 +172,15 @@ class CodexRun implements ManagedAgentRun {
       options.mode == PromptMode.plan ||
       _permissionMode == ClaudePermissionMode.plan;
 
-  ({String sandbox, String approval}) get _policy => codexPermissionPolicy(
-    _permissionMode,
-    readOnly: _readOnly,
-    refine: options.mode == PromptMode.refine,
+  ({String sandbox, String approval}) get _policy => codexAccessPolicy(
+    _readOnly ? AgentAccess.ask : options.access,
+    extras: options.codex,
   );
   String get _sandbox => _policy.sandbox;
   String get _approval => _policy.approval;
 
   Future<void> open() async {
-    _permissionMode = options.permissionMode;
+    _permissionMode = options.access.legacyMode;
     final init = await rpc.request('initialize', {
       'clientInfo': {
         'name': 'promptorium',
@@ -245,7 +236,7 @@ class CodexRun implements ManagedAgentRun {
       );
     }
     final config = <String, dynamic>{};
-    final compact = options.autocompact;
+    final compact = options.codex.compactLimit;
     if (compact != null && compact != 'auto') {
       final unit = compact.toLowerCase();
       final mult = unit.endsWith('k')

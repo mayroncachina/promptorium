@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/core/providers/agent_provider.dart';
@@ -186,9 +185,8 @@ void main() {
         'comando',
         const AgentStartOptions(
           workingDirectory: '/w',
-          mode: PromptMode.edit,
+          mode: PromptMode.refine,
           model: 'gpt-5.6-luna',
-          permissionMode: ClaudePermissionMode.defaultMode,
         ),
         approve: true,
       );
@@ -215,7 +213,7 @@ void main() {
           workingDirectory: '/w',
           mode: PromptMode.edit,
           model: 'gpt-5.6-luna',
-          permissionMode: ClaudePermissionMode.dontAsk,
+          extras: CodexExtras(approval: 'never'),
         ),
       );
       final res = await _turn(r, 'Crie o arquivo e rode git commit.');
@@ -304,7 +302,7 @@ void main() {
         workingDirectory: '/w',
         mode: PromptMode.edit,
         model: 'gpt-5.6-luna',
-        permissionMode: ClaudePermissionMode.skipPermissions,
+        yolo: true,
       ),
     );
     final res = await _turn(r, 'Rode rm apagar.txt.');

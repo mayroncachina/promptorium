@@ -5,6 +5,9 @@ import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ImagePart;
 import 'capabilities.dart';
+import 'run_intent.dart';
+
+export 'run_intent.dart';
 
 export '../claude/claude_process.dart' show ImagePart;
 
@@ -41,37 +44,63 @@ enum PromptMode {
       values.asNameMap()[name] ?? PromptMode.ask;
 }
 
-/// How to start one agent process.
+/// How to start one agent process (SPEC-094 R4): only the app's intents,
+/// plus typed [extras] of one provider that its adapter translates.
 @immutable
 class AgentStartOptions {
   const AgentStartOptions({
     required this.workingDirectory,
     required this.mode,
+    this.yolo = false,
     this.sessionId,
     this.resumeId,
     this.forkSession = false,
     this.model,
     this.effort,
-    this.autocompact,
-    this.maxBudgetUsd,
-    this.maxTurns,
-    this.permissionMode,
-    this.agent,
     this.appendSystemPrompt,
     this.jsonSchema,
     this.environment,
-    this.settingsFile,
-    this.tools = const [],
-    this.mcpConfigs = const [],
-    this.strictMcpConfig = false,
-    this.agentsJson,
-    this.mcpAllowedTools = const [],
-    this.mcpDisallowedTools = const [],
+    this.appMcpConfigs = const [],
     this.appAllowedTools = const [],
+    this.extras,
   });
+
+  /// Options for an access intent ([AgentAccess.yolo] = edit + [yolo]).
+  factory AgentStartOptions.forAccess(
+    AgentAccess access, {
+    required String workingDirectory,
+    String? resumeId,
+    bool forkSession = false,
+    String? model,
+    String? effort,
+    String? appendSystemPrompt,
+    String? jsonSchema,
+    Map<String, String>? environment,
+    ProviderExtras? extras,
+  }) => AgentStartOptions(
+    workingDirectory: workingDirectory,
+    mode: switch (access) {
+      AgentAccess.ask => PromptMode.ask,
+      AgentAccess.plan => PromptMode.plan,
+      AgentAccess.edit || AgentAccess.yolo => PromptMode.edit,
+      AgentAccess.refine => PromptMode.refine,
+    },
+    yolo: access == AgentAccess.yolo,
+    resumeId: resumeId,
+    forkSession: forkSession,
+    model: model,
+    effort: effort,
+    appendSystemPrompt: appendSystemPrompt,
+    jsonSchema: jsonSchema,
+    environment: environment,
+    extras: extras,
+  );
 
   final String workingDirectory;
   final PromptMode mode;
+
+  /// No approvals, no sandbox (worktree only, R7).
+  final bool yolo;
 
   /// New conversation id (UUID).
   final String? sessionId;
@@ -83,34 +112,47 @@ class AgentStartOptions {
   /// Model alias / id; null or `inherit` = provider default.
   final String? model;
 
-  /// `--effort` (null = provider default).
+  /// Effort (null = provider default).
   final String? effort;
-
-  /// `--autocompact` (null = provider default).
-  final String? autocompact;
-  final double? maxBudgetUsd;
-  final int? maxTurns;
-  final ClaudePermissionMode? permissionMode;
-  final String? agent;
   final String? appendSystemPrompt;
+
+  /// Output schema; only built when the provider has `structuredOutput`.
   final String? jsonSchema;
   final Map<String, String>? environment;
-  final String? settingsFile;
-  final List<String> tools;
-  final List<String> mcpConfigs;
-  final bool strictMcpConfig;
-  final String? agentsJson;
 
-  /// MCP tools marked "Permitido" (`mcp__srv__tool`, Fase 11). Ignored by
-  /// the read-only modes ([PromptMode.ask], [PromptMode.refine]).
-  final List<String> mcpAllowedTools;
-
-  /// MCP tools marked "Bloqueado" (always applied).
-  final List<String> mcpDisallowedTools;
+  /// Config of the app's own MCP server (SPEC-052); only built when the
+  /// provider has `appMcpServer`.
+  final List<String> appMcpConfigs;
 
   /// Read tools of the app's own MCP server (SPEC-052 R3): allowed in every
   /// mode, read-only ones included, because they never write.
   final List<String> appAllowedTools;
+
+  /// Options of one provider (R4). Extras of another provider are a
+  /// programming error in the adapter (R6).
+  final ProviderExtras? extras;
+
+  /// Access intent translated by each adapter (R7).
+  AgentAccess get access => yolo
+      ? AgentAccess.yolo
+      : switch (mode) {
+          PromptMode.ask => AgentAccess.ask,
+          PromptMode.plan => AgentAccess.plan,
+          PromptMode.edit => AgentAccess.edit,
+          PromptMode.refine => AgentAccess.refine,
+        };
+
+  /// Claude extras (empty when none were given).
+  ClaudeExtras get claude => switch (extras) {
+    final ClaudeExtras e => e,
+    _ => const ClaudeExtras(),
+  };
+
+  /// Codex extras (empty when none were given).
+  CodexExtras get codex => switch (extras) {
+    final CodexExtras e => e,
+    _ => const CodexExtras(),
+  };
 }
 
 /// One running agent process (a conversation turn loop).

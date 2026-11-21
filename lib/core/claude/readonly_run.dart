@@ -99,7 +99,12 @@ Future<Result> runReadOnlyClaude(
   }
   try {
     if (chosen != 'claude') {
-      process = await agentProviderForFlow(ref, chosen, flow).start(
+      final provider = agentProviderForFlow(ref, chosen, flow);
+      final caps = provider.capabilities;
+      // R5: only what the provider supports is built (no budget without
+      // `budgetUsd`, no agent without `agentFiles`, no schema without
+      // `structuredOutput`); the 16 callers stay as they are (SPEC-100).
+      process = await provider.start(
         AgentStartOptions(
           workingDirectory: cwd,
           mode: PromptMode.ask,
@@ -112,17 +117,25 @@ Future<Result> runReadOnlyClaude(
               : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
           forkSession: options.forkSession,
           appendSystemPrompt: options.appendSystemPrompt,
-          jsonSchema: options.jsonSchema,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTurns: options.maxTurns,
-          agent: options.agent,
-          mcpConfigs: options.mcpConfigs,
-          strictMcpConfig: true,
-          mcpDisallowedTools: options.disallowedTools
-              .where(
-                (t) => !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
-              )
-              .toList(),
+          jsonSchema: caps.supports(ProviderCapability.structuredOutput)
+              ? options.jsonSchema
+              : null,
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              maxBudgetUsd: options.maxBudgetUsd,
+              maxTurns: options.maxTurns,
+              agent: options.agent,
+              mcpConfigs: options.mcpConfigs,
+              strictMcpConfig: true,
+              mcpDisallowedTools: options.disallowedTools
+                  .where(
+                    (t) =>
+                        !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
+                  )
+                  .toList(),
+            ),
+          ),
         ),
       );
     } else {
