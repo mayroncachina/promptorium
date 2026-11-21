@@ -44,6 +44,13 @@ abstract final class AppSettingKeys {
   /// right after a restart (see `RateLimitController`).
   static const lastRateLimit = 'usage.rateLimit';
 
+  /// When and how [lastRateLimit] was read (JSON `at`, `via`; SPEC-097 R6).
+  static const lastRateLimitRead = 'usage.rateLimitRead';
+
+  /// Last Codex quota reading (`account/rateLimits/read` merged with the
+  /// updates; JSON of `QuotaSnapshot`, SPEC-097 R3).
+  static const codexLastRateLimit = 'codex.lastRateLimit';
+
   /// Divisions of the ruler of each window (rise of the use ÷ cost of the
   /// turns between two readings; JSON list, the last 20; SPEC-081 R3).
   static const quotaRulerFiveHour = 'quota.ruler.five_hour';

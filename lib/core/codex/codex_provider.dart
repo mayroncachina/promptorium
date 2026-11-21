@@ -10,6 +10,7 @@ import '../providers/agent_provider.dart';
 import '../providers/capabilities.dart';
 import '../providers/permission_policy.dart';
 import 'codex_neutral.dart';
+import 'codex_quota.dart' show codexRateLimitUpdates;
 import 'codex_rpc.dart';
 
 class CodexModel {
@@ -475,9 +476,11 @@ class CodexRun implements ManagedAgentRun {
                     .clamp(0, 1 << 62),
         };
       case 'account/rateLimits/updated':
-        // R5, P5: passed on, never stored (the session drops it).
+        // R5, P5: passed on, never stored (the session drops it); the quota
+        // store merges it into the last reading (SPEC-097 R2).
         final quota = codexQuota(p);
         if (quota != null) _emit(quota);
+        codexRateLimitUpdates.add(p);
       case 'thread/compacted':
         // Deprecated in 0.170 (the `contextCompaction` item replaced it).
         _emit(

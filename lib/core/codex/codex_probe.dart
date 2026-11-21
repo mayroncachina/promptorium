@@ -160,7 +160,7 @@ Future<CodexHandshake> codexHandshake({
   } on ProcessException {
     throw StateError('Codex CLI não encontrado.');
   }
-  final rpc = CodexRpc(process, timeout: timeout);
+  final rpc = CodexRpc(process, timeout: timeout, ephemeral: true);
   String? warning;
   final sub = rpc.messages.stream.listen((m) {
     if (m['method'] == 'configWarning') {
