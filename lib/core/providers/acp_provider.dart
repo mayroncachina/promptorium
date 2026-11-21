@@ -50,16 +50,11 @@ class AcpProvider implements AgentProvider {
 
   @override
   Future<AgentRun> start(AgentStartOptions options) async {
+    // ACP has no extras: any extras are a programming error (R6).
+    checkExtras(id, options.extras);
     if (options.forkSession ||
-        options.maxBudgetUsd != null ||
-        options.maxTurns != null ||
-        options.agent != null ||
-        options.settingsFile != null ||
-        options.mcpConfigs.isNotEmpty ||
-        options.mcpAllowedTools.isNotEmpty ||
-        options.mcpDisallowedTools.isNotEmpty ||
-        (options.permissionMode != null &&
-            options.permissionMode != ClaudePermissionMode.defaultMode)) {
+        options.yolo ||
+        options.appMcpConfigs.isNotEmpty) {
       throw AgentUnavailable(
         '$displayName: opções sem equivalente ACP validado. Ajuste a configuração antes de executar.',
       );

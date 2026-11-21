@@ -69,10 +69,7 @@ void main() {
       isNot(contains('YOLO')),
     );
     expect(
-      codexPermissionPolicy(
-        ClaudePermissionMode.skipPermissions,
-        readOnly: true,
-      ).sandbox,
+      codexAccessPolicy(AgentAccess.ask).sandbox,
       'read-only',
     );
   });
@@ -92,7 +89,7 @@ void main() {
               mode: PromptMode.edit,
               resumeId: operation == 'start' ? null : 'parent-thread',
               forkSession: operation == 'fork',
-              permissionMode: ClaudePermissionMode.skipPermissions,
+              yolo: true,
             ),
           );
       run.events.listen((_) {});
@@ -118,7 +115,7 @@ void main() {
         const AgentStartOptions(
           workingDirectory: '/w',
           mode: PromptMode.edit,
-          permissionMode: ClaudePermissionMode.skipPermissions,
+          yolo: true,
         ),
       ),
       throwsA(isA<AgentUnavailable>()),

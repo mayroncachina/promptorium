@@ -263,7 +263,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       }
       final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
       final prefs = ref.read(runPrefsProvider);
-      final claude = conv.provider == 'claude';
+      final caps = provider.capabilities;
       run = await provider.start(
         AgentStartOptions(
           workingDirectory: ws.path,
@@ -277,10 +277,17 @@ class CompareController extends Notifier<Map<int, CompareView>> {
           effort: effortArg(
             providerEffort(ref, conv.provider, RunKind.conversation),
           ),
-          autocompact: claude ? prefs.autocompact : null,
-          mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: mcp.disallowed,
-          settingsFile: claude ? await runSettingsFile(ref) : null,
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: prefs.autocompact,
+              mcpAllowedTools: mcp.allowed,
+              mcpDisallowedTools: mcp.disallowed,
+              settingsFile: caps.supports(ProviderCapability.managedHooks)
+                  ? await runSettingsFile(ref)
+                  : null,
+            ),
+          ),
         ),
       );
     } catch (e) {

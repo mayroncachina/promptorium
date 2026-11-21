@@ -42,7 +42,8 @@ final agentProvidersProvider = Provider<List<AgentProvider>>((ref) {
         starter: ref.watch(acpStarterProvider),
       ),
     CodexProvider(
-      executable: ref.watch(codexExecutableProvider),
+      // Read on use: the registry never starts the CLI detection itself.
+      resolveExecutable: () => ref.read(codexExecutableProvider),
       starter: ref.watch(codexProcessStarterProvider),
     ),
   ];

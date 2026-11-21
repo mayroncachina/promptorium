@@ -529,7 +529,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final prefs = ref.read(runPrefsProvider);
     // SPEC-052 R1, R8: the app's MCP server for Claude conversations;
     // "Perguntar" only reads. "Refinar" is an internal run (out of scope).
-    final mcpLink = conv.provider == 'claude' && mode != PromptMode.refine
+    final caps = provider.capabilities;
+    final mcpLink =
+        caps.supports(ProviderCapability.appMcpServer) &&
+            mode != PromptMode.refine
         ? await openMcpRun(
             ref,
             workspaceId: ws.id,
@@ -551,15 +554,23 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           effort: effortArg(
             providerEffort(ref, conv.provider, RunKind.conversation),
           ),
-          autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
-          mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: [...mcp.disallowed, ...?mcpLink?.disallowedTools],
-          mcpConfigs: [?mcpLink?.configPath],
+          appMcpConfigs: [?mcpLink?.configPath],
           appAllowedTools: mcpLink?.allowedTools ?? const [],
-          // Other providers refuse Claude's --settings.
-          settingsFile: conv.provider == 'claude'
-              ? await runSettingsFile(ref)
-              : null,
+          // R5: each provider gets only its own extras.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: prefs.autocompact,
+              mcpAllowedTools: mcp.allowed,
+              mcpDisallowedTools: [
+                ...mcp.disallowed,
+                ...?mcpLink?.disallowedTools,
+              ],
+              settingsFile: caps.supports(ProviderCapability.managedHooks)
+                  ? await runSettingsFile(ref)
+                  : null,
+            ),
+          ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
         ),

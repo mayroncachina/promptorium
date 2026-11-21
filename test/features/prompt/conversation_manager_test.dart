@@ -168,7 +168,7 @@ void main() {
       expect(run.options.mode, PromptMode.ask);
       expect(run.options.model, 'haiku');
       expect(run.options.effort, 'medium');
-      expect(run.options.autocompact, '200k');
+      expect(run.options.claude.autocompact, '200k');
       expect(run.options.sessionId, '00000000-0000-4000-8000-000000000001');
       expect(run.options.resumeId, isNull);
       expect(run.sent, ['Como funciona o parser?\nDetalhes…']);
@@ -263,7 +263,7 @@ void main() {
       await m.create(workspace: ws, text: 'de novo');
       expect(provider.last.options.model, 'opus');
       expect(provider.last.options.effort, isNull); // CLI default
-      expect(provider.last.options.autocompact, 'auto');
+      expect(provider.last.options.claude.autocompact, 'auto');
       expect(c.read(promptDraftProvider).model, 'opus');
     });
 

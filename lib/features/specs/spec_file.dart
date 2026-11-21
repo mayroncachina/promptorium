@@ -35,7 +35,11 @@ SpecStatus? specStatusFromValue(String? value) {
     'ideia' || 'idea' => SpecStatus.idea,
     'rascunho' || 'draft' => SpecStatus.draft,
     'em-revisao' || 'revisao' || 'review' => SpecStatus.review,
-    'aprovada' || 'aprovado' || 'approved' => SpecStatus.approved,
+    // "em implementação": approved and being built (no status of its own).
+    'aprovada' ||
+    'aprovado' ||
+    'approved' ||
+    'em-implementacao' => SpecStatus.approved,
     'concluida' || 'feita' || 'done' => SpecStatus.done,
     'arquivada' || 'arquivado' || 'archived' => SpecStatus.archived,
     _ => null,

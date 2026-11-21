@@ -1384,27 +1384,47 @@ class SessionManager extends Notifier<SessionManagerState> {
             );
           }
         }
-        final effective = AgentStartOptions(
+        final provider = agentProviderForFlow(
+          ref,
+          session.provider,
+          session.specId == null ? AppFlow.sessions : AppFlow.runSpec,
+        );
+        final caps = provider.capabilities;
+        final mode = options.permissionMode;
+        // R7: the stored mode becomes the app's access; Claude-only modes
+        // (`auto`, `dontAsk`) fail closed.
+        final access = mode == null
+            ? AgentAccess.edit
+            : AgentAccess.fromClaudeMode(mode) ??
+                  (throw AgentUnavailable(
+                    '${provider.displayName}: o modo ${mode.cliValue} é só '
+                    'do Claude Code.',
+                  ));
+        final compact = saved['autocompact'] as String?;
+        final effective = AgentStartOptions.forAccess(
+          access,
           workingDirectory: cwd,
-          mode: PromptMode.edit,
           resumeId: externalId,
           forkSession: options.forkSession,
           model: options.model,
           effort: options.effort,
-          permissionMode: options.permissionMode,
           environment: processEnv,
-          autocompact: saved['autocompact'] as String?,
-          agent: options.agent,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTurns: options.maxTurns,
-          mcpAllowedTools: options.allowedTools,
-          mcpDisallowedTools: options.disallowedTools,
+          // R5: agent, budget and turns only where the provider has them.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: compact,
+              agent: options.agent,
+              maxBudgetUsd: options.maxBudgetUsd,
+              maxTurns: options.maxTurns,
+              mcpAllowedTools: options.allowedTools,
+              mcpDisallowedTools: options.disallowedTools,
+              permissionMode: mode,
+            ),
+            codex: CodexExtras(compactLimit: compact),
+          ),
         );
-        final run = await agentProviderForFlow(
-          ref,
-          session.provider,
-          session.specId == null ? AppFlow.sessions : AppFlow.runSpec,
-        ).start(effective);
+        final run = await provider.start(effective);
         process = run as ManagedAgentRun;
         await _repo.setRunConfig(
           id,
@@ -1414,8 +1434,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             'permissionMode': options.permissionMode?.cliValue,
             'model': session.model,
             'effort': session.effort,
-            if (effective.autocompact != null)
-              'autocompact': effective.autocompact,
+            'autocompact': ?compact,
           }),
         );
       } else if (session.provider == 'claude') {
