@@ -1,7 +1,7 @@
 ---
 id: SPEC-099
 status: rascunho
-versao: 0.23.0
+versao: 0.24.0
 tipo: recurso
 epico: 332
 relacionada: 83
