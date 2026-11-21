@@ -1,7 +1,7 @@
 ---
 id: SPEC-103
 status: rascunho
-versao: 0.23.0
+versao: 0.24.0
 tipo: melhoria
 epico: 332
 issue: 348
