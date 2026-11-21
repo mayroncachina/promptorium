@@ -1,6 +1,6 @@
 ---
 id: SPEC-095
-status: em implementação
+status: concluida
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -107,14 +107,14 @@ Esta spec cria **tipos neutros** para o que não bate (arquivo, comando, context
 
 ## Critérios de aceite
 
-- [ ] Cada `changes[]` de um `fileChange` real (fixture da SPEC-093) vira um `FileChangeEvent` com caminho, tipo e diff; um `Edit`/`Write`/`MultiEdit` do Claude vira o mesmo tipo [R1, R8] verificar: `flutter test test/core/providers/neutral_events_test.dart`.
-- [ ] `commandExecution` com saída e `exitCode` vira `CommandEvent`; o `Bash` do Claude também [R2, R8] verificar: o mesmo teste.
-- [ ] Uma sessão Codex reproduzida pelo `fake_codex` mostra o cartão de edição com arquivo e diff, o cartão de comando com código de saída, e as Atividades contam os arquivos do turno [R7, R9] verificar: `flutter test test/features/sessions/codex_neutral_timeline_test.dart`.
-- [ ] Uma sessão Claude gravada abre igual a antes: timeline, Replay e Atividades [R10] verificar: testes de widget atuais sem mudar expectativas.
-- [ ] O medidor de contexto de uma sessão Codex mostra a leitura do `tokenUsage.last` com a janela do modelo, substitui a anterior e fica "aguardando medição" depois de `thread/compacted` [R3, R4] verificar: `flutter test test/features/context/context_tracker_codex_test.dart`.
-- [ ] `rate_limit_event` e `account/rateLimits/updated` viram `QuotaEvent` com as janelas certas [R5] verificar: teste de conversão.
-- [ ] Um item desconhecido aparece recolhido na timeline com o tipo [R6] verificar: teste de widget.
-- [ ] Nenhuma migração; eventos gravados levam `provider`, `v` e passam pelo `redactJson`; diff acima do limite é cortado com a marca [R11, R12] verificar: teste de persistência.
+- [x] Cada `changes[]` de um `fileChange` real (fixture da SPEC-093) vira um `FileChangeEvent` com caminho, tipo e diff; um `Edit`/`Write`/`MultiEdit` do Claude vira o mesmo tipo [R1, R8] verificar: `flutter test test/core/providers/neutral_events_test.dart`.
+- [x] `commandExecution` com saída e `exitCode` vira `CommandEvent`; o `Bash` do Claude também [R2, R8] verificar: o mesmo teste.
+- [x] Uma sessão Codex reproduzida pelo `fake_codex` mostra o cartão de edição com arquivo e diff, o cartão de comando com código de saída, e as Atividades contam os arquivos do turno [R7, R9] verificar: `flutter test test/features/sessions/codex_neutral_timeline_test.dart`.
+- [x] Uma sessão Claude gravada abre igual a antes: timeline, Replay e Atividades [R10] verificar: testes de widget atuais sem mudar expectativas.
+- [x] O medidor de contexto de uma sessão Codex mostra a leitura do `tokenUsage.last` com a janela do modelo, substitui a anterior e fica "aguardando medição" depois de `thread/compacted` [R3, R4] verificar: `flutter test test/features/context/context_tracker_codex_test.dart`.
+- [x] `rate_limit_event` e `account/rateLimits/updated` viram `QuotaEvent` com as janelas certas [R5] verificar: teste de conversão.
+- [x] Um item desconhecido aparece recolhido na timeline com o tipo [R6] verificar: teste de widget.
+- [x] Nenhuma migração; eventos gravados levam `provider`, `v` e passam pelo `redactJson`; diff acima do limite é cortado com a marca [R11, R12] verificar: teste de persistência.
 
 ## Telas
 
