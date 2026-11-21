@@ -1,6 +1,6 @@
 ---
 id: SPEC-095
-status: aprovada
+status: em implementação
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -60,11 +60,11 @@ Esta spec cria **tipos neutros** para o que não bate (arquivo, comando, context
 
 ## Decisões em aberto
 
-- P1 · **Onde convertem os eventos do Claude.** (a) No parse (`AgentEvent.expand` já devolve neutros); (b) num conversor chamado por quem consome. **Recomendação:** (a). Um lugar só, e os consumidores deixam de conhecer nomes de ferramenta do Claude.
-- P2 · **Nome do tipo gravado.** `promptorium_file_change` (prefixo do app, como o `promptorium_run` da SPEC-087) ou `file_change`. **Recomendação:** o prefixo `promptorium_`, para nunca colidir com um tipo futuro do Claude.
-- P3 · **Limite do diff gravado.** **Recomendação:** 2.000 linhas ou 256 KB por evento, o que vier antes, igual ao limite de saída de comando que o app já usa para logs.
-- P4 · **`before`/`after` do Codex.** O Codex manda só o diff. **Recomendação:** não guardar conteúdo inteiro; o Replay reconstrói o "antes" aplicando o diff ao contrário sobre o arquivo do passo seguinte, e mostra "conteúdo anterior indisponível" se o diff não aplicar.
-- P5 · **Cota no stream da sessão.** `QuotaEvent` é gravado na sessão ou só repassado ao rodapé? **Recomendação:** só repassado (a SPEC-097 persiste a última leitura em `app_settings`), para não encher `session_events`.
+- P1 · **Onde convertem os eventos do Claude.** (a) No parse (`AgentEvent.expand` já devolve neutros); (b) num conversor chamado por quem consome. **Decidido:** (a). A conversão do Claude fica num lugar só (`claude_neutral.dart`), chamada pelo parse: o `ToolUseBlock` já traz `fileChanges`/`command`, o `AssistantMessage` traz `contextUsage` e o `RateLimit` traz `quota`. Os consumidores deixam de conhecer nomes de ferramenta do Claude.
+- P2 · **Nome do tipo gravado.** `promptorium_file_change` (prefixo do app, como o `promptorium_run` da SPEC-087) ou `file_change`. **Decidido:** o prefixo `promptorium_` (`promptorium_file_change`, `promptorium_command`, `promptorium_context_usage`, `promptorium_compaction`, `promptorium_quota`, `promptorium_other_item`), para nunca colidir com um tipo futuro do Claude.
+- P3 · **Limite do diff gravado.** **Decidido:** 2.000 linhas ou 256 KB por evento, o que vier antes. O mesmo limite vale para a saída de comando gravada.
+- P4 · **`before`/`after` do Codex.** O Codex manda só o diff. **Decidido:** não guardar conteúdo inteiro; o Replay reconstrói o "antes" aplicando o diff ao contrário sobre o arquivo do passo seguinte, e mostra "conteúdo anterior indisponível" se o diff não aplicar.
+- P5 · **Cota no stream da sessão.** `QuotaEvent` é gravado na sessão ou só repassado ao rodapé? **Decidido:** só repassado. O `QuotaEvent` não é gravado em `session_events`; a SPEC-097 persiste a última leitura em `app_settings`.
 
 ## Design
 
