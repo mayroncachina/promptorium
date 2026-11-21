@@ -122,7 +122,7 @@ void main() {
           throw const ProcessException('codex', []);
         }
         if (args.first == '--version') {
-          return ProcessResult(1, 0, 'codex-cli 0.163.0', '');
+          return ProcessResult(1, 0, 'codex-cli 0.170.0', '');
         }
         if (args.first == 'app-server') {
           return ProcessResult(
@@ -181,7 +181,7 @@ void main() {
           processRunnerProvider.overrideWithValue((exe, args) async {
             if (exe != '/mock/codex') throw ProcessException(exe, args);
             if (args.first == '--version') {
-              return ProcessResult(1, 0, 'codex-cli 0.163.0', '');
+              return ProcessResult(1, 0, 'codex-cli 0.170.0', '');
             }
             return ProcessResult(1, 0, 'help', '');
           }),

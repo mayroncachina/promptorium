@@ -42,7 +42,9 @@ void main() {
     expect(mode.initialValue, ClaudePermissionMode.defaultMode);
     await tester.tap(find.byKey(const ValueKey('new-session-mode')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('YOLO — sem aprovações e sem sandbox').last);
+    await tester.tap(
+      find.textContaining('YOLO — sem aprovações e sem sandbox').last,
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('codex --yolo:'), findsOneWidget);
     expect(

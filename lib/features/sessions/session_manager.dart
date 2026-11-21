@@ -469,9 +469,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final effort =
         r.effort ??
-        (provider == 'claude'
-            ? ref.read(runPrefsProvider).effort(RunKind.session)
-            : 'default');
+        providerEffortFrom(
+          ref.read(runPrefsProvider),
+          ref.read(appSettingsProvider),
+          provider,
+          RunKind.session,
+        );
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
@@ -479,7 +482,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       branch: branch,
       model: r.model,
       provider: provider,
-      externalId: provider == 'claude' ? id : null,
+      externalId: isClaudeCode(provider) ? id : null,
       effort: effort,
       agentName: r.agent,
       title: title,
@@ -600,7 +603,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> compactNow(String id, {String? focus}) async {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não existe.');
-    if (s.provider != 'claude') {
+    if (!isClaudeCode(s.provider)) {
       throw const SessionException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -899,7 +902,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ClaudeOptions(
         resumeId: id,
         model: _model(s.model),
-        effort: s.provider != 'claude'
+        effort: !isClaudeCode(s.provider)
             ? effortArg(s.effort)
             : _effort(s.effort),
         agent: s.agentName,
@@ -1009,7 +1012,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
-        effort: parent.provider != 'claude'
+        effort: !isClaudeCode(parent.provider)
             ? effortArg(parent.effort)
             : _effort(parent.effort),
         agent: parent.agentName,
@@ -1122,7 +1125,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final session = await _repo.getById(id);
     final current = _procs[id];
     if (session != null &&
-        session.provider != 'claude' &&
+        !isClaudeCode(session.provider) &&
         current != null &&
         (current.busy ||
             current.pending.isNotEmpty ||
@@ -1132,7 +1135,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       );
     }
     await _repo.setPermissionMode(id, mode.cliValue);
-    if (session != null && session.provider != 'claude') {
+    if (session != null && !isClaudeCode(session.provider)) {
       if (session.runConfig != null) {
         final config = jsonDecode(session.runConfig!) as Map<String, dynamic>;
         config['permissionMode'] = mode.cliValue;
@@ -1364,7 +1367,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final ManagedAgentRun process;
     McpRunLink? mcpLink;
     try {
-      if (session.provider != 'claude') {
+      if (!isClaudeCode(session.provider)) {
         final saved = session.runConfig == null
             ? <String, dynamic>{}
             : jsonDecode(session.runConfig!) as Map<String, dynamic>;
@@ -1437,7 +1440,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             'autocompact': ?compact,
           }),
         );
-      } else if (session.provider == 'claude') {
+      } else if (isClaudeCode(session.provider)) {
         final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
         // SPEC-052 R1: the app's MCP server, with a token of this process.
         mcpLink = await openMcpRun(
@@ -1506,7 +1509,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _appEvent(
       id,
       ContextEventTypes.runEvent(
-        autocompact: session.provider == 'claude'
+        autocompact: isClaudeCode(session.provider)
             ? ref.read(runPrefsProvider).autocompact
             : null,
         model: session.model,

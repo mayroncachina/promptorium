@@ -1,3 +1,5 @@
+import '../../core/providers/capabilities.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -133,7 +135,8 @@ class FooterStatsController extends Notifier<FooterStats> {
             ).where((p) => p.id == providerId).firstOrNull?.name ??
             providerId,
     };
-    final rate = providerId == 'claude' ? ref.watch(rateLimitProvider) : null;
+    // The Claude CLI's rate limits; Codex quota arrives with SPEC-097.
+    final rate = isClaudeCode(providerId) ? ref.watch(rateLimitProvider) : null;
     final mcp = ref.watch(mcpStatusBoardProvider);
 
     int? active;

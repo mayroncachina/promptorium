@@ -6,8 +6,20 @@ String permissionModeLabel(
   ClaudePermissionMode? mode, {
   String provider = 'claude',
 }) {
-  if (provider == 'codex' && mode == ClaudePermissionMode.skipPermissions) {
-    return 'YOLO — sem aprovações e sem sandbox';
+  if (provider == 'codex') {
+    // R7: the policy of each mode, as the App Server receives it.
+    final access = AgentAccess.fromClaudeMode(mode);
+    if (access != null) {
+      final p = codexAccessPolicy(access);
+      final what = switch (access) {
+        AgentAccess.yolo => 'YOLO — sem aprovações e sem sandbox',
+        AgentAccess.ask ||
+        AgentAccess.plan => 'planejar — o sandbox impede escrita',
+        AgentAccess.edit => 'editar — escreve com confirmação',
+        AgentAccess.refine => 'perguntar — cada comando pede aprovação',
+      };
+      return '$what · ${p.sandbox} · ${p.approval}';
+    }
   }
   return switch (mode) {
     null || ClaudePermissionMode.defaultMode => 'perguntar',

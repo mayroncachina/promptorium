@@ -319,7 +319,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     );
     // SPEC-087 R7, R11: each side records what its own execution received.
     final runJson = ContextEventTypes.runEvent(
-      autocompact: conv.provider == 'claude'
+      autocompact: isClaudeCode(conv.provider)
           ? ref.read(runPrefsProvider).autocompact
           : null,
       model: side.model,

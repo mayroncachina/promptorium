@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart' show planWindowExpired;
 import '../theme/tokens.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../core/codex/codex_cli.dart';
+import '../../core/codex/codex_probe.dart' show codexSandboxFixCommand;
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../data/providers.dart';
@@ -106,7 +108,8 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
 
     final limitOn = s.limitRejected && !planWindowExpired(s.limitResetsAt, now);
     final right = <Widget>[
-      if (s.providerId != 'claude')
+      // The Claude CLI's rate limits; Codex quota arrives with SPEC-097.
+      if (!isClaudeCode(s.providerId))
         const Text('Consumo indisponível')
       else ...[
         _window(
@@ -301,6 +304,27 @@ class _UsageBar extends StatelessWidget {
   }
 }
 
+final _compact = TextButton.styleFrom(
+  padding: const EdgeInsets.symmetric(horizontal: 6),
+  minimumSize: const Size(0, 26),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  textStyle: const TextStyle(fontSize: 11),
+);
+
+bool _needsAction(ProviderAvailability? a) =>
+    a != null && (!a.available || a.sandboxWarning != null);
+
+/// Command the user runs to fix it (the app never runs it, R7a, R10).
+String? _fixCommand(ProviderAvailability? a) {
+  if (a == null) return null;
+  if (a.sandboxWarning != null) return codexSandboxFixCommand;
+  if (a.status == ProviderStatus.incompatible &&
+      a.message.contains('codex update')) {
+    return 'codex update';
+  }
+  return null;
+}
+
 class _ProviderSelector extends ConsumerWidget {
   const _ProviderSelector({
     required this.text,
@@ -386,14 +410,30 @@ class _ProviderSelector extends ConsumerWidget {
                   final availability = ref.watch(
                     providerAvailabilityProvider(p.id),
                   );
+                  final a = availability.value;
                   final status = availability.when(
                     data: (v) => v.label,
                     error: (_, _) => 'não verificado',
                     loading: () => 'verificando…',
                   );
+                  // R10, R7a: why it is not usable, or what to watch for.
+                  final notes = [
+                    if (a != null && !a.available) (a.message, AppColors.red),
+                    if (a?.version != null && a!.available)
+                      ('versão ${a.version}', AppColors.textMuted),
+                    if (a?.warning != null) (a!.warning!, AppColors.amber),
+                    if (a?.sandboxWarning != null)
+                      (
+                        'Sandbox do Codex indisponível: Perguntar, Planejar e '
+                            'Editar não rodam; só worktree com acesso total. '
+                            'Para liberar: $codexSandboxFixCommand',
+                        AppColors.amber,
+                      ),
+                  ];
                   return SizedBox(
-                    width: 320,
+                    width: 340,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
                           p.id == selected
@@ -403,11 +443,53 @@ class _ProviderSelector extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            '${p.displayName} · $status',
-                            maxLines: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('${p.displayName} · $status', maxLines: 2),
+                              for (final (text, color) in notes)
+                                Text(
+                                  text,
+                                  style: TextStyle(fontSize: 11, color: color),
+                                ),
+                            ],
                           ),
                         ),
+                        if (_needsAction(a))
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                key: ValueKey(
+                                  'footer-provider-recheck-${p.id}',
+                                ),
+                                onPressed: () {
+                                  if (p.id == 'codex') {
+                                    ref.invalidate(codexCliInfoProvider);
+                                  }
+                                  ref.invalidate(
+                                    providerAvailabilityProvider(p.id),
+                                  );
+                                  Navigator.pop(context);
+                                },
+                                style: _compact,
+                                child: const Text('Verificar de novo'),
+                              ),
+                              if (_fixCommand(a) case final cmd?)
+                                TextButton(
+                                  key: ValueKey('footer-provider-copy-${p.id}'),
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: cmd),
+                                    );
+                                    if (context.mounted) Navigator.pop(context);
+                                  },
+                                  style: _compact,
+                                  child: const Text('Copiar comando'),
+                                ),
+                            ],
+                          ),
                       ],
                     ),
                   );

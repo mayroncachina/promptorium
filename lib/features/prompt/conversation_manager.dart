@@ -287,7 +287,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> compactNow(int id, {String? focus}) async {
     final conv = await _repo.getById(id);
     if (conv == null) throw ConversationException('Conversa $id não existe.');
-    if (conv.provider != 'claude') {
+    if (!isClaudeCode(conv.provider)) {
       throw const ConversationException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -592,7 +592,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     _runs[conv.id] = r;
     // SPEC-087 R7: what this execution received (effective threshold).
     final runJson = ContextEventTypes.runEvent(
-      autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
+      autocompact: isClaudeCode(conv.provider) ? prefs.autocompact : null,
       model: conv.model,
       provider: conv.provider,
     );
