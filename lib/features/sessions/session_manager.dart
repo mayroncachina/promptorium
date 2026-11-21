@@ -2054,7 +2054,19 @@ class SessionManager extends Notifier<SessionManagerState> {
         ref.invalidate(sessionChangesProvider(id));
         // SPEC-084 R1: the end of the turn (not awaited: the next start
         // waits for it in the restore queue of the worktree).
-        unawaited(_restore.end(sessionId: id));
+        // SPEC-096 R10, R10a: what the Codex left uncommitted in its
+        // worktree is committed by the app at the end of the turn, before
+        // the end of the point is captured (in the same queue).
+        final codex = p.process is CodexRun;
+        final turnEnd = _restore.end(
+          sessionId: id,
+          beforeEnd: codex
+              ? () => _codexTurnCommit(id, p, e.result).catchError(
+                  (Object err) =>
+                      debugPrint('sessão $id: commit do app — $err'),
+                )
+              : null,
+        );
         _notify(
           e.isSuccess
               ? 'Sessão concluída'
@@ -2064,19 +2076,12 @@ class SessionManager extends Notifier<SessionManagerState> {
           p.title,
           id,
         );
-        // SPEC-096 R10, R10a: what the Codex left uncommitted in its
-        // worktree is committed by the app at the end of the turn.
-        if (p.process is CodexRun) {
-          unawaited(
-            _codexTurnCommit(id, p, e.result).catchError(
-              (Object e) => debugPrint('sessão $id: commit do app — $e'),
-            ),
-          );
-        }
-        // SPEC-085 R2: no hook, the turn's commits are checked now.
+        // SPEC-085 R2: no hook, the turn's commits are checked now (after
+        // the app's commit of a Codex turn, so it is checked too).
         if (!_secretHooks.contains(id)) {
           unawaited(
-            _secretTurnCheck(id)
+            (codex ? turnEnd : Future<void>.value())
+                .then((_) => _secretTurnCheck(id))
                 .catchError((Object e) => debugPrint('sessão $id: vigia — $e')),
           );
         }
