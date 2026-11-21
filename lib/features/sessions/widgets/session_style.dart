@@ -69,6 +69,30 @@ String formatRunCost(
     ? formatCost(v)
     : unavailable;
 
+/// The cost of several runs together, as the Início "Hoje" card shows it
+/// (SPEC-097 R9, decision 5): only the providers with cost in US\$ add up,
+/// and the runs of the others (the Codex) never count as "\$0.00". With no
+/// priced run the total is [unavailable]; with some unpriced runs the sum
+/// gets a " +", as in the cost ranking.
+String formatRunsCost(
+  Iterable<Session> runs, {
+  String unavailable = 'indisponível',
+}) {
+  var sum = 0.0;
+  var priced = 0;
+  var unpriced = 0;
+  for (final s in runs) {
+    if (capabilitiesFor(s.provider).supports(ProviderCapability.costUsd)) {
+      priced++;
+      sum += s.costUsd;
+    } else {
+      unpriced++;
+    }
+  }
+  if (priced == 0 && unpriced > 0) return unavailable;
+  return unpriced > 0 ? '${formatCost(sum)} +' : formatCost(sum);
+}
+
 /// `12m 40s`, `1h 05m`, `45s`.
 String formatDuration(Duration d) {
   if (d.isNegative) d = Duration.zero;
