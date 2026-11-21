@@ -100,10 +100,8 @@ void main() {
         )['params']['threadId'],
         'external-0',
       );
-      expect(
-        servers.last.writtenJson.last['params']['sandbox'],
-        'danger-full-access',
-      );
+      // SPEC-096 R10: the thread reopens read-only; YOLO goes per turn.
+      expect(servers.last.writtenJson.last['params']['sandbox'], 'read-only');
       await settle();
       final child = await m.fork(id, prompt: 'Continue');
       await settle();

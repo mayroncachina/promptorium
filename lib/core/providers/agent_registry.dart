@@ -4,6 +4,7 @@ import '../../data/providers.dart';
 import '../claude/claude_cli.dart';
 import '../codex/codex_cli.dart';
 import '../codex/codex_provider.dart';
+import '../update/update_check.dart' show appVersionProvider;
 import '../claude/claude_process.dart' show ProcessStarter;
 import 'acp_provider.dart';
 import 'agent_provider.dart';
@@ -45,6 +46,8 @@ final agentProvidersProvider = Provider<List<AgentProvider>>((ref) {
       // Read on use: the registry never starts the CLI detection itself.
       resolveExecutable: () => ref.read(codexExecutableProvider),
       starter: ref.watch(codexProcessStarterProvider),
+      // SPEC-093 D13: the app's version in `clientInfo`.
+      clientVersion: () => ref.read(appVersionProvider).value,
     ),
   ];
 });

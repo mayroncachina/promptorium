@@ -472,6 +472,13 @@ class Result extends AgentEvent {
   final String? result;
 
   bool get isSuccess => subtype == 'success' && !isError;
+
+  /// The turn was interrupted (Codex `turn/interrupt`): not a failure, it
+  /// can be resumed (SPEC-096 R7, R12).
+  bool get isInterrupted => subtype == 'interrupted';
+
+  /// Who interrupted it (`user` = "Interromper", SPEC-096 P3).
+  String? get interruptReason => _str(json['interrupt_reason']);
 }
 
 /// Anything not recognised (or an invalid line, see [raw]).
