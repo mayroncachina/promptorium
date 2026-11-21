@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -413,8 +415,9 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       String key,
       T value,
       List<(T, String)> items,
-      ValueChanged<T> onChanged,
-    ) => Padding(
+      ValueChanged<T> onChanged, {
+      Widget? Function(T)? leading,
+    }) => Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -453,7 +456,17 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                 for (final (v, l) in items)
                   DropdownMenuItem(
                     value: v,
-                    child: Text(l, overflow: TextOverflow.ellipsis),
+                    child: Row(
+                      children: [
+                        if (leading?.call(v) case final w?) ...[
+                          w,
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(l, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => onChanged(v as T)),
@@ -509,6 +522,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
             ),
           ],
           _setProvider,
+          leading: (v) => hasProviderIdentity(v) ? ProviderLogo(v) : null,
         ),
       if (flowLocked)
         Padding(

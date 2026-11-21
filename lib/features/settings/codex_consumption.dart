@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../ui/providers/provider_logos.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/run_prefs.dart';
@@ -203,6 +206,8 @@ class CodexCapabilitiesCard extends StatelessWidget {
   Widget build(BuildContext context) => AgentCard(
     title: 'O que o Codex faz neste app',
     children: [
+      Align(alignment: Alignment.centerLeft, child: ProviderChip('codex')),
+      const SizedBox(height: 6),
       const Text(
         'Capacidades comprovadas no 0.170 (SPEC-093). Não testado conta como '
         'não suportado.',
@@ -270,8 +275,16 @@ class ProviderTabLabel extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(label, style: const TextStyle(fontSize: 12));
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (hasProviderIdentity(provider)) ...[
+        ProviderLogo(provider),
+        const SizedBox(width: 6),
+      ],
+      Text(label, style: const TextStyle(fontSize: 12)),
+    ],
+  );
 }
 
 /// Configurações → Provedores: the Codex version, its warnings and the
@@ -287,6 +300,8 @@ class CodexStatusCard extends ConsumerWidget {
     return AgentCard(
       title: 'Provedores · Codex',
       children: [
+        Align(alignment: Alignment.centerLeft, child: ProviderChip('codex')),
+        const SizedBox(height: 6),
         Text(
           a.isLoading
               ? 'Verificando o Codex…'

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../ui/theme/tokens.dart';
@@ -392,7 +395,11 @@ class _SideColumn extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.panel,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
+            // R14c: the border of each side in the provider's color.
+            border: Border.all(
+              color: providerIdentityColor(compareSidesProviderId)!
+                  .withValues(alpha: 0.55),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -456,6 +463,10 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           CompareLetter(s.letter),
+          const SizedBox(width: 8),
+          // R15: who answers on this side (Comparar runs Claude Code only
+          // for now; SPEC-096 brings the other provider).
+          ProviderChip(compareSidesProviderId, dense: true),
           const SizedBox(width: 8),
           Flexible(
             child: Text.rich(
@@ -661,3 +672,6 @@ class _SideContext extends StatelessWidget {
     );
   }
 }
+
+/// Provider of both sides: Comparar is released for Claude Code only.
+const compareSidesProviderId = 'claude';
