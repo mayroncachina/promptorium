@@ -1,6 +1,6 @@
 ---
 id: SPEC-097
-status: aprovada
+status: em implementação
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -47,13 +47,13 @@ O App Server do Codex já entrega tudo o que falta: `account/rateLimits/read` (j
 - Consumir créditos de renovação (`account/rateLimitResetCredit/consume`) pelo app.
 - Previsão "neste ritmo, acaba em…" para o Codex nas Atividades (P2).
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Intervalo da leitura.** **Recomendação:** 5 minutos com o Codex ativo ou rodando, e nenhuma leitura periódica com o Codex parado e o Claude ativo. O processo de vida curta custa pouco, mas não precisa rodar à toa.
-- P2 · **Previsão nas Atividades.** A SPEC-076 calcula o ritmo da janela de 5 h só com o Claude. **Recomendação:** levar o Codex para a mesma função (`quotaForecast`) quando o cartão de cota das Atividades ganhar seletor de provedor, numa spec futura; aqui só o rodapé e o detalhe.
-- P3 · **Peso do Codex na janela.** Dá para estimar pela diferença de `usedPercent` entre leituras antes e depois de um turno, mas outras execuções no mesmo período contaminam a conta. **Recomendação:** "indisponível" agora; reavaliar com dados reais depois do MVP.
-- P4 · **Detalhe com os dois provedores mesmo com um só instalado.** **Recomendação:** mostrar só os provedores detectados; com um só, o painel fica igual ao de hoje mais o plano e a hora da leitura.
-- P5 · **Nome do plano.** **Recomendação:** traduzir os `planType` conhecidos ("plus" → "ChatGPT Plus", "pro" → "ChatGPT Pro", "team" → "Team"…) e mostrar o valor cru para os outros.
+- P1 · **Intervalo da leitura.** **Decidido:** 5 minutos com o Codex ativo ou rodando, e nenhuma leitura periódica com o Codex parado e o Claude ativo. O processo de vida curta custa pouco, mas não precisa rodar à toa.
+- P2 · **Previsão nas Atividades.** A SPEC-076 calcula o ritmo da janela de 5 h só com o Claude. **Decidido:** levar o Codex para a mesma função (`quotaForecast`) quando o cartão de cota das Atividades ganhar seletor de provedor, numa spec futura; aqui só o rodapé e o detalhe.
+- P3 · **Peso do Codex na janela.** Dá para estimar pela diferença de `usedPercent` entre leituras antes e depois de um turno, mas outras execuções no mesmo período contaminam a conta. **Decidido:** "indisponível" agora; reavaliar com dados reais depois do MVP.
+- P4 · **Detalhe com os dois provedores mesmo com um só instalado.** **Decidido:** mostrar só os provedores detectados; com um só, o painel fica igual ao de hoje mais o plano e a hora da leitura.
+- P5 · **Nome do plano.** **Decidido:** traduzir os `planType` conhecidos ("plus" → "ChatGPT Plus", "pro" → "ChatGPT Pro", "team" → "Team"…) e mostrar o valor cru para os outros.
 
 ## Design
 
