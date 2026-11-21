@@ -71,6 +71,13 @@ class FakeCodex extends FakeProcess {
       final method = m['method'];
       if (method == null && m['id'] != null) {
         appAnswers[m['id'] as Object] = m;
+        // A recorded server request waits for the app's answer, as the
+        // real App Server does (its `serverRequest/resolved` comes after).
+        final paused = _paused;
+        if (paused != null && paused.id == m['id']) {
+          _paused = null;
+          _cursor = _emitFrom(paused.from, paused.method);
+        }
         continue;
       }
       if (method == null || m['id'] == null) continue;
@@ -98,19 +105,35 @@ class FakeCodex extends FakeProcess {
         orElse: () => (dir: 'recv', msg: {'result': <String, dynamic>{}}),
       );
       emit(jsonEncode({...response.msg, 'id': m['id']}));
-      var j = i + 1;
-      for (; j < t.length; j++) {
-        final l = t[j];
-        if (method != 'turn/start' && _isClientRequest(l)) break;
-        if (l.dir != 'recv' || l.msg['method'] == null) continue;
-        emit(jsonEncode(l.msg));
-        if (method == 'turn/start' && l.msg['method'] == 'turn/completed') {
-          j++;
-          break;
-        }
-      }
-      _cursor = j;
+      _cursor = _emitFrom(i + 1, '$method');
     }
+  }
+
+  /// A server request emitted and not answered yet: where to go on.
+  ({Object id, int from, String method})? _paused;
+
+  /// Emits the recorded notifications from [j] on; returns the next cursor.
+  int _emitFrom(int j, String method) {
+    final t = transcript!;
+    for (; j < t.length; j++) {
+      final l = t[j];
+      if (method != 'turn/start' && _isClientRequest(l)) break;
+      if (l.dir != 'recv' || l.msg['method'] == null) continue;
+      emit(jsonEncode(l.msg));
+      if (method == 'turn/start' && l.msg['method'] == 'turn/completed') {
+        return j + 1;
+      }
+      final id = l.msg['id'];
+      if (id != null &&
+          t.any(
+            (a) =>
+                a.dir == 'send' && a.msg['id'] == id && a.msg['method'] == null,
+          )) {
+        _paused = (id: id as Object, from: j + 1, method: method);
+        return j + 1;
+      }
+    }
+    return j;
   }
 
   void _respond() {
