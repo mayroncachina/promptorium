@@ -1,6 +1,6 @@
 ---
 id: SPEC-094
-status: em implementação
+status: concluida
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -192,18 +192,30 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. O enquadramento (vi
 
 ## Critérios de aceite
 
-- [ ] Cada provedor expõe as capacidades de R1; o Codex usa a tabela da SPEC-093 e o `model/list`, e "não testada" conta como não suportada [R1, R2] verificar: `flutter test test/core/providers/capabilities_test.dart`.
-- [ ] Com o Codex, nenhum fluxo está liberado até a spec dele ligar; o interruptor global sumiu [R3] verificar: teste de `providerFlows`.
-- [ ] O review automático com o Codex selecionado não monta `maxBudgetUsd` nem `agent`, e o `validateOptions` não é mais o que barra [R4–R6] verificar: teste de `readonly_run` com capacidades do Codex.
-- [ ] Extras do Claude entregues ao Codex fazem um teste falhar [R6] verificar: teste do adaptador.
-- [ ] Perguntar e Planejar no Codex saem como `read-only` + `never`, Editar como `workspace-write` + `on-request`, YOLO só com worktree [R7] verificar: teste da política.
-- [ ] Sem sandbox na máquina, o Codex só aparece com worktree e acesso total, Perguntar/Planejar/Editar mostram "Sandbox do Codex indisponível" com o comando, e "Verificar de novo" refaz a detecção sem gastar cota [R7a] verificar: teste de `inspectProvider` com `configWarning` falso e teste de widget do rodapé.
-- [ ] A aba Codex de Consumo lista os modelos e esforços do `model/list` guardado, com a versão e a hora; um modelo salvo que sumiu aparece como indisponível [R8, R9] verificar: teste de widget da tela Consumo.
-- [ ] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
-- [ ] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
-- [ ] `grep -rn "== 'claude'\|!= 'claude'" lib` só encontra adaptadores e registro [R13] verificar: o próprio grep.
-- [ ] Nos pontos de identificação de R15, Claude e Codex aparecem com o logo oficial (sem alteração de forma) ao lado do nome; nos pontos pequenos, com o glifo; nenhuma cor de provedor aparece sem nome, logo ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje; os termos de marca da Anthropic e da OpenAI foram conferidos (ou o Codex caiu para o glifo) [R14, R15] verificar: testes de `ProviderChip` e `ProviderGlyph`, conferência das telas contra o mock `4-identidade-provedor.png` e registro da checagem de marca no PR.
-- [ ] Os SVGs originais estão em `assets/providers/` sem alteração, com `LICENSES.md`; o app não ganhou `flutter_svg`; o logo do Claude é sempre `#D97757` e o da OpenAI sempre branco, em qualquer tema; o chip nunca mostra o logo sem o nome; trocar o Codex para o glifo é uma mudança só no `ProviderLogo` [R14] verificar: goldens de `ProviderLogo` em 14 e 16 px, teste de tema (claro/escuro) com a mesma cor de logo, teste do `ProviderChip` sem nome falhando, `grep flutter_svg pubspec.yaml` vazio.
+- [x] Cada provedor expõe as capacidades de R1; o Codex usa a tabela da SPEC-093 e o `model/list`, e "não testada" conta como não suportada [R1, R2] verificar: `flutter test test/core/providers/capabilities_test.dart`.
+- [x] Com o Codex, nenhum fluxo está liberado até a spec dele ligar; o interruptor global sumiu [R3] verificar: teste de `providerFlows`.
+- [x] O review automático com o Codex selecionado não monta `maxBudgetUsd` nem `agent`, e o `validateOptions` não é mais o que barra [R4–R6] verificar: teste de `readonly_run` com capacidades do Codex.
+- [x] Extras do Claude entregues ao Codex fazem um teste falhar [R6] verificar: teste do adaptador.
+- [x] Perguntar e Planejar no Codex saem como `read-only` + `never`, Editar como `workspace-write` + `on-request`, YOLO só com worktree [R7] verificar: teste da política.
+- [x] Sem sandbox na máquina, o Codex só aparece com worktree e acesso total, Perguntar/Planejar/Editar mostram "Sandbox do Codex indisponível" com o comando, e "Verificar de novo" refaz a detecção sem gastar cota [R7a] verificar: teste de `inspectProvider` com `configWarning` falso e teste de widget do rodapé.
+- [x] A aba Codex de Consumo lista os modelos e esforços do `model/list` guardado, com a versão e a hora; um modelo salvo que sumiu aparece como indisponível [R8, R9] verificar: teste de widget da tela Consumo.
+- [x] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
+- [x] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
+- [x] `grep -rn "== 'claude'\|!= 'claude'" lib` só encontra adaptadores e registro [R13] verificar: o próprio grep.
+- [ ] (parcial: robôs, Histórico e Custo sem glifo; permissão da OpenAI pendente — ver "Implementação") Nos pontos de identificação de R15, Claude e Codex aparecem com o logo oficial (sem alteração de forma) ao lado do nome; nos pontos pequenos, com o glifo; nenhuma cor de provedor aparece sem nome, logo ou glifo, nenhuma indica estado, e os estados (rodando, falhou, feita) mantêm as cores de hoje; os termos de marca da Anthropic e da OpenAI foram conferidos (ou o Codex caiu para o glifo) [R14, R15] verificar: testes de `ProviderChip` e `ProviderGlyph`, conferência das telas contra o mock `4-identidade-provedor.png` e registro da checagem de marca no PR.
+- [x] Os SVGs originais estão em `assets/providers/` sem alteração, com `LICENSES.md`; o app não ganhou `flutter_svg`; o logo do Claude é sempre `#D97757` e o da OpenAI sempre branco, em qualquer tema; o chip nunca mostra o logo sem o nome; trocar o Codex para o glifo é uma mudança só no `ProviderLogo` [R14] verificar: goldens de `ProviderLogo` em 14 e 16 px, teste de tema (claro/escuro) com a mesma cor de logo, teste do `ProviderChip` sem nome falhando, `grep flutter_svg pubspec.yaml` vazio.
+
+## Implementação (registro)
+
+- **Pai e filhos:** T1 #354, T2 #356, T3 #358, T4 #360 (base `spec/094-capacidades-por-provedor`).
+- **Decisões além da spec:**
+  - O padrão salvo como Codex continua Codex mesmo com os fluxos desligados; cada fluxo diz por que não roda (R12). Antes ele virava Claude em silêncio.
+  - Status `em implementação` no frontmatter é lido como aprovada (`spec_file.dart`), para a sincronização de issues não perder a spec.
+  - Na aba Codex de Consumo os fluxos ainda fechados mostram "Só Claude Code por enquanto", mas o modelo e o esforço continuam editáveis: valem quando a spec do fluxo ligar.
+  - A detecção do Codex faz um handshake sem turno (`initialize` + `model/list` + `command/exec ["true"]` em `readOnly`) e guarda o catálogo em `codex.models.cache`; "Atualizar lista" e "Verificar de novo" refazem a mesma detecção.
+  - `Comparar` continua só com o Claude Code: a borda e o chip de cada lado usam a identidade dele.
+- **Fora desta entrega (R15, pontos pequenos):** o glifo entrou no card do Quadro; robôs, Histórico e Custo por etapa adotam o `ProviderGlyph` quando as specs do épico tocarem neles (plano de identidade, item 7).
+- **Marca:** a página de marca da OpenAI pede o logo "exatamente como fornecido" (cumprido) e **permissão** (`partnercomms@openai.com`) para o uso. Antes da release: pedir a permissão ou trocar `codexUsesOfficialLogo` para `false` (o Codex passa ao glifo do livro). A página de marca da Anthropic (`anthropic.com/brand`) não respondeu (404) na conferência de 21/11.
 
 ## Telas
 
