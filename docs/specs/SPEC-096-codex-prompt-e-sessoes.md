@@ -44,7 +44,8 @@ Esta spec fecha esses furos para Prompt e Sessões, usando as capacidades (SPEC-
 ### Sessões
 
 - R9 · **Nova sessão com o Codex.** A Nova sessão oferece o Codex com o modelo, o esforço e o acesso do Codex (Perguntar, Editar, YOLO). Agente, orçamento e o que mais não se aplica ficam com "Só Claude Code" (SPEC-094 R11).
-- R10 · **Worktree que commita.** Numa sessão em worktree, o app inclui nas raízes graváveis do sandbox o *git common dir* do repositório (ou a alternativa que a SPEC-093 provou), para `git add` e `git commit` funcionarem em `workspace-write`. Nada fora do worktree e do `.git` fica gravável.
+- R10 · **Worktree que commita.** Numa sessão em worktree com sandbox, a thread começa em `read-only` e o sandbox sobe por `turn/start` (assim o App Server não grava confiança no `~/.codex/config.toml`), e as raízes graváveis recebem só o recorte do *git common dir* (`worktrees/<wt>`, `objects`, `refs`, `logs`), para `git add` e `git commit` funcionarem em `workspace-write`. Nada fora do worktree e desse recorte fica gravável. **Reserva, e caminho fixo sem sandbox:** o app commita no fim do turno o que o Codex deixou sem commit (mensagem do agente como corpo, trailer da SPEC-048).
+- R10a · **Sem sandbox na máquina (decisão 15).** Quando a SPEC-094 R7a detecta que o sandbox não sobe: Prompt e Nova sessão sem worktree mostram "Codex · Sandbox do Codex indisponível" com o comando para liberar; Nova sessão com worktree oferece o Codex só em acesso total (`danger-full-access` + `never`), com o aviso de que ele pode escrever fora da pasta da worktree, e o app commita no fim do turno. Nada roda na raiz do projeto sem sandbox.
 - R11 · **YOLO só em worktree.** O acesso YOLO (`danger-full-access` + `never`) só é oferecido com worktree ligado, com o aviso da SPEC-007 (`bypassWarning`). Uma sessão sem worktree não aceita YOLO, nem ao trocar a permissão parada.
 - R12 · **Interromper, retomar, bifurcar.** "Interromper" manda `turn/interrupt` e a sessão fica **interrompida** (o `SessionStatus.interrupted` que já existe, não `failed`). "Retomar" usa `thread/resume` com a thread guardada em `externalId`. "Fork" usa `thread/fork` e grava o vínculo com a sessão pai (coluna nova, R16), mostrado no painel ("bifurcada de …"). Retomar uma sessão do Claude no Codex, ou o contrário, continua recusado com mensagem.
 - R13 · **Terminal embutido.** A aba Terminal abre `codex resume <thread>` (ou `codex fork <thread>`) com as flags que a SPEC-093 confirmou para o 0.170; o `untrusted` sai. Um escritor só por thread: com a sessão rodando no app, o terminal abre em modo leitura ou pede para pausar o turno, conforme o comportamento dos `thread-writer-locks` que a sondagem registrar.
@@ -76,7 +77,7 @@ Esta spec fecha esses furos para Prompt e Sessões, usando as capacidades (SPEC-
 - P2 · **"Aprovar nesta conversa" e o painel global.** Uma aprovação por conversa vale só até o processo terminar ou também ao retomar? **Recomendação:** só até o processo terminar, que é o que o `acceptForSession` do Codex garante; ao retomar, pede de novo.
 - P3 · **Interrompida por você × app fechado.** O `SessionStatus.interrupted` hoje significa "o app fechou com a sessão rodando". Distinguir os dois? **Recomendação:** reaproveitar o mesmo status (os dois podem ser retomados, e o Início e as Atividades já tratam assim, SPEC-080) e guardar o motivo no evento de fim de turno, mostrado como "interrompida por você" ou "interrompida: o app fechou".
 - P4 · **Terminal com a sessão viva.** **Recomendação:** abrir o terminal só com o turno parado e mostrar "pare o turno para abrir o terminal" com o botão Interromper, a menos que a SPEC-093 mostre que o App Server e a TUI convivem na mesma thread.
-- P5 · **Commit em worktree se `writableRoots` falhar.** **Recomendação:** o app commita depois do turno (mensagem do agente como corpo, trailer da SPEC-048), com o aviso "o Codex não consegue commitar dentro do sandbox; o app commita ao fim do turno".
+- ~~P5 · Commit em worktree se `writableRoots` falhar.~~ **Decidido em 21/11 (decisão 15):** o app commita no fim do turno, como reserva com sandbox e como caminho fixo sem sandbox (R10, R10a).
 
 ## Design
 
@@ -136,7 +137,8 @@ T2 e T3 correm em paralelo depois da T1.
 - [ ] Trocar de provedor com histórico abre conversa nova com aviso [R4] verificar: teste de widget.
 - [ ] "Executar plano" depois de Planejar abre um turno em Editar com o plano [R5] verificar: teste do `conversation_manager`.
 - [ ] Interromper deixa o turno e a sessão como interrompidos, nunca como falha [R7, R12] verificar: `codex_session_test.dart`.
-- [ ] Uma sessão Codex em worktree faz `git commit` dentro do sandbox, ou o app commita no fim do turno com o aviso (P5) [R10] verificar: e2e com o Codex real.
+- [ ] Uma sessão Codex em worktree faz `git commit` dentro do sandbox, ou o app commita no fim do turno o que sobrou; a thread começa em `read-only` e o `~/.codex/config.toml` não muda (hash antes e depois) [R10] verificar: e2e com o Codex real.
+- [ ] Sem sandbox, o Codex não roda fora de worktree, aparece só em acesso total com aviso, e o app commita no fim do turno [R10a] verificar: teste de widget com `osSandbox` falso e e2e neste Ubuntu.
 - [ ] YOLO só aparece com worktree e mostra o aviso [R11] verificar: `codex_permissions_ui_test.dart`.
 - [ ] Retomar usa a thread guardada; fork grava `parentSessionId` e o painel mostra "bifurcada de …" [R12, R16] verificar: teste do `session_manager` e da migração.
 - [ ] O terminal abre `codex resume` sem `untrusted` e respeita o escritor único [R13] verificar: teste de `codexCommandArgs` e e2e.
