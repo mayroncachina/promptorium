@@ -1,7 +1,7 @@
 ---
 id: SPEC-109
 status: rascunho
-versao: 0.25.0
+versao: 0.26.0
 tipo: recurso
 epico: 332
 issue: 344
