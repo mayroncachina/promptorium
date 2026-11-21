@@ -1,6 +1,6 @@
 ---
 id: SPEC-094
-status: aprovada
+status: em implementação
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -77,12 +77,12 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 
 ## Decisões em aberto
 
-- P1 · **Orçamento e turnos no Codex.** (a) Não mandar e mostrar "Só Claude Code" no campo; (b) limite do lado do app (tempo máximo + `turn/interrupt`). **Recomendação:** (a) agora. O limite do app entra se a SPEC-101 (Executar spec com o Codex) precisar, porque é lá que um turno sem fim custa caro.
-- P2 · **Onde guardar o `model/list`.** (a) `app_settings` com JSON e versão; (b) só em memória, lido a cada abertura. **Recomendação:** (a), com chave `codex.models.cache`. Abrir Configurações não pode depender do Codex responder.
-- P3 · **Conferência de métodos.** (a) Rodar `generate-json-schema` a cada versão nova e guardar o resultado; (b) só comparar a versão. **Recomendação:** (a) se a SPEC-093 medir menos de 2 s; senão (b) com a lista de métodos fixa por versão testada.
-- P4 · **Etiqueta.** "Só Claude Code" em lilás (cor de recursos de IA) ou âmbar. **Recomendação:** âmbar claro, mesma família dos avisos, para não parecer um recurso a mais.
-- P5 · **Capacidades por modelo ou por provedor.** **Recomendação:** por provedor com sobrescrita por modelo só para `images` e esforços, que são os únicos campos que o `model/list` informa por modelo.
-- P6 · **Logo oficial ou glifo próprio nos pontos de identificação.** (a) Logos oficiais (Claude; OpenAI para o Codex) no seletor, no chip e no Comparar, e glifos só nos pontos pequenos; (b) glifos próprios em tudo, sem marca de terceiros. **Recomendação:** (a), aprovada em 20/11. O provedor é reconhecido pelo logo que a pessoa já conhece, e os glifos ficam onde o logo não se lê (card, robô, Histórico). Volta para (b) no Codex se a OpenAI não autorizar o uso (ver "Uso de marca").
+- P1 · **Orçamento e turnos no Codex.** (a) Não mandar e mostrar "Só Claude Code" no campo; (b) limite do lado do app (tempo máximo + `turn/interrupt`). **Decidido:** (a) agora — não mandar orçamento nem turnos ao Codex e mostrar "Só Claude Code" no campo. O limite do app entra se a SPEC-101 precisar.
+- P2 · **Onde guardar o `model/list`.** (a) `app_settings` com JSON e versão; (b) só em memória, lido a cada abertura. **Decidido:** (a) `app_settings` com JSON e versão, chave `codex.models.cache`. Abrir Configurações não depende do Codex responder.
+- P3 · **Conferência de métodos.** (a) Rodar `generate-json-schema` a cada versão nova e guardar o resultado; (b) só comparar a versão. **Decidido:** (a) — a SPEC-093 mediu 0,05 s para o `generate-json-schema`; a conferência roda quando a versão muda e o resultado fica guardado por versão.
+- P4 · **Etiqueta.** "Só Claude Code" em lilás (cor de recursos de IA) ou âmbar. **Decidido:** âmbar claro, mesma família dos avisos.
+- P5 · **Capacidades por modelo ou por provedor.** **Decidido:** por provedor, com sobrescrita por modelo só para `images` e esforços.
+- P6 · **Logo oficial ou glifo próprio nos pontos de identificação.** (a) Logos oficiais (Claude; OpenAI para o Codex) no seletor, no chip e no Comparar, e glifos só nos pontos pequenos; (b) glifos próprios em tudo, sem marca de terceiros. **Decidido:** (a) logos oficiais no seletor, no chip e no Comparar; glifos nos pontos pequenos. Volta para (b) no Codex se a OpenAI não autorizar.
 
 ## Design
 
