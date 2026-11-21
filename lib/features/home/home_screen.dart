@@ -406,7 +406,6 @@ class _NowPanel extends ConsumerWidget {
     final now = DateTime.now();
     final day = DateTime(now.year, now.month, now.day);
     final today = sessions.where((s) => !s.startedAt.isBefore(day)).toList();
-    final cost = today.fold<double>(0, (a, s) => a + s.costUsd);
     final merges = sessions
         .where(
           (s) =>
@@ -556,7 +555,8 @@ class _NowPanel extends ConsumerWidget {
         _title('Hoje', ''),
         Row(
           children: [
-            _stat('Custo', formatCost(cost)),
+            // SPEC-097 decision 5: a Codex run never adds as "\$0.00".
+            _stat('Custo', formatRunsCost(today)),
             const SizedBox(width: 8),
             _stat('Sessões', '${today.length}'),
             const SizedBox(width: 8),
