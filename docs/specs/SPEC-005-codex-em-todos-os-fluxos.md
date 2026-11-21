@@ -7,6 +7,8 @@ depende-de: [SPEC-004]
 # Codex em todos os fluxos do Promptorium
 
 > **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+>
+> **Substituída em 20/11/2026** (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12) pelas specs da onda 2 a 4 do épico: SPEC-100 (execuções estruturadas), SPEC-101 (executar spec), SPEC-102 (review automático), SPEC-108 (Comparar Claude × Codex) e SPEC-109 (orquestrador multi-provedor); ver [plano técnico](../pesquisa/plano-codex.md). O status continua `rascunho` só porque o app não tem o status "substituída"; esta spec não deve ser executada.
 
 ## Objetivo
 
