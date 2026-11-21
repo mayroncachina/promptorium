@@ -19,8 +19,15 @@ class CodexModel {
 }
 
 class CodexProvider implements AgentProvider {
-  CodexProvider({this.executable = 'codex', this.starter});
-  final String executable;
+  CodexProvider({
+    String executable = 'codex',
+    String Function()? resolveExecutable,
+    this.starter,
+  }) : _resolve = resolveExecutable ?? (() => executable);
+
+  /// Resolved only when used: listing the provider never runs the CLI.
+  final String Function() _resolve;
+  String get executable => _resolve();
   final ProcessStarter? starter;
 
   @override
