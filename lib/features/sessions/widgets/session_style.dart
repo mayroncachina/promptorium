@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../../../data/db/app_database.dart' show Session;
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
@@ -32,6 +35,26 @@ enum SessionLook {
     SessionStatus.merged => merged,
   };
 }
+
+/// "Interrompida por você" (SPEC-096 P3): the session stopped by
+/// "Interromper", not because the app closed. Kept in `runConfig` until
+/// the session starts again.
+bool interruptedByUser(Session s) {
+  if (s.status != SessionStatus.interrupted || s.runConfig == null) {
+    return false;
+  }
+  try {
+    return (jsonDecode(s.runConfig!) as Map)['interrupted'] == 'user';
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Status label of [s]: "Interrompida por você" or the [look]'s.
+String sessionStatusLabel(Session s, SessionLook look) =>
+    look == SessionLook.interrupted && interruptedByUser(s)
+    ? 'Interrompida por você'
+    : look.label;
 
 String formatCost(double v) => '\$${v.toStringAsFixed(2)}';
 

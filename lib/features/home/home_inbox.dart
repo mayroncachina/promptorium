@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../sessions/widgets/session_style.dart' show interruptedByUser;
 import '../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../ui/shell/navigation.dart';
 import '../activities/activities_state.dart' show activitiesNeedingYouProvider;
@@ -253,8 +254,11 @@ List<InboxGroup> buildInbox({
         InboxItem(
           kind: InboxKind.interrupted,
           ref: stepRef(byId[s.specId], s.steps),
+          // SPEC-096 P3: "Interromper" or the app closing.
           title: s.status == SessionStatus.interrupted
-              ? 'Sessão interrompida ao fechar o app'
+              ? (interruptedByUser(s)
+                    ? 'Sessão interrompida por você'
+                    : 'Sessão interrompida ao fechar o app')
               : 'Sessão falhou',
           // SPEC-096 R3: provider and model of a session not run by Claude.
           detail: s.provider == 'claude'

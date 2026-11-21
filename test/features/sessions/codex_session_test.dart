@@ -115,9 +115,12 @@ void main() {
         )['params']['threadId'],
         'external-1',
       );
+      // SPEC-096 R14: the idle process takes the new access on the next
+      // turn, without restarting.
+      final before = servers.length;
       await m.setPermissionMode(id, ClaudePermissionMode.plan);
       await m.resume(id);
-      expect(servers.last.writtenJson.last['params']['sandbox'], 'read-only');
+      expect(servers, hasLength(before));
       expect(claude.processes, isEmpty);
       await m.shutdown();
     },

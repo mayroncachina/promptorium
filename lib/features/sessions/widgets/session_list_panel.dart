@@ -338,7 +338,9 @@ class _SessionTile extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            secret ? 'Segredo encontrado' : look.label,
+                            secret
+                                ? 'Segredo encontrado'
+                                : sessionStatusLabel(session, look),
                             key: secret
                                 ? ValueKey('session-secret-${session.id}')
                                 : null,
