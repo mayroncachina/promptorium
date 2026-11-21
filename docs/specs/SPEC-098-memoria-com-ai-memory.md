@@ -1,7 +1,7 @@
 ---
 id: SPEC-098
 status: rascunho
-versao: 0.23.0
+versao: 0.24.0
 tipo: integracao
 epico: 332
 relacionada: 83
