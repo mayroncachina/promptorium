@@ -127,6 +127,10 @@ class _Run {
   final String model;
   String title;
 
+  /// Workspace of the conversation (SPEC-096 R15: switching workspaces
+  /// ends its idle Codex processes).
+  int? workspaceId;
+
   /// Claude session id used by this process (`--session-id` / `--resume`).
   final String sid;
   double lastCost;
@@ -485,6 +489,25 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await r.run.deny(requestId, message);
   }
 
+  /// SPEC-096 R15: leaving [workspaceId] ends its idle Codex processes (no
+  /// turn running, nothing waiting for an answer); the next message resumes
+  /// the thread. A turn on its way keeps running. Returns the ids ended.
+  Future<List<int>> releaseCodexOf(int workspaceId) async {
+    final ended = <int>[];
+    for (final MapEntry(key: id, value: r) in _runs.entries.toList()) {
+      if (r.workspaceId != workspaceId ||
+          r.run is! CodexRun ||
+          r.busy ||
+          r.stopping ||
+          r.pending.isNotEmpty) {
+        continue;
+      }
+      ended.add(id);
+      await _stopRun(id, r);
+    }
+    return ended;
+  }
+
   /// "Interromper" (SPEC-096 R7): the Codex turn ends as interrupted
   /// (`turn/interrupt`) and the process stays; other providers stop.
   Future<void> interrupt(int id) async {
@@ -643,6 +666,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       );
     }
     final r = _Run(run, mode, conv.model, conv.title, conv.costUsd, sid)
+      ..workspaceId = conv.workspaceId
       ..mcp = mcpLink
       ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _runs[conv.id] = r;

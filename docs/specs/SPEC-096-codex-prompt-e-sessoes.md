@@ -156,7 +156,10 @@ T2 e T3 correm em paralelo depois da T1.
 - **Terminal (P4):** com o turno rodando, a aba Terminal pede para interromper primeiro (um escritor por thread).
 - **Grupo de processos (R15):** o `codex app-server` real sobe com `setsid`, e parar o processo encerra o grupo. Na partida, `orphans.dart` reconhece `codex app-server` pelo PID gravado.
 - **Migração:** v35 (`sessions.parentSessionId`). A v34 fica reservada, sem mudança, para a SPEC-097.
-- **E2E:** feito com um `codex` falso no `PATH` (`XDG_DATA_HOME` isolado, Xephyr :7), sem turno pago, sem tocar no `~/.codex` e sem o Codex real. O critério do `config.toml` com o Codex real fica coberto pelo pedido: todo `thread/*` vai em `read-only`, confirmado no log das requisições do E2E e nos testes.
+- **E2E:** feito com um `codex` falso no `PATH` (`XDG_DATA_HOME` isolado, Xephyr :7), sem turno pago e sem tocar no `~/.codex`.
+- **Codex real, 1 turno pago (21/11):** `gpt-5.6-luna`, esforço `low`, sessão em worktree num repositório temporário, pelo `CodexRun` real com o `HOME` padrão. O turno respondeu "ok" (`success`, 5 tokens de saída), com a política `workspace-write`/`on-request` e as `writableRoots` do recorte no turno. O `sha256` do `~/.codex/config.toml` ficou igual antes e depois (`3f1bcc8c…74843`), então nada foi gravado e não houve o que restaurar.
+- **Ao trocar de workspace (R15):** os processos ociosos do Codex do workspace deixado (sessões e conversas) são encerrados. Um turno em andamento continua, e os outros workspaces ficam intactos. "Retomar" retoma a thread.
+- **Primeira mensagem duplicada:** a timeline aplicava de novo um evento ao vivo cuja linha a carga já tinha lido, quando a linha era gravada enquanto a carga rodava. Agora ignora eventos com `seq` até o maior lido do banco.
 
 ## Telas
 
