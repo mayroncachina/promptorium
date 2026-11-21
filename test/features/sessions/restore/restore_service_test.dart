@@ -403,4 +403,45 @@ void main() {
       );
     });
   });
+
+  test('the commit the app makes at the end of a Codex turn lands before the '
+      'capture: the point counts the file and the commit, and undoing it '
+      'takes the file away (SPEC-096 R10 with SPEC-084 R1)', () async {
+    await boot();
+    final startHead = await head();
+    final point = (await restore.start(
+      workspaceId: wsId,
+      worktree: repo,
+      sessionId: 's1',
+      prompt: 'crie uma nota',
+    )).point!;
+    // The Codex writes and leaves it uncommitted; the app commits it.
+    f('NOTA.md').writeAsStringSync('# Nota\n');
+    var committed = false;
+    await restore.end(
+      sessionId: 's1',
+      beforeEnd: () async {
+        committed = await GitService(repo).commitAll('Nota pelo Codex');
+      },
+    );
+    expect(committed, isTrue);
+    final ended = (await c.read(restorePointsRepoProvider).byId(point.id))!;
+    expect(ended.endHead, await head());
+    expect(ended.changedFiles, 1);
+    expect(ended.commits, 1);
+
+    final plan = await restore.plan(ended);
+    expect(plan.changedAfter, isEmpty);
+    expect(plan.restore, hasLength(1));
+    await restore.undo(ended, plan.defaultSelection);
+    expect(f('NOTA.md').existsSync(), isFalse);
+    expect(await head(), startHead);
+  });
+
+  test('beforeEnd still runs when the turn has no open point', () async {
+    await boot();
+    var ran = false;
+    await restore.end(sessionId: 's1', beforeEnd: () async => ran = true);
+    expect(ran, isTrue);
+  });
 }
