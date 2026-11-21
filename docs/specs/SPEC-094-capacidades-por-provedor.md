@@ -39,6 +39,8 @@ Esta spec troca isso por **capacidades declaradas por provedor**. Cada provedor 
 
 ### Modelo e esforço
 
+- R7a · **Sandbox disponível (decisão 15).** Capacidade nova por máquina, `osSandbox`, detectada sem gastar cota: `configWarning` do App Server logo após o `initialize` ou um `command/exec ["true"]` em `readOnly` (SPEC-093, achado 2). Sem sandbox (Ubuntu 24.04 padrão, AppArmor com `apparmor_restrict_unprivileged_userns=1`), Perguntar, Planejar e Editar do Codex ficam indisponíveis, porque todo comando falharia; o Codex só roda em **worktree com acesso total** (`danger-full-access` + `never`), e o app commita o que sobrar no fim do turno (SPEC-096 R10). O rodapé e Configurações → Provedores mostram "Sandbox do Codex indisponível" com o comando para liberar (`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0` ou um perfil AppArmor para o `bwrap`) e o botão "Verificar de novo". O app nunca altera o sistema sozinho.
+
 - R8 · **Modelos por provedor.** Configurações → Consumo ganha uma aba por provedor (Claude Code, Codex). Na aba Codex, os modelos e os esforços vêm do `model/list`, lidos sob demanda e guardados com a versão e a hora da leitura ("lista lida do Codex 0.170 às 14:02 · Atualizar"). As chaves `codex.model.<tipo>` e `codex.effort.<tipo>` já existem e continuam. Um alias do Claude nunca vai para o Codex, nem o contrário.
 - R9 · **Modelo que sumiu.** Um modelo salvo que não está mais no `model/list` aparece como "indisponível nesta versão" e a execução usa o padrão do provedor, dizendo isso no cabeçalho da sessão ou conversa. Nada de nomes de modelo fixos no código.
 
@@ -195,6 +197,7 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. O enquadramento (vi
 - [ ] O review automático com o Codex selecionado não monta `maxBudgetUsd` nem `agent`, e o `validateOptions` não é mais o que barra [R4–R6] verificar: teste de `readonly_run` com capacidades do Codex.
 - [ ] Extras do Claude entregues ao Codex fazem um teste falhar [R6] verificar: teste do adaptador.
 - [ ] Perguntar e Planejar no Codex saem como `read-only` + `never`, Editar como `workspace-write` + `on-request`, YOLO só com worktree [R7] verificar: teste da política.
+- [ ] Sem sandbox na máquina, o Codex só aparece com worktree e acesso total, Perguntar/Planejar/Editar mostram "Sandbox do Codex indisponível" com o comando, e "Verificar de novo" refaz a detecção sem gastar cota [R7a] verificar: teste de `inspectProvider` com `configWarning` falso e teste de widget do rodapé.
 - [ ] A aba Codex de Consumo lista os modelos e esforços do `model/list` guardado, com a versão e a hora; um modelo salvo que sumiu aparece como indisponível [R8, R9] verificar: teste de widget da tela Consumo.
 - [ ] Codex 0.168 aparece como incompatível com a orientação; acima de 0.170 funciona com aviso; método ausente aparece nomeado [R10] verificar: teste de `inspectProvider` com versões falsas.
 - [ ] Controles sem suporte mostram "Só Claude Code" com o motivo, e nenhum fluxo troca de provedor sozinho [R11, R12] verificar: testes de widget da Nova sessão e do Executar spec.
