@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../claude/run_prefs.dart';
-import 'agent_registry.dart';
 
 String providerPreferenceKey(int? workspaceId) => workspaceId == null
     ? 'agent.provider.default'
@@ -10,14 +9,11 @@ String providerPreferenceKey(int? workspaceId) => workspaceId == null
 
 final defaultAgentProvider = Provider.family<String, int?>((ref, workspaceId) {
   final settings = ref.watch(appSettingsProvider);
-  final saved =
-      settings[providerPreferenceKey(workspaceId)] ??
+  // A saved Codex default stays Codex even while its flows are off: each
+  // flow says why it does not run (R12), nothing switches by itself.
+  return settings[providerPreferenceKey(workspaceId)] ??
       settings[providerPreferenceKey(null)] ??
       'claude';
-  // A Codex default saved before the integration was switched off.
-  return saved == 'codex' && !ref.watch(codexEnabledProvider)
-      ? 'claude'
-      : saved;
 });
 
 final activeAgentProvider = Provider<String>(

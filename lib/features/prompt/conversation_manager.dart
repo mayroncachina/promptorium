@@ -513,6 +513,13 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         '${provider.displayName} ainda não está disponível.',
       );
     }
+    if (!ref
+        .read(providerFlowsProvider)
+        .allows(conv.provider, AppFlow.prompt)) {
+      throw ConversationException(
+        flowLockedMessage(provider.displayName, AppFlow.prompt),
+      );
+    }
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
     final resume = conv.claudeSessionId;

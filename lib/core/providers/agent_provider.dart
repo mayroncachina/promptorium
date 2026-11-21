@@ -4,6 +4,7 @@ import '../../ui/widgets/app_icon.dart';
 import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ImagePart;
+import 'capabilities.dart';
 
 export '../claude/claude_process.dart' show ImagePart;
 
@@ -163,6 +164,10 @@ abstract interface class AgentProvider {
   /// Model choices; the first one is the default.
   List<String> get models;
 
+  /// What this provider supports (SPEC-094 R1): services and screens ask
+  /// this instead of comparing provider ids.
+  ProviderCapabilities get capabilities;
+
   /// Starts a process. Throws [AgentUnavailable] when [enabled] is false.
   Future<AgentRun> start(AgentStartOptions options);
 }
@@ -198,6 +203,10 @@ class ComingSoonProvider implements AgentProvider {
 
   @override
   List<String> get models => const ['inherit'];
+
+  @override
+  ProviderCapabilities get capabilities =>
+      ProviderCapabilities.acp(id, displayName);
 
   @override
   Future<AgentRun> start(AgentStartOptions options) =>

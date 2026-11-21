@@ -1400,9 +1400,11 @@ class SessionManager extends Notifier<SessionManagerState> {
           mcpAllowedTools: options.allowedTools,
           mcpDisallowedTools: options.disallowedTools,
         );
-        final run = await ref
-            .read(agentProviderByIdProvider(session.provider))
-            .start(effective);
+        final run = await agentProviderForFlow(
+          ref,
+          session.provider,
+          session.specId == null ? AppFlow.sessions : AppFlow.runSpec,
+        ).start(effective);
         process = run as ManagedAgentRun;
         await _repo.setRunConfig(
           id,

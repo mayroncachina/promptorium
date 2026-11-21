@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/providers/agent_registry.dart'
-    show codexEnabledProvider;
+    show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
@@ -24,7 +24,9 @@ void main() {
       addTearDown(tester.view.reset);
       final c = ProviderContainer(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) async =>
@@ -106,7 +108,9 @@ void main() {
       addTearDown(tester.view.reset);
       final c = ProviderContainer(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) async => ProviderAvailability(
@@ -161,7 +165,9 @@ void main() {
       final delayed = Completer<ProviderAvailability>();
       final c = ProviderContainer(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) => id == 'claude'

@@ -20,7 +20,9 @@ void main() {
     final calls = <String>[];
     final c = ProviderContainer(
       overrides: [
-        codexEnabledProvider.overrideWithValue(true),
+        providerFlowsProvider.overrideWithValue(
+          ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+        ),
         databaseOverride(memoryDatabase()),
         processRunnerProvider.overrideWithValue((exe, args) async {
           calls.add(exe);
@@ -40,7 +42,7 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  test('Codex switched off: a saved Codex default resolves to Claude and Codex is never started', () async {
+  test('Codex flows off: a saved Codex default stays Codex and no flow starts it (SPEC-094 R3, R12)', () async {
     final db = memoryDatabase();
     addTearDown(db.close);
     final c = ProviderContainer(
@@ -51,19 +53,18 @@ void main() {
     await c
         .read(appSettingsProvider.notifier)
         .set(providerPreferenceKey(null), 'codex');
-    expect(c.read(defaultAgentProvider(1)), 'claude');
-    final codex = c.read(agentProviderByIdProvider('codex'));
-    expect(codex.enabled, isFalse);
-    await expectLater(
-      codex.start(
-        const AgentStartOptions(workingDirectory: '/w', mode: PromptMode.edit),
-      ),
-      throwsA(isA<AgentUnavailable>()),
+    // Nothing switches to Claude by itself.
+    expect(c.read(defaultAgentProvider(1)), 'codex');
+    final probe = Provider(
+      (ref) => (AppFlow f) => agentProviderForFlow(ref, 'codex', f),
     );
-    final availability = await c.read(
-      providerAvailabilityProvider('codex').future,
-    );
-    expect(availability.available, isFalse);
+    for (final f in AppFlow.values) {
+      expect(
+        () => c.read(probe)(f),
+        throwsA(isA<AgentUnavailable>()),
+        reason: f.name,
+      );
+    }
   });
 
   test('project override, global fallback and restart preserve independent choices', () async {
@@ -71,7 +72,9 @@ void main() {
     addTearDown(db.close);
     var c = ProviderContainer(
       overrides: [
-        codexEnabledProvider.overrideWithValue(true),
+        providerFlowsProvider.overrideWithValue(
+          ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+        ),
         appDatabaseProvider.overrideWithValue(db),
       ],
     );
@@ -88,7 +91,9 @@ void main() {
     c.dispose();
     c = ProviderContainer(
       overrides: [
-        codexEnabledProvider.overrideWithValue(true),
+        providerFlowsProvider.overrideWithValue(
+          ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+        ),
         appDatabaseProvider.overrideWithValue(db),
       ],
     );
@@ -168,7 +173,9 @@ void main() {
     () async {
       final c = ProviderContainer(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           databaseOverride(memoryDatabase()),
           codexExecutableCandidatesProvider.overrideWithValue(['/mock/codex']),
           processRunnerProvider.overrideWithValue((exe, args) async {
