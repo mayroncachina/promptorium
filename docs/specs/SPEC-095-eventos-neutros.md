@@ -127,4 +127,4 @@ Canvas: [SPEC-095 · Eventos neutros](https://claude.ai/artifact/BFMnuiE8SRRALoL
 | `docs/mockups/spec-095/2-replay-e-contexto.png` | Replay de um passo do Codex com o "antes" reconstruído pelo diff e o medidor de contexto vindo do `tokenUsage` com a janela do modelo e a marca de compactação | R3, R4, R9, R12 |
 | `docs/mockups/spec-095/3-fluxo.png` | Diagrama: Claude e Codex → tipos neutros → consumidores | R1–R9 |
 
-Os mocks mostram o provedor com a identidade da SPEC-094 (R14, R15): logo oficial ao lado do nome no rodapé, nos seletores, nos chips de sessão e de conversa e em Configurações (Claude em argila `#D97757`, OpenAI em porcelana `#E8E4DA` para o Codex); glifo próprio nos pontos pequenos. Nunca como estado.
+Os mocks mostram o provedor com a identidade da SPEC-094 (R14, R15): logo oficial ao lado do nome no rodapé, nos seletores, nos chips de sessão e de conversa e em Configurações (Claude em argila `#D97757`; OpenAI no branco oficial para o Codex, com a porcelana `#E8E4DA` só na borda do chip e nos glifos); glifo próprio nos pontos pequenos. Nunca como estado.
