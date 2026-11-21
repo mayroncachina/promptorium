@@ -50,6 +50,11 @@ EditDiff? editDiffOfTool(ToolItem t, {String? before, int context = 3}) {
   return editDiffOf(t.name, t.input, before: before, context: context);
 }
 
+/// A card that creates its file whole (a `Write`, a new file): it needs no
+/// text before it.
+bool createsFile(ToolItem t) =>
+    t.name == 'Write' || t.change?.kind == FileChangeKind.add;
+
 /// File text after the change of [t], or null when it cannot be known.
 String? applyToolEdit(ToolItem t, String? before) {
   final c = t.change;
