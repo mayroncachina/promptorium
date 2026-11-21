@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/git/worktree_roots.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -36,6 +37,11 @@ void main() {
         cli: FakeCli(),
         notifier: FakeNotifier(),
         worktreesBase: '${tmp.path}/wt',
+      ),
+      // The sandbox check would start one more App Server (R10a).
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async =>
+            const ProviderAvailability(ProviderStatus.ready, 'ok'),
       ),
       codexProcessStarterProvider.overrideWithValue((
         exe,

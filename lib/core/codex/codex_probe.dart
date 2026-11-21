@@ -111,7 +111,9 @@ class CodexModelInfo {
   factory CodexModelInfo.fromJson(Map<String, dynamic> j) => CodexModelInfo(
     '${j['id']}',
     [for (final e in j['efforts'] as List? ?? const []) '$e'],
-    [for (final e in j['modalities'] as List? ?? const ['text']) '$e'],
+    [
+      for (final e in j['modalities'] as List? ?? const ['text']) '$e',
+    ],
   );
 
   final String id;
@@ -235,6 +237,12 @@ Future<Process> _start(
   String? workingDirectory,
   Map<String, String>? environment,
 }) => Process.start(exe, args, workingDirectory: workingDirectory);
+
+/// SPEC-096 R10a: without the sandbox the Codex never runs outside a
+/// worktree (Prompt, sessions in the project root) nor without full access.
+String codexNoSandboxMessage() =>
+    'Codex · Sandbox do Codex indisponível nesta máquina: ele só roda em '
+    'worktree com acesso total (YOLO). Para liberar: $codexSandboxFixCommand';
 
 /// How to unblock the sandbox on Ubuntu 24.04 (the app never runs it).
 const codexSandboxFixCommand =

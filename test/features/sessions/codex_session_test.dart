@@ -6,6 +6,7 @@ import 'package:promptorium/core/providers/agent_registry.dart'
     show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -35,6 +36,11 @@ void main() {
           cli: claude,
           notifier: FakeNotifier(),
           worktreesBase: '${tmp.path}/wt',
+        ),
+        // The sandbox check would start one more App Server (R10a).
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, 'ok'),
         ),
         codexProcessStarterProvider.overrideWithValue((
           exe,
@@ -178,6 +184,11 @@ void main() {
         cli: claude,
         notifier: FakeNotifier(),
         worktreesBase: '${tmp.path}/wt',
+      ),
+      // The sandbox check would start one more App Server (R10a).
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async =>
+            const ProviderAvailability(ProviderStatus.ready, 'ok'),
       ),
       codexProcessStarterProvider.overrideWithValue((
         exe,

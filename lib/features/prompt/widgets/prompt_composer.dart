@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/codex/codex_probe.dart' show CodexModelInfo;
 import '../../../core/providers/agent_registry.dart';
 import '../../../core/providers/provider_preferences.dart';
+import '../../../core/providers/provider_availability.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
@@ -816,8 +817,16 @@ class _ProviderButton extends StatelessWidget {
         final all = ref.watch(agentProvidersProvider);
         final flows = ref.watch(providerFlowsProvider);
         // R11: a provider not released for the Prompt stays listed, locked.
+        // SPEC-096 R10a: the Codex without the sandbox stays listed, locked.
+        bool noSandbox(AgentProvider p) =>
+            p.id == ProviderCapabilities.codex.providerId &&
+            ref
+                    .watch(providerAvailabilityProvider(p.id))
+                    .value
+                    ?.sandboxWarning !=
+                null;
         bool usable(AgentProvider p) =>
-            p.enabled && flows.allows(p.id, AppFlow.prompt);
+            p.enabled && flows.allows(p.id, AppFlow.prompt) && !noSandbox(p);
         return PopupMenuButton<String>(
           key: const ValueKey('prompt-provider'),
           tooltip: 'Provedor',
@@ -856,6 +865,8 @@ class _ProviderButton extends StatelessWidget {
                           ? 'em breve'
                           : usable(p)
                           ? ''
+                          : noSandbox(p)
+                          ? 'Sandbox do Codex indisponível'
                           : 'Só Claude Code por enquanto',
                       style: const TextStyle(
                         fontSize: 11,
