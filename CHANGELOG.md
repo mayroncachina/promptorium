@@ -2,6 +2,93 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.23.0] - 2026-11-21
+
+### Funcionalidades
+
+- **codex:** Sonda do Codex 0.170 com parte paga atrás de --pago (SPEC-093) (a219468)
+- **provedores:** Capacidades declaradas por provedor e registro de fluxos (SPEC-094 T1) (cc7401a)
+- **provedores:** Opções = intenção + extras tipados, acesso por adaptador (SPEC-094 T2) (8a886d0)
+- **provedores:** Modelos do Codex, versão mínima, sandbox, etiqueta Só Claude Code e fim das comparações soltas (SPEC-094 T3) (873d657)
+- **provedores:** Identidade visual com logos oficiais, glifos e ProviderChip (SPEC-094 T4) (bee0ac8)
+- **eventos:** Tipos neutros, conversor do Claude e Codex emitindo neutros (SPEC-095 T1) (1fcea5a)
+- **timeline:** Cartões de arquivo e comando, arquivos do turno e Atividades pelos eventos neutros (SPEC-095 T2) (b0f3a6e)
+- **contexto:** Medidor e Replay pelos eventos neutros, antes do Codex pelo diff (SPEC-095 T3) (9b266f1)
+- **codex:** Religar Prompt e Sessões, estado e login, interruptor de emergência e provedor nas listas (SPEC-096 T1) (f29d98e)
+- **codex:** Codex no Prompt — thread em read-only, direcionar, interromper, Aprovar nesta conversa, permissões e Executar plano (SPEC-096 T2) (9147494)
+- **codex:** Sessões com o Codex — worktree que commita, interromper, retomar, fork com vínculo (v35), terminal e acesso por turno (SPEC-096 T3) (3d3743e)
+- **codex:** Grupo de processos do App Server, órfãos na partida e SPEC-006/007 revalidadas (SPEC-096 T4) (fa6053e)
+- **codex:** Sem sandbox o Codex só roda em worktree com YOLO, E2E com capturas e SPEC-096 concluída (SPEC-096 T4) (e7e57f9)
+- **cota:** Ler a cota do Codex sem turno, mesclar atualizações e guardar por provedor (SPEC-097 T1) (1e6d013)
+- **custo:** Ledger com provedor e tokens de raciocínio, custo indisponível no Codex e ranking sem zero falso (SPEC-097 T3, schema v34) (25442d5)
+- **rodape:** Régua da cota do provedor ativo, detalhe lado a lado e aviso de limite na Nova sessão (SPEC-097 T2) (3b99401)
+
+### Correções
+
+- **provedores:** Registro não dispara a detecção do Codex; status em implementação reconhecido (cf12fec)
+- **provedores:** Menu do rodapé mais largo, modelos do Codex em lista e prints do app (SPEC-094) (1f4e639)
+- **specs:** Status em implementação conta como aprovada (c942af1)
+- **rodape:** Nome do provedor inteiro no detalhe da cota (f36970e)
+- **codex:** Primeira mensagem não duplica, trocar de workspace encerra o Codex ocioso, teste de widget das Sessões recuperado e turno real sem mexer no config.toml (SPEC-096 pendências) (3c215ea)
+- **sessoes:** O commit do app no fim do turno do Codex entra antes do ponto de restauração (4e994ef)
+- **inicio:** O custo de Hoje não soma o Codex como $0.00 (SPEC-097 decisão 5) (f771c74)
+- **codex:** Rotular o modo Perguntar como Perguntar, não Planejar (657e094)
+- **codex:** O diálogo de fork do Codex não cita as flags do Claude (375c651)
+- **codex:** Separar as colunas do custo nas linhas só do Codex (64b2b81)
+- **codex:** Com o Codex desligado, o Prompt não o oferece nem cria conversa vazia (306792d)
+
+### Documentação
+
+- **spec:** SPEC-096 Codex no Prompt e nas Sessões, com tarefas pai/filhos e mocks (4d6f45a)
+- **spec:** SPEC-096 aponta a issue #343 (d87644f)
+- **spec:** SPEC-096 cores de provedor (1955a78)
+- **spec:** SPEC-096 logos oficiais de provedor (f2c68f5)
+- **spec:** SPEC-096 logo da OpenAI em branco oficial (d4b7743)
+- **spec:** SPEC-096 aprovada (3eb20de)
+- **spec:** SPEC-096 worktree sem sandbox e commit do app (decisão 15) (bb5df3b)
+- **spec:** SPEC-094 Capacidades e opções por provedor, com mocks (57948c8)
+- **spec:** SPEC-094 aponta a issue #334 (254f934)
+- **spec:** SPEC-094 cores de provedor (6a74641)
+- **spec:** SPEC-094 logos oficiais de provedor (983c13b)
+- **spec:** SPEC-094 logo da OpenAI em branco oficial (b9c666c)
+- **spec:** SPEC-094 aprovada (00f07cb)
+- **spec:** SPEC-094 sandbox disponível por máquina (decisão 15) (a4c31f2)
+- **spec:** SPEC-093 Sondagem do Codex 0.170, plano técnico do épico e destino das specs 002–007 (518c4f5)
+- **spec:** SPEC-093 aponta a issue #333 (12d0902)
+- **spec:** SPEC-093 aprovada (bc8cbb2)
+- **pesquisa:** Relatório da sondagem do Codex 0.170 e SPEC-093 concluída (c78f2dd)
+- **spec:** SPEC-094 em implementação, decisões P fechadas (be210dc)
+- **spec:** SPEC-094 concluída, critérios e registro da implementação (522e378)
+- **spec:** SPEC-095 Eventos neutros, com mocks (0d145f0)
+- **spec:** SPEC-095 aponta a issue #335 (512e9e0)
+- **spec:** SPEC-095 cores de provedor (25f0ef1)
+- **spec:** SPEC-095 logos oficiais de provedor (9c06e86)
+- **spec:** SPEC-095 logo da OpenAI em branco oficial (84e8a64)
+- **spec:** SPEC-095 aprovada (3d0e0ac)
+- **spec:** SPEC-095 em implementação, decisões P1–P5 (367e481)
+- **spec:** SPEC-095 prints do app (e9f0591)
+- **spec:** SPEC-095 concluída (67ae2fb)
+- **spec:** SPEC-094 permissão de uso do logo da OpenAI concedida (bc9c634)
+- **spec:** SPEC-096 em implementação, decisões P fechadas (5cec506)
+- **spec:** SPEC-097 Cota do Codex no rodapé, com mocks (6f068f5)
+- **spec:** SPEC-097 aponta a issue #349 (cf59379)
+- **spec:** SPEC-097 cores de provedor (eeec984)
+- **spec:** SPEC-097 logos oficiais de provedor (353c75e)
+- **spec:** SPEC-097 logo da OpenAI em branco oficial (9aea410)
+- **spec:** SPEC-097 aprovada (40075f5)
+- **spec:** SPEC-097 em implementação, decisões fechadas (88f9cb1)
+- **spec:** SPEC-097 concluída, prints do app (b55008a)
+
+### Testes
+
+- **codex:** Fixtures reais do App Server 0.170 e modo de reprodução no fake_codex (SPEC-093) (17aeb33)
+- Imports não usados (3d1ddf6)
+- Sem reformatar o teste do rodapé (e19e0f7)
+
+### Manutenção
+
+- Desfaz reformatação alheia (c88df3f)
+
 ## [0.22.0] - 2026-11-21
 
 ### Funcionalidades
