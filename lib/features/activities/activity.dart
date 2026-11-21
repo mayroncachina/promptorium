@@ -310,6 +310,15 @@ String specSeed(int workspaceId, String code) => 'spec:$workspaceId:$code';
 /// already answered, is thinking.
 ActivityPose poseOfTool(LiveTool? tool) {
   if (tool == null || tool.done) return ActivityPose.think;
+  // SPEC-095 R9: files and commands by what they do, whatever the provider.
+  switch (tool.kind) {
+    case LiveToolKind.file:
+      return ActivityPose.edit;
+    case LiveToolKind.command:
+      return ActivityPose.run;
+    case LiveToolKind.tool:
+      break;
+  }
   return switch (tool.name) {
     'Read' ||
     'Grep' ||

@@ -174,7 +174,26 @@ class LiveTool {
     required this.input,
     required this.at,
     this.done = false,
+    this.kind = LiveToolKind.tool,
+    this.files = const [],
   });
+
+  /// A Claude tool call, seen through its neutral events (SPEC-095 R9).
+  factory LiveTool.fromBlock(ToolUseBlock b, {DateTime? at}) {
+    final files = b.fileChanges;
+    return LiveTool(
+      id: b.id,
+      name: b.name,
+      input: b.input,
+      at: at ?? DateTime.now(),
+      kind: files.isNotEmpty
+          ? LiveToolKind.file
+          : b.command != null
+          ? LiveToolKind.command
+          : LiveToolKind.tool,
+      files: [for (final f in files) f.path],
+    );
+  }
 
   final String id;
   final String name;
@@ -184,12 +203,72 @@ class LiveTool {
   /// Its result arrived: the agent is between tools (thinking).
   final bool done;
 
-  LiveTool finished() =>
-      LiveTool(id: id, name: name, input: input, at: at, done: true);
+  /// What the call does, whatever the provider.
+  final LiveToolKind kind;
+
+  /// Files it changes.
+  final List<String> files;
+
+  LiveTool finished() => LiveTool(
+    id: id,
+    name: name,
+    input: input,
+    at: at,
+    done: true,
+    kind: kind,
+    files: files,
+  );
 }
 
-/// Tools that write files (SPEC-076 R3: "arquivos" of the turn).
-const fileEditTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+/// What a live tool call does (SPEC-095): the Atividades pick the pose from
+/// it, not from a tool name.
+enum LiveToolKind { tool, file, command }
+
+/// The live tool of a neutral event (a Codex file change or command), or
+/// null (SPEC-095 R9).
+LiveTool? liveToolOfNeutral(AgentEvent e, {DateTime? at}) => switch (e) {
+  FileChangeEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.file,
+    input: {'path': e.path},
+    at: at ?? DateTime.now(),
+    done: e.status != FileChangeStatus.proposed,
+    kind: LiveToolKind.file,
+    files: [e.path],
+  ),
+  CommandEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.command,
+    input: {'command': e.displayCommand},
+    at: at ?? DateTime.now(),
+    done: e.done,
+    kind: LiveToolKind.command,
+  ),
+  _ => null,
+};
+
+/// Records the neutral live tool [t] in [recent] (newest first, five at
+/// most): a new call is inserted (true), a known one updated (its files
+/// merged, done when it ends).
+bool recordLiveTool(List<LiveTool> recent, LiveTool t) {
+  final i = recent.indexWhere((x) => x.id == t.id);
+  if (i < 0) {
+    recent.insert(0, t);
+    if (recent.length > 5) recent.removeLast();
+    return true;
+  }
+  final old = recent[i];
+  recent[i] = LiveTool(
+    id: old.id,
+    name: old.name,
+    input: old.input,
+    at: old.at,
+    done: t.done,
+    kind: old.kind,
+    files: {...old.files, ...t.files}.toList(),
+  );
+  return false;
+}
 
 /// Runtime state of a session with a live process.
 @immutable
@@ -266,16 +345,24 @@ class SessionException implements Exception {
 /// Records the top-level tool call [b] in [p] (SPEC-076 R3).
 void _trackTool(_Proc p, ToolUseBlock b) {
   if (p.recent.any((t) => t.id == b.id)) return;
-  p.recent.insert(
-    0,
-    LiveTool(id: b.id, name: b.name, input: b.input, at: DateTime.now()),
-  );
+  final t = LiveTool.fromBlock(b);
+  p.recent.insert(0, t);
   if (p.recent.length > 5) p.recent.removeLast();
   p.calls++;
-  if (fileEditTools.contains(b.name)) {
-    final path = b.input['file_path'] ?? b.input['notebook_path'];
-    if (path is String) p.files.add(path);
+  p.files.addAll(t.files);
+}
+
+/// Records a neutral file change or command in [p] (SPEC-095 R9): one call
+/// per item, every file it changes.
+void _trackNeutral(_Proc p, AgentEvent e) {
+  final t = liveToolOfNeutral(e);
+  if (t == null) return;
+  if (!p.seenNeutral.contains(t.id)) {
+    p.seenNeutral.add(t.id);
+    p.calls++;
   }
+  recordLiveTool(p.recent, t);
+  p.files.addAll(t.files);
 }
 
 /// The agent's text as one line of at most 200 characters.
@@ -317,6 +404,9 @@ class _Proc {
   /// Context of the last top-level answer (input + cache read + cache
   /// write): what the next call sends again (SPEC-017 R4).
   int? contextTokens;
+
+  /// Ids of the neutral calls of the turn already counted (SPEC-095).
+  final Set<String> seenNeutral = {};
 
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
@@ -571,7 +661,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     // A new turn counts its own calls and files (SPEC-076 R3).
     proc
       ..calls = 0
-      ..files.clear();
+      ..files.clear()
+      ..seenNeutral.clear();
     _publish();
     // SPEC-084 R1: the restore point of the turn, before the message goes
     // (the first one was recorded by [create]).
@@ -1800,6 +1891,13 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
+      // SPEC-095 R9: files and commands of any provider.
+      case FileChangeEvent():
+        _trackNeutral(p, e);
+      case CommandEvent():
+        _trackNeutral(p, e);
+      case ContextUsageEvent(:final tokens):
+        if (tokens > 0) p.contextTokens = tokens;
       default:
         break;
     }
@@ -1809,7 +1907,9 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (e is AssistantMessage ||
         e is ToolResult ||
         e is Result ||
-        e is PermissionRequest) {
+        e is PermissionRequest ||
+        e is FileChangeEvent ||
+        e is CommandEvent) {
       _publish();
     }
   }

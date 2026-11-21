@@ -1,93 +1,17 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_neutral.dart';
-import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
-import 'package:promptorium/core/providers/agent_provider.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 
+import '../codex/codex_replay.dart';
 import '../codex/fake_codex.dart';
 
 /// SPEC-095: the neutral events, from Claude and from Codex (the real 0.170
 /// transcripts of SPEC-093 replayed by the fake App Server).
-const _dir = 'test/fixtures/codex/0.170';
-
-Map<String, Map<String, dynamic>> _handshake() {
-  final t = readCodexTranscript('$_dir/handshake.jsonl');
-  Map<String, dynamic> resultOf(String method) {
-    final id = t
-        .firstWhere((l) => l.dir == 'send' && l.msg['method'] == method)
-        .msg['id'];
-    return t
-            .firstWhere(
-              (l) =>
-                  l.dir == 'recv' &&
-                  l.msg['method'] == null &&
-                  l.msg['id'] == id,
-            )
-            .msg['result']
-        as Map<String, dynamic>;
-  }
-
-  return {
-    'account/read': resultOf('account/read'),
-    'model/list': resultOf('model/list'),
-  };
-}
-
-/// Replays [fixture] through a real `CodexRun`; returns its events.
-Future<List<AgentEvent>> replayCodex(
-  String fixture, {
-  ClaudePermissionMode? permissionMode,
-  PromptMode? mode,
-  List<CodexLine> Function(List<CodexLine>)? edit,
-  int turns = 1,
-}) async {
-  var t = readCodexTranscript('$_dir/$fixture.jsonl');
-  if (edit != null) t = edit(t);
-  final fake = FakeCodex.replay(t, fallback: _handshake());
-  final run =
-      await CodexProvider(
-            starter: (exe, args, {workingDirectory, environment}) async => fake,
-          ).start(
-            AgentStartOptions(
-              workingDirectory: '/w',
-              mode:
-                  mode ??
-                  (fixture == 'contexto' ? PromptMode.ask : PromptMode.edit),
-              model: 'gpt-5.6-luna',
-              permissionMode: permissionMode,
-            ),
-          )
-          as CodexRun;
-  final events = <AgentEvent>[];
-  run.events.listen((e) {
-    events.add(e);
-    if (e is PermissionRequest) {
-      // The replay may resolve it first.
-      unawaited(run.approve(e.requestId).catchError((Object _) {}));
-    }
-  });
-  addTearDown(() async {
-    await run.stop(timeout: const Duration(milliseconds: 50));
-    await fake.finish();
-  });
-  for (var n = 0; n < turns; n++) {
-    final before = events.whereType<Result>().length;
-    await run.send('turno ${n + 1}');
-    for (
-      var i = 0;
-      i < 400 && events.whereType<Result>().length == before;
-      i++
-    ) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
-  }
-  return events;
-}
+const _dir = codexFixtures;
 
 List<ToolUseBlock> _toolUses(List<AgentEvent> events) => [
   for (final m in events.whereType<AssistantMessage>())
