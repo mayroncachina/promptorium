@@ -7,7 +7,12 @@ import '../providers/agent_provider.dart';
 /// A single App Server connection. Requests and notifications are separate:
 /// the server also sends requests whose ids can collide with client ids.
 class CodexRpc {
-  CodexRpc(this.process, {this.timeout = const Duration(seconds: 30)}) {
+  CodexRpc(
+    this.process, {
+    this.timeout = const Duration(seconds: 30),
+    this.group = false,
+    GroupKiller? killGroup,
+  }) : _killGroup = killGroup ?? killProcessGroup {
     process.stdin.done.catchError((Object _) {});
     process.stdout
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -26,6 +31,11 @@ class CodexRpc {
 
   final Process process;
   final Duration timeout;
+
+  /// The App Server leads its own process group (`setsid`, SPEC-096 R15):
+  /// stopping it also ends the commands it started.
+  final bool group;
+  final GroupKiller _killGroup;
   late final Future<int> exitCode;
   bool exited = false;
   int _id = 0;
@@ -149,12 +159,17 @@ class CodexRpc {
 
   Future<int> stop({Duration timeout = const Duration(seconds: 5)}) async {
     if (!exited) {
+      if (group) await _killGroup(process.pid, ProcessSignal.sigterm);
       process.kill(ProcessSignal.sigterm);
       try {
         await exitCode.timeout(timeout);
       } on TimeoutException {
+        if (group) await _killGroup(process.pid, ProcessSignal.sigkill);
         process.kill(ProcessSignal.sigkill);
       }
+    } else if (group) {
+      // The leader is gone; what it started may still be in the group.
+      await _killGroup(process.pid, ProcessSignal.sigterm);
     }
     final code = await exitCode;
     try {
@@ -162,5 +177,22 @@ class CodexRpc {
     } catch (_) {}
     if (!logs.isClosed) await logs.close();
     return code;
+  }
+}
+
+/// Sends a signal to a whole process group.
+typedef GroupKiller = Future<void> Function(int pgid, ProcessSignal signal);
+
+/// `kill -s TERM -- -<pgid>` (no error when the group is gone).
+Future<void> killProcessGroup(int pgid, ProcessSignal signal) async {
+  try {
+    await Process.run('kill', [
+      '-s',
+      signal == ProcessSignal.sigkill ? 'KILL' : 'TERM',
+      '--',
+      '-$pgid',
+    ]);
+  } catch (_) {
+    // already gone
   }
 }

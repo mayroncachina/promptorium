@@ -6,9 +6,7 @@ depende-de: [SPEC-003, SPEC-004]
 
 # Modo YOLO do Codex no lugar do bypass Claude
 
-> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). A parte Codex desta spec fica inativa enquanto `codexEnabledProvider` estiver desligado; o comportamento com Claude Code e agentes ACP continua valendo.
->
-> **Revalidar no MVP ([SPEC-096](SPEC-096-codex-prompt-e-sessoes.md))** (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12). Mantida: as flags e políticas do YOLO são conferidas no Codex 0.170 ([SPEC-093](SPEC-093-sondagem-codex-0170.md)) e na SPEC-096, que mantém "YOLO só em worktree"; a nota de "inativa" acima sai quando o MVP for lançado.
+> **Revalidada na [SPEC-096](SPEC-096-codex-prompt-e-sessoes.md) (21/11/2026).** O YOLO do Codex (`danger-full-access` + `never`) só é oferecido com worktree, com o aviso `bypassWarning`; uma sessão na raiz recusa YOLO ao criar e ao trocar a permissão. Desde a SPEC-096 a thread abre em `read-only` e o YOLO vai em cada `turn/start`, para não gravar confiança no `~/.codex/config.toml`. O terminal usa `--yolo` e não usa `-a untrusted`. Testes: `test/core/codex/codex_yolo_test.dart`, `test/features/sessions/codex_permissions_ui_test.dart` e `test/features/sessions/codex_sessions_096_test.dart`.
 
 ## Objetivo
 

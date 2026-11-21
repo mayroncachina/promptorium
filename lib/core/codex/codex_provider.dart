@@ -61,8 +61,10 @@ class CodexProvider implements AgentProvider {
       args.addAll(['-c', '$key=$value']);
     }
     final Process process;
+    // SPEC-096 R15: the real App Server leads its own process group.
+    final group = starter == null && _setsidAvailable();
     try {
-      process = await (starter ?? _start)(
+      process = await (starter ?? (group ? _startGroup : _start))(
         executable,
         args,
         workingDirectory: options.workingDirectory,
@@ -74,7 +76,7 @@ class CodexProvider implements AgentProvider {
       );
     }
     final run = CodexRun(
-      CodexRpc(process),
+      CodexRpc(process, group: group),
       options,
       args: args,
       clientVersion: clientVersion?.call(),
@@ -108,6 +110,29 @@ class CodexProvider implements AgentProvider {
         throw const AgentUnavailable('Codex: limiar de compactação inválido.');
       }
     }
+  }
+
+  static bool _setsidAvailable() =>
+      File('/usr/bin/setsid').existsSync() || File('/bin/setsid').existsSync();
+
+  /// `setsid codex app-server …`: Dart's children are not group leaders, so
+  /// `setsid` does not fork and the pid stays the App Server's. A missing
+  /// executable fails here, as without `setsid`.
+  static Future<Process> _startGroup(
+    String exe,
+    List<String> args, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
+    if (exe.contains('/') && !File(exe).existsSync()) {
+      throw ProcessException(exe, args, 'não encontrado');
+    }
+    return Process.start(
+      'setsid',
+      [exe, ...args],
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
   }
 
   static Future<Process> _start(
