@@ -1,7 +1,7 @@
 ---
 id: SPEC-096
-status: rascunho
-versao: 0.22.0
+status: aprovada
+versao: 0.23.0
 tipo: funcionalidade
 epico: 332
 issue: 343
