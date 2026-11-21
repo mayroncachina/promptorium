@@ -1,7 +1,7 @@
 ---
 id: SPEC-093
-status: rascunho
-versao: 0.22.0
+status: aprovada
+versao: 0.23.0
 tipo: pesquisa
 epico: 332
 issue: 333
