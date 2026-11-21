@@ -1,6 +1,6 @@
 ---
 id: SPEC-093
-status: aprovada
+status: concluida
 versao: 0.23.0
 tipo: pesquisa
 epico: 332
@@ -99,15 +99,15 @@ Nenhuma. Destrava todas as outras do épico: SPEC-094 (capacidades e versão), S
 
 ## Critérios de aceite
 
-- [ ] O relatório registra versão, ajuda e *features* do 0.170, e lista as flags que o app usa e sumiram [R1] verificar: seção "CLI" de `docs/pesquisa/codex-0170.md`.
-- [ ] Cada método usado pelo adaptador aparece como existe, mudou ou sumiu, com o hash do schema [R2] verificar: tabela "Protocolo" do relatório.
-- [ ] `~/.codex/config.toml` e `~/.codex/rules/` têm o mesmo hash antes e depois de toda a sondagem [R4] verificar: saída da sonda no relatório.
-- [ ] Os cenários R5–R16 têm comando, payload sanitizado, resultado e conclusão, ou "não testado" com o motivo [R5–R16] verificar: leitura do relatório.
-- [ ] O commit em worktree tem resultado registrado com e sem `writableRoots`, e a alternativa quando falha [R8] verificar: cenário "Worktree" do relatório.
-- [ ] A fórmula de contexto atual do Codex está escrita com o payload que a comprova [R14] verificar: cenário "Contexto" do relatório.
-- [ ] A tabela de capacidades comprovadas cobre todas as capacidades da SPEC-094 [R17] verificar: tabela no fim do relatório.
-- [ ] As fixtures não têm credenciais nem caminhos pessoais e o teste de reprodução passa [R18] verificar: `flutter test test/core/codex/codex_0170_fixtures_test.dart` e `grep -ri "token\|auth" test/fixtures/codex/0.170/`.
-- [ ] No máximo 12 turnos pagos, listados no relatório [R5–R16] verificar: lista de turnos do relatório.
+- [x] O relatório registra versão, ajuda e *features* do 0.170, e lista as flags que o app usa e sumiram [R1] verificar: seção "CLI" de `docs/pesquisa/codex-0170.md`.
+- [x] Cada método usado pelo adaptador aparece como existe, mudou ou sumiu, com o hash do schema [R2] verificar: tabela "Protocolo" do relatório.
+- [x] `~/.codex/config.toml` e `~/.codex/rules/` têm o mesmo hash antes e depois de toda a sondagem [R4] verificar: saída da sonda no relatório.
+- [x] Os cenários R5–R16 têm comando, payload sanitizado, resultado e conclusão, ou "não testado" com o motivo [R5–R16] verificar: leitura do relatório.
+- [x] O commit em worktree tem resultado registrado com e sem `writableRoots`, e a alternativa quando falha [R8] verificar: cenário "Worktree" do relatório.
+- [x] A fórmula de contexto atual do Codex está escrita com o payload que a comprova [R14] verificar: cenário "Contexto" do relatório.
+- [x] A tabela de capacidades comprovadas cobre todas as capacidades da SPEC-094 [R17] verificar: tabela no fim do relatório.
+- [x] As fixtures não têm credenciais nem caminhos pessoais e o teste de reprodução passa [R18] verificar: `flutter test test/core/codex/codex_0170_fixtures_test.dart` e `grep -ri "token\|auth" test/fixtures/codex/0.170/`.
+- [x] No máximo 12 turnos pagos, listados no relatório [R5–R16] verificar: lista de turnos do relatório.
 
 ## Telas
 

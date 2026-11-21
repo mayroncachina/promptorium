@@ -23,9 +23,11 @@ As decisões da §5 foram fechadas assim. Elas valem sobre as recomendações da
 12. **Specs antigas:** 002 e 005 substituídas; 003 absorvida pela 096; 004 arquivada como referência; 006 e 007 mantidas e revalidadas.
 13. **ai-memory (#83):** integração opcional, não motor; specs 098 e 099 abrindo a onda 2.
 
+> **Versão do MVP atualizada em 20/11/2026.** A 0.22.0 saiu só com a SPEC-087; a base e o MVP do Codex (093–097) passam para a **0.23.0**. A distribuição das ondas seguintes fica com o épico [#332](https://github.com/mayroncachina/promptorium/issues/332) e os *milestones*.
+
 | Versão | Specs |
 |---|---|
-| 0.22.0 · Base e MVP | 093 Sondagem do Codex 0.170 · 094 Capacidades e opções por provedor · 095 Eventos neutros · 096 Codex no Prompt e nas Sessões · 097 Cota do Codex no rodapé |
+| 0.23.0 (era 0.22.0) · Base e MVP | 093 Sondagem do Codex 0.170 · 094 Capacidades e opções por provedor · 095 Eventos neutros · 096 Codex no Prompt e nas Sessões · 097 Cota do Codex no rodapé |
 | 0.23.0 · Memória e fluxo de specs | 098 Memória com ai-memory · 099 Passar o trabalho entre agentes · 100 Execuções estruturadas em qualquer provedor · 101 Executar spec com o Codex · 102 Review automático com o Codex · 103 Hooks gerenciados nos dois provedores |
 | 0.24.0 · Ecossistema do provedor | 104 Instruções (AGENTS.md) e skills · 105 MCP por provedor · 106 Agentes no Codex · 107 Contexto e compactação no Codex |
 | 0.25.0 · Multi-provedor | 108 Comparar Claude × Codex · 109 Orquestrador multi-provedor · 110 Replay e restauração com o Codex |
@@ -165,7 +167,7 @@ Tamanho: **P** ≈ 1–2 dias, **M** ≈ 3–5, **G** ≈ 1–2 semanas (com tes
 | **SPEC-094 · Capacidades e opções por provedor** | Fim dos `== 'claude'` e dos bloqueios do DT-56 | `ProviderCapabilities`; dividir `AgentStartOptions` em intenção + extras; `runStructured`/`readonly_run` só manda o que o provedor suporta; modelo e esforço por provedor (chaves já existentes); versão mínima e estado "incompatível" | 093 | M | MVP, 100 |
 | **SPEC-095 · Eventos neutros** (arquivo, comando e uso) | A timeline entende edições e comandos de qualquer provedor | `FileChangeEvent`, `CommandEvent`, `ContextReading` / `QuotaSnapshot`; `edit_diff`, timeline, mudanças da sessão e replay consomem os tipos neutros; o Claude converte na leitura. **Combinar com a SPEC-087** (contrato de medição) | 093 (e acordo com a 087) | M | MVP (cartões de edição), 107, 110 |
 
-### Onda 1 — MVP "usar o Codex no Promptorium" (proposta 0.22)
+### Onda 1 — MVP "usar o Codex no Promptorium" (0.23; proposta original 0.22)
 
 O menor recorte útil: **conversar no Prompt (Perguntar/Planejar/Editar) e abrir Sessões em worktree com o Codex**, com aprovações, interromper, retomar, terminal e cota no rodapé. Os demais fluxos continuam no Claude, com a etiqueta "Só Claude Code" quando o Codex estiver selecionado.
 
