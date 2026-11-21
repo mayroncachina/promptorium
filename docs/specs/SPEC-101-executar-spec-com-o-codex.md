@@ -1,7 +1,7 @@
 ---
 id: SPEC-101
 status: rascunho
-versao: 0.23.0
+versao: 0.24.0
 tipo: funcionalidade
 epico: 332
 issue: 346
