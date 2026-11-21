@@ -1,6 +1,6 @@
 ---
 id: SPEC-097
-status: em implementação
+status: concluida
 versao: 0.23.0
 tipo: melhoria
 epico: 332
@@ -97,15 +97,15 @@ O App Server do Codex já entrega tudo o que falta: `account/rateLimits/read` (j
 
 ## Critérios de aceite
 
-- [ ] Abrir o app com o Codex logado lê a cota sem abrir thread nem turno; o intervalo de 5 minutos só corre com o Codex ativo ou rodando [R1] verificar: `flutter test test/core/codex/codex_quota_test.dart` com o `fake_codex` conferindo os métodos chamados.
-- [ ] `account/rateLimits/updated` parcial não apaga campos da leitura anterior [R2] verificar: teste da mescla.
-- [ ] A leitura do Codex sobrevive a reiniciar o app e aparece como renovada depois do `resetsAt` [R3] verificar: teste do `quota_source`.
-- [ ] Sem login ou com erro, o rodapé mostra "cota indisponível" com o motivo e a leitura antiga com a hora [R4] verificar: teste de widget do rodapé.
-- [ ] Com o Codex ativo, a régua mostra "Uso 5h" e "Semana" do bucket `codex`; com o Claude, nada muda [R5] verificar: `flutter test test/ui/provider_footer_test.dart`.
-- [ ] O detalhe mostra os dois provedores com plano, janelas, renovação, créditos e hora da leitura [R6] verificar: teste de widget do `quota_detail`.
-- [ ] Limite atingido deixa a régua vermelha com a renovação, e uma execução nova do Codex avisa antes sem trocar de provedor [R7] verificar: testes do rodapé e da Nova sessão.
-- [ ] Um turno do Codex grava provedor, tokens (com raciocínio) e custo indisponível; a migração preenche `claude` nas linhas antigas [R8] verificar: teste do ledger e teste de migração.
-- [ ] Nenhuma tela mostra "US$ 0,00" para execução do Codex; spec mista mostra o total misto e o ranking não põe a spec só com tokens como a mais barata [R9] verificar: testes de `spec_cost` e dos widgets de custo.
+- [x] Abrir o app com o Codex logado lê a cota sem abrir thread nem turno; o intervalo de 5 minutos só corre com o Codex ativo ou rodando [R1] verificar: `flutter test test/core/codex/codex_quota_test.dart` com o `fake_codex` conferindo os métodos chamados.
+- [x] `account/rateLimits/updated` parcial não apaga campos da leitura anterior [R2] verificar: teste da mescla.
+- [x] A leitura do Codex sobrevive a reiniciar o app e aparece como renovada depois do `resetsAt` [R3] verificar: teste do `quota_source`.
+- [x] Sem login ou com erro, o rodapé mostra "cota indisponível" com o motivo e a leitura antiga com a hora [R4] verificar: teste de widget do rodapé.
+- [x] Com o Codex ativo, a régua mostra "Uso 5h" e "Semana" do bucket `codex`; com o Claude, nada muda [R5] verificar: `flutter test test/ui/provider_footer_test.dart`.
+- [x] O detalhe mostra os dois provedores com plano, janelas, renovação, créditos e hora da leitura [R6] verificar: teste de widget do `quota_detail`.
+- [x] Limite atingido deixa a régua vermelha com a renovação, e uma execução nova do Codex avisa antes sem trocar de provedor [R7] verificar: testes do rodapé e da Nova sessão.
+- [x] Um turno do Codex grava provedor, tokens (com raciocínio) e custo indisponível; a migração preenche `claude` nas linhas antigas [R8] verificar: teste do ledger e teste de migração.
+- [x] Nenhuma tela mostra "US$ 0,00" para execução do Codex; spec mista mostra o total misto e o ranking não põe a spec só com tokens como a mais barata [R9] verificar: testes de `spec_cost` e dos widgets de custo.
 
 ## Telas
 
@@ -117,5 +117,12 @@ Canvas: [SPEC-097 · Cota do Codex no rodapé](https://claude.ai/artifact/5ZUZtm
 | `docs/mockups/spec-097/1-rodape-e-detalhe.png` | Rodapé com a cota do Codex e o detalhe aberto: Claude Code e Codex lado a lado, plano, janelas, renovação, créditos, hora da leitura e "Atualizar" | R1, R5, R6 |
 | `docs/mockups/spec-097/2-custo-indisponivel.png` | Custo por spec com "custo indisponível · 1,2 mi tokens" no Codex, o total misto e o ranking com as specs só com tokens à parte | R8–R10 |
 | `docs/mockups/spec-097/3-limite-atingido.png` | Limite do Codex atingido: régua vermelha com a renovação, aviso antes de uma sessão nova com a opção explícita de usar o Claude, e "cota indisponível" sem login | R4, R7 |
+
+## Notas da implementação
+
+- A leitura usa um `codex app-server` de vida curta (`initialize` → `initialized` → `account/rateLimits/read`) ou uma conexão do App Server já inicializada (`CodexRpc.live`); nenhuma abre thread ou turno.
+- As atualizações `account/rateLimits/updated` chegam ao `codexQuotaProvider` por `codexRateLimitUpdates` (o adaptador continua emitindo o `QuotaEvent` para a linha do tempo). Campo ausente ou nulo numa atualização não apaga o valor lido; um limite informado só sai com uma nova leitura (o protocolo proíbe deduzir a volta pelos horários).
+- `costUsd` de `usage_entries` segue não nulo: o "custo indisponível" vem do provedor da linha (capacidade `costUsd` da SPEC-094), nunca de um 0 medido. `tokensReasoning` é parte de `tokensOut` (o Codex soma o raciocínio na saída) e não entra duas vezes no total.
+- No app real, o aviso de limite da Nova sessão só aparece quando a SPEC-096 liberar Sessões para o Codex; até lá o fluxo travado tem prioridade. O teste de widget cobre o aviso com o fluxo liberado.
 
 Os mocks mostram o provedor com a identidade da SPEC-094 (R14, R15): logo oficial ao lado do nome no rodapé, nos seletores, nos chips de sessão e de conversa e em Configurações (Claude em argila `#D97757`; OpenAI no branco oficial para o Codex, com a porcelana `#E8E4DA` só na borda do chip e nos glifos); glifo próprio nos pontos pequenos. Nunca como estado.
