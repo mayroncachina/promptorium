@@ -9,6 +9,7 @@ import '../claude/claude_process.dart' show ProcessStarter;
 import '../providers/agent_provider.dart';
 import '../providers/capabilities.dart';
 import '../providers/permission_policy.dart';
+import 'codex_neutral.dart';
 import 'codex_rpc.dart';
 
 class CodexModel {
@@ -144,6 +145,14 @@ class CodexRun implements ManagedAgentRun {
   Map<String, dynamic> _totalUsage = const {};
   ClaudePermissionMode? _permissionMode;
 
+  /// Model of the thread (for the context readings, SPEC-095 R3).
+  String? _model;
+
+  /// A `contextCompaction` item running: its id, and the size the App
+  /// Server reported meanwhile (the post-compaction size, R4).
+  String? _compacting;
+  int? _compactedTokens;
+
   @override
   Stream<ClaudeEvent> get events => _events.stream;
   @override
@@ -157,14 +166,30 @@ class CodexRun implements ManagedAgentRun {
 
   void _emit(Map<String, dynamic> json) {
     if (_events.isClosed) return;
-    // Scrub before persistence; never store raw App Server authentication.
-    final clean = CodexRpc.redactJson({
-      ...json,
-      'provider': 'codex',
-      'session_id': _thread,
-      if (_turn != null) 'turn_id': _turn,
-    }) as Map<String, dynamic>;
-    _events.add(ClaudeEvent.fromJson(clean));
+    _events.add(ClaudeEvent.fromJson(_clean(json)));
+  }
+
+  // Scrub before persistence; never store raw App Server authentication.
+  Map<String, dynamic> _clean(Map<String, dynamic> json) =>
+      CodexRpc.redactJson({
+        ...json,
+        'provider': 'codex',
+        'session_id': _thread,
+        if (_turn != null) 'turn_id': _turn,
+      }) as Map<String, dynamic>;
+
+  /// A file change: stored with the diff cut to the limit (R12), the whole
+  /// diff kept in the live event.
+  void _emitFile(Map<String, dynamic> json, String? diff) {
+    if (_events.isClosed) return;
+    final full = diff == null ? null : CodexRpc.redact(diff);
+    final clean = _clean(json);
+    if (full != null) {
+      final cut = NeutralLimits.cut(full);
+      clean['diff'] = cut.text;
+      if (cut.cut > 0) clean['diff_cut'] = cut.cut;
+    }
+    _events.add(FileChangeEvent.live(clean, full));
   }
 
   bool get _readOnly =>
@@ -296,6 +321,7 @@ class CodexRun implements ManagedAgentRun {
       );
     }
     final model = '${result['model'] ?? requested ?? 'inherit'}';
+    _model = model == 'inherit' ? null : model;
     final effort = options.effort;
     final selected = _models.where((m) => m.id == model).firstOrNull;
     if (effort != null &&
@@ -426,6 +452,14 @@ class CodexRun implements ManagedAgentRun {
           );
         }
       case 'thread/tokenUsage/updated':
+        // SPEC-095 R4: `last` is the context; during a compaction it is the
+        // new size (`inputTokens = 0`), reported on the compaction event.
+        final ctx = codexContextUsage(p, model: _model);
+        if (_compacting != null) {
+          _compactedTokens = ctx?['tokens'] as int?;
+        } else if (ctx != null) {
+          _emit(ctx);
+        }
         final usage = p['tokenUsage'] as Map?;
         _totalUsage = Map<String, dynamic>.from(usage?['total'] as Map? ?? {});
         _lastUsage = {
@@ -440,6 +474,19 @@ class CodexRun implements ManagedAgentRun {
                         (_baselineUsage[k] as num? ?? 0))
                     .clamp(0, 1 << 62),
         };
+      case 'account/rateLimits/updated':
+        // R5, P5: passed on, never stored (the session drops it).
+        final quota = codexQuota(p);
+        if (quota != null) _emit(quota);
+      case 'thread/compacted':
+        // Deprecated in 0.170 (the `contextCompaction` item replaced it).
+        _emit(
+          CompactionEvent.toJson(
+            provider: 'codex',
+            phase: CompactionEventPhase.completed,
+            key: 'compacted:${p['turnId'] ?? _turn ?? ''}',
+          ),
+        );
       case 'serverRequest/resolved':
         _cancel('codex-${p['requestId']}');
       case 'turn/completed':
@@ -448,6 +495,21 @@ class CodexRun implements ManagedAgentRun {
         _busy = false;
         _clearPending();
         final ok = turn['status'] == 'completed';
+        if (_compacting case final id?) {
+          // The turn ended before the compaction item did.
+          _finishedItems.add(id);
+          _emit(
+            CompactionEvent.toJson(
+              provider: 'codex',
+              phase: ok
+                  ? CompactionEventPhase.completed
+                  : CompactionEventPhase.failed,
+              postTokens: _compactedTokens,
+              key: id,
+            ),
+          );
+          _compacting = null;
+        }
         final cached = _lastUsage['cachedInputTokens'] as num? ?? 0;
         final input = _lastUsage['inputTokens'] as num? ?? 0;
         _emit({
@@ -503,15 +565,33 @@ class CodexRun implements ManagedAgentRun {
       });
       return;
     }
+    // SPEC-095 R7: files, commands and compactions in the neutral
+    // vocabulary; no more `Edit` / `Bash` pretending to be Claude.
+    switch (type) {
+      case 'fileChange':
+        _fileChange(id, item, complete: complete);
+        return;
+      case 'commandExecution':
+        if (complete ? _finishedItems.add(id) : _startedTools.add(id)) {
+          _emit(codexCommand(item));
+        }
+        return;
+      case 'contextCompaction':
+        _compaction(id, complete: complete);
+        return;
+    }
+    if (codexSilentItems.contains(type)) return;
     final name = switch (type) {
-      'commandExecution' => 'Bash',
-      'fileChange' => 'Edit',
       'mcpToolCall' => 'mcp__${item['server']}__${item['tool']}',
       'webSearch' => 'WebSearch',
       'collabAgentToolCall' => 'Agent',
       _ => null,
     };
-    if (name == null) return;
+    if (name == null) {
+      // R6: an item without translation is shown collapsed, not dropped.
+      if (complete && _finishedItems.add(id)) _emit(codexOtherItem(item));
+      return;
+    }
     if (_startedTools.add(id)) {
       _emit({
         'type': 'assistant',
@@ -525,9 +605,7 @@ class CodexRun implements ManagedAgentRun {
               'id': id,
               'name': name,
               'input': {
-                if (item['command'] != null) 'command': item['command'],
-                if (item['cwd'] != null) 'cwd': item['cwd'],
-                if (item['changes'] != null) 'changes': item['changes'],
+                if (item['query'] != null) 'query': item['query'],
                 if (item['arguments'] != null) 'arguments': item['arguments'],
                 if (item['prompt'] != null) 'prompt': item['prompt'],
               },
@@ -546,11 +624,7 @@ class CodexRun implements ManagedAgentRun {
             {
               'type': 'tool_result',
               'tool_use_id': id,
-              'content':
-                  item['aggregatedOutput'] ??
-                  item['result'] ??
-                  item['changes'] ??
-                  item['status'],
+              'content': item['result'] ?? item['status'],
               'is_error':
                   item['status'] == 'failed' ||
                   item['status'] == 'declined' ||
@@ -560,6 +634,58 @@ class CodexRun implements ManagedAgentRun {
         },
       });
     }
+  }
+
+  /// One [FileChangeEvent] per entry of `changes[]` (R1), when the item
+  /// starts (proposed) and when it ends.
+  void _fileChange(
+    String id,
+    Map<String, dynamic> item, {
+    required bool complete,
+  }) {
+    if (!(complete ? _finishedItems.add(id) : _startedTools.add(id))) return;
+    final changes = item['changes'] as List? ?? const [];
+    for (var i = 0; i < changes.length; i++) {
+      final c = changes[i];
+      if (c is! Map<String, dynamic>) continue;
+      final f = codexFileChange(
+        c,
+        toolUseId: id,
+        index: i,
+        status: item['status'],
+      );
+      _emitFile(f.json, f.diff);
+    }
+  }
+
+  /// `contextCompaction` (R4): started, then completed with the new size
+  /// when the App Server reported it meanwhile. The reading stays "aguardando
+  /// medição" until the next `tokenUsage`.
+  void _compaction(String id, {required bool complete}) {
+    if (!complete) {
+      if (!_startedTools.add(id)) return;
+      _compacting = id;
+      _compactedTokens = null;
+      _emit(
+        CompactionEvent.toJson(
+          provider: 'codex',
+          phase: CompactionEventPhase.started,
+          key: id,
+        ),
+      );
+      return;
+    }
+    if (!_finishedItems.add(id)) return;
+    _emit(
+      CompactionEvent.toJson(
+        provider: 'codex',
+        phase: CompactionEventPhase.completed,
+        postTokens: _compactedTokens,
+        key: id,
+      ),
+    );
+    _compacting = null;
+    _compactedTokens = null;
   }
 
   void _request(Object id, String method, Map<String, dynamic> p) {

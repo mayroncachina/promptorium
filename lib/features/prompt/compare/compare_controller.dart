@@ -361,7 +361,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     final s = live?.sides[letter];
     if (live == null || s == null || !identical(s.run, run)) return;
     var side = live.run.side(letter);
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       side = side.copyWith(events: [...side.events, eventJson(e)]);
     }
     var finished = false;
@@ -465,7 +465,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       unawaited(run.stop());
       await _save(id);
       unawaited(_measure(id));
-    } else if (e is! StreamDelta && e is! StreamOther) {
+    } else if (isStoredEvent(e)) {
       _scheduleSave(id);
     }
   }
