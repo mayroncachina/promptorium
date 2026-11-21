@@ -15,6 +15,8 @@ import '../../core/git/agent_trailer.dart';
 import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../core/providers/provider_availability.dart';
 import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
@@ -273,7 +275,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (r != null && (r.mode != mode || r.model != conv.model)) {
       await _note(
         id,
-        'Modo/modelo alterado (${mode.label} · ${modelLabel(conv.model)}); '
+        'Modo/modelo alterado (${mode.label} · '
+        '${isClaudeCode(conv.provider) ? modelLabel(conv.model) : conv.model}); '
         'reiniciando com --resume',
       );
       await _stopRun(id, r);
@@ -562,6 +565,16 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       throw ConversationException(
         flowLockedMessage(provider.displayName, AppFlow.prompt),
       );
+    }
+    // SPEC-096 R10a: no sandbox, no Codex in the Prompt (nothing runs in
+    // the project root without it).
+    if (conv.provider == ProviderCapabilities.codex.providerId &&
+        ref
+                .read(providerAvailabilityProvider(conv.provider))
+                .value
+                ?.sandboxWarning !=
+            null) {
+      throw ConversationException(codexNoSandboxMessage());
     }
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);

@@ -12,6 +12,8 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
 import '../../core/git/worktree_roots.dart';
+import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../core/providers/provider_availability.dart';
 import '../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_extensions.dart';
@@ -555,6 +557,26 @@ class SessionManager extends Notifier<SessionManagerState> {
       }
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
+    }
+    // SPEC-096 R10a: without the sandbox, the Codex runs only in a worktree
+    // with full access (and the app commits at the end of the turn).
+    if (provider == ProviderCapabilities.codex.providerId &&
+        ref
+                .read(providerAvailabilityProvider(provider))
+                .value
+                ?.sandboxWarning !=
+            null &&
+        (path == ws.path ||
+            r.permissionMode != ClaudePermissionMode.skipPermissions)) {
+      if (r.useWorktree && r.worktreePath == null && path != ws.path) {
+        try {
+          await git.removeWorktree(path, force: true);
+          await git.deleteBranch(branch, force: true);
+        } on GitException catch (e) {
+          debugPrint('worktree $path não removido — $e');
+        }
+      }
+      throw SessionException(codexNoSandboxMessage());
     }
     if (r.permissionMode == ClaudePermissionMode.skipPermissions &&
         path == ws.path) {

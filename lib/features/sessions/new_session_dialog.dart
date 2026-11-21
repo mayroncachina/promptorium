@@ -348,7 +348,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   minLines: 4,
                   maxLines: 10,
                   style: const TextStyle(fontSize: 13),
-                  decoration: deco('O que o Claude deve fazer?'),
+                  decoration: deco(
+                    'O que o ${_provider == 'codex' ? 'Codex' : 'Claude'} deve fazer?',
+                  ),
                 ),
                 if (fork == null) ...[
                   Row(

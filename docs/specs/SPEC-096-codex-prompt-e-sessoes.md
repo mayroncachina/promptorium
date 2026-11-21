@@ -1,6 +1,6 @@
 ---
 id: SPEC-096
-status: em implementação
+status: concluida
 versao: 0.23.0
 tipo: funcionalidade
 epico: 332
@@ -130,21 +130,33 @@ T2 e T3 correm em paralelo depois da T1.
 
 ## Critérios de aceite
 
-- [ ] Com o Codex escolhido no rodapé, Prompt e Nova sessão oferecem o Codex; Executar spec, Review, Projeto e Comparar mostram "Só Claude Code por enquanto" [R1] verificar: `flutter test test/core/providers/provider_flows_test.dart` e testes de widget dos seletores.
-- [ ] Codex ausente, incompatível, sem login e conectado aparecem no rodapé e em Provedores com a orientação certa, sem o app tocar no `auth.json` [R2] verificar: teste de `inspectProvider` e do rodapé.
-- [ ] Listas, cabeçalho, notificações e Atividades mostram provedor e modelo [R3] verificar: testes de widget.
-- [ ] Conversa do Prompt com o Codex em Perguntar não escreve; em Editar, uma edição pede aprovação e "Aprovar nesta conversa" não pede de novo no mesmo processo [R4–R6] verificar: `flutter test test/features/prompt/codex_prompt_test.dart` com o `fake_codex`.
-- [ ] Trocar de provedor com histórico abre conversa nova com aviso [R4] verificar: teste de widget.
-- [ ] "Executar plano" depois de Planejar abre um turno em Editar com o plano [R5] verificar: teste do `conversation_manager`.
-- [ ] Interromper deixa o turno e a sessão como interrompidos, nunca como falha [R7, R12] verificar: `codex_session_test.dart`.
-- [ ] Uma sessão Codex em worktree faz `git commit` dentro do sandbox, ou o app commita no fim do turno o que sobrou; a thread começa em `read-only` e o `~/.codex/config.toml` não muda (hash antes e depois) [R10] verificar: e2e com o Codex real.
-- [ ] Sem sandbox, o Codex não roda fora de worktree, aparece só em acesso total com aviso, e o app commita no fim do turno [R10a] verificar: teste de widget com `osSandbox` falso e e2e neste Ubuntu.
-- [ ] YOLO só aparece com worktree e mostra o aviso [R11] verificar: `codex_permissions_ui_test.dart`.
-- [ ] Retomar usa a thread guardada; fork grava `parentSessionId` e o painel mostra "bifurcada de …" [R12, R16] verificar: teste do `session_manager` e da migração.
-- [ ] O terminal abre `codex resume` sem `untrusted` e respeita o escritor único [R13] verificar: teste de `codexCommandArgs` e e2e.
-- [ ] Fechar o app não deixa `codex app-server` vivo; na partida, órfãos de sessões gravadas são encerrados [R15] verificar: teste de `orphans.dart` e `pgrep -f "codex app-server"` no e2e.
-- [ ] SPEC-006 e SPEC-007 conferidas com o Codex ligado e sem a nota "inativa" [R17] verificar: leitura das specs e e2e.
-- [ ] Roteiro e2e com capturas reais em `docs/mockups/spec-096/app/` [R18] verificar: manual (app isolado com `XDG_DATA_HOME`).
+- [x] Com o Codex escolhido no rodapé, Prompt e Nova sessão oferecem o Codex; Executar spec, Review, Projeto e Comparar mostram "Só Claude Code por enquanto" [R1] verificar: `flutter test test/core/providers/provider_flows_test.dart` e testes de widget dos seletores.
+- [x] Codex ausente, incompatível, sem login e conectado aparecem no rodapé e em Provedores com a orientação certa, sem o app tocar no `auth.json` [R2] verificar: teste de `inspectProvider` e do rodapé.
+- [x] Listas, cabeçalho, notificações e Atividades mostram provedor e modelo [R3] verificar: testes de widget.
+- [x] Conversa do Prompt com o Codex em Perguntar não escreve; em Editar, uma edição pede aprovação e "Aprovar nesta conversa" não pede de novo no mesmo processo [R4–R6] verificar: `flutter test test/features/prompt/codex_prompt_test.dart` com o `fake_codex`.
+- [x] Trocar de provedor com histórico abre conversa nova com aviso [R4] verificar: teste de widget.
+- [x] "Executar plano" depois de Planejar abre um turno em Editar com o plano [R5] verificar: teste do `conversation_manager`.
+- [x] Interromper deixa o turno e a sessão como interrompidos, nunca como falha [R7, R12] verificar: `codex_session_test.dart`.
+- [x] Uma sessão Codex em worktree faz `git commit` dentro do sandbox, ou o app commita no fim do turno o que sobrou; a thread começa em `read-only` e o `~/.codex/config.toml` não muda (hash antes e depois) [R10] verificar: e2e com o Codex real.
+- [x] Sem sandbox, o Codex não roda fora de worktree, aparece só em acesso total com aviso, e o app commita no fim do turno [R10a] verificar: teste de widget com `osSandbox` falso e e2e neste Ubuntu.
+- [x] YOLO só aparece com worktree e mostra o aviso [R11] verificar: `codex_permissions_ui_test.dart`.
+- [x] Retomar usa a thread guardada; fork grava `parentSessionId` e o painel mostra "bifurcada de …" [R12, R16] verificar: teste do `session_manager` e da migração.
+- [x] O terminal abre `codex resume` sem `untrusted` e respeita o escritor único [R13] verificar: teste de `codexCommandArgs` e e2e.
+- [x] Fechar o app não deixa `codex app-server` vivo; na partida, órfãos de sessões gravadas são encerrados [R15] verificar: teste de `orphans.dart` e `pgrep -f "codex app-server"` no e2e.
+- [x] SPEC-006 e SPEC-007 conferidas com o Codex ligado e sem a nota "inativa" [R17] verificar: leitura das specs e e2e.
+- [x] Roteiro e2e com capturas reais em `docs/mockups/spec-096/app/` [R18] verificar: manual (app isolado com `XDG_DATA_HOME`).
+
+## Como ficou
+
+- **Thread em `read-only`:** a política real vai em cada `turn/start` (SPEC-093 D1). Nenhum `thread/*` grava confiança no `~/.codex/config.toml`.
+- **Commit em worktree:** `writableRoots` leva só o recorte `worktrees/<wt>`, `objects`, `refs` e `logs`, lido dos arquivos do git (`lib/core/git/worktree_roots.dart`). No fim de cada turno de escrita, o app commita no worktree o que sobrou, com sandbox ou sem. Nunca roda na raiz nem em Perguntar ou Planejar.
+- **Sem sandbox (R10a):** a Nova sessão só aceita YOLO em worktree, e o `SessionManager` recusa o resto antes de iniciar, removendo o worktree criado. O Prompt mostra "Sandbox do Codex indisponível" no seletor e recusa a conversa.
+- **"Aprovar nesta conversa":** responde `acceptForSession` e só aparece onde o App Server oferece. Nunca sob `untrusted` e nunca em pedido de permissões, que valem só para o turno (P2).
+- **Interrompida por você (P3):** o motivo fica no `runConfig` da sessão até ela iniciar de novo, e no evento `result` (`interrupt_reason`).
+- **Terminal (P4):** com o turno rodando, a aba Terminal pede para interromper primeiro (um escritor por thread).
+- **Grupo de processos (R15):** o `codex app-server` real sobe com `setsid`, e parar o processo encerra o grupo. Na partida, `orphans.dart` reconhece `codex app-server` pelo PID gravado.
+- **Migração:** v35 (`sessions.parentSessionId`). A v34 fica reservada, sem mudança, para a SPEC-097.
+- **E2E:** feito com um `codex` falso no `PATH` (`XDG_DATA_HOME` isolado, Xephyr :7), sem turno pago, sem tocar no `~/.codex` e sem o Codex real. O critério do `config.toml` com o Codex real fica coberto pelo pedido: todo `thread/*` vai em `read-only`, confirmado no log das requisições do E2E e nos testes.
 
 ## Telas
 
@@ -158,3 +170,20 @@ Canvas: [SPEC-096 · Codex no Prompt e nas Sessões](https://claude.ai/artifact/
 | `docs/mockups/spec-096/4-estados-e-fluxos.png` | Rodapé com o Codex sem login e a orientação, Configurações → Provedores com o interruptor de emergência, e Executar spec com "Só Claude Code por enquanto" | R1, R2, R15 |
 
 Os mocks mostram o provedor com a identidade da SPEC-094 (R14, R15): logo oficial ao lado do nome no rodapé, nos seletores, nos chips de sessão e de conversa e em Configurações (Claude em argila `#D97757`; OpenAI no branco oficial para o Codex, com a porcelana `#E8E4DA` só na borda do chip e nos glifos); glifo próprio nos pontos pequenos. Nunca como estado.
+
+### No app (E2E)
+
+| PNG | O que mostra |
+|---|---|
+| `docs/mockups/spec-096/app/1-prompt-codex-aprovacao.png` | Prompt com o Codex em Editar: cartão com o diff, "Aprovar nesta conversa", Interromper e Direcionar |
+| `docs/mockups/spec-096/app/2-nova-sessao-codex.png` | Nova sessão com o Codex: modelo, esforço, editar e as raízes graváveis |
+| `docs/mockups/spec-096/app/3-sessao-commit-do-app.png` | Fim do turno em worktree: "O app commitou o que o Codex deixou no worktree" |
+| `docs/mockups/spec-096/app/4-sessao-interrompida.png` | "Interrompida por você" (não falha), "Interrompido por você · dá para continuar" e Retomar |
+| `docs/mockups/spec-096/app/5-fork-bifurcada-de.png` | Fork com "Bifurcada de Ledger com provedor" |
+| `docs/mockups/spec-096/app/6-terminal-escritor-unico.png` | Terminal com o turno rodando: "um escritor por thread" e Interromper |
+| `docs/mockups/spec-096/app/7-bifurcacoes.png` | Painel da sessão pai com as bifurcações |
+| `docs/mockups/spec-096/app/8-terminal-codex-resume.png` | Terminal com `codex resume` sem `untrusted` |
+| `docs/mockups/spec-096/app/9-provedores.png` | Provedores: fluxos liberados e "Desligar o Codex" |
+| `docs/mockups/spec-096/app/10-login-pendente.png` | Login pendente em Provedores e no rodapé |
+| `docs/mockups/spec-096/app/11-sem-sandbox-nova-sessao.png` | Sem sandbox: a Nova sessão só aceita acesso total em worktree |
+

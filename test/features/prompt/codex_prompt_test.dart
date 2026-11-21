@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
@@ -25,6 +26,11 @@ void main() {
     c = ProviderContainer(
       overrides: [
         databaseOverride(db),
+        // The sandbox check would start one more App Server (R10a).
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, 'ok'),
+        ),
         codexProcessStarterProvider.overrideWithValue((
           exe,
           args, {
