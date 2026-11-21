@@ -1,6 +1,6 @@
 ---
 id: SPEC-096
-status: aprovada
+status: em implementação
 versao: 0.23.0
 tipo: funcionalidade
 epico: 332
@@ -73,10 +73,10 @@ Esta spec fecha esses furos para Prompt e Sessões, usando as capacidades (SPEC-
 
 ## Decisões em aberto
 
-- P1 · **Interruptor de emergência.** Manter uma chave em `app_settings` que desliga o Codex em todos os fluxos sem nova versão? **Recomendação:** sim, escondida em Configurações → Provedores ("Desligar o Codex"), porque o App Server é experimental.
-- P2 · **"Aprovar nesta conversa" e o painel global.** Uma aprovação por conversa vale só até o processo terminar ou também ao retomar? **Recomendação:** só até o processo terminar, que é o que o `acceptForSession` do Codex garante; ao retomar, pede de novo.
-- P3 · **Interrompida por você × app fechado.** O `SessionStatus.interrupted` hoje significa "o app fechou com a sessão rodando". Distinguir os dois? **Recomendação:** reaproveitar o mesmo status (os dois podem ser retomados, e o Início e as Atividades já tratam assim, SPEC-080) e guardar o motivo no evento de fim de turno, mostrado como "interrompida por você" ou "interrompida: o app fechou".
-- P4 · **Terminal com a sessão viva.** **Recomendação:** abrir o terminal só com o turno parado e mostrar "pare o turno para abrir o terminal" com o botão Interromper, a menos que a SPEC-093 mostre que o App Server e a TUI convivem na mesma thread.
+- P1 · **Interruptor de emergência.** Manter uma chave em `app_settings` que desliga o Codex em todos os fluxos sem nova versão? **Decidido:** sim, escondida em Configurações → Provedores ("Desligar o Codex"), porque o App Server é experimental.
+- P2 · **"Aprovar nesta conversa" e o painel global.** Uma aprovação por conversa vale só até o processo terminar ou também ao retomar? **Decidido:** só até o processo terminar, que é o que o `acceptForSession` do Codex garante; ao retomar, pede de novo.
+- P3 · **Interrompida por você × app fechado.** O `SessionStatus.interrupted` hoje significa "o app fechou com a sessão rodando". Distinguir os dois? **Decidido:** reaproveitar o mesmo status (os dois podem ser retomados, e o Início e as Atividades já tratam assim, SPEC-080) e guardar o motivo no evento de fim de turno, mostrado como "interrompida por você" ou "interrompida: o app fechou".
+- P4 · **Terminal com a sessão viva.** **Decidido:** abrir o terminal só com o turno parado e mostrar "pare o turno para abrir o terminal" com o botão Interromper, a menos que a SPEC-093 mostre que o App Server e a TUI convivem na mesma thread.
 - ~~P5 · Commit em worktree se `writableRoots` falhar.~~ **Decidido em 21/11 (decisão 15):** o app commita no fim do turno, como reserva com sandbox e como caminho fixo sem sandbox (R10, R10a).
 
 ## Design
