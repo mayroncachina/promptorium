@@ -9,6 +9,7 @@ import '../../board/board_screen.dart' show openSession;
 import '../../sessions/widgets/session_style.dart';
 import '../cost_format.dart';
 import '../spec_cost.dart';
+import '../usage_ledger.dart' show entryHasCost;
 
 /// Colour of each origin (the bar and the dot of its line; the label always
 /// goes with it, R13).
@@ -106,11 +107,26 @@ class SpecCostSection extends ConsumerWidget {
     final rate = ref.watch(rateLimitProvider);
     final weighed = total.week != null || total.fiveHour != null;
 
-    final spoken = dollars
+    // SPEC-097 R9: the Codex turns have tokens, never a measured US\$ 0.
+    final only = total.onlyUnpriced;
+    final mixed = total.hasUnpriced
+        ? formatMixedCost(total.costUsd, total.unpricedTokens, priced: !only)
+        : null;
+    final spoken = only
+        ? 'Cota da spec: $costUnavailable, ${spokenTokens(total.tokens)} do '
+              'Codex'
+        : dollars
         ? 'Cota da spec: ${formatUsd(total.costUsd)}, estimativa do CLI, '
-              '${spokenTokens(total.tokens)}'
+              '${spokenTokens(total.tokens)}${mixed == null ? '' : ', $mixed'}'
         : 'Cota da spec: ${spokenQuota(total.week)} da semana, '
-              '${spokenFiveHour(total.fiveHour)}, ${spokenTokens(total.tokens)}';
+              '${spokenFiveHour(total.fiveHour)}, ${spokenTokens(total.tokens)}'
+              '${mixed == null ? '' : ', $mixed'}';
+    final tokensLabel = total.hasUnpriced && !only
+        ? 'tokens · Codex ${formatTokenWords(total.unpricedTokens)} · '
+              'Claude ${formatTokenWords(total.pricedTokens)}'
+        : total.cacheRead > 0
+        ? 'tokens · + ${formatTokens(total.cacheRead)} do cache'
+        : 'tokens';
 
     return Semantics(
       key: const ValueKey('spec-cost-section'),
@@ -168,35 +184,67 @@ class SpecCostSection extends ConsumerWidget {
                   ? [
                       _Tile(
                         key: const ValueKey('spec-cost-usd'),
-                        value: formatUsd(total.costUsd),
-                        label: 'custo (CLI)',
+                        value: only ? 'indisponível' : formatUsd(total.costUsd),
+                        label: only
+                            ? 'custo · o Codex não informa US\$'
+                            : total.hasUnpriced
+                            ? 'custo (CLI) · + '
+                                  '${formatTokenWords(total.unpricedTokens)} '
+                                  'tokens do Codex (sem US\$)'
+                            : 'custo (CLI)',
                       ),
-                      _Tile(value: formatTokens(total.tokens), label: 'tokens'),
+                      _Tile(
+                        key: const ValueKey('spec-cost-tokens'),
+                        value: formatTokens(total.tokens),
+                        label: tokensLabel,
+                      ),
                       _Tile(value: '${total.turns}', label: 'turnos'),
                     ]
                   : [
                       _Tile(
                         key: const ValueKey('spec-cost-week'),
-                        value: formatQuota(total.week),
-                        label: 'da semana',
+                        value: only ? 'indisponível' : formatQuota(total.week),
+                        label: only
+                            ? 'da semana · o Codex não tem peso'
+                            : total.hasUnpriced
+                            ? 'da semana · só a parte do Claude'
+                            : 'da semana',
                       ),
                       _Tile(
                         key: const ValueKey('spec-cost-five'),
-                        value: formatFiveHourValue(total.fiveHour),
+                        value: only
+                            ? 'indisponível'
+                            : formatFiveHourValue(total.fiveHour),
                         label: 'janela de 5 h',
                       ),
                       _Tile(
                         key: const ValueKey('spec-cost-tokens'),
                         value: formatTokens(total.tokens),
-                        label: total.cacheRead > 0
-                            ? 'tokens · + ${formatTokens(total.cacheRead)} '
-                                  'do cache'
-                            : 'tokens',
+                        label: tokensLabel,
                       ),
                     ],
             ),
           ),
-          if (dollars)
+          if (mixed != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                mixed,
+                key: const ValueKey('spec-cost-mixed'),
+                style: _mono.copyWith(color: AppColors.text),
+              ),
+            ),
+          if (only)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'O Codex informa tokens, não US\$. O app nunca mostra 0 no '
+                'lugar de "indisponível".',
+                key: ValueKey('spec-cost-unpriced-note'),
+                style: _muted,
+              ),
+            )
+          else if (dollars)
             const Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
@@ -516,7 +564,9 @@ class _Table extends StatelessWidget {
               r.label,
               if (r.detail != null) r.detail!,
               '${head.first}: ${r.extra}',
-              if (dollars)
+              if (r.slice.onlyUnpriced)
+                costUnavailable
+              else if (dollars)
                 formatUsd(r.slice.costUsd)
               else ...[
                 '${spokenQuota(r.slice.week)} da semana',
@@ -528,16 +578,24 @@ class _Table extends StatelessWidget {
               child: line(
                 key: r.key,
                 label: _RowLabel(row: r),
+                // SPEC-097 R9: a line only of the Codex has no US\$ and no
+                // weight.
                 cells: dollars
                     ? [
                         r.extra,
-                        formatUsd(r.slice.costUsd),
+                        r.slice.onlyUnpriced
+                            ? costUnavailableShort
+                            : formatUsd(r.slice.costUsd),
                         formatTokens(r.slice.tokens),
                       ]
                     : [
                         r.extra,
-                        formatQuota(r.slice.week),
-                        formatFiveHour(r.slice.fiveHour, short: true),
+                        r.slice.onlyUnpriced
+                            ? costUnavailableShort
+                            : formatQuota(r.slice.week),
+                        r.slice.onlyUnpriced
+                            ? costUnavailableShort
+                            : formatFiveHour(r.slice.fiveHour, short: true),
                         formatTokens(r.slice.tokens),
                       ],
               ),
@@ -690,6 +748,13 @@ class _TurnsDialog extends ConsumerWidget {
                                 ),
                                 if (e.estimated)
                                   const Text('estimado', style: _muted),
+                                if (!entryHasCost(e))
+                                  Text(
+                                    e.provider == 'codex'
+                                        ? 'Codex'
+                                        : e.provider,
+                                    style: _muted,
+                                  ),
                               ],
                             ),
                           ),
@@ -700,7 +765,11 @@ class _TurnsDialog extends ConsumerWidget {
                             ),
                             64,
                           ),
-                          if (dollars)
+                          if (!entryHasCost(e)) ...[
+                            cell(costUnavailableShort, 64, style: _muted),
+                            if (!dollars)
+                              cell(costUnavailableShort, 64, style: _muted),
+                          ] else if (dollars)
                             cell(formatUsd(e.costUsd), 64)
                           else ...[
                             cell(formatQuota(e.weekPct), 64),

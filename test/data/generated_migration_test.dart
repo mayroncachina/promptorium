@@ -400,4 +400,19 @@ void main() {
     expect(row.scope, 'arquivo');
     await db.close();
   });
+  test('v33 → v34 (SPEC-097) marks the old turns as Claude\'s', () async {
+    final schema = await verifier.schemaAt(33);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        'INSERT INTO usage_entries (workspace_id, source, at, tokens_in, '
+        "tokens_out, cost_usd) VALUES (1, 'etapa', 1795224676, 10, 5, 4.2)",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.usageEntries).getSingle();
+    expect(row.provider, 'claude');
+    expect(row.tokensReasoning, 0);
+    expect(row.costUsd, 4.2, reason: 'the cost of before stays');
+    await db.close();
+  });
 }

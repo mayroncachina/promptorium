@@ -468,6 +468,7 @@ class CodexRun implements ManagedAgentRun {
             'outputTokens',
             'cachedInputTokens',
             'cacheWriteInputTokens',
+            'reasoningOutputTokens',
           ])
             k:
                 ((_totalUsage[k] as num? ?? 0) -
@@ -527,6 +528,8 @@ class CodexRun implements ManagedAgentRun {
             'input_tokens': (input - cached).clamp(0, 1 << 62),
             'cache_read_input_tokens': cached,
             'output_tokens': _lastUsage['outputTokens'] ?? 0,
+            // Part of the output (SPEC-097 R8).
+            'reasoning_output_tokens': _lastUsage['reasoningOutputTokens'] ?? 0,
           },
           if (turn['error'] != null) 'error': turn['error'],
         });

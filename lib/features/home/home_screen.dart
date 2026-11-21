@@ -473,7 +473,11 @@ class _NowPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        formatCost(s.costUsd),
+                        formatRunCost(
+                          s.provider,
+                          s.costUsd,
+                          unavailable: 'indisp.',
+                        ),
                         style: const TextStyle(
                           fontFamily: AppFonts.mono,
                           fontSize: 11,
