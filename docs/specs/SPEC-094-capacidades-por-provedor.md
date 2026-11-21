@@ -1,7 +1,7 @@
 ---
 id: SPEC-094
-status: rascunho
-versao: 0.22.0
+status: aprovada
+versao: 0.23.0
 tipo: melhoria
 epico: 332
 issue: 334
@@ -147,7 +147,7 @@ O Blossom ocupa cerca de metade da área do arquivo oficial. O enquadramento (vi
    - `ProviderChip(provider)`, o chip neutro com logo e nome. As telas usam este.
 5. **Um único ponto de troca:** se os termos da OpenAI não permitirem o uso, o `ProviderLogo` passa a desenhar o glifo do livro para o Codex, no app inteiro, sem mexer nas telas.
 6. **Testes:** goldens em 14 e 16 px; o chip nunca mostra o logo sem o nome; a cor do logo não muda com o tema.
-7. **Entrega:** T4 desta spec (0.22.0). As outras specs do épico adotam o `ProviderChip` à medida que forem implementadas.
+7. **Entrega:** T4 desta spec (0.23.0). As outras specs do épico adotam o `ProviderChip` à medida que forem implementadas.
 
 ### Arquivos tocados
 
