@@ -590,7 +590,14 @@ class _Header extends ConsumerWidget {
     );
     final look = SessionLook.of(s.status, alive: alive);
     final manager = ref.read(sessionManagerProvider.notifier);
-    final canResume = !alive;
+    final busy = ref.watch(
+      sessionManagerProvider.select((m) => m.live[s.id]?.busy ?? false),
+    );
+    final codex = s.provider == 'codex';
+    // SPEC-096 R12: an interrupted Codex turn keeps its process; "Retomar"
+    // continues it.
+    final canResume =
+        !alive || (codex && !busy && s.status == SessionStatus.interrupted);
 
     final agentModel = [
       s.agentName ?? 'sem agente',
@@ -634,7 +641,7 @@ class _Header extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        look.label,
+                        sessionStatusLabel(s, look),
                         key: const ValueKey('session-header-status'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -724,6 +731,14 @@ class _Header extends ConsumerWidget {
                       label: '×',
                       onTap: () =>
                           ref.read(splitSessionProvider.notifier).set(null),
+                    ),
+                  // SPEC-096 R12: the Codex turn is interrupted, not killed.
+                  if (codex && alive && busy)
+                    SmallButton(
+                      key: const ValueKey('session-interrupt'),
+                      label: 'Interromper',
+                      color: AppColors.amber,
+                      onTap: () => manager.interrupt(s.id),
                     ),
                   if (canResume)
                     _ResumeButton(

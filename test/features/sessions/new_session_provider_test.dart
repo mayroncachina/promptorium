@@ -122,4 +122,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(checks, greaterThan(0));
   });
+
+  testWidgets('SPEC-096 R9, R10: Codex in a worktree shows the writable roots '
+      '(the slice of the git common dir) and none without a worktree', (
+    tester,
+  ) async {
+    await _open(tester);
+    expect(_key('new-session-flow-locked'), findsNothing);
+    expect(_key('new-session-writable-roots'), findsOneWidget);
+    expect(
+      find.textContaining('worktrees/<wt>, objects, refs, logs'),
+      findsOneWidget,
+    );
+    await tester.tap(_key('new-session-worktree'));
+    await tester.pumpAndSettle();
+    expect(_key('new-session-writable-roots'), findsNothing);
+  });
 }

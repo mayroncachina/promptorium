@@ -50,6 +50,7 @@ class SessionsRepo {
     double costUsd = 0,
     SessionStatus status = SessionStatus.running,
     int? duelId,
+    String? parentSessionId,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -73,8 +74,16 @@ class SessionsRepo {
           costUsd: Value(costUsd),
           status: Value(status),
           duelId: Value(duelId),
+          parentSessionId: Value(parentSessionId),
         ),
       );
+
+  /// Sessions forked from [id] (SPEC-096 R16), oldest first.
+  Future<List<Session>> forksOf(String id) =>
+      (_db.select(_t)
+            ..where((s) => s.parentSessionId.equals(id))
+            ..orderBy([(s) => OrderingTerm.asc(s.startedAt)]))
+          .get();
 
   Future<int> setExternalId(String id, String externalId) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(

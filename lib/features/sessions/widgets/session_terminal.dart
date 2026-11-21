@@ -234,6 +234,41 @@ class SessionTerminalView extends ConsumerWidget {
     final alive = ref.watch(
       sessionManagerProvider.select((s) => s.isAlive(session.id)),
     );
+    final busy = ref.watch(
+      sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
+    );
+    // SPEC-096 R13, P4: one writer per thread — with the Codex turn
+    // running, the terminal waits for "Interromper".
+    if (session.provider == 'codex' &&
+        alive &&
+        busy &&
+        (term == null || !term.running)) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                codexTerminalBusyMessage,
+                key: ValueKey('terminal-codex-busy'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              SmallButton(
+                key: const ValueKey('terminal-interrupt'),
+                label: 'Interromper',
+                color: AppColors.amber,
+                onTap: () => ref
+                    .read(sessionManagerProvider.notifier)
+                    .interrupt(session.id),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (term == null || (!term.running && alive)) {
       return Center(
         child: ConstrainedBox(
@@ -401,3 +436,8 @@ class AppTerminalView extends StatelessWidget {
     },
   );
 }
+
+/// SPEC-096 P4: the App Server and the TUI never write the same thread.
+const codexTerminalBusyMessage =
+    'Pare o turno para abrir o terminal: um escritor por thread. O terminal '
+    'só abre com o turno parado.';

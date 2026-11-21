@@ -11,6 +11,7 @@ import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/git/worktree_roots.dart';
 import '../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_extensions.dart';
@@ -1097,6 +1098,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseBranch: parent.worktreePath != ws.path ? parent.baseBranch : null,
       // total_cost_usd keeps counting the parent's cost.
       costUsd: parent.costUsd,
+      // SPEC-096 R16: "bifurcada de …".
+      parentSessionId: id,
     );
     await _note(newId, 'Fork de "${_titleOf(parent)}" (${_short(id)})');
     final limits = await _agentLimits(parent.agentName, ws.path);
@@ -1163,6 +1166,70 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (p == null || req == null) return;
     await p.process.deny(requestId, message);
     await _afterAnswer(id);
+  }
+
+  /// "Interromper" (SPEC-096 R12): the Codex turn ends with
+  /// `turn/interrupt` and the session becomes `interrupted` (never failed);
+  /// the process stays for "Retomar". Other providers have no live
+  /// interrupt here: [stop].
+  Future<void> interrupt(String id) async {
+    final p = _procs[id];
+    if (p == null) return;
+    if (p.process is CodexRun) {
+      await p.process.interrupt();
+      return;
+    }
+    await stop(id);
+  }
+
+  /// Whether the turn of [id] can be interrupted now (a Codex turn running).
+  bool canInterrupt(String id) {
+    final p = _procs[id];
+    return p != null && p.busy && p.process is CodexRun;
+  }
+
+  Future<void> _markInterruptedByUser(String id) async {
+    final s = await _repo.getById(id);
+    if (s == null) return;
+    final config = s.runConfig == null
+        ? <String, dynamic>{}
+        : jsonDecode(s.runConfig!) as Map<String, dynamic>;
+    config['interrupted'] = 'user';
+    await _repo.setRunConfig(id, jsonEncode(config));
+  }
+
+  /// R10, R10a: commits what the Codex left in its worktree at the end of
+  /// a writing turn, with the agent's message as body and the trailer of
+  /// SPEC-048. Never in the project root, never in Perguntar / Planejar.
+  Future<void> _codexTurnCommit(String id, _Proc p, String? answer) async {
+    final s = await _repo.getById(id);
+    if (s == null) return;
+    final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    if (ws == null || s.worktreePath == ws.path) return;
+    final access = AgentAccess.fromClaudeMode(
+      ClaudePermissionMode.fromCli(s.permissionMode),
+    );
+    if (access == null ||
+        access == AgentAccess.ask ||
+        access == AgentAccess.plan) {
+      return;
+    }
+    final git = ref.read(gitServiceFactoryProvider)(s.worktreePath);
+    final config = ProjectConfig.loadSync(ws.path);
+    final trailer = config.git.markAgentCommits
+        ? agentTrailerLine(
+            agentModelLabel(s.model, s.provider),
+            await _agentOrigin(s),
+          )
+        : null;
+    final committed = await git.commitAll(
+      codexTurnCommitMessage(_titleOf(s), answer),
+      trailer: trailer,
+    );
+    if (committed) {
+      await _note(id, 'O app commitou o que o Codex deixou no worktree.');
+      ref.invalidate(sessionChangesProvider(id));
+    }
   }
 
   /// SIGTERM (then SIGKILL); the session becomes `stopped`.
@@ -1237,7 +1304,17 @@ class SessionManager extends Notifier<SessionManagerState> {
         config['permissionMode'] = mode.cliValue;
         await _repo.setRunConfig(id, jsonEncode(config));
       }
-      if (current != null) await release(id);
+      // R14: the Codex takes a policy per turn — an idle process keeps
+      // running and the next turn/start uses the new access.
+      if (current != null) {
+        await current.process.setPermissionMode(mode);
+        await _note(
+          id,
+          'Modo de permissão: ${permissionModeLabel(mode, provider: "codex")} '
+          '(no próximo turno)',
+        );
+        return;
+      }
       await _note(
         id,
         'Modo de permissão: ${permissionModeLabel(mode, provider: "codex")} (ao retomar)',
@@ -1520,7 +1597,14 @@ class SessionManager extends Notifier<SessionManagerState> {
               mcpDisallowedTools: options.disallowedTools,
               permissionMode: mode,
             ),
-            codex: CodexExtras(compactLimit: compact),
+            // SPEC-096 R10: in a linked worktree, `git commit` writes in
+            // its slice of the git common dir; nothing else is opened.
+            codex: CodexExtras(
+              compactLimit: compact,
+              writableRoots: root != null && root != cwd
+                  ? worktreeWritableRoots(cwd)
+                  : const [],
+            ),
           ),
         );
         final run = await provider.start(effective);
@@ -1887,9 +1971,16 @@ class SessionManager extends Notifier<SessionManagerState> {
         p.busy = false;
         p.busySince = null;
         _publish();
+        // SPEC-096 R12, P3: an interrupted turn can be resumed; the reason
+        // ("por você") stays with the session until it starts again.
         final status = e.isSuccess
             ? SessionStatus.completed
+            : e.isInterrupted
+            ? SessionStatus.interrupted
             : SessionStatus.failed;
+        if (e.isInterrupted && e.interruptReason == 'user') {
+          await _markInterruptedByUser(id);
+        }
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
         await _specs.onResult(id, e);
@@ -1906,10 +1997,23 @@ class SessionManager extends Notifier<SessionManagerState> {
         // waits for it in the restore queue of the worktree).
         unawaited(_restore.end(sessionId: id));
         _notify(
-          e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
+          e.isSuccess
+              ? 'Sessão concluída'
+              : e.isInterrupted
+              ? 'Sessão interrompida'
+              : 'Sessão falhou',
           p.title,
           id,
         );
+        // SPEC-096 R10, R10a: what the Codex left uncommitted in its
+        // worktree is committed by the app at the end of the turn.
+        if (p.process is CodexRun) {
+          unawaited(
+            _codexTurnCommit(id, p, e.result).catchError(
+              (Object e) => debugPrint('sessão $id: commit do app — $e'),
+            ),
+          );
+        }
         // SPEC-085 R2: no hook, the turn's commits are checked now.
         if (!_secretHooks.contains(id)) {
           unawaited(
@@ -2341,3 +2445,13 @@ class SelectedSession extends Notifier<String?> {
 final selectedSessionProvider = NotifierProvider<SelectedSession, String?>(
   SelectedSession.new,
 );
+
+/// Message of the app's commit at the end of a Codex turn (SPEC-096 R10):
+/// the session title as subject and the agent's last message as body.
+String codexTurnCommitMessage(String title, String? answer) {
+  final subject = title.trim().isEmpty ? 'Alterações do Codex' : title.trim();
+  final body = (answer ?? '').trim();
+  if (body.isEmpty) return subject;
+  final cut = body.length > 4000 ? '${body.substring(0, 4000)}…' : body;
+  return '$subject\n\n$cut';
+}

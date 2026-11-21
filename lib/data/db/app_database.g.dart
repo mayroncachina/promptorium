@@ -4949,6 +4949,20 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _parentSessionIdMeta = const VerificationMeta(
+    'parentSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> parentSessionId = GeneratedColumn<String>(
+    'parent_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     provider,
@@ -4977,6 +4991,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5159,6 +5174,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         duelId.isAcceptableOrUnknown(data['duel_id']!, _duelIdMeta),
       );
     }
+    if (data.containsKey('parent_session_id')) {
+      context.handle(
+        _parentSessionIdMeta,
+        parentSessionId.isAcceptableOrUnknown(
+          data['parent_session_id']!,
+          _parentSessionIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5274,6 +5298,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.int,
         data['${effectivePrefix}duel_id'],
       ),
+      parentSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_session_id'],
+      ),
     );
   }
 
@@ -5338,6 +5366,10 @@ class Session extends DataClass implements Insertable<Session> {
   /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
   /// result does not move the spec's steps, the user picks a winner.
   final int? duelId;
+
+  /// Session this one was forked from (schema v35, SPEC-096 R16); null for
+  /// sessions that did not come from a fork. Claude and Codex.
+  final String? parentSessionId;
   const Session({
     required this.provider,
     this.externalId,
@@ -5365,6 +5397,7 @@ class Session extends DataClass implements Insertable<Session> {
     this.prUrl,
     this.pid,
     this.duelId,
+    this.parentSessionId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5429,6 +5462,9 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || duelId != null) {
       map['duel_id'] = Variable<int>(duelId);
     }
+    if (!nullToAbsent || parentSessionId != null) {
+      map['parent_session_id'] = Variable<String>(parentSessionId);
+    }
     return map;
   }
 
@@ -5488,6 +5524,9 @@ class Session extends DataClass implements Insertable<Session> {
       duelId: duelId == null && nullToAbsent
           ? const Value.absent()
           : Value(duelId),
+      parentSessionId: parentSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentSessionId),
     );
   }
 
@@ -5525,6 +5564,7 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: serializer.fromJson<String?>(json['prUrl']),
       pid: serializer.fromJson<int?>(json['pid']),
       duelId: serializer.fromJson<int?>(json['duelId']),
+      parentSessionId: serializer.fromJson<String?>(json['parentSessionId']),
     );
   }
   @override
@@ -5559,6 +5599,7 @@ class Session extends DataClass implements Insertable<Session> {
       'prUrl': serializer.toJson<String?>(prUrl),
       'pid': serializer.toJson<int?>(pid),
       'duelId': serializer.toJson<int?>(duelId),
+      'parentSessionId': serializer.toJson<String?>(parentSessionId),
     };
   }
 
@@ -5589,6 +5630,7 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> prUrl = const Value.absent(),
     Value<int?> pid = const Value.absent(),
     Value<int?> duelId = const Value.absent(),
+    Value<String?> parentSessionId = const Value.absent(),
   }) => Session(
     provider: provider ?? this.provider,
     externalId: externalId.present ? externalId.value : this.externalId,
@@ -5618,6 +5660,9 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
     pid: pid.present ? pid.value : this.pid,
     duelId: duelId.present ? duelId.value : this.duelId,
+    parentSessionId: parentSessionId.present
+        ? parentSessionId.value
+        : this.parentSessionId,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -5659,6 +5704,9 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
       pid: data.pid.present ? data.pid.value : this.pid,
       duelId: data.duelId.present ? data.duelId.value : this.duelId,
+      parentSessionId: data.parentSessionId.present
+          ? data.parentSessionId.value
+          : this.parentSessionId,
     );
   }
 
@@ -5690,7 +5738,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
-          ..write('duelId: $duelId')
+          ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId')
           ..write(')'))
         .toString();
   }
@@ -5723,6 +5772,7 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5753,7 +5803,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.mergeCommit == this.mergeCommit &&
           other.prUrl == this.prUrl &&
           other.pid == this.pid &&
-          other.duelId == this.duelId);
+          other.duelId == this.duelId &&
+          other.parentSessionId == this.parentSessionId);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -5783,6 +5834,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> prUrl;
   final Value<int?> pid;
   final Value<int?> duelId;
+  final Value<String?> parentSessionId;
   final Value<int> rowid;
   const SessionsCompanion({
     this.provider = const Value.absent(),
@@ -5811,6 +5863,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -5840,6 +5893,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -5873,6 +5927,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? prUrl,
     Expression<int>? pid,
     Expression<int>? duelId,
+    Expression<String>? parentSessionId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5902,6 +5957,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (prUrl != null) 'pr_url': prUrl,
       if (pid != null) 'pid': pid,
       if (duelId != null) 'duel_id': duelId,
+      if (parentSessionId != null) 'parent_session_id': parentSessionId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5933,6 +5989,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? prUrl,
     Value<int?>? pid,
     Value<int?>? duelId,
+    Value<String?>? parentSessionId,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -5962,6 +6019,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       prUrl: prUrl ?? this.prUrl,
       pid: pid ?? this.pid,
       duelId: duelId ?? this.duelId,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6049,6 +6107,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (duelId.present) {
       map['duel_id'] = Variable<int>(duelId.value);
     }
+    if (parentSessionId.present) {
+      map['parent_session_id'] = Variable<String>(parentSessionId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6084,6 +6145,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
           ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -20004,6 +20066,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         'sessions',
         limitUpdateKind: UpdateKind.delete,
       ),
+      result: [TableUpdate('sessions', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
       result: [TableUpdate('session_events', kind: UpdateKind.delete)],
     ),
     WritePropagation(
@@ -25227,6 +25296,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -25256,6 +25326,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 
@@ -25308,6 +25379,23 @@ final class $$SessionsTableReferences
       $_db.specs,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _parentSessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('sessions__parent_session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get parentSessionId {
+    final $_column = $_itemColumn<String>('parent_session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_parentSessionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -25626,6 +25714,29 @@ class $$SessionsTableFilterComposer
           }) => $$SpecsTableFilterComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get parentSessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26003,6 +26114,29 @@ class $$SessionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SessionsTableOrderingComposer get parentSessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$SessionsTableAnnotationComposer
@@ -26153,6 +26287,29 @@ class $$SessionsTableAnnotationComposer
           }) => $$SpecsTableAnnotationComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get parentSessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26355,6 +26512,7 @@ class $$SessionsTableTableManager
             bool workspaceId,
             bool taskId,
             bool specId,
+            bool parentSessionId,
             bool sessionEventsRefs,
             bool conversationsRefs,
             bool pendingNoticesRefs,
@@ -26403,6 +26561,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 provider: provider,
@@ -26431,6 +26590,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -26461,6 +26621,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 provider: provider,
@@ -26489,6 +26650,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -26504,6 +26666,7 @@ class $$SessionsTableTableManager
                 workspaceId = false,
                 taskId = false,
                 specId = false,
+                parentSessionId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
@@ -26569,6 +26732,17 @@ class $$SessionsTableTableManager
                                 ._specIdTable(db),
                             referencedColumn: $$SessionsTableReferences
                                 ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (parentSessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.parentSessionId,
+                            referencedTable: $$SessionsTableReferences
+                                ._parentSessionIdTable(db),
+                            referencedColumn: $$SessionsTableReferences
+                                ._parentSessionIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -26748,6 +26922,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool workspaceId,
         bool taskId,
         bool specId,
+        bool parentSessionId,
         bool sessionEventsRefs,
         bool conversationsRefs,
         bool pendingNoticesRefs,

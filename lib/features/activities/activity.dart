@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/dev/dev_server.dart' show DevServerStatus;
 import '../../data/providers.dart';
+import '../sessions/widgets/session_style.dart' show interruptedByUser;
 import '../board/board_rules.dart';
 import '../home/home_inbox.dart' show approvalVerb, stepRef;
 import '../project/project_planner.dart' show PlannerActivity;
@@ -663,7 +664,9 @@ List<Activity> _ofWorkspace(
           subtitle: 'parou em ${st.id}',
           status: failed
               ? (s.status == SessionStatus.interrupted
-                    ? 'interrompida ao fechar o app'
+                    ? (interruptedByUser(s)
+                          ? 'interrompida por você'
+                          : 'interrompida ao fechar o app')
                     : 'sessão falhou')
               : st.gateFailed
               ? 'gate recusou ${st.id}'
@@ -722,7 +725,9 @@ List<Activity> _ofWorkspace(
         title: spec == null ? sessionTitle(s) : '${spec.code} · ${spec.title}',
         subtitle: 'parou com erro',
         status: s.status == SessionStatus.interrupted
-            ? 'interrompida ao fechar o app'
+            ? (interruptedByUser(s)
+                  ? 'interrompida por você'
+                  : 'interrompida ao fechar o app')
             : 'sessão falhou',
         tone: ActivityTone.error,
         needsYou: true,
