@@ -17,6 +17,7 @@ import '../../data/providers.dart';
 import '../widgets/app_dialog.dart';
 import 'navigation.dart';
 import 'footer_stats.dart';
+import 'quota_detail.dart';
 
 /// Fixed footer (28px) fed by [footerStatsProvider]. Redraws every minute so
 /// the "reinicia em" countdowns stay right and a window that reset stops
@@ -108,38 +109,77 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
       ]),
     ];
 
-    final limitOn = s.limitRejected && !planWindowExpired(s.limitResetsAt, now);
+    final codex = s.providerId == 'codex';
+    // The Claude limit clears at its reset; the Codex one only with a new
+    // reading (SPEC-097 R7: no recovery inferred from the times).
+    final limitOn =
+        s.limitRejected && (codex || !planWindowExpired(s.limitResetsAt, now));
+    final windows = <Widget>[
+      _window(
+        key: const ValueKey('footer-usage-5h'),
+        title: s.usage5hTitle,
+        name: codex ? 'limite de 5 horas do Codex' : 'limite de 5 horas',
+        provider: s.providerName,
+        value: s.usage5h,
+        resetsAt: s.usage5hResetsAt,
+        color: AppColors.teal,
+        now: now,
+        // Weekly limit → the weekly window; anything else → the 5h one.
+        limitResetsAt: limitOn && s.limitType != 'seven_day'
+            ? s.limitResetsAt ?? s.usage5hResetsAt
+            : null,
+        limitWords: s.limitWords,
+        forceLimit: codex && limitOn && s.limitType != 'seven_day',
+      ),
+      _window(
+        key: const ValueKey('footer-usage-week'),
+        title: s.usageWeekTitle,
+        name: codex ? 'limite semanal do Codex' : 'limite semanal',
+        provider: s.providerName,
+        value: s.usageWeek,
+        resetsAt: s.usageWeekResetsAt,
+        color: AppColors.blue,
+        now: now,
+        limitResetsAt: limitOn && s.limitType == 'seven_day'
+            ? s.limitResetsAt ?? s.usageWeekResetsAt
+            : null,
+        limitWords: s.limitWords,
+        forceLimit: codex && limitOn && s.limitType == 'seven_day',
+      ),
+    ];
     final right = <Widget>[
-      // The Claude CLI's rate limits; Codex quota arrives with SPEC-097.
-      if (!isClaudeCode(s.providerId))
+      if (!isClaudeCode(s.providerId) && !codex)
         const Text('Consumo indisponível')
-      else ...[
-        _window(
-          key: const ValueKey('footer-usage-5h'),
-          title: 'Uso 5h',
-          name: 'limite de 5 horas',
-          value: s.usage5h,
-          resetsAt: s.usage5hResetsAt,
-          color: AppColors.teal,
-          now: now,
-          // Weekly limit → the weekly window; anything else → the 5h one.
-          limitResetsAt: limitOn && s.limitType != 'seven_day'
-              ? s.limitResetsAt ?? s.usage5hResetsAt
-              : null,
+      else
+        // SPEC-097 R6: a click opens the quota of both providers.
+        Semantics(
+          button: true,
+          label: 'Abrir a cota dos planos',
+          child: InkWell(
+            key: const ValueKey('footer-quota'),
+            onTap: () => showQuotaDetail(context),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: codex && s.quotaError != null
+                  ? _unavailable(s, now)
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // R5: whose quota it is, by the official logo.
+                        if (codex) ...[
+                          ProviderChip('codex', dense: true),
+                          const SizedBox(width: 8),
+                        ],
+                        for (var i = 0; i < windows.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 16),
+                          windows[i],
+                        ],
+                      ],
+                    ),
+            ),
+          ),
         ),
-        _window(
-          key: const ValueKey('footer-usage-week'),
-          title: 'Semana',
-          name: 'limite semanal',
-          value: s.usageWeek,
-          resetsAt: s.usageWeekResetsAt,
-          color: AppColors.blue,
-          now: now,
-          limitResetsAt: limitOn && s.limitType == 'seven_day'
-              ? s.limitResetsAt ?? s.usageWeekResetsAt
-              : null,
-        ),
-      ],
     ];
 
     return Container(
@@ -187,10 +227,41 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
     required DateTime? resetsAt,
     required Color color,
     required DateTime now,
+    String provider = 'Claude Code',
     DateTime? limitResetsAt,
+    String? limitWords,
+    bool forceLimit = false,
   }) {
     final expired = planWindowExpired(resetsAt, now);
     final v = expired ? null : value;
+    final who = provider == 'Claude Code' ? 'Claude' : provider;
+    // SPEC-097 R7: the Codex limit in red with its kind and the renewal.
+    if (forceLimit) {
+      final at = limitResetsAt;
+      return Tooltip(
+        key: key,
+        message:
+            'O $name foi atingido (${limitWords ?? 'limite do plano'}): '
+            'novas execuções do Codex falham'
+            '${at == null ? '' : ' até ${_when(at, now)} (em ${_until(at, now)})'}. '
+            'O app não troca de provedor sozinho.',
+        child: _group([
+          Text(title, style: const TextStyle(color: AppColors.red)),
+          _UsageBar(value: 1, color: AppColors.red, label: name),
+          Text(
+            [
+              'limite atingido',
+              if (at != null) 'renova ${_when(at, now)}',
+            ].join(' · '),
+            key: const ValueKey('footer-limit'),
+            style: const TextStyle(
+              color: AppColors.red,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ]),
+      );
+    }
     final barColor = v == null
         ? color
         : v >= 1
@@ -205,8 +276,8 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
         : v == null
         ? (expired
               ? 'O $name reiniciou; o uso atualiza na próxima resposta do '
-                    'Claude.'
-              : 'Uso do $name: aparece na primeira resposta do Claude.')
+                    '$who.'
+              : 'Uso do $name: aparece na primeira resposta do $who.')
         : 'Uso do $name: ${_pct(v)} usado, ${_pct(_left(v))} disponível'
               '${resetsAt == null ? '' : '. Reinicia ${_when(resetsAt, now)} (em ${_until(resetsAt, now)})'}.';
     return Tooltip(
@@ -227,6 +298,42 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
           if (v != null && resetsAt != null)
             Text('· reinicia em ${_until(resetsAt, now)}'),
         ],
+      ]),
+    );
+  }
+
+  /// "cota indisponível" with the reason in the tip and the time of the
+  /// last reading kept (SPEC-097 R4).
+  Widget _unavailable(FooterStats s, DateTime now) {
+    final read = s.quotaReadAt;
+    final old = [
+      if (s.usage5h != null) '${s.usage5hTitle} ${_pct(s.usage5h)}',
+      if (s.usageWeek != null) '${s.usageWeekTitle} ${_pct(s.usageWeek)}',
+    ].join(' · ');
+    return Tooltip(
+      key: const ValueKey('footer-quota-unavailable'),
+      message: [
+        'Cota do Codex indisponível: ${s.quotaError}.',
+        if (read != null)
+          'Última leitura ${_when(read, now)}${old.isEmpty ? '' : ': $old'}.',
+      ].join(' '),
+      child: _group([
+        ProviderChip('codex', dense: true),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Text('cota indisponível'),
+        ),
+        Text(
+          [
+            s.quotaError!,
+            if (read != null) 'última leitura ${_when(read, now)}',
+          ].join(' · '),
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
       ]),
     );
   }
