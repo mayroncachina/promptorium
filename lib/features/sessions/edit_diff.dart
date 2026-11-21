@@ -1,4 +1,6 @@
+import '../../core/claude/claude_event.dart';
 import '../../core/text/line_diff.dart';
+import '../../core/text/unified_diff.dart';
 import 'timeline.dart';
 
 export '../../core/text/line_diff.dart' show DiffOp, DiffRow;
@@ -27,6 +29,42 @@ class EditDiff {
 /// File edit tools whose input carries the change.
 bool isEditTool(String name) =>
     name == 'Edit' || name == 'MultiEdit' || name == 'Write';
+
+/// A card that changes a file: a Claude edit tool or a neutral file change
+/// (SPEC-095 R9).
+bool isFileTool(ToolItem t) => t.change != null || isEditTool(t.name);
+
+/// Diff of a neutral file change: its unified diff with the hunks' line
+/// numbers (null without a diff).
+EditDiff? editDiffOfChange(FileChangeEvent c) {
+  final d = c.unifiedDiff;
+  if (d == null) return null;
+  final rows = unifiedDiffRows(d);
+  return EditDiff(rows: rows, section: _sectionOf(rows, null));
+}
+
+/// Diff of a card: the neutral change, or the Claude input ([editDiffOf]).
+EditDiff? editDiffOfTool(ToolItem t, {String? before, int context = 3}) {
+  final c = t.change;
+  if (c != null) return editDiffOfChange(c);
+  return editDiffOf(t.name, t.input, before: before, context: context);
+}
+
+/// File text after the change of [t], or null when it cannot be known.
+String? applyToolEdit(ToolItem t, String? before) {
+  final c = t.change;
+  if (c == null) return applyEditTo(t.name, t.input, before);
+  final diff = c.unifiedDiff;
+  switch (c.kind) {
+    case FileChangeKind.add:
+      return c.after ?? (diff == null ? null : applyUnifiedDiff(null, diff));
+    case FileChangeKind.delete:
+      return '';
+    case FileChangeKind.update || FileChangeKind.move:
+      if (before == null || diff == null || c.isCut) return null;
+      return applyUnifiedDiff(before, diff);
+  }
+}
 
 /// `file_path` of an edit input (null when missing).
 String? editFilePath(Map<String, dynamic> input) {
@@ -254,7 +292,7 @@ bool editApplied(ToolItem t) => t.done && !t.isError && !t.denied;
 Iterable<ToolItem> editToolsOf(List<TimelineItem> items) sync* {
   for (final i in items) {
     if (i is! ToolItem) continue;
-    if (isEditTool(i.name)) yield i;
+    if (isFileTool(i)) yield i;
     yield* editToolsOf(i.children);
   }
 }
@@ -277,13 +315,13 @@ Map<String, EditDiff> editDiffsOf(
   final texts = Map.of(known);
   final out = <String, EditDiff>{};
   for (final t in editToolsOf(items)) {
-    final path = editFilePath(t.input);
+    final path = t.filePath;
     final key = path == null ? null : absolutePath(path, root);
     final before = key == null ? null : texts[key];
-    final d = editDiffOf(t.name, t.input, before: before);
+    final d = editDiffOfTool(t, before: before);
     if (d != null) out[t.id] = d;
     if (key != null && editApplied(t)) {
-      final after = applyEditTo(t.name, t.input, before);
+      final after = applyToolEdit(t, before);
       if (after == null) {
         texts.remove(key);
       } else {
@@ -304,11 +342,11 @@ String? textAfterEdits(
 }) {
   var text = base;
   for (final t in editToolsOf(items)) {
-    final p = editFilePath(t.input);
+    final p = t.filePath;
     if (p == null || absolutePath(p, root) != path || !editApplied(t)) {
       continue;
     }
-    text = applyEditTo(t.name, t.input, text);
+    text = applyToolEdit(t, text);
   }
   return text;
 }
