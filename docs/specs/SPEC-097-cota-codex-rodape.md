@@ -118,4 +118,4 @@ Canvas: [SPEC-097 · Cota do Codex no rodapé](https://claude.ai/artifact/5ZUZtm
 | `docs/mockups/spec-097/2-custo-indisponivel.png` | Custo por spec com "custo indisponível · 1,2 mi tokens" no Codex, o total misto e o ranking com as specs só com tokens à parte | R8–R10 |
 | `docs/mockups/spec-097/3-limite-atingido.png` | Limite do Codex atingido: régua vermelha com a renovação, aviso antes de uma sessão nova com a opção explícita de usar o Claude, e "cota indisponível" sem login | R4, R7 |
 
-Os mocks mostram o provedor com o chip ou a marca de identidade da SPEC-094 (R14: Claude = argila `#D97757`, Codex = porcelana `#E8E4DA`, sempre com nome ou glifo, nunca como estado).
+Os mocks mostram o provedor com a identidade da SPEC-094 (R14, R15): logo oficial ao lado do nome no rodapé, nos seletores, nos chips de sessão e de conversa e em Configurações (Claude em argila `#D97757`, OpenAI em porcelana `#E8E4DA` para o Codex); glifo próprio nos pontos pequenos. Nunca como estado.
