@@ -238,7 +238,6 @@ class ProviderFlows {
 
   static const acpFlows = {
     AppFlow.prompt,
-    AppFlow.compare,
     AppFlow.structured,
     AppFlow.autoReview,
   };
@@ -273,3 +272,17 @@ String flowLockedLabel(String displayName) =>
 String flowLockedMessage(String displayName, AppFlow flow) =>
     '${flow.label} ainda não roda com o $displayName. '
     'Escolha o Claude Code nesta execução; nada troca de provedor sozinho.';
+
+/// Whether [providerId] is the Claude Code adapter: for dispatch to the
+/// Claude CLI process and its own state (rate limits, hooks), not for
+/// deciding features — those ask [ProviderCapabilities] (R13).
+bool isClaudeCode(String providerId) =>
+    providerId == ProviderCapabilities.claude.providerId;
+
+/// Declared capabilities of a provider id without the registry.
+ProviderCapabilities capabilitiesFor(String providerId, {String? name}) =>
+    switch (providerId) {
+      'claude' => ProviderCapabilities.claude,
+      'codex' => ProviderCapabilities.codex,
+      _ => ProviderCapabilities.acp(providerId, name ?? providerId),
+    };
