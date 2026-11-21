@@ -516,15 +516,25 @@ class _Table extends StatelessWidget {
 
   static const _w = 48.0;
 
-  Widget _cell(String text, {TextStyle style = _mono}) => SizedBox(
-    width: _w,
-    child: Text(
-      text,
-      textAlign: TextAlign.right,
-      maxLines: 1,
-      overflow: TextOverflow.visible,
-      softWrap: false,
-      style: style,
+  /// Space before each column: "indisp." fills the whole cell, so without
+  /// it the Codex lines read as one word ("100%indisp.indisp.").
+  static const _gap = 8.0;
+
+  Widget _cell(String text, {TextStyle style = _mono}) => Padding(
+    padding: const EdgeInsets.only(left: _gap),
+    child: SizedBox(
+      width: _w,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          text,
+          textAlign: TextAlign.right,
+          maxLines: 1,
+          softWrap: false,
+          style: style,
+        ),
+      ),
     ),
   );
 
