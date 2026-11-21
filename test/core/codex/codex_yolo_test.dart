@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/codex/codex_command.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_provider.dart';
 import 'package:promptorium/core/providers/permission_policy.dart';
+import 'package:promptorium/features/sessions/timeline.dart';
 
 import 'fake_codex.dart';
 
@@ -151,4 +153,28 @@ void main() {
       );
     });
   }
+
+  test(
+    'Perguntar com o Codex é rotulado como Perguntar, não Planejar',
+    () async {
+      expect(codexAccessLabel(AgentAccess.ask), startsWith('perguntar'));
+      expect(codexAccessLabel(AgentAccess.ask), contains('read-only'));
+      expect(codexAccessLabel(AgentAccess.plan), startsWith('planejar'));
+      for (final (mode, label) in [
+        (PromptMode.ask, 'perguntar — somente leitura'),
+        (PromptMode.plan, 'planejar'),
+      ]) {
+        final fake = FakeCodex();
+        final run = await CodexProvider(
+          starter: (exe, args, {workingDirectory, environment}) async => fake,
+        ).start(AgentStartOptions(workingDirectory: '/w', mode: mode));
+        final init = await run.events.firstWhere((e) => e is SystemInit);
+        expect('${init.json['permission_label']}', startsWith(label));
+        final timeline = Timeline()..apply(init);
+        final notice = timeline.items.whereType<NoticeItem>().single;
+        expect(notice.text, contains(label));
+        await run.stop();
+      }
+    },
+  );
 }

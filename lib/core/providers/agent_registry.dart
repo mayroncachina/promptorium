@@ -56,8 +56,9 @@ final agentProvidersProvider = Provider<List<AgentProvider>>((ref) {
 /// released there (R12) — never falls back to another provider.
 AgentProvider agentProviderForFlow(Ref ref, String id, AppFlow flow) {
   final provider = ref.read(agentProviderByIdProvider(id));
-  if (!ref.read(providerFlowsProvider).allows(id, flow)) {
-    throw AgentUnavailable(flowLockedMessage(provider.displayName, flow));
+  final flows = ref.read(providerFlowsProvider);
+  if (!flows.allows(id, flow)) {
+    throw AgentUnavailable(flows.refusal(id, provider.displayName, flow));
   }
   return provider;
 }

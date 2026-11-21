@@ -296,6 +296,22 @@ void main() {
       );
     });
 
+    testWidgets('a Codex line keeps the columns apart, like the Claude '
+        'ones', (tester) async {
+      await pumpSection(tester, [
+        entry(provider: 'codex', tokens: 1200000, step: 't1'),
+      ], dollars: false);
+      final cells = find.text(costUnavailableShort);
+      expect(cells, findsAtLeastNWidgets(2));
+      // The two "indisp." of the first line, and the share before them.
+      final first = tester.getRect(cells.at(0));
+      final second = tester.getRect(cells.at(1));
+      final share = tester.getRect(find.text('100%').first);
+      expect(first.left - share.right, greaterThanOrEqualTo(6));
+      expect(second.left - first.right, greaterThanOrEqualTo(6));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('the ranking lists the token-only specs apart, not as the '
         'cheapest', (tester) async {
       final env = await pumpRanking(tester, dollars: true);

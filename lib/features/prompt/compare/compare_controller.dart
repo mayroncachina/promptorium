@@ -254,11 +254,10 @@ class CompareController extends Notifier<Map<int, CompareView>> {
           '${provider.displayName} ainda não está disponível.',
         );
       }
-      if (!ref
-          .read(providerFlowsProvider)
-          .allows(conv.provider, AppFlow.compare)) {
+      final flows = ref.read(providerFlowsProvider);
+      if (!flows.allows(conv.provider, AppFlow.compare)) {
         throw AgentUnavailable(
-          flowLockedMessage(provider.displayName, AppFlow.compare),
+          flows.refusal(conv.provider, provider.displayName, AppFlow.compare),
         );
       }
       final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));

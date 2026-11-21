@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
+import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
@@ -82,5 +83,57 @@ void main() {
     for (final s in servers) {
       await tester.runAsync(s.finish);
     }
+  });
+
+  testWidgets('Desligar o Codex: o seletor mostra o Codex desligado, o '
+      'rascunho volta ao Claude e nada cria conversa vazia', (tester) async {
+    final (db, _, c) = await pumpPrompt(
+      tester,
+      withConversation: false,
+      overrides: [
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, 'ok'),
+        ),
+      ],
+    );
+    // The Codex was chosen before the switch.
+    await tester.tap(find.byKey(const ValueKey('prompt-provider')));
+    await pumpFor(tester);
+    await tester.tap(find.byKey(const ValueKey('provider-codex')).last);
+    await pumpFor(tester);
+    expect(c.read(promptDraftProvider).providerId, 'codex');
+
+    await tester.runAsync(
+      () => c.read(appSettingsProvider.notifier).set(codexKillSwitchKey, '1'),
+    );
+    await pumpFor(tester);
+    expect(c.read(promptDraftProvider).providerId, 'claude');
+
+    await tester.tap(find.byKey(const ValueKey('prompt-provider')));
+    await pumpFor(tester);
+    final item = tester.widget<PopupMenuItem<String>>(
+      find.byKey(const ValueKey('provider-codex')).last,
+    );
+    expect(item.enabled, isFalse);
+    expect(find.text(providerOffLabel), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5));
+    await pumpFor(tester);
+
+    // Anything that still tries the Codex says why, and stores nothing.
+    final ws = (await db.select(db.workspaces).get()).single;
+    Object? error;
+    await tester.runAsync(() async {
+      try {
+        await c
+            .read(conversationManagerProvider.notifier)
+            .create(workspace: ws, text: 'Oi', providerId: 'codex');
+      } catch (e) {
+        error = e;
+      }
+    });
+    expect(error, isA<ConversationException>());
+    expect('$error', contains('desligado nas Configurações'));
+    expect(await db.select(db.conversations).get(), isEmpty);
   });
 }

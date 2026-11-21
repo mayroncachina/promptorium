@@ -406,11 +406,14 @@ class Timeline {
         model ??= e.model.isEmpty ? null : e.model;
         if (!_sawInit) {
           _sawInit = true;
+          final stored = e.json['permission_label'];
           final label = e.json['provider'] == 'codex'
-              ? permissionModeLabel(
-                  ClaudePermissionMode.fromCli(e.permissionMode),
-                  provider: 'codex',
-                )
+              ? stored is String && stored.isNotEmpty
+                    ? stored
+                    : permissionModeLabel(
+                        ClaudePermissionMode.fromCli(e.permissionMode),
+                        provider: 'codex',
+                      )
               : e.permissionMode;
           final mode = label.isEmpty ? '' : ' · $label';
           items.add(NoticeItem('Sessão iniciada · ${e.model}$mode', at: now));

@@ -208,6 +208,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
     final selected =
         providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
+    // Refused before the row exists: no empty conversation is left behind.
+    _promptProvider(selected);
     final refine = mode == PromptMode.refine;
     // SPEC-026 R8: the spec text when the conversation starts (the Specs
     // screen saves the editor before opening it, so this is the disk text).
@@ -568,6 +570,32 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     return env.isEmpty ? null : env;
   }
 
+  /// The provider of a Prompt conversation, or why it cannot run there.
+  /// Checked before a new conversation is stored, so a refusal never
+  /// leaves an empty one behind.
+  AgentProvider _promptProvider(String id) {
+    final provider = ref.read(agentProviderByIdProvider(id));
+    if (!provider.enabled) {
+      throw ConversationException(
+        '${provider.displayName} ainda não está disponível.',
+      );
+    }
+    final flows = ref.read(providerFlowsProvider);
+    if (!flows.allows(id, AppFlow.prompt)) {
+      throw ConversationException(
+        flows.refusal(id, provider.displayName, AppFlow.prompt),
+      );
+    }
+    // SPEC-096 R10a: no sandbox, no Codex in the Prompt (nothing runs in
+    // the project root without it).
+    if (id == ProviderCapabilities.codex.providerId &&
+        ref.read(providerAvailabilityProvider(id)).value?.sandboxWarning !=
+            null) {
+      throw ConversationException(codexNoSandboxMessage());
+    }
+    return provider;
+  }
+
   Future<_Run> _startRun(Conversation conv) async {
     if (_shuttingDown) {
       throw const ConversationException('O aplicativo está sendo encerrado.');
@@ -576,29 +604,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (ws == null) {
       throw const ConversationException('Workspace da conversa não existe.');
     }
-    final provider = ref.read(agentProviderByIdProvider(conv.provider));
-    if (!provider.enabled) {
-      throw ConversationException(
-        '${provider.displayName} ainda não está disponível.',
-      );
-    }
-    if (!ref
-        .read(providerFlowsProvider)
-        .allows(conv.provider, AppFlow.prompt)) {
-      throw ConversationException(
-        flowLockedMessage(provider.displayName, AppFlow.prompt),
-      );
-    }
-    // SPEC-096 R10a: no sandbox, no Codex in the Prompt (nothing runs in
-    // the project root without it).
-    if (conv.provider == ProviderCapabilities.codex.providerId &&
-        ref
-                .read(providerAvailabilityProvider(conv.provider))
-                .value
-                ?.sandboxWarning !=
-            null) {
-      throw ConversationException(codexNoSandboxMessage());
-    }
+    final provider = _promptProvider(conv.provider);
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
     final resume = conv.claudeSessionId;
@@ -961,11 +967,25 @@ class PromptDraftController extends Notifier<PromptDraft> {
     }
     final provider = ref.watch(activeAgentProvider);
     ref.watch(runPrefsProvider);
-    return _chosen ??
+    final draft =
+        _chosen ??
         PromptDraft(
           providerId: provider,
           model: providerModel(ref, provider, RunKind.conversation),
         );
+    // "Desligar o Codex" (SPEC-096 P1): a provider turned off in
+    // Configurações is not offered; the draft goes back to the Claude Code.
+    if (ref.watch(providerFlowsProvider).isOff(draft.providerId)) {
+      return PromptDraft(
+        model: providerModel(
+          ref,
+          ClaudeCodeProvider.providerId,
+          RunKind.conversation,
+        ),
+        mode: draft.mode,
+      );
+    }
+    return draft;
   }
 
   void set(PromptDraft d) {

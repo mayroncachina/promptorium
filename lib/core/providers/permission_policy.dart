@@ -9,17 +9,7 @@ String permissionModeLabel(
   if (provider == 'codex') {
     // R7: the policy of each mode, as the App Server receives it.
     final access = AgentAccess.fromClaudeMode(mode);
-    if (access != null) {
-      final p = codexAccessPolicy(access);
-      final what = switch (access) {
-        AgentAccess.yolo => 'YOLO — sem aprovações e sem sandbox',
-        AgentAccess.ask ||
-        AgentAccess.plan => 'planejar — o sandbox impede escrita',
-        AgentAccess.edit => 'editar — escreve com confirmação',
-        AgentAccess.refine => 'perguntar — cada comando pede aprovação',
-      };
-      return '$what · ${p.sandbox} · ${p.approval}';
-    }
+    if (access != null) return codexAccessLabel(access);
   }
   return switch (mode) {
     null || ClaudePermissionMode.defaultMode => 'perguntar',
@@ -29,6 +19,21 @@ String permissionModeLabel(
     ClaudePermissionMode.dontAsk => 'não perguntar',
     ClaudePermissionMode.skipPermissions => 'sem perguntar nada (perigoso)',
   };
+}
+
+/// Codex label of one access (R7): what the mode does and the policy the
+/// App Server receives. Perguntar and Planejar share the policy but keep
+/// their own names.
+String codexAccessLabel(AgentAccess access) {
+  final p = codexAccessPolicy(access);
+  final what = switch (access) {
+    AgentAccess.yolo => 'YOLO — sem aprovações e sem sandbox',
+    AgentAccess.ask => 'perguntar — somente leitura, só responde',
+    AgentAccess.plan => 'planejar — o sandbox impede escrita',
+    AgentAccess.edit => 'editar — escreve com confirmação',
+    AgentAccess.refine => 'perguntar — cada comando pede aprovação',
+  };
+  return '$what · ${p.sandbox} · ${p.approval}';
 }
 
 String permissionModeOption(
