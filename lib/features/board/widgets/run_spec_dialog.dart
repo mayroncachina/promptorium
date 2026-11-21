@@ -7,7 +7,8 @@ import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/spec_steps_repo.dart';
-import '../../../core/providers/agent_registry.dart' show codexEnabledProvider;
+import '../../../core/providers/agent_registry.dart'
+    show AppFlow, providerFlowsProvider;
 import '../../../core/providers/permission_policy.dart';
 import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/provider_preferences.dart';
@@ -470,7 +471,10 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           _provider,
           [
             ('claude', 'Claude Code'),
-            if (ref.watch(codexEnabledProvider) || _provider == 'codex')
+            if (ref
+                    .watch(providerFlowsProvider)
+                    .allows('codex', AppFlow.runSpec) ||
+                _provider == 'codex')
               ('codex', 'Codex'),
           ],
           (v) {

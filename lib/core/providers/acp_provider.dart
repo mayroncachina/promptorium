@@ -7,6 +7,7 @@ import '../claude/claude_event.dart';
 import '../claude/claude_args.dart';
 import '../claude/claude_process.dart' show ProcessStarter;
 import 'agent_provider.dart';
+import 'capabilities.dart';
 
 /// A coding agent that speaks the Agent Client Protocol (ACP: JSON-RPC 2.0
 /// over stdio, one message per line), e.g. `gemini --experimental-acp`
@@ -42,6 +43,10 @@ class AcpProvider implements AgentProvider {
 
   @override
   List<String> get models => const ['inherit'];
+
+  @override
+  ProviderCapabilities get capabilities =>
+      ProviderCapabilities.acp(id, displayName);
 
   @override
   Future<AgentRun> start(AgentStartOptions options) async {

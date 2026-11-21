@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
-import '../../core/providers/agent_registry.dart' show codexEnabledProvider;
+import '../../core/providers/agent_registry.dart'
+    show AppFlow, providerFlowsProvider;
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../ui/theme/tokens.dart';
@@ -333,7 +334,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                               value: _provider,
                               items: [
                                 ('claude', 'Claude Code'),
-                                if (ref.watch(codexEnabledProvider) ||
+                                if (ref
+                                        .watch(providerFlowsProvider)
+                                        .allows('codex', AppFlow.sessions) ||
                                     _provider == 'codex')
                                   ('codex', 'Codex'),
                               ],

@@ -79,6 +79,7 @@ Future<Result> runReadOnlyClaude(
   String? specCode,
   UsageSource? usageSource,
   String? usageStep,
+  AppFlow flow = AppFlow.structured,
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -98,36 +99,32 @@ Future<Result> runReadOnlyClaude(
   }
   try {
     if (chosen != 'claude') {
-      process = await ref
-          .read(agentProviderByIdProvider(chosen))
-          .start(
-            AgentStartOptions(
-              workingDirectory: cwd,
-              mode: PromptMode.ask,
-              model:
-                  options.model ?? providerModel(ref, chosen, RunKind.planner),
-              effort:
-                  options.effort ??
-                  effortArg(providerEffort(ref, chosen, RunKind.planner)),
-              resumeId: sourceId == null
-                  ? null
-                  : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
-              forkSession: options.forkSession,
-              appendSystemPrompt: options.appendSystemPrompt,
-              jsonSchema: options.jsonSchema,
-              maxBudgetUsd: options.maxBudgetUsd,
-              maxTurns: options.maxTurns,
-              agent: options.agent,
-              mcpConfigs: options.mcpConfigs,
-              strictMcpConfig: true,
-              mcpDisallowedTools: options.disallowedTools
-                  .where(
-                    (t) =>
-                        !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
-                  )
-                  .toList(),
-            ),
-          );
+      process = await agentProviderForFlow(ref, chosen, flow).start(
+        AgentStartOptions(
+          workingDirectory: cwd,
+          mode: PromptMode.ask,
+          model: options.model ?? providerModel(ref, chosen, RunKind.planner),
+          effort:
+              options.effort ??
+              effortArg(providerEffort(ref, chosen, RunKind.planner)),
+          resumeId: sourceId == null
+              ? null
+              : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
+          forkSession: options.forkSession,
+          appendSystemPrompt: options.appendSystemPrompt,
+          jsonSchema: options.jsonSchema,
+          maxBudgetUsd: options.maxBudgetUsd,
+          maxTurns: options.maxTurns,
+          agent: options.agent,
+          mcpConfigs: options.mcpConfigs,
+          strictMcpConfig: true,
+          mcpDisallowedTools: options.disallowedTools
+              .where(
+                (t) => !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
+              )
+              .toList(),
+        ),
+      );
     } else {
       process = ClaudeRun(
         await ClaudeProcess.start(

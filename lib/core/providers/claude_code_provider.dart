@@ -3,6 +3,7 @@ import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart';
 import 'agent_provider.dart';
+import 'capabilities.dart';
 
 /// Claude Code CLI as an [AgentProvider] (reuses [ClaudeProcess]).
 class ClaudeCodeProvider implements AgentProvider {
@@ -72,6 +73,9 @@ class ClaudeCodeProvider implements AgentProvider {
     'haiku',
     'fable',
   ];
+
+  @override
+  ProviderCapabilities get capabilities => ProviderCapabilities.claude;
 
   /// Modes that never auto-approve MCP tools ("Permitido" keeps asking).
   static bool ignoresMcpAllow(PromptMode m) =>

@@ -7,6 +7,7 @@ import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ProcessStarter;
 import '../providers/agent_provider.dart';
+import '../providers/capabilities.dart';
 import '../providers/permission_policy.dart';
 import 'codex_rpc.dart';
 
@@ -32,6 +33,9 @@ class CodexProvider implements AgentProvider {
   bool get enabled => true;
   @override
   List<String> get models => const ['inherit'];
+
+  @override
+  ProviderCapabilities get capabilities => ProviderCapabilities.codex;
 
   @override
   Future<AgentRun> start(AgentStartOptions options) async {
