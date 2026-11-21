@@ -12,6 +12,7 @@ class CodexRpc {
     this.timeout = const Duration(seconds: 30),
     this.group = false,
     GroupKiller? killGroup,
+    this.ephemeral = false,
   }) : _killGroup = killGroup ?? killProcessGroup {
     process.stdin.done.catchError((Object _) {});
     process.stdout
@@ -24,6 +25,7 @@ class CodexRpc {
         .listen((s) => _log(s), onError: (Object _) {});
     exitCode = process.exitCode.then((code) {
       exited = true;
+      live.remove(this);
       _failCalls('O Codex encerrou (código $code).');
       return code;
     });
@@ -36,6 +38,16 @@ class CodexRpc {
   /// stopping it also ends the commands it started.
   final bool group;
   final GroupKiller _killGroup;
+
+  /// A connection of a handshake or a quota reading, not of a run.
+  final bool ephemeral;
+
+  /// Open connections that finished `initialize` (SPEC-097 R1): a reading
+  /// without a turn (`account/rateLimits/read`) can go through one of them.
+  static final live = <CodexRpc>{};
+
+  /// Whether a Codex run (not a handshake nor a reading) is open.
+  static bool get runAlive => live.any((r) => !r.ephemeral && !r.exited);
   late final Future<int> exitCode;
   bool exited = false;
   int _id = 0;
@@ -111,7 +123,9 @@ class CodexRpc {
       if (!c.isCompleted) c.completeError(e);
     }
     try {
-      return await response;
+      final result = await response;
+      if (method == 'initialize' && !exited) live.add(this);
+      return result;
     } finally {
       _calls.remove(id);
     }
@@ -153,11 +167,13 @@ class CodexRpc {
   }
 
   void _done() {
+    live.remove(this);
     _failCalls('O Codex fechou a conexão.');
     unawaited(messages.close());
   }
 
   Future<int> stop({Duration timeout = const Duration(seconds: 5)}) async {
+    live.remove(this);
     if (!exited) {
       if (group) await _killGroup(process.pid, ProcessSignal.sigterm);
       process.kill(ProcessSignal.sigterm);

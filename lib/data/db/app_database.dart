@@ -931,6 +931,14 @@ class UsageEntries extends Table {
 
   /// Rebuilt from the events of before (R5): weighed by today's ruler.
   BoolColumn get estimated => boolean().withDefault(const Constant(false))();
+
+  /// Who ran the turn (SPEC-097 R8, schema v34): a provider without cost in
+  /// US\$ (the Codex) has "custo indisponível", never a measured 0.
+  TextColumn get provider => text().withDefault(const Constant('claude'))();
+
+  /// Reasoning output tokens (Codex `reasoningOutputTokens`): part of
+  /// [tokensOut], shown apart (SPEC-097 R8).
+  IntColumn get tokensReasoning => integer().withDefault(const Constant(0))();
 }
 
 /// Restore points of a turn of an agent (SPEC-084 R3, schema v32): the
@@ -1482,9 +1490,19 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(v.snippets);
             await m.createIndex(v.snippetsBodyHash);
           },
-          // v34: reserved for SPEC-097 (ledger with provider), which runs
-          // in parallel; no change here.
-          from33To34: (m, v) async {},
+          // v34: who ran each turn and its reasoning tokens (SPEC-097 R8);
+          // the rows of before are Claude's (the default fills them).
+          from33To34: (m, v) async {
+            if (!await _hasTable('usage_entries')) return;
+            for (final c in [
+              v.usageEntries.provider,
+              v.usageEntries.tokensReasoning,
+            ]) {
+              if (!await _hasColumn('usage_entries', c.name)) {
+                await m.addColumn(v.usageEntries, c);
+              }
+            }
+          },
           // v35: the parent of a forked session (SPEC-096 R16).
           from34To35: (m, v) async {
             if (await _hasTable('sessions') &&

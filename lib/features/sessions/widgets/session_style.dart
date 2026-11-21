@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/providers/capabilities.dart';
 import '../../../data/db/app_database.dart' show Session;
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
@@ -57,6 +58,16 @@ String sessionStatusLabel(Session s, SessionLook look) =>
     : look.label;
 
 String formatCost(double v) => '\$${v.toStringAsFixed(2)}';
+
+/// The cost of a run of [provider] (SPEC-097 R9): a provider without cost
+/// in US\$ (the Codex) shows [unavailable], never "\$0.00".
+String formatRunCost(
+  String provider,
+  double v, {
+  String unavailable = 'custo indisponível',
+}) => capabilitiesFor(provider).supports(ProviderCapability.costUsd)
+    ? formatCost(v)
+    : unavailable;
 
 /// `12m 40s`, `1h 05m`, `45s`.
 String formatDuration(Duration d) {

@@ -777,7 +777,14 @@ class _DetailsState extends ConsumerState<_Details> {
             child: Text(formatTokens(s.tokensIn + s.tokensOut), style: mono),
           ),
         ),
-        row('Custo', Text(formatCost(s.costUsd), style: mono)),
+        row(
+          'Custo',
+          Text(
+            formatRunCost(s.provider, s.costUsd, unavailable: 'indisponível'),
+            key: const ValueKey('session-cost'),
+            style: mono,
+          ),
+        ),
         row(
           'Session ID',
           InkWell(

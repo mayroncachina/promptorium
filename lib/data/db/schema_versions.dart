@@ -16297,7 +16297,7 @@ final class Schema34 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape48 usageEntries = Shape48(
+  late final Shape51 usageEntries = Shape51(
     source: i0.VersionedTable(
       entityName: 'usage_entries',
       withoutRowId: false,
@@ -16321,6 +16321,8 @@ final class Schema34 extends i0.VersionedSchema {
         _column_181,
         _column_182,
         _column_183,
+        _column_52,
+        _column_211,
       ],
       attachedDatabase: database,
     ),
@@ -16413,6 +16415,58 @@ final class Schema34 extends i0.VersionedSchema {
     'CREATE INDEX secret_waivers_workspace ON secret_waivers (workspace_id)',
   );
 }
+
+class Shape51 extends i0.VersionedTable {
+  Shape51({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get workspaceId =>
+      columnsByName['workspace_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get specId =>
+      columnsByName['spec_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get source =>
+      columnsByName['source']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get step =>
+      columnsByName['step']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sessionId =>
+      columnsByName['session_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get conversationId =>
+      columnsByName['conversation_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get model =>
+      columnsByName['model']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get at =>
+      columnsByName['at']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get tokensIn =>
+      columnsByName['tokens_in']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get tokensCacheWrite =>
+      columnsByName['tokens_cache_write']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get tokensCacheRead =>
+      columnsByName['tokens_cache_read']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get tokensOut =>
+      columnsByName['tokens_out']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get costUsd =>
+      columnsByName['cost_usd']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get fiveHourPct =>
+      columnsByName['five_hour_pct']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get weekPct =>
+      columnsByName['week_pct']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<int> get estimated =>
+      columnsByName['estimated']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get provider =>
+      columnsByName['provider']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get tokensReasoning =>
+      columnsByName['tokens_reasoning']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<int> _column_211(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'tokens_reasoning',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 0',
+      defaultValue: const i1.CustomExpression('0'),
+    );
 
 final class Schema35 extends i0.VersionedSchema {
   Schema35({required super.database}) : super(version: 35);
@@ -16588,7 +16642,7 @@ final class Schema35 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape51 sessions = Shape51(
+  late final Shape52 sessions = Shape52(
     source: i0.VersionedTable(
       entityName: 'sessions',
       withoutRowId: false,
@@ -16621,7 +16675,7 @@ final class Schema35 extends i0.VersionedSchema {
         _column_47,
         _column_99,
         _column_104,
-        _column_211,
+        _column_212,
       ],
       attachedDatabase: database,
     ),
@@ -17014,7 +17068,7 @@ final class Schema35 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape48 usageEntries = Shape48(
+  late final Shape51 usageEntries = Shape51(
     source: i0.VersionedTable(
       entityName: 'usage_entries',
       withoutRowId: false,
@@ -17038,6 +17092,8 @@ final class Schema35 extends i0.VersionedSchema {
         _column_181,
         _column_182,
         _column_183,
+        _column_52,
+        _column_211,
       ],
       attachedDatabase: database,
     ),
@@ -17131,8 +17187,8 @@ final class Schema35 extends i0.VersionedSchema {
   );
 }
 
-class Shape51 extends i0.VersionedTable {
-  Shape51({required super.source, required super.alias}) : super.aliased();
+class Shape52 extends i0.VersionedTable {
+  Shape52({required super.source, required super.alias}) : super.aliased();
   i1.GeneratedColumn<String> get provider =>
       columnsByName['provider']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get externalId =>
@@ -17189,7 +17245,7 @@ class Shape51 extends i0.VersionedTable {
       columnsByName['parent_session_id']! as i1.GeneratedColumn<String>;
 }
 
-i1.GeneratedColumn<String> _column_211(String aliasedName) =>
+i1.GeneratedColumn<String> _column_212(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'parent_session_id',
       aliasedName,

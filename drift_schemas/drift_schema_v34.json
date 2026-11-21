@@ -4111,6 +4111,26 @@
             "default_dart": "const CustomExpression('0')",
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "provider",
+            "getter_name": "provider",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('\\'claude\\'')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "tokens_reasoning",
+            "getter_name": "tokensReasoning",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -4992,7 +5012,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"usage_entries\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"spec_id\" INTEGER NULL REFERENCES specs (id) ON DELETE CASCADE, \"source\" TEXT NOT NULL, \"step\" TEXT NULL, \"session_id\" TEXT NULL REFERENCES sessions (id) ON DELETE SET NULL, \"conversation_id\" INTEGER NULL REFERENCES conversations (id) ON DELETE SET NULL, \"model\" TEXT NULL, \"at\" INTEGER NOT NULL, \"tokens_in\" INTEGER NOT NULL DEFAULT 0, \"tokens_cache_write\" INTEGER NOT NULL DEFAULT 0, \"tokens_cache_read\" INTEGER NOT NULL DEFAULT 0, \"tokens_out\" INTEGER NOT NULL DEFAULT 0, \"cost_usd\" REAL NOT NULL DEFAULT 0.0, \"five_hour_pct\" REAL NULL, \"week_pct\" REAL NULL, \"estimated\" INTEGER NOT NULL DEFAULT 0 CHECK (\"estimated\" IN (0, 1)));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"usage_entries\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"spec_id\" INTEGER NULL REFERENCES specs (id) ON DELETE CASCADE, \"source\" TEXT NOT NULL, \"step\" TEXT NULL, \"session_id\" TEXT NULL REFERENCES sessions (id) ON DELETE SET NULL, \"conversation_id\" INTEGER NULL REFERENCES conversations (id) ON DELETE SET NULL, \"model\" TEXT NULL, \"at\" INTEGER NOT NULL, \"tokens_in\" INTEGER NOT NULL DEFAULT 0, \"tokens_cache_write\" INTEGER NOT NULL DEFAULT 0, \"tokens_cache_read\" INTEGER NOT NULL DEFAULT 0, \"tokens_out\" INTEGER NOT NULL DEFAULT 0, \"cost_usd\" REAL NOT NULL DEFAULT 0.0, \"five_hour_pct\" REAL NULL, \"week_pct\" REAL NULL, \"estimated\" INTEGER NOT NULL DEFAULT 0 CHECK (\"estimated\" IN (0, 1)), \"provider\" TEXT NOT NULL DEFAULT 'claude', \"tokens_reasoning\" INTEGER NOT NULL DEFAULT 0);"
         }
       ]
     },

@@ -3529,6 +3529,24 @@ class UsageEntries extends Table with TableInfo {
     $customConstraints: 'NOT NULL DEFAULT 0 CHECK (estimated IN (0, 1))',
     defaultValue: const CustomExpression('0'),
   );
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'claude\'',
+    defaultValue: const CustomExpression('\'claude\''),
+  );
+  late final GeneratedColumn<int> tokensReasoning = GeneratedColumn<int>(
+    'tokens_reasoning',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3548,6 +3566,8 @@ class UsageEntries extends Table with TableInfo {
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;

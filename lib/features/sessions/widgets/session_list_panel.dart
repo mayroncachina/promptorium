@@ -353,7 +353,11 @@ class _SessionTile extends ConsumerWidget {
                         ),
                         const Spacer(),
                         Text(
-                          formatCost(session.costUsd),
+                          formatRunCost(
+                            session.provider,
+                            session.costUsd,
+                            unavailable: 'indisp.',
+                          ),
                           style: const TextStyle(fontFamily: AppFonts.mono),
                         ),
                       ],

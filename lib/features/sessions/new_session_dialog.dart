@@ -14,6 +14,8 @@ import '../../core/providers/provider_availability.dart';
 import '../../ui/widgets/only_provider_tag.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
+import '../../core/providers/quota_source.dart';
+import '../../ui/widgets/quota_limit_notice.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import 'agent_names.dart';
@@ -144,6 +146,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
   bool _worktree = true;
   bool _busy = false;
+
+  /// "Iniciar mesmo assim" over the Codex limit (SPEC-097 R7).
+  bool _quotaAck = false;
   String? _error;
 
   @override
@@ -226,6 +231,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         ? ref.watch(providerAvailabilityProvider(_provider)).value
         : null;
     final noSandbox = availability?.sandboxWarning != null;
+    // SPEC-097 R7: the Codex at its limit warns before the start.
+    final codexQuota = caps.providerId == 'codex' && fork == null
+        ? ref.watch(quotaSnapshotProvider('codex'))
+        : null;
+    final quotaLimit = codexQuota?.limit(DateTime.now());
+    final quotaBlocks = quotaLimit != null && !_quotaAck;
     final codexCache = caps.providerId == 'codex'
         ? codexModelsCache(ref.watch(appSettingsProvider))
         : null;
@@ -636,6 +647,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       ref.invalidate(providerAvailabilityProvider(_provider));
                     },
                   ),
+                if (quotaLimit != null && !flowLocked)
+                  QuotaLimitNotice(
+                    limit: quotaLimit,
+                    plan: codexQuota?.main.plan,
+                    onUseClaude: () => setState(() => _setProvider('claude')),
+                    onWait: () => Navigator.of(context).pop(),
+                    onStartAnyway: () {
+                      setState(() => _quotaAck = true);
+                      _submit();
+                    },
+                  ),
                 if (flowLocked)
                   _Notice(
                     key: const ValueKey('new-session-flow-locked'),
@@ -668,6 +690,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       onTap:
                           _busy ||
                               flowLocked ||
+                              quotaBlocks ||
                               (noSandbox &&
                                   _mode != ClaudePermissionMode.skipPermissions)
                           ? null
