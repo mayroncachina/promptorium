@@ -44,6 +44,7 @@ Future<List<AgentEvent>> replayCodex(
   PromptMode? mode,
   List<CodexLine> Function(List<CodexLine>)? edit,
   int turns = 1,
+  Future<void> Function(CodexRun run)? afterTurns,
 }) async {
   var t = readCodexTranscript('$_dir/$fixture.jsonl');
   if (edit != null) t = edit(t);
@@ -83,6 +84,23 @@ Future<List<AgentEvent>> replayCodex(
       i++
     ) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+  }
+  if (afterTurns != null) {
+    final before = events.length;
+    await afterTurns(run);
+    for (var i = 0; i < 200; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      if (events.length > before &&
+          events
+              .skip(before)
+              .any(
+                (e) =>
+                    e is CompactionEvent &&
+                    e.phase != CompactionEventPhase.started,
+              )) {
+        break;
+      }
     }
   }
   return events;
