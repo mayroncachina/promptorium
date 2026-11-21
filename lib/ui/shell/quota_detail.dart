@@ -165,7 +165,7 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
             spacing: 6,
             children: [
               ProviderChip(p, dense: true),
-              Flexible(
+              Expanded(
                 child: Text(
                   codex ? 'Codex' : 'Claude Code',
                   maxLines: 1,
@@ -177,10 +177,9 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
                 ),
               ),
               if (widget.active) const _Pill('ativo', color: AppColors.teal),
-              const Spacer(),
               if (plan != null)
-                Flexible(
-                  flex: 2,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
                   child: _Pill(plan, key: ValueKey('quota-plan-$p')),
                 ),
             ],
