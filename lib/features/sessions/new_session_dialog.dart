@@ -48,6 +48,16 @@ Future<String?> showForkDialog(BuildContext context, Session parent) =>
       builder: (_) => NewSessionDialog(forkOf: parent),
     );
 
+/// Subtitle of the fork dialog: the Codex forks the thread through the App
+/// Server (`thread/fork`), the Claude Code through its CLI flags.
+String forkDescription({required String provider, required String branch}) {
+  final how = provider == 'codex'
+      ? 'Bifurca a thread do Codex (thread/fork no App Server)'
+      : 'Continua a conversa (--resume --fork-session)';
+  return '$how num novo worktree a partir da branch $branch. '
+      'Alterações não commitadas não são copiadas.';
+}
+
 class NewSessionDialog extends ConsumerStatefulWidget {
   const NewSessionDialog({
     super.key,
@@ -334,9 +344,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 Text(
                   fork == null
                       ? 'Workspace: ${ws?.name ?? '—'}'
-                      : 'Continua a conversa (--resume --fork-session) num '
-                            'novo worktree a partir da branch ${fork.branch}. '
-                            'Alterações não commitadas não são copiadas.',
+                      : forkDescription(
+                          provider: fork.provider,
+                          branch: fork.branch,
+                        ),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
