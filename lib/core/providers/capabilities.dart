@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart' show appSettingsProvider;
+
 /// How far a provider supports one [ProviderCapability] (SPEC-094 R1).
 enum CapabilitySupport { supported, partial, unsupported }
 
@@ -242,11 +244,15 @@ class ProviderFlows {
     AppFlow.autoReview,
   };
 
-  /// Codex starts with every flow off (R3).
+  /// Codex runs in Prompt and Sessões (SPEC-096 R1); the other flows wait
+  /// for their specs (SPEC-100, 101, 102, 108).
   static const defaults = ProviderFlows({
     'claude': {...AppFlow.values},
-    'codex': {},
+    'codex': codexFlows,
   });
+
+  /// Flows released for the Codex in this version (SPEC-096 R1).
+  static const codexFlows = {AppFlow.prompt, AppFlow.sessions};
 
   bool allows(String provider, AppFlow flow) =>
       (enabled[provider] ?? others).contains(flow);
@@ -258,10 +264,28 @@ class ProviderFlows {
       ProviderFlows({...enabled, provider: flows}, others: others);
 }
 
-/// The flow registry (tests override it to turn Codex flows on).
-final providerFlowsProvider = Provider<ProviderFlows>(
-  (ref) => ProviderFlows.defaults,
-);
+/// `app_settings` key of the emergency switch (SPEC-096 P1): `1` turns the
+/// Codex off in every flow without a new version.
+const codexKillSwitchKey = 'codex.desligado';
+
+/// The spec that releases each flow still locked for the Codex (mock 4).
+const codexFlowSpecs = {
+  AppFlow.runSpec: 'SPEC-101',
+  AppFlow.autoReview: 'SPEC-102',
+  AppFlow.structured: 'SPEC-100',
+  AppFlow.compare: 'SPEC-108',
+};
+
+/// The flow registry (tests override it to turn Codex flows on). The
+/// emergency switch removes every Codex flow (P1).
+final providerFlowsProvider = Provider<ProviderFlows>((ref) {
+  final off = ref.watch(
+    appSettingsProvider.select((s) => s[codexKillSwitchKey] == '1'),
+  );
+  return off
+      ? ProviderFlows.defaults.copyWith('codex', const {})
+      : ProviderFlows.defaults;
+});
 
 /// "Codex · Só Claude Code por enquanto" (R11): label of a provider not
 /// released in a flow.

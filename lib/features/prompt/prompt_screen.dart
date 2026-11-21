@@ -36,6 +36,7 @@ import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/spec_batch_dialog.dart';
+import '../../ui/providers/provider_logos.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
 import 'widgets/prompt_welcome.dart';
@@ -1126,7 +1127,10 @@ class _Conversation extends ConsumerWidget {
         waitingTools: {for (final a in approvals) ?a.request.toolUseId},
         footer: footer,
         maxWidth: 760,
-        assistantName: 'Claude Code · ${modelLabel(c.model)}',
+        // SPEC-096 R3: the Codex speaks as the Codex.
+        assistantName: c.provider == 'claude'
+            ? 'Claude Code · ${modelLabel(c.model)}'
+            : providerModelLabel(c.provider, c.model),
         emptyText: 'Sem mensagens ainda.',
         editInfo: progress == null ? null : (t) => progress.edits[t.id],
         customItem: (i) => switch (i) {

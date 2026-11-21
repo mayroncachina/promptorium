@@ -42,30 +42,49 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  test('Codex flows off: a saved Codex default stays Codex and no flow starts it (SPEC-094 R3, R12)', () async {
-    final db = memoryDatabase();
-    addTearDown(db.close);
-    final c = ProviderContainer(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
-    );
-    addTearDown(c.dispose);
-    await c.read(appSettingsProvider.notifier).load();
-    await c
-        .read(appSettingsProvider.notifier)
-        .set(providerPreferenceKey(null), 'codex');
-    // Nothing switches to Claude by itself.
-    expect(c.read(defaultAgentProvider(1)), 'codex');
-    final probe = Provider(
-      (ref) => (AppFlow f) => agentProviderForFlow(ref, 'codex', f),
-    );
-    for (final f in AppFlow.values) {
-      expect(
-        () => c.read(probe)(f),
-        throwsA(isA<AgentUnavailable>()),
-        reason: f.name,
+  test(
+    'SPEC-096 R1: Codex runs only in Prompt and Sessões; the emergency '
+    'switch (P1) turns every flow off and the saved default stays Codex',
+    () async {
+      final db = memoryDatabase();
+      addTearDown(db.close);
+      final c = ProviderContainer(
+        overrides: [appDatabaseProvider.overrideWithValue(db)],
       );
-    }
-  });
+      addTearDown(c.dispose);
+      await c.read(appSettingsProvider.notifier).load();
+      await c
+          .read(appSettingsProvider.notifier)
+          .set(providerPreferenceKey(null), 'codex');
+      // A saved Codex default no longer becomes Claude.
+      expect(c.read(defaultAgentProvider(1)), 'codex');
+      final probe = Provider(
+        (ref) =>
+            (AppFlow f) => agentProviderForFlow(ref, 'codex', f),
+      );
+      for (final f in AppFlow.values) {
+        if (f == AppFlow.prompt || f == AppFlow.sessions) {
+          expect(c.read(probe)(f).id, 'codex', reason: f.name);
+        } else {
+          expect(
+            () => c.read(probe)(f),
+            throwsA(isA<AgentUnavailable>()),
+            reason: f.name,
+          );
+        }
+      }
+      await c.read(appSettingsProvider.notifier).set(codexKillSwitchKey, '1');
+      expect(c.read(defaultAgentProvider(1)), 'codex');
+      for (final f in AppFlow.values) {
+        expect(
+          () => c.read(probe)(f),
+          throwsA(isA<AgentUnavailable>()),
+          reason: f.name,
+        );
+      }
+      expect(c.read(providerFlowsProvider).anyFor('codex'), isFalse);
+    },
+  );
 
   test('project override, global fallback and restart preserve independent choices', () async {
     final db = memoryDatabase();

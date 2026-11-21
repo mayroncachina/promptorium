@@ -435,7 +435,12 @@ class _SessionMain extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: TimelineView(sessionId: s.id, root: s.worktreePath),
+            child: TimelineView(
+              sessionId: s.id,
+              root: s.worktreePath,
+              // SPEC-096 R3: the Codex speaks as the Codex.
+              assistantName: providerBrandName(s.provider),
+            ),
           ),
           // SPEC-087 R2: the context meter (one per pane, its own window).
           ContextBar(target: SessionTarget(s.id)),
