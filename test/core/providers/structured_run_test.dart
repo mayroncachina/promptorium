@@ -206,7 +206,13 @@ void main() {
             servers.single.writtenJson.any((m) => m['method'] == 'turn/start'),
       );
       final s = servers.single;
-      expect(codexArgs.single, containsAllInOrder(['-c', 'mcp_servers={}']));
+      // SPEC-105 R8: `mcp_servers={}` did not turn the servers off; each
+      // one goes off by name (none under test) and the apps too.
+      expect(
+        codexArgs.single,
+        containsAllInOrder(['-c', 'features.apps=false']),
+      );
+      expect(codexArgs.single, isNot(contains('mcp_servers={}')));
       expect(codexArgs.single.join(' '), isNot(contains('budget')));
       final thread = sent(s, 'thread/start')['params'] as Map;
       expect(thread['sandbox'], 'read-only');

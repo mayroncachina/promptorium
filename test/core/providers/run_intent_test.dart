@@ -72,6 +72,7 @@ void main() {
         ),
         throwsArgumentError,
       );
+      // SPEC-105 R7: the app's MCP server goes to the Codex by override.
       expect(
         () => CodexProvider.validateOptions(
           const AgentStartOptions(
@@ -80,7 +81,7 @@ void main() {
             appMcpConfigs: ['/run/mcp.json'],
           ),
         ),
-        throwsArgumentError,
+        returnsNormally,
       );
     });
 

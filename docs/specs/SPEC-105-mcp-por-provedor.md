@@ -1,6 +1,6 @@
 ---
 id: SPEC-105
-status: em implementação
+status: concluida
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -112,15 +112,15 @@ Não há. A aba escolhida fica em `app_settings` (`mcp.provider.workspace.<id>`)
 
 ## Critérios de aceite
 
-- [ ] A aba Codex lista os servidores do `codex mcp list --json` com status, autenticação e ferramentas, sem nenhum turno pago [R1–R3] verificar: teste de widget com saídas gravadas e contagem de `turn/start` no `fake_codex` igual a zero.
-- [ ] Adicionar e remover no Codex rodam o comando mostrado na confirmação e nunca escrevem no `config.toml` direto [R4] verificar: teste do `codex_mcp_cli` com executor falso.
-- [ ] "Entrar" num servidor `notLoggedIn` chama o login e atualiza o estado [R5] verificar: teste com notificação `mcpServer/oauthLogin/completed` simulada.
-- [ ] Copiar um servidor stdio com variáveis gera o `codex mcp add` certo, sem valores por padrão; com a opção marcada, inclui os valores [R6] verificar: testes de unidade da tradução.
-- [ ] `sse`/`ws` ficam desabilitados com o motivo; nome repetido mostra a diferença e só substitui com confirmação [R6] verificar: testes de widget do diálogo.
-- [ ] Numa sessão Codex, as ferramentas do Promptorium aparecem com as mesmas regras por modo do Claude, e nada é gravado em `~/.codex` [R7] verificar: argumentos do `app-server` no teste do adaptador e sondagem real num `HOME` temporário.
-- [ ] Perguntar e Planejar no Codex não recebem servidores de terceiros [R8] verificar: argumentos `-c mcp_servers` no teste do adaptador.
-- [ ] Regras sem equivalente aparecem com "Só Claude Code"; Bloqueado vira `disabled_tools` [R9] verificar: teste do `mcp_rules` e teste de widget.
-- [ ] O rodapé conta os servidores do provedor ativo, e a aba Codex explica Codex ausente ou incompatível [R11, R12] verificar: testes de widget do rodapé e da aba.
+- [x] A aba Codex lista os servidores do `codex mcp list --json` com status, autenticação e ferramentas, sem nenhum turno pago [R1–R3] verificar: teste de widget com saídas gravadas e contagem de `turn/start` no `fake_codex` igual a zero.
+- [x] Adicionar e remover no Codex rodam o comando mostrado na confirmação e nunca escrevem no `config.toml` direto [R4] verificar: teste do `codex_mcp_cli` com executor falso.
+- [x] "Entrar" num servidor `notLoggedIn` chama o login e atualiza o estado [R5] verificar: teste com notificação `mcpServer/oauthLogin/completed` simulada.
+- [x] Copiar um servidor stdio com variáveis gera o `codex mcp add` certo, sem valores por padrão; com a opção marcada, inclui os valores [R6] verificar: testes de unidade da tradução.
+- [x] `sse`/`ws` ficam desabilitados com o motivo; nome repetido mostra a diferença e só substitui com confirmação [R6] verificar: testes de widget do diálogo.
+- [x] Numa sessão Codex, as ferramentas do Promptorium aparecem com as mesmas regras por modo do Claude, e nada é gravado em `~/.codex` [R7] verificar: argumentos do `app-server` no teste do adaptador e sondagem real num `HOME` temporário.
+- [x] Perguntar e Planejar no Codex não recebem servidores de terceiros [R8] verificar: argumentos `-c mcp_servers` no teste do adaptador.
+- [x] Regras sem equivalente aparecem com "Só Claude Code"; Bloqueado vira `disabled_tools` [R9] verificar: teste do `mcp_rules` e teste de widget.
+- [x] O rodapé conta os servidores do provedor ativo, e a aba Codex explica Codex ausente ou incompatível [R11, R12] verificar: testes de widget do rodapé e da aba.
 
 ## Telas
 
@@ -131,3 +131,16 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/6MEv3ZAg1NaGjN4ubQM
 | `1-mcp-codex.png` | Tela MCP com o seletor "Claude Code · 4 / Codex · 2", aba Codex: grupos Globais, De plugins e Da sessão; painel do servidor com status do `mcpServerStatus/list`, OAuth, ferramentas e regras ("Só Claude Code" onde não há equivalente) | R1–R3, R5, R7, R9 |
 | `2-copiar-para-codex.png` | Diálogo "Copiar para o Codex" a partir de um servidor do Claude: tradução lado a lado, aviso de escopo global, valores das variáveis vazios com a opção de copiar, e o comando `codex mcp add` | R6 |
 | `3-estados.png` | Nome repetido com a diferença, transporte sem equivalente, Codex incompatível na aba e o rodapé contando pelo provedor ativo | R6, R11, R12 |
+
+### No app (E2E, 22/11)
+
+App compilado no Xephyr `:6`, com `HOME`, `XDG_DATA_HOME`, `CLAUDE_CONFIG_DIR` e `CODEX_HOME` num diretório temporário e um `codex` falso no `PATH` (responde `--version`, `mcp list/get/add/remove --json` e um App Server com `mcpServerStatus/list` montado do schema). Sem turno do Codex.
+
+| PNG | O que mostra |
+|---|---|
+| `app/1-aba-claude.png` | Aba Claude Code igual a antes, com o seletor e "Copiar para o Codex" |
+| `app/2-copiar-para-codex.png` | Diálogo de cópia de um servidor de projeto: valor não copiado, aviso de escopo global e o comando |
+| `app/3-copiado-aba-codex.png` | Depois de copiar (com os valores marcados): a aba Codex abre com o servidor selecionado |
+| `app/4-ferramentas-e-regras.png` | Regras na aba Codex: Bloqueado = `disabled_tools`, o resto "Só Claude Code"; Sair (OAuth) |
+| `app/5-rodape-codex.png` | Rodapé com o Codex ativo: "MCP 3/5 · 1 falhou" e a dica com os servidores do Codex |
+| `app/6-codex-incompativel.png` | Codex 0.168: o motivo na aba e "Conferir de novo" |
