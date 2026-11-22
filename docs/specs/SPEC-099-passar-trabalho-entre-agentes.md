@@ -1,6 +1,6 @@
 ---
 id: SPEC-099
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: recurso
 epico: 332
@@ -159,21 +159,51 @@ Junto com o roteiro da SPEC-098, no mesmo repositório temporário e com o mesmo
 | T4 · Entradas | Faixa de cota, Prompt, "Continuar em…" a partir da Memória, Atividades | R2, R11–R13 |
 | T5 · Teste no app | App isolado: Claude → Codex com passagem, Codex → Claude com resumo, cota esgotada simulada pelo evento gravado | R1–R13 |
 
+## Implementação
+
+Branch `spec/099-passar-trabalho-entre-agentes`, empilhada sobre a `spec/098-memoria-ai-memory` (PR #398), com as tarefas em PRs filhos: T1+T2 (#401), T3 (#402) e T4 (#403).
+
+| Arquivo | Papel |
+|---|---|
+| `lib/features/sessions/handoff/continue_controller.dart` | Condições do botão (R1, P4), conversão de acesso (decisão 3 e 15), título, "fica para trás", mensagem inicial e o controlador que encerra a origem, abre a sessão nova no mesmo worktree e grava o vínculo e o diário (R8, R9, R11) |
+| `lib/features/sessions/handoff/continue_link.dart` | O registro da continuação (`promptorium_handoff`) e os vínculos do workspace (P5) |
+| `lib/features/sessions/handoff/session_summary.dart` | Resumo do app a partir da timeline, com os eventos neutros (R7, R10) |
+| `lib/features/sessions/handoff/continue_dialog.dart` | O diálogo (R3–R7) |
+| `lib/features/sessions/handoff/handoff_source.dart`, `handoff_wait.dart` | Passagem do ai-memory: encerrar e esperar, `finalize-session`, passagem manual concorrente, sessão cortada, terminal com `ai-memory run`, passagem caprichada (R4–R6, P2, P8) |
+| `lib/features/sessions/handoff/handoff_card.dart` | Nota e cartão no topo da timeline, com a conferência depois do primeiro turno (R8, R4.5) |
+| `lib/features/sessions/handoff/continue_widgets.dart` | Botão do cabeçalho e o vínculo "continuada de" / "Continuada no … →" (R1, R9) |
+| `lib/features/sessions/widgets/quota_switch_banner.dart` | Faixa de cota esgotada (R2) |
+| `lib/features/sessions/handoff/handoff_from_memory.dart` | "Continuar em…" da Memória (R13) |
+| `lib/features/prompt/conversation_continue.dart` | "Continuar no Codex" da conversa e a mensagem que vai para o campo do Prompt (R12) |
+
+Decisões além do texto da spec:
+
+- **Sem migração (P5).** O tipo "continuação" é o evento `promptorium_handoff` no início da sessão nova; com o `parentSessionId` da SPEC-096 ele é o vínculo nos dois sentidos. O painel lateral diz "Continuada de" em vez de "Bifurcada de", e as continuações não entram em "Bifurcações".
+- **Mensagem no composer (P1).** A sessão nova abre ociosa (o processo inicia, nada é enviado). Se ela for fechada antes do primeiro envio, o próximo envio a inicia como nova (`--session-id`), porque o CLI não conhece a sessão para `--resume`.
+- **Encerrar a origem viva (R4.1).** O diálogo não encerra a sessão só por abrir: ele mostra "Encerrar e buscar a passagem". A espera é de até 10 s; na metade, `ai-memory finalize-session --agent <claude-code|codex> --session-id <id>` uma vez (P8).
+- **Aceitação (R4.5).** A 3.5.1 só lista passagens abertas. Depois do primeiro turno: se a passagem saiu da lista, o cartão diz "entregue no início"; se a linha vier aceita, "aceita às HH:MM"; se continuar aberta, "não confirmada".
+- **"O que falhou" (R4.2).** O `memory_handoff_list` da 3.5.1 não tem esse campo: o diálogo mostra resumo, perguntas abertas, próximos passos e arquivos tocados.
+- **Limite (R2).** O app grava `promptorium_limit` uma vez por turno quando o `rate_limit_event` do Claude vem rejeitado ou o Codex informa `rateLimitReachedType`. A faixa usa a janela mais apertada do destino para dizer "X% livre" e some depois que a sessão foi continuada.
+- **Review (P7).** Sessões livres que dividem um worktree viram um item só, a mais nova; "Abrir no Review" da origem leva à mais nova da cadeia.
+- **Testes sem sondar a CLI.** Sob `flutter test`, o botão só usa a disponibilidade dos provedores que já foi criada por outra tela, para não rodar `claude`/`codex` de verdade nos testes de tela.
+
+E2E: app compilado no Xephyr `:8`, com `XDG_DATA_HOME`, `HOME` e `CODEX_HOME` isolados, `codex`, `claude` e `ai-memory` falsos no `PATH`, um `/healthz` local e o estado montado no banco isolado. **Nenhum turno pago** e nada foi instalado. Capturas em `docs/mockups/spec-099/app/`.
+
 ## Critérios de aceite
 
-- [ ] O botão mostra o nome do outro provedor e fica desabilitado com o motivo enquanto a origem trabalha, tem aprovação pendente, é de etapa ou o destino não está ligado [R1] verificar: testes de widget do cabeçalho.
-- [ ] A faixa de cota esgotada aparece só depois do evento de limite e só com cota no destino; nada troca sozinho [R2] verificar: teste com evento de limite gravado.
-- [ ] O diálogo mostra worktree, branch, arquivos não commitados, modelo, acesso convertido e o que fica para trás [R3] verificar: teste de widget com uma sessão de exemplo.
-- [ ] A sessão nova abre no mesmo worktree e branch, sem `git worktree add` e sem stash, e a mensagem inicial fica no composer até a pessoa enviar [R3, R8, P1] verificar: teste do controlador com o git falso.
-- [ ] Com o ai-memory ligado, a origem viva é encerrada, a passagem dela aparece no diálogo, a mensagem inicial cita o id e o cartão mostra "aceita" depois do primeiro turno [R4] verificar: T5 com capturas e o roteiro registrado.
-- [ ] Sessão cortada sem passagem mostra o aviso e segue [R4] verificar: teste com `newer_unended_session`.
-- [ ] Passagem manual aberta gera o aviso com "Descartar a manual" e "Seguir assim" [R5] verificar: teste de widget.
-- [ ] O terminal roda `ai-memory run <destino> --no-autowire` no worktree e a opção diz "fora da timeline" [R6] verificar: teste do comando montado.
-- [ ] Sem o ai-memory, o resumo do app traz último pedido, trecho da resposta, arquivos alterados, comandos que falharam e não commitados, sem chamar modelo [R7] verificar: teste do `session_summary` com uma timeline gravada (Claude e Codex).
-- [ ] As duas sessões mostram o vínculo e uma abre a outra; excluir uma não apaga a outra [R9] verificar: teste do repositório e de widget.
-- [ ] Codex → Claude funciona pelos mesmos caminhos [R10] verificar: T5.
-- [ ] Atividades mostra a sessão nova com o provedor e o diário registra a passagem [R11] verificar: teste do diário.
-- [ ] "Nova conversa" do Prompt escolhe o provedor e, com o ai-memory, a passagem; "Continuar em…" da Memória abre o diálogo com a passagem escolhida [R12, R13] verificar: testes de widget.
+- [x] O botão mostra o nome do outro provedor e fica desabilitado com o motivo enquanto a origem trabalha, tem aprovação pendente, é de etapa ou o destino não está ligado [R1] verificar: testes de widget do cabeçalho. — Nas sessões de etapa a ação fica **escondida** (P4); o motivo da etapa aparece quando se chega ao diálogo pela Memória.
+- [x] A faixa de cota esgotada aparece só depois do evento de limite e só com cota no destino; nada troca sozinho [R2] verificar: teste com evento de limite gravado.
+- [x] O diálogo mostra worktree, branch, arquivos não commitados, modelo, acesso convertido e o que fica para trás [R3] verificar: teste de widget com uma sessão de exemplo.
+- [x] A sessão nova abre no mesmo worktree e branch, sem `git worktree add` e sem stash, e a mensagem inicial fica no composer até a pessoa enviar [R3, R8, P1] verificar: teste do controlador com o git falso.
+- [x] Com o ai-memory ligado, a origem viva é encerrada, a passagem dela aparece no diálogo, a mensagem inicial cita o id e o cartão mostra "aceita" depois do primeiro turno [R4] verificar: T5 com capturas e o roteiro registrado. — T5 com um ai-memory **falso** (JSON da 3.5.1); o roteiro com o binário real (sondagem, P3/P8) fica pendente, porque o ai-memory não foi instalado nesta máquina.
+- [x] Sessão cortada sem passagem mostra o aviso e segue [R4] verificar: teste com `newer_unended_session`.
+- [x] Passagem manual aberta gera o aviso com "Descartar a manual" e "Seguir assim" [R5] verificar: teste de widget.
+- [x] O terminal roda `ai-memory run <destino> --no-autowire` no worktree e a opção diz "fora da timeline" [R6] verificar: teste do comando montado.
+- [x] Sem o ai-memory, o resumo do app traz último pedido, trecho da resposta, arquivos alterados, comandos que falharam e não commitados, sem chamar modelo [R7] verificar: teste do `session_summary` com uma timeline gravada (Claude e Codex).
+- [x] As duas sessões mostram o vínculo e uma abre a outra; excluir uma não apaga a outra [R9] verificar: teste do repositório e de widget.
+- [x] Codex → Claude funciona pelos mesmos caminhos [R10] verificar: T5. — No app: diálogo Codex → Claude com a origem viva, a espera, a sessão cortada e o resumo dos eventos neutros; a sessão do Claude em si não roda no E2E (sem turno pago) e é coberta pelo teste do controlador.
+- [x] Atividades mostra a sessão nova com o provedor e o diário registra a passagem [R11] verificar: teste do diário.
+- [x] "Nova conversa" do Prompt escolhe o provedor e, com o ai-memory, a passagem; "Continuar em…" da Memória abre o diálogo com a passagem escolhida [R12, R13] verificar: testes de widget.
 
 ## Telas
 
