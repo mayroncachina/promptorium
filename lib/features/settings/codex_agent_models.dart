@@ -222,17 +222,17 @@ class CodexAgentModelsCard extends ConsumerWidget {
     );
   }
 
-  /// "sol: ultra · luna: high": the highest effort by model family.
+  /// "sol: ultra · luna: max": one model family per distinct highest
+  /// effort.
   static String _highestNote(List<CodexModelInfo> models) {
-    final seen = <String, String>{};
+    final byValue = <String, String>{};
     for (final m in models) {
       final h = codexHighestOf(m.efforts);
       if (h == null) continue;
-      final family = m.id.split('-').last;
-      seen.putIfAbsent(family, () => h);
+      byValue.putIfAbsent(h, () => m.id.split('-').last);
     }
-    if (seen.length < 2) return seen.values.firstOrNull ?? '';
-    return [for (final e in seen.entries.take(3)) '${e.key}: ${e.value}']
+    if (byValue.length < 2) return byValue.keys.firstOrNull ?? '';
+    return [for (final e in byValue.entries.take(3)) '${e.value}: ${e.key}']
         .join(' · ');
   }
 }
@@ -258,7 +258,7 @@ class _Head extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SizedBox(width: 110, child: Text(left.toUpperCase(), style: style)),
+          SizedBox(width: 84, child: Text(left.toUpperCase(), style: style)),
           Expanded(child: Text(right.toUpperCase(), style: style)),
         ],
       ),
@@ -288,7 +288,7 @@ class _Row extends StatelessWidget {
     child: Row(
       children: [
         SizedBox(
-          width: 110,
+          width: 84,
           child: Text(
             label,
             style: const TextStyle(

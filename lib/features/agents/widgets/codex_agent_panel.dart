@@ -88,8 +88,8 @@ class CodexAgentFieldTable extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 8),
-      Flexible(
-        flex: 3,
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 130),
         child: CodexStatePill(f.state.label, codexFieldColor(f.state)),
       ),
     ],
@@ -104,7 +104,8 @@ class CodexAgentFieldTable extends StatelessWidget {
         children: [
           Expanded(child: Text(f.key, style: _mono)),
           const SizedBox(width: 8),
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
             child: CodexStatePill(f.state.label, codexFieldColor(f.state)),
           ),
         ],

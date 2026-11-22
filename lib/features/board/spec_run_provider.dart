@@ -173,9 +173,10 @@ String claudeOnlyAgentsNote({
 
 /// "Esta spec define 2 subagentes (`tester`, `docs`). No Codex eles não
 /// rodam: a sessão principal faz o trabalho deles." (R9).
-String codexSubagentsNotice(List<String> names) {
+/// [code] = names between backticks (timeline notes, Markdown).
+String codexSubagentsNotice(List<String> names, {bool code = true}) {
   final n = names.length;
-  final list = names.map((a) => '`$a`').join(', ');
+  final list = names.map((a) => code ? '`$a`' : a).join(', ');
   return 'Esta spec define $n ${n == 1 ? 'subagente' : 'subagentes'} '
       '($list). No Codex ${n == 1 ? 'ele não roda' : 'eles não rodam'}: a '
       'sessão principal faz o trabalho ${n == 1 ? 'dele' : 'deles'}.';
