@@ -293,4 +293,28 @@ class SessionsRepo {
       ..limit(limit);
     return [for (final r in await q.get()) (r.readTable(_e), r.readTable(s))];
   }
+
+  /// The "continuação" links of a workspace (SPEC-099 P5): the session that
+  /// was continued → the JSON of its `promptorium_handoff` event, by the id
+  /// of the new session. A fork never writes that event.
+  Stream<Map<String, String>> watchEventsOfType(int workspaceId, String type) {
+    final s = _db.sessions;
+    final q = _db.select(_e).join([innerJoin(s, s.id.equalsExp(_e.sessionId))])
+      ..where(s.workspaceId.equals(workspaceId) & _e.type.equals(type))
+      ..orderBy([OrderingTerm.asc(_e.id)]);
+    return q.watch().map(
+      (rows) => {
+        for (final r in rows) r.readTable(_e).sessionId: r.readTable(_e).json,
+      },
+    );
+  }
+
+  /// Whether [sessionId] has an event of [type] (a message of the user:
+  /// the CLI already knows the session and `--resume` works).
+  Future<bool> hasEventOfType(String sessionId, String type) async =>
+      (await (_db.select(_e)
+                ..where((e) => e.sessionId.equals(sessionId) & e.type.equals(type))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
 }

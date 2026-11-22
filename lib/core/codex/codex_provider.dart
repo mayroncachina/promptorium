@@ -178,6 +178,11 @@ class CodexRun implements ManagedAgentRun {
   /// does not carry the changes (SPEC-093 D5).
   final _fileItems = <String, Map<String, dynamic>>{};
 
+  /// SPEC-103 P2: the block rules applied to command approvals while the
+  /// app's hooks are not active; returns the rule that refuses the
+  /// command, or null. A refused command never reaches the person.
+  String? Function(Map<String, dynamic> params)? commandFilter;
+
   /// "Interromper" was asked: the turn ends as interrupted by the person
   /// (SPEC-096 P3).
   bool _interruptAsked = false;
@@ -607,6 +612,31 @@ class CodexRun implements ManagedAgentRun {
           if (turn['error'] != null) 'error': turn['error'],
         });
         _turn = null;
+      case 'hook/started':
+      case 'hook/completed':
+        // SPEC-103 R6: which hook ran and how it ended; the details of the
+        // app's hooks come from its hooks.log.
+        final run = p['run'] as Map? ?? const {};
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook',
+          'method': method,
+          'hook': {
+            for (final k in [
+              'id',
+              'eventName',
+              'status',
+              'source',
+              'sourcePath',
+              'statusMessage',
+            ])
+              if (run[k] != null) k: run[k],
+            'entries': [
+              for (final e in run['entries'] as List? ?? const [])
+                if (e is Map) {'kind': e['kind'], 'text': e['text']},
+            ],
+          },
+        });
       case 'error':
         if (p['willRetry'] != true) {
           _emit({'type': 'system', 'subtype': 'error', 'error': p['error']});
@@ -794,6 +824,25 @@ class CodexRun implements ManagedAgentRun {
       );
       return;
     }
+    if (command && commandFilter != null) {
+      final rule = commandFilter!(p);
+      if (rule != null) {
+        unawaited(
+          rpc.write({
+            'id': id,
+            'result': {'decision': 'decline'},
+          }),
+        );
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook_refused',
+          'command': p['command'],
+          'rule': rule,
+          'tool_use_id': p['itemId'],
+        });
+        return;
+      }
+    }
     final key = 'codex-$id';
     _pending[key] = (id, method, p);
     _emit({
@@ -913,6 +962,11 @@ class CodexRun implements ManagedAgentRun {
     });
     _cancel(requestId);
   }
+
+  /// `hooks/list` of this thread (SPEC-103 R5): the hooks the App Server
+  /// will really run, with their origin and trust.
+  Future<Map<String, dynamic>> hooksList() =>
+      rpc.request('hooks/list', {'threadId': _thread});
 
   @override
   Future<void> interrupt() async {

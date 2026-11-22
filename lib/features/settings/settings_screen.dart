@@ -1,3 +1,4 @@
+import 'ai_memory_view.dart';
 import 'secrets_view.dart';
 
 import 'dart:convert';
@@ -200,11 +201,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
-                  title: 'Automações',
+                  title: 'Automações (hooks)',
                   intro:
-                      'Hooks que o app adiciona a cada sessão num settings.json '
-                      'temporário (--settings); os do seu ~/.claude continuam '
-                      'valendo.',
+                      'Hooks que o app adiciona a cada sessão, no Claude Code e '
+                      'no Codex; os seus e os do projeto continuam valendo.',
                   children: [AutomationsCard()],
                 ),
                 SettingsSection.providers => const _Page(
@@ -213,6 +213,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       'O Claude Code e o Codex (Prompt e Sessões) e os agentes '
                       'que falam o Agent Client Protocol, no seletor do Prompt.',
                   children: [CodexStatusCard(), AcpProvidersCard()],
+                ),
+                SettingsSection.aiMemory => const _Page(
+                  title: 'Memória (ai-memory)',
+                  intro:
+                      'Integração opcional. O ai-memory guarda a memória num '
+                      'wiki local e passa o trabalho de uma sessão para a '
+                      'próxima, em qualquer agente. O app só detecta, liga com '
+                      'prévia e mostra; quem grava nos arquivos dos agentes é '
+                      'o instalador do ai-memory.',
+                  children: [AiMemorySettingsView()],
                 ),
                 SettingsSection.backups => const _Page(
                   title: 'Banco e backups',

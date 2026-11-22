@@ -140,6 +140,97 @@ void main() {
       expect(Directory(hooks.dirOf('s1')).existsSync(), isFalse);
     }, skip: hasPython ? false : 'python3 ausente');
 
+    test('SPEC-103 R1: the Claude settings.json is the same as before the '
+        'neutral plan', () async {
+      final path = await hooks.prepare(
+        's1',
+        enabled: ManagedHook.values.toSet(),
+        rules: blockRules(projectGlobs: ['npm publish*']),
+        formatCommand: 'dart format {arquivo}',
+        secrets: const {'regras': <Object?>[]},
+        extra: const {
+          'enabledPlugins': {'x@y': false},
+        },
+      );
+      final script = "'${tmp.path}/run/s1/promptorium_hook.py'";
+      final entry = {
+        'type': 'command',
+        'command': 'python3 $script',
+        'timeout': 90,
+      };
+      expect(jsonDecode(File(path!).readAsStringSync()), {
+        'hooks': {
+          'PreToolUse': [
+            {
+              'matcher': 'Bash',
+              'hooks': [entry],
+            },
+          ],
+          'PostToolUse': [
+            {
+              'matcher': 'Write|Edit|MultiEdit',
+              'hooks': [entry],
+            },
+          ],
+          'SessionEnd': [
+            {
+              'hooks': [entry],
+            },
+          ],
+        },
+        'enabledPlugins': {'x@y': false},
+      });
+      final cfg = jsonDecode(
+        File('${tmp.path}/run/s1/hooks-config.json').readAsStringSync(),
+      );
+      expect(cfg, {
+        'log': '${tmp.path}/run/s1/hooks.log',
+        'bloquear': [
+          for (final r in blockRules(projectGlobs: ['npm publish*']))
+            r.toJson(),
+        ],
+        'formatar': 'dart format {arquivo}',
+        'segredos': '${tmp.path}/run/s1/secrets.json',
+      });
+    });
+
+    test(
+      'SPEC-103 R1: each log line says which provider ran the hook',
+      () async {
+        await hooks.prepare(
+          's1',
+          enabled: {ManagedHook.block, ManagedHook.end},
+          rules: blockRules(),
+        );
+        await runHook({
+          'hook_event_name': 'PreToolUse',
+          'tool_name': 'Bash',
+          'tool_input': {'command': 'git push -f'},
+        });
+        final codex = await Process.start('python3', [
+          '${hooks.dirOf('s1')}/promptorium_hook.py',
+          '--provedor',
+          'codex',
+        ]);
+        codex.stdin.write(jsonEncode({'hook_event_name': 'SessionEnd'}));
+        await codex.stdin.close();
+        await codex.exitCode;
+        final lines = File(hooks.logOf('s1')).readAsLinesSync();
+        expect(
+          [for (final l in lines) (jsonDecode(l) as Map)['provedor']],
+          ['claude', 'codex'],
+        );
+        final (items, _) = await hooks.readLog('s1', 0);
+        expect(items.map((a) => a.provider), ['claude', 'codex']);
+        // A line of an older script has no `provedor`: it was the Claude.
+        expect(
+          HookActivity.fromLogLine('{"evento":"fim","motivo":"x"}')!.provider,
+          'claude',
+        );
+      },
+      skip: hasPython ? false : 'python3 ausente',
+    );
+
     test('a broken config never fails the hook', () async {
       await hooks.prepare('s1', enabled: {ManagedHook.block}, rules: const []);
       File('${hooks.dirOf('s1')}/hooks-config.json').writeAsStringSync('{');
