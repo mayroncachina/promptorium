@@ -1,6 +1,6 @@
 ---
 id: SPEC-107
-status: em implementação
+status: concluida
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -99,16 +99,26 @@ Não há. As leituras e os marcadores são eventos gravados com a sessão ou a c
 
 ## Critérios de aceite
 
-- [ ] Leituras repetidas e turnos longos não acumulam: o medidor acompanha o `last`, e uma compactação faz o valor cair [R1, R7] verificar: testes do redutor com `tokenUsage` gravadas e teste manual.
-- [ ] Sem `modelContextWindow`, o medidor mostra o total sem porcentagem [R2] verificar: teste de widget do medidor.
-- [ ] A composição só aparece quando as partes não se sobrepõem; sem isso, "Detalhamento indisponível" [R3] verificar: testes do snapshot.
-- [ ] Reabrir uma sessão Codex mostra a última leitura como histórica, e eventos antigos sem leitura não inventam histórico [R4, R5] verificar: teste com eventos gravados reabertos.
-- [ ] O painel mostra o limiar enviado ao Codex, e a preferência do Codex não mexe na do Claude [R6] verificar: argumentos do `thread/start` e teste das preferências.
-- [ ] `contextCompaction` gera "compactando" e "concluída" uma vez por item, e a leitura fica pendente até a próxima medição [R7] verificar: teste com itens repetidos e `thread/compacted` duplicado.
-- [ ] "Compactar agora" chama `thread/compact/start` uma vez, só com a thread ociosa e a capacidade ligada, e não mostra o campo de foco [R8, R9] verificar: testes do controlador com o `fake_codex`.
-- [ ] Fontes mostram as instruções carregadas, as leituras por `commandActions` e as chamadas MCP, todas com "peso indisponível" [R10, R11] verificar: teste das fontes com itens gravados.
-- [ ] Subagentes não entram na leitura principal, e `model/rerouted` gera o marcador e invalida a capacidade [R12] verificar: testes do redutor.
-- [ ] Comparar com um lado Codex mostra o medidor daquele lado, sem somar, e o Replay usa a leitura do ponto selecionado [R13] verificar: testes de widget e teste manual.
+- [x] Leituras repetidas e turnos longos não acumulam: o medidor acompanha o `last`, e uma compactação faz o valor cair [R1, R7] verificar: testes do redutor com `tokenUsage` gravadas e teste manual.
+- [x] Sem `modelContextWindow`, o medidor mostra o total sem porcentagem [R2] verificar: teste de widget do medidor.
+- [x] A composição só aparece quando as partes não se sobrepõem; sem isso, "Detalhamento indisponível" [R3] verificar: testes do snapshot.
+- [x] Reabrir uma sessão Codex mostra a última leitura como histórica, e eventos antigos sem leitura não inventam histórico [R4, R5] verificar: teste com eventos gravados reabertos.
+- [x] O painel mostra o limiar enviado ao Codex, e a preferência do Codex não mexe na do Claude [R6] verificar: argumentos do `thread/start` e teste das preferências.
+- [x] `contextCompaction` gera "compactando" e "concluída" uma vez por item, e a leitura fica pendente até a próxima medição [R7] verificar: teste com itens repetidos e `thread/compacted` duplicado.
+- [x] "Compactar agora" chama `thread/compact/start` uma vez, só com a thread ociosa e a capacidade ligada, e não mostra o campo de foco [R8, R9] verificar: testes do controlador com o `fake_codex`.
+- [x] Fontes mostram as instruções carregadas, as leituras por `commandActions` e as chamadas MCP, todas com "peso indisponível" [R10, R11] verificar: teste das fontes com itens gravados.
+- [x] Subagentes não entram na leitura principal, e `model/rerouted` gera o marcador e invalida a capacidade [R12] verificar: testes do redutor.
+- [x] Comparar com um lado Codex mostra o medidor daquele lado, sem somar, e o Replay usa a leitura do ponto selecionado [R13] verificar: testes de widget e teste manual.
+
+## Notas da implementação
+
+- **Fórmula (R1, R3):** o tamanho é o `last.totalTokens` registrado pela SPEC-093. Ele soma `inputTokens` (que já inclui `cachedInputTokens`) e `outputTokens`. Por isso a composição do Codex tem quatro partes medidas na mesma chamada: entrada nova, leitura de cache, escrita de cache e a saída da chamada. Se elas não fecharem o total, o painel mostra "Detalhamento indisponível". No Claude nada muda: a saída é 0.
+- **`config/read` (R6, P2):** o app lê o `config/read` antes do `thread/start`, sem custo. Quando o app envia o limite, ele vai como override da thread, que as camadas de configuração não enxergam. Nesse caso o painel mostra o valor enviado, e do `config/read` só usa o escopo. Quando o app não envia nada ("padrão do agente"), o limite efetivo do `config/read` aparece no lugar.
+- **Eventos novos do app:** `promptorium_instructions`, `promptorium_model_change` e `promptorium_agent_config` (`lib/core/providers/context_events.dart`). Eles ficam gravados com os eventos da sessão, sem migração.
+- **Compactar agora (R8):** o `thread/compact/start` roda como turno. O `CodexRun` termina esse turno com um `result` de `num_turns: 0`, igual ao `/compact` do Claude. Ele não conta como turno de trabalho, e o marcador fica com o gatilho `manual`.
+- **Correção na SPEC-087:** no gráfico da Evolução, um marcador depois da última leitura (compactação aguardando medição) era desenhado no começo do eixo. Agora ele fica na borda direita. A correção vale para os dois provedores.
+- **E2E:** feito com o app compilado no Xephyr `:8`, com dados, `HOME`, `CODEX_HOME` e `CLAUDE_CONFIG_DIR` isolados no scratchpad, usando um Codex falso (`docs/pesquisa/spec-107-codex-falso.py`). Nenhum turno pago foi gasto. Os prints estão em `docs/mockups/spec-107/app/`.
+- **Pendências:** a linha "N skills disponíveis · configuração" da aba Fontes depende de o Codex informar as skills, que é trabalho da SPEC-104. O texto do medidor continua o da SPEC-087 ("medido no turno N" depois do fim do turno), o mesmo nos dois provedores (R13).
 
 ## Telas
 
