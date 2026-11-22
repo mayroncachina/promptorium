@@ -57,8 +57,10 @@ abstract final class AppEventTypes {
     required List<Map<String, Object?>> findings,
     bool partial = false,
     DateTime? at,
+    String? provider,
   }) => {
     'type': secrets,
+    'provider': ?provider,
     'block': block,
     'action': action,
     'command': ?command,
@@ -84,6 +86,34 @@ abstract final class AppEventTypes {
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 
+  /// The work passed from another session (SPEC-099 R8, P5): written once
+  /// at the start of the new session. `{"type":"promptorium_handoff",
+  /// "from":…,"from_title":…,"from_provider":…,"to_provider":…,
+  /// "path":"ai-memory|resumo","handoff":{…}?,"text":…?,"at":…}`. With the
+  /// session's `parentSessionId` it is the "continuação" link (a fork never
+  /// writes it).
+  static const handoff = 'promptorium_handoff';
+
+  /// The agent stopped at its usage limit (SPEC-099 R2):
+  /// `{"type":"promptorium_limit","provider":…,"minutes":300?,
+  /// "resets_at":…?,"kind":…?,"at":…}`.
+  static const limit = 'promptorium_limit';
+
+  static Map<String, dynamic> limitEvent({
+    required String provider,
+    int? minutes,
+    DateTime? resetsAt,
+    String? kind,
+    DateTime? at,
+  }) => {
+    'type': limit,
+    'provider': provider,
+    'minutes': ?minutes,
+    'resets_at': ?resetsAt?.toUtc().toIso8601String(),
+    'kind': ?kind,
+    'at': (at ?? DateTime.now()).toIso8601String(),
+  };
+
   /// Stdout line that was not a JSON object: `{"type":"invalid_line","raw":…}`.
   static const invalidLine = 'invalid_line';
 
@@ -97,10 +127,13 @@ abstract final class AppEventTypes {
     String text, {
     bool error = false,
     DateTime? at,
+    String? provider,
   }) => {
     'type': note,
     'level': error ? 'error' : 'info',
     'text': text,
+    // SPEC-103 P4: the hook cards of a Codex session carry its badge.
+    'provider': ?provider,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 }
@@ -282,10 +315,18 @@ enum NoticeLevel { info, success, error }
 
 /// Small status line (session start, end of turn, errors, app notes).
 class NoticeItem extends TimelineItem {
-  NoticeItem(this.text, {this.level = NoticeLevel.info, super.at});
+  NoticeItem(
+    this.text, {
+    this.level = NoticeLevel.info,
+    this.provider,
+    super.at,
+  });
 
   final String text;
   final NoticeLevel level;
+
+  /// SPEC-103 P4: `codex` on the hook cards of a Codex session (badge).
+  final String? provider;
 }
 
 /// A chosen comparison (SPEC-079 R11): the folded card with both sides.
@@ -307,6 +348,7 @@ class SecretBlockItem extends NoticeItem {
     required this.findings,
     this.command,
     this.partial = false,
+    super.provider,
     super.at,
   }) : super(
          secretBlockTitle(action, findings.length),
@@ -334,6 +376,73 @@ class SecretBlockItem extends NoticeItem {
   ];
 
   bool get done => open.isEmpty;
+}
+
+/// The note "Continuada de …" at the top of a continued session and the
+/// card of what came with it (SPEC-099 R8). A [NoticeItem] for every view
+/// that does not know it: its text is the note.
+class HandoffItem extends NoticeItem {
+  HandoffItem(this.data, super.text, {super.at});
+
+  /// The stored event ([AppEventTypes.handoff]).
+  final Map<String, dynamic> data;
+}
+
+/// "Limite de uso atingido · cota de 5h do Claude Code · reinicia às 13:23"
+/// (SPEC-099 R2): what triggers the quota banner.
+class LimitItem extends NoticeItem {
+  LimitItem({required String provider, this.minutes, this.resetsAt, super.at})
+    : agent = provider,
+      super(limitNotice(provider, minutes, resetsAt), level: NoticeLevel.error);
+
+  /// The agent that hit its limit (`claude`, `codex`). Not
+  /// [NoticeItem.provider], the badge of the hook cards (SPEC-103 P4).
+  final String agent;
+  final int? minutes;
+  final DateTime? resetsAt;
+}
+
+/// "cota de 5h", "cota semanal", "cota".
+String quotaWindowWords(int? minutes) => switch (minutes) {
+  null => 'cota',
+  10080 => 'cota semanal',
+  final m when m % 60 == 0 => 'cota de ${m ~/ 60}h',
+  final m => 'cota de $m min',
+};
+
+String _providerWords(String provider) => switch (provider) {
+  'codex' => 'Codex',
+  'claude' => 'Claude Code',
+  final p => p,
+};
+
+/// The text of a [LimitItem].
+String limitNotice(String provider, int? minutes, DateTime? resetsAt) {
+  final b = StringBuffer(
+    'Limite de uso atingido · ${quotaWindowWords(minutes)} do '
+    '${_providerWords(provider)}',
+  );
+  if (resetsAt != null) {
+    final l = resetsAt.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    b.write(' · reinicia às ${two(l.hour)}:${two(l.minute)}');
+  }
+  return b.toString();
+}
+
+/// The note of a [HandoffItem]: `Continuada de "Parser" · Claude Code ·
+/// 11:41 · mesmo worktree`.
+String handoffNotice(Map<String, dynamic> j, DateTime at) {
+  final l = at.toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final title = '${j['from_title'] ?? ''}'.trim();
+  final who = _providerWords('${j['from_provider'] ?? 'claude'}');
+  final where = j['same_worktree'] == false ? '' : ' · mesmo worktree';
+  if (title.isEmpty && j['from'] == null) {
+    return 'Passagem do ai-memory · ${two(l.hour)}:${two(l.minute)}';
+  }
+  return 'Continuada de "$title" · $who · ${two(l.hour)}:${two(l.minute)}'
+      '$where';
 }
 
 // --- reducer -----------------------------------------------------------------
@@ -655,6 +764,18 @@ class Timeline {
           NoticeItem(
             '${j['text'] ?? ''}',
             level: j['level'] == 'error' ? NoticeLevel.error : NoticeLevel.info,
+            provider: j['provider'] as String?,
+            at: at,
+          ),
+        );
+      case AppEventTypes.handoff:
+        items.add(HandoffItem(j, handoffNotice(j, at), at: at));
+      case AppEventTypes.limit:
+        items.add(
+          LimitItem(
+            provider: '${j['provider'] ?? 'claude'}',
+            minutes: j['minutes'] is int ? j['minutes'] as int : null,
+            resetsAt: DateTime.tryParse('${j['resets_at']}'),
             at: at,
           ),
         );
@@ -665,6 +786,7 @@ class Timeline {
           action: '${j['action'] ?? 'commit'}',
           command: j['command'] as String?,
           partial: j['partial'] == true,
+          provider: j['provider'] as String?,
           findings: [
             if (j['findings'] case final List l)
               for (final f in l) ?SecretFinding.fromJson(f),

@@ -211,6 +211,9 @@ class ContextPanelHost extends ConsumerWidget {
     this.onRemoveAttachment,
     this.onNewConversation,
     this.summary,
+    this.providers = const [],
+    this.onProvider,
+    this.handoff,
   });
 
   final ContextTarget target;
@@ -223,6 +226,11 @@ class ContextPanelHost extends ConsumerWidget {
   final ValueChanged<String>? onRemoveAttachment;
   final void Function(String? summary)? onNewConversation;
   final String Function()? summary;
+
+  /// SPEC-099 R12: see [ContextActions].
+  final List<String> providers;
+  final ValueChanged<String>? onProvider;
+  final Future<String?> Function()? handoff;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -276,6 +284,10 @@ class ContextPanelHost extends ConsumerWidget {
             : () => setTab(ContextTab.sources),
         onNewConversation: onNewConversation,
         summary: summary,
+        providers: providers,
+        provider: provider,
+        onProvider: onProvider,
+        handoff: handoff,
       ),
       nextSend: onRemoveAttachment == null
           ? null

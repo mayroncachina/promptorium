@@ -749,6 +749,8 @@ Future<StructuredStart> startProviderStructured(
           : settings['agent.run.$resume.externalId'] ?? resume,
       forkSession: intent.forkSession,
       appendSystemPrompt: intent.instructions,
+      // SPEC-098 R6: auxiliaries neither capture nor take or leave a handoff.
+      environment: await auxiliaryMemoryEnvironment(ref),
       jsonSchema:
           intent.schema != null &&
               caps.supports(ProviderCapability.structuredOutput)

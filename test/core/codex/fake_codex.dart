@@ -52,6 +52,28 @@ class FakeCodex extends FakeProcess {
   final String threadId;
   final bool rejectYolo;
 
+  /// Answer to `hooks/list` (SPEC-103 R5); null = empty result.
+  Map<String, dynamic>? hooksList;
+
+  /// `hooks/list` fails with this message.
+  String? hooksListError;
+
+  /// Sends a `hook/started` + `hook/completed` pair of [run] (SPEC-103 R6).
+  void emitHook(Map<String, dynamic> run, {String? thread}) {
+    for (final m in ['hook/started', 'hook/completed']) {
+      emit(
+        jsonEncode({
+          'method': m,
+          'params': {
+            'threadId': thread ?? threadId,
+            'turnId': 'turn-1',
+            'run': {...run, if (m == 'hook/started') 'status': 'running'},
+          },
+        }),
+      );
+    }
+  }
+
   /// `model/list` of the in-memory server; the first is the thread's.
   final List<Map<String, dynamic>> models;
   final List<CodexLine>? transcript;
@@ -155,7 +177,17 @@ class FakeCodex extends FakeProcess {
       final m = messages[_read++];
       if (m['id'] == null || m['method'] == null) continue;
       final p = m['params'] as Map;
+      if (m['method'] == 'hooks/list' && hooksListError != null) {
+        emit(
+          jsonEncode({
+            'id': m['id'],
+            'error': {'code': -32603, 'message': hooksListError},
+          }),
+        );
+        continue;
+      }
       final result = switch (m['method']) {
+        'hooks/list' => hooksList ?? <String, dynamic>{},
         'initialize' => {'userAgent': 'codex-test'},
         'account/read' => {'requiresOpenaiAuth': false},
         'model/list' => {'data': models, 'nextCursor': null},
