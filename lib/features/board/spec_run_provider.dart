@@ -171,6 +171,16 @@ String claudeOnlyAgentsNote({
   return 'Os subagentes desta spec são $tail eles.';
 }
 
+/// "Esta spec define 2 subagentes (`tester`, `docs`). No Codex eles não
+/// rodam: a sessão principal faz o trabalho deles." (R9).
+String codexSubagentsNotice(List<String> names) {
+  final n = names.length;
+  final list = names.map((a) => '`$a`').join(', ');
+  return 'Esta spec define $n ${n == 1 ? 'subagente' : 'subagentes'} '
+      '($list). No Codex ${n == 1 ? 'ele não roda' : 'eles não rodam'}: a '
+      'sessão principal faz o trabalho ${n == 1 ? 'dele' : 'deles'}.';
+}
+
 /// Timeline note when "Abrir Executar em Automático" meets a spec on the
 /// Codex (R5).
 const autoOnlyClaudeNote =

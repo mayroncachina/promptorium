@@ -55,15 +55,16 @@ Future<ProviderContainer> _open(
 Finder _key(String k) => find.byKey(ValueKey(k));
 
 void main() {
-  testWidgets('SPEC-094 R11: Codex shows "Só Claude Code" on the agent, with '
-      'the reason', (tester) async {
+  testWidgets('SPEC-106 R8: with the Codex the agent selector comes back', (
+    tester,
+  ) async {
     await _open(
       tester,
       flows: ProviderFlows.defaults.copyWith('codex', {AppFlow.sessions}),
     );
-    expect(_key('new-session-agent'), findsNothing);
-    expect(_key('new-session-agent-only'), findsOneWidget);
-    expect(find.text('O Codex não lê .claude/agents.'), findsOneWidget);
+    expect(_key('new-session-agent'), findsOneWidget);
+    expect(_key('new-session-agent-only'), findsNothing);
+    expect(find.text('Agente'), findsOneWidget);
     expect(_key('new-session-flow-locked'), findsNothing);
   });
 

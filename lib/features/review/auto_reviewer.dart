@@ -6,9 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
+import '../../core/providers/agent_provider.dart' show AgentAccess;
 import '../../core/providers/structured_run.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
+import '../agents/agent_file.dart';
+import '../agents/codex_agent.dart';
 import '../board/board_rules.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
 import '../board/orchestrator/step_plan.dart';
@@ -20,6 +23,9 @@ import 'reviewer_findings.dart';
 import 'reviewer_provider.dart';
 import '../sessions/app_notifier.dart';
 import '../specs/spec_service.dart';
+
+/// The project's own reviewer agent (`.claude/agents/spec-reviewer.md`).
+const reviewerAgentName = 'spec-reviewer';
 
 /// `review_phase` values of a spec in the Review column.
 abstract final class ReviewPhase {
@@ -350,6 +356,30 @@ class AutoReviewer {
     }
   }
 
+  /// The project's `spec-reviewer` translated for the Codex (SPEC-106
+  /// R10), read-only like every reviewer round. Null = unreadable file.
+  CodexAgentPlan? _reviewerPlan(
+    String root,
+    Map<String, String> settings,
+    String? model,
+  ) {
+    try {
+      final file = AgentFile.parse(
+        File('$root/.claude/agents/$reviewerAgentName.md').readAsStringSync(),
+      );
+      return codexAgentPlanFrom(
+        settings,
+        file,
+        name: reviewerAgentName,
+        access: AgentAccess.ask,
+        runModel: model ?? 'inherit',
+      );
+    } catch (e) {
+      debugPrint('revisor: $reviewerAgentName não traduzido — $e');
+      return null;
+    }
+  }
+
   Future<void> _review(int specId, {String? providerOnce}) async {
     final specs = _ref.read(specsRepoProvider);
     final spec = await specs.getById(specId);
@@ -385,9 +415,18 @@ class AutoReviewer {
             _ref.read(orchestratorPrefsProvider),
           )
         : null;
-    // R7: the project's own agent is the Claude Code's (decisão 7); the
-    // other providers get the built-in instructions.
+    // R7: the project's own agent goes as `--agent` on the Claude Code;
+    // on the Codex it is translated (SPEC-106 R10): its body before the
+    // built-in instructions, its model and effort through the table.
     final agent = ownAgent && claude;
+    final settings = _ref.read(appSettingsProvider);
+    final codexModel = claude
+        ? null
+        : reviewerCodexModel(config.reviewer, settings);
+    final reviewerPlan =
+        ownAgent && provider == ProviderCapabilities.codex.providerId
+        ? _reviewerPlan(ws.path, settings, codexModel)
+        : null;
     final StructuredResult r;
     try {
       r = await runStructured(
@@ -407,19 +446,26 @@ class AutoReviewer {
           claude: ClaudeStructuredExtras(
             model: rule?.model ?? config.reviewer.model,
             effort: rule?.effort,
-            agent: agent ? 'spec-reviewer' : null,
+            agent: agent ? reviewerAgentName : null,
             maxBudgetUsd: config.reviewer.budgetUsd > 0
                 ? config.reviewer.budgetUsd
                 : null,
           ),
           // R4: `modelo-codex` / `codex.model.reviewer`; never a Claude alias.
-          modelOverride: claude
+          modelOverride: reviewerPlan == null
+              ? codexModel
+              : reviewerPlan.model == 'inherit'
+              ? codexModel
+              : reviewerPlan.model,
+          effortOverride: reviewerPlan == null
               ? null
-              : reviewerCodexModel(
-                  config.reviewer,
-                  _ref.read(appSettingsProvider),
+              : reviewerPlan.effort ?? 'default',
+          instructions: agent
+              ? null
+              : codexAgentInstructions(
+                  reviewerPlan?.instructions,
+                  builtinReviewerPrompt,
                 ),
-          instructions: agent ? null : builtinReviewerPrompt,
           schema: reviewerSchema,
           prompt: reviewerPrompt(
             spec: spec,

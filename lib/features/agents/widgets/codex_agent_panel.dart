@@ -271,7 +271,10 @@ class CodexAgentSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   plan.agent,
@@ -282,14 +285,12 @@ class CodexAgentSummary extends StatelessWidget {
                     color: AppColors.text,
                   ),
                 ),
-                const SizedBox(width: 8),
                 CodexStatePill(
                   plan.stateLabel,
                   plan.stateLabel == 'aplicado'
                       ? AppColors.teal
                       : AppColors.amber,
                 ),
-                const Spacer(),
                 if (n > 0)
                   Text(
                     '$n ${n == 1 ? 'campo ignorado' : 'campos ignorados'}',

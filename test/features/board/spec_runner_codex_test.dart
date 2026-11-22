@@ -187,8 +187,8 @@ void main() {
   );
 
   test('R2, R3, R6: the spec runs on the Codex of the kind with a catalog '
-      'model, without agent nor subagents; the footer switched mid-run does '
-      'not move the next steps', () async {
+      'model, the agent translated (SPEC-106) and without subagents; the '
+      'footer switched mid-run does not move the next steps', () async {
     final runner = c.read(specRunnerProvider);
     final first = await runner.runNext(spec.id);
     await settle();
@@ -196,7 +196,9 @@ void main() {
     expect(s1.provider, 'codex');
     expect(s1.model, 'gpt-6.1-terra');
     expect(s1.effort, 'medium');
-    expect(s1.agentName, isNull);
+    // SPEC-106 R8: the project's agent goes to the Codex (translated; the
+    // file does not exist here, so the session says so and goes on).
+    expect(s1.agentName, 'spec-implementer');
     expect(s1.permissionMode, ClaudePermissionMode.acceptEdits.cliValue);
     expect(recordedSpecProvider(c.read(appSettingsProvider), spec.id), 'codex');
     final prompt = sentText(servers.last);
@@ -210,10 +212,13 @@ void main() {
     expect(claude.processes, isEmpty);
     expect(
       await notes(first),
-      contains(
-        'O agente spec-implementer e os subagentes desta spec são só do '
-        'Claude Code; o Codex executa sem eles.',
-      ),
+      containsAll([
+        'Agente spec-implementer não encontrado em .claude/agents: a sessão '
+            'segue sem ele.',
+        // SPEC-106 R9: only the subagents stay with the Claude Code.
+        'Esta spec define 1 subagente (`spec-reviewer`). No Codex ele não '
+            'roda: a sessão principal faz o trabalho dele.',
+      ]),
     );
 
     // The footer goes back to the Claude Code in the middle of the run.
@@ -236,7 +241,8 @@ void main() {
     expect(why.where((n) => n.contains('só sessões do Claude')), isEmpty);
     // R6: the note is written once per run.
     expect(
-      (await notes(sessions.last.id)).where((n) => n.contains('só do Claude')),
+      (await notes(sessions.last.id))
+          .where((n) => n.contains('No Codex ele não roda')),
       isEmpty,
     );
   });

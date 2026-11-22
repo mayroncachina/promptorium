@@ -32,6 +32,7 @@ import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
 import 'widgets/side_panel.dart';
+import '../agents/codex_agent.dart' show sessionAgentLabel, sessionAgentRecord;
 import 'widgets/timeline_view.dart';
 import 'widgets/undo_dialog.dart';
 import 'widgets/tool_expanded_view.dart';
@@ -605,8 +606,10 @@ class _Header extends ConsumerWidget {
     final canResume =
         !alive || (codex && !busy && s.status == SessionStatus.interrupted);
 
+    // SPEC-106 R11: "flutter-dev · adaptado" from the run's record.
+    final agentRecord = sessionAgentRecord(s);
     final agentModel = [
-      s.agentName ?? 'sem agente',
+      sessionAgentLabel(s) ?? 'sem agente',
       model ?? (s.model == 'inherit' ? 'modelo padrão' : s.model),
     ].join(' · ');
     final dev = ref.watch(sessionDevProvider(s.id));
@@ -675,7 +678,16 @@ class _Header extends ConsumerWidget {
                             s.permissionMode ==
                             ClaudePermissionMode.skipPermissions.cliValue,
                       ),
-                    InfoTag(agentModel),
+                    if (agentRecord == null)
+                      InfoTag(agentModel)
+                    else
+                      Tooltip(
+                        key: const ValueKey('session-codex-agent'),
+                        message:
+                            'No Codex: ${agentRecord.detail}\n'
+                            '${[for (final f in agentRecord.fields) '${f.key}: ${f.value} → ${f.target} (${f.state.label})'].join('\n')}',
+                        child: InfoTag(agentModel),
+                      ),
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
                 ),
