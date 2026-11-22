@@ -1,3 +1,5 @@
+import '../memory/ai_memory_env.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -112,6 +114,7 @@ Future<String?> runUsage(
   String executable, {
   Duration timeout = const Duration(seconds: 40),
   Duration killGrace = const Duration(seconds: 2),
+  Map<String, String>? environment,
 }) async {
   try {
     final r = await runKillingOnTimeout(
@@ -125,6 +128,7 @@ Future<String?> runUsage(
       ],
       timeout: timeout,
       killGrace: killGrace,
+      environment: environment,
     );
     if (r.exitCode != 0) return null;
     final j = jsonDecode('${r.stdout}');
@@ -137,7 +141,14 @@ Future<String?> runUsage(
 
 final usageRunnerProvider = Provider<UsageRunner>((ref) {
   final exe = ref.watch(claudeExecutableProvider);
-  return () => runUsage(exe);
+  // SPEC-098 R6: an auxiliary run, outside ai-memory's capture.
+  return () async => runUsage(
+    exe,
+    environment: withAiMemory(
+      null,
+      await aiMemoryRunEnvironment(ref, AiMemoryRunKind.auxiliary),
+    ),
+  );
 });
 
 class UsagePoller {

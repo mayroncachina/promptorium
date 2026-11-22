@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../memory/ai_memory_env.dart';
 import '../providers/agent_registry.dart';
 import '../providers/provider_preferences.dart';
 import '../../data/providers.dart';
@@ -94,6 +95,11 @@ Future<Result> runReadOnlyClaude(
             )
           : settings.get('agent.run.$sourceId.provider') ?? 'claude');
   final AgentRun process;
+  // SPEC-098 R6: auxiliaries neither capture nor take or leave a handoff.
+  final memoryEnv = withAiMemory(
+    null,
+    await aiMemoryRunEnvironment(ref, AiMemoryRunKind.auxiliary),
+  );
   if (options.sessionId != null) {
     await settings.set('agent.run.${options.sessionId}.provider', chosen);
   }
@@ -120,6 +126,7 @@ Future<Result> runReadOnlyClaude(
           jsonSchema: caps.supports(ProviderCapability.structuredOutput)
               ? options.jsonSchema
               : null,
+          environment: memoryEnv,
           extras: extrasFor(
             caps,
             claude: ClaudeExtras(
@@ -154,6 +161,7 @@ Future<Result> runReadOnlyClaude(
           ),
           workingDirectory: cwd,
           executable: ref.read(claudeExecutableProvider),
+          environment: memoryEnv,
           starter: ref.read(claudeProcessStarterProvider),
         ),
       );
