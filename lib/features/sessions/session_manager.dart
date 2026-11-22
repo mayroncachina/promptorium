@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/memory/ai_memory_env.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
@@ -1604,9 +1605,18 @@ class SessionManager extends Notifier<SessionManagerState> {
     // SPEC-048: only the agent's process gets the marking, never the
     // terminals of the worktree (worktreeEnvProvider below).
     final marking = await _agentEnv(session, root ?? cwd);
-    final processEnv = marking.isEmpty
+    // SPEC-098 R6: step sessions of the Quadro capture but leave no
+    // automatic handoff (P3); free sessions keep ai-memory's behavior.
+    final memory = await aiMemoryRunEnvironment(
+      ref,
+      session.specId != null
+          ? AiMemoryRunKind.stepSession
+          : AiMemoryRunKind.free,
+    );
+    final extra = {...marking, ...memory};
+    final processEnv = extra.isEmpty
         ? environment
-        : {...?environment, ...marking};
+        : {...?environment, ...extra};
     final ManagedAgentRun process;
     McpRunLink? mcpLink;
     ManagedHookPlan? hookPlan;

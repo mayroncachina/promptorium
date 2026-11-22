@@ -2,6 +2,21 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.23.1] - 2026-11-22
+
+### Correções
+
+- **sessoes:** Arquivos alterados e Diff medidos desde o merge-base da sessão (SPEC-111) (c046d7c)
+
+### Documentação
+
+- **spec:** SPEC-111 alterações e Diff da sessão depois do commit (#376) (bf9409e)
+- **spec:** SPEC-111 concluída, com os prints do app (bd5c1d1)
+
+### Testes
+
+- **rodape:** Casos da cota não dependem da hora do dia (quebravam entre 00:00 e 01:00 no CI) (6abe670)
+
 ## [0.23.0] - 2026-11-21
 
 ### Funcionalidades
