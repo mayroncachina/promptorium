@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,7 +52,11 @@ Future<void> selectMcpProviderTab(WidgetRef ref, McpProviderTab tab) => ref
 final codexMcpListProvider =
     FutureProvider.family<List<CodexMcpServer>, String?>(
       (ref, cwd) => ref.read(codexMcpCliProvider).list(cwd),
+      // A missing Codex is an answer, not a failure to retry.
+      retry: _noRetry,
     );
+
+Duration? _noRetry(int count, Object error) => null;
 
 /// Status of every Codex server (`mcpServerStatus/list` with
 /// `toolsAndAuthOnly`, a short App Server connection without a turn, R2).
@@ -66,7 +72,7 @@ final codexMcpStatusProvider =
         ref.read(codexMcpBoardProvider.notifier).setFromStatus(list);
       }
       return list;
-    });
+    }, retry: _noRetry);
 
 /// Latest status picture of the Codex servers (R11): the footer counts
 /// these when the Codex is the provider in focus.
@@ -154,3 +160,15 @@ final selectedCodexMcpServerProvider =
     NotifierProvider<SelectedCodexMcpServer, String?>(
       SelectedCodexMcpServer.new,
     );
+
+/// Opens the OAuth authorization URL in the browser (R5). Tests override it.
+final codexMcpOpenUrlProvider = Provider<Future<void> Function(String url)>(
+  (ref) => (url) async {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+    try {
+      await Process.run('xdg-open', [url]);
+    } catch (e) {
+      debugPrint('xdg-open (login MCP): $e');
+    }
+  },
+);

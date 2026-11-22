@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/codex/codex_cli.dart' show codexExecutableProvider;
+import '../../core/codex/codex_probe.dart' show codexMinVersion;
+import '../../core/codex/codex_rpc.dart';
 import '../../core/mcp/app_mcp_config.dart' show appMcpEnabled;
+import '../../core/providers/provider_availability.dart';
 import '../../core/mcp/app_mcp_tools.dart' show appMcpCatalog, appMcpServerName;
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
@@ -11,10 +15,14 @@ import '../agents/agent_repository.dart';
 import '../agents/widgets/agent_style.dart' show AgentAvatar, agentTint;
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
+import 'codex_mcp_cli.dart';
+import 'codex_mcp_state.dart';
 import 'mcp_cli.dart';
 import 'mcp_config.dart';
 import 'mcp_rules.dart';
 import 'mcp_state.dart';
+
+part 'codex_mcp_view.dart';
 
 /// One row of the server list: a configured entry (any scope) or a server
 /// only seen in `system/init` / `claude mcp list` (claude.ai connectors,
@@ -137,6 +145,18 @@ class McpScreen extends ConsumerWidget {
     )[AppSettingKeys.activeWorkspace];
     final ready = ws != null || int.tryParse(activeId ?? '') == null;
     final runCwd = cwd ?? ref.watch(agentHomeProvider);
+    // SPEC-105 R1: one screen, one tab per provider.
+    final tab = ref.watch(mcpProviderTabProvider);
+    if (ready && tab == McpProviderTab.codex) {
+      final registry = registryAsync.value;
+      return CodexMcpPane(
+        cwd: runCwd,
+        workspaceId: ws?.id,
+        claudeCount: registry == null
+            ? null
+            : {for (final c in registry.servers) c.name}.length,
+      );
+    }
     const idle = AsyncValue<Never>.loading();
     final listAsync = ready ? ref.watch(mcpListProvider(runCwd)) : idle;
     final invAsync = ready ? ref.watch(mcpInventoryProvider(runCwd)) : idle;
@@ -174,6 +194,7 @@ class McpScreen extends ConsumerWidget {
                 width: listWidth,
                 child: _ServerList(
                   rows: rows,
+                  codexCount: ready ? codexServerCount(ref, runCwd) : null,
                   selectedKey: selected?.key,
                   workspaceName: ws?.name,
                   checking: checking,
@@ -270,15 +291,18 @@ class _AppServerDetail extends StatelessWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.loading});
+  const _Empty({required this.loading, this.codex = false});
 
   final bool loading;
+  final bool codex;
 
   @override
   Widget build(BuildContext context) => Center(
     child: Text(
       loading
           ? 'Lendo a configuração MCP…'
+          : codex
+          ? 'Nenhum servidor do Codex selecionado.'
           : 'Nenhum servidor MCP configurado. Use "Adicionar servidor".',
       style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
     ),
@@ -290,6 +314,7 @@ class _Empty extends StatelessWidget {
 class _ServerList extends StatelessWidget {
   const _ServerList({
     required this.rows,
+    required this.codexCount,
     required this.selectedKey,
     required this.workspaceName,
     required this.checking,
@@ -297,6 +322,7 @@ class _ServerList extends StatelessWidget {
   });
 
   final List<McpServerRow> rows;
+  final int? codexCount;
   final String? selectedKey;
   final String? workspaceName;
   final bool checking;
@@ -329,6 +355,23 @@ class _ServerList extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 12),
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: McpProviderSwitch(
+                  tab: McpProviderTab.claude,
+                  claudeCount: {
+                    for (final r in rows)
+                      if (!isAppServerRow(r) && r.config != null) r.name,
+                  }.length,
+                  codexCount: codexCount,
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
             child: Row(
