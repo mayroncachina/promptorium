@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/memory/ai_memory_cli.dart';
+import '../../../core/memory/ai_memory_state.dart';
+import '../../../core/memory/handoff.dart';
+import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../session_manager.dart';
+import '../timeline_provider.dart';
+import 'handoff_wait.dart';
 import '../timeline.dart';
 import '../widgets/session_style.dart';
 import 'continue_link.dart';
@@ -177,10 +184,72 @@ class HandoffCard extends ConsumerWidget {
   }
 }
 
-/// The state of the handoff in the card (R4.5): filled by the check after
-/// the first turn. Null while unknown.
+/// The check after the first turn (R4.5): one `memory_handoff_list` read
+/// in the session's directory, by (session, handoff).
+final handoffAcceptanceProvider = FutureProvider.autoDispose
+    .family<({HandoffAcceptance state, DateTime? at})?, (String, String, String)>(
+      (ref, key) async {
+        final (_, handoffId, cwd) = key;
+        final cli = await ref.watch(aiMemoryCliProvider.future);
+        if (cli == null) return null;
+        try {
+          final list = HandoffList.parse(
+            await cli.call('memory_handoff_list', const {}, cwd: cwd),
+          );
+          return handoffAcceptance(list, handoffId);
+        } on AiMemoryException {
+          return null;
+        }
+      },
+    );
+
+/// The state of the handoff in the card (R4.5): checked once the first
+/// turn of the new session ended. Null while unknown.
 Widget? handoffStateLabel(
   WidgetRef ref,
   String sessionId,
   ContinuationRecord r,
-) => null;
+) {
+  final h = r.handoff;
+  if (h == null) return null;
+  final turned = ref.watch(
+    sessionTimelineProvider(sessionId).select(
+      (t) => t.timeline.items.any((i) => i is UserItem),
+    ),
+  );
+  final busy = ref.watch(
+    sessionManagerProvider.select((m) => m.live[sessionId]?.busy ?? false),
+  );
+  if (!turned || busy) return null;
+  final cwd = ref.watch(
+    sessionsProvider(ref.watch(activeWorkspaceProvider)?.id ?? -1).select(
+      (v) => v.value?.where((s) => s.id == sessionId).firstOrNull?.worktreePath,
+    ),
+  );
+  if (cwd == null) return null;
+  final v = ref.watch(handoffAcceptanceProvider((sessionId, h.id, cwd))).value;
+  if (v == null) return null;
+  final ok = v.state != HandoffAcceptance.unconfirmed;
+  final text = switch (v.state) {
+    HandoffAcceptance.accepted =>
+      v.at == null ? 'aceita' : 'aceita às ${formatClock(v.at)}',
+    final s => s.label,
+  };
+  return Container(
+    key: const ValueKey('handoff-card-state'),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: ok ? ReviewColors.acceptBorder : AppColors.amber,
+      ),
+    ),
+    child: Text(
+      ok ? '✓ $text' : text,
+      style: TextStyle(
+        fontSize: 11,
+        color: ok ? AppColors.teal : AppColors.amber,
+      ),
+    ),
+  );
+}

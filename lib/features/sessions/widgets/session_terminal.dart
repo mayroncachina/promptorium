@@ -20,6 +20,8 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/shell_intents.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../../core/memory/ai_memory_state.dart';
+import '../handoff/handoff_wait.dart' show aiMemoryRunArgs;
 import '../session_manager.dart';
 import 'session_style.dart';
 
@@ -166,6 +168,45 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
     t.start(
       executable: executable,
       args: args,
+      cwd: s.worktreePath,
+      environment: switch (ref.read(worktreeEnvProvider)[s.worktreePath]) {
+        final env? => {...Platform.environment, ...env},
+        null => null,
+      },
+      onExit: () {
+        if (ref.mounted) state = {...state};
+      },
+    );
+    state = {...state, s.id: t};
+  }
+
+  /// SPEC-099 R6: `ai-memory run <destino> --no-autowire` in the session's
+  /// worktree. Out of the timeline: the app opens the terminal and does not
+  /// follow nor record that conversation.
+  Future<void> openAiMemoryRun(
+    Session s, {
+    required String target,
+    bool yolo = false,
+  }) async {
+    final existing = state[s.id];
+    if (existing != null && existing.running) {
+      throw const AgentUnavailable(
+        'Feche o terminal interativo desta sessão antes.',
+      );
+    }
+    final exe = await ref.read(aiMemoryExecutableProvider.future);
+    if (exe == null) {
+      throw const AgentUnavailable('O ai-memory não foi encontrado.');
+    }
+    if (!ref.mounted) return;
+    final t = SessionTerminal(s.id);
+    t.terminal.write(
+      '[ai-memory run ${aiMemoryRunArgs(target, yolo: yolo).skip(1).join(' ')}'
+      ' · fora da timeline]\r\n',
+    );
+    t.start(
+      executable: exe,
+      args: aiMemoryRunArgs(target, yolo: yolo),
       cwd: s.worktreePath,
       environment: switch (ref.read(worktreeEnvProvider)[s.worktreePath]) {
         final env? => {...Platform.environment, ...env},
