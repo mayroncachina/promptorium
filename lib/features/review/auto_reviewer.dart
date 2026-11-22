@@ -1,16 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/capabilities.dart' show AppFlow;
 import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
+import '../../core/providers/structured_run.dart';
 import '../../core/git/git_service.dart';
-import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../board/board_rules.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
@@ -357,47 +354,48 @@ class AutoReviewer {
             _ref.read(orchestratorPrefsProvider),
           )
         : null;
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       _ref,
-      flow: AppFlow.autoReview,
-      workspaceId: ws.id,
-      cwd: spec.worktreePath!,
-      timeout: timeout,
-      // SPEC-081 R2: the reviewer of the spec, by round.
-      specId: specId,
-      usageSource: UsageSource.revisor,
-      usageStep: 'rodada $round',
-      // The Orquestrador only uses the Claude Code (D5).
-      providerId: rule == null ? null : 'claude',
-      options: ClaudeOptions(
-        model: rule?.model ?? config.reviewer.model,
-        effort: rule?.effort,
-        agent: ownAgent ? 'spec-reviewer' : null,
-        appendSystemPrompt: ownAgent ? null : builtinReviewerPrompt,
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        jsonSchema: jsonEncode(reviewerSchema),
-        maxBudgetUsd: config.reviewer.budgetUsd > 0
-            ? config.reviewer.budgetUsd
-            : null,
-        includePartialMessages: false,
-      ),
-      prompt: reviewerPrompt(
-        spec: spec,
-        specText: text,
-        diff: diff,
-        round: round,
-        gates: [
-          for (final row in rows)
-            if (GateReport.decode(row.gateReport) case final g?)
-              '${row.step}: ${g.ok ? 'aprovada' : 'falhou (${g.summary})'}',
-        ],
-        previous: previous,
-        memory: ProjectMemory.loadSync(ws.path).toPrompt(),
-        criteria: [for (final c in criteria) c.text],
+      StructuredIntent(
+        flow: AppFlow.autoReview,
+        workspaceId: ws.id,
+        cwd: spec.worktreePath!,
+        timeout: timeout,
+        // SPEC-081 R2: the reviewer of the spec, by round.
+        specId: specId,
+        usageSource: UsageSource.revisor,
+        usageStep: 'rodada $round',
+        // The Orquestrador only uses the Claude Code (D5).
+        providerId: rule == null ? null : 'claude',
+        claude: ClaudeStructuredExtras(
+          model: rule?.model ?? config.reviewer.model,
+          effort: rule?.effort,
+          agent: ownAgent ? 'spec-reviewer' : null,
+          maxBudgetUsd: config.reviewer.budgetUsd > 0
+              ? config.reviewer.budgetUsd
+              : null,
+        ),
+        // The project's own agent brings its instructions (Claude only);
+        // the other providers get the built-in ones.
+        instructions: ownAgent ? null : builtinReviewerPrompt,
+        schema: reviewerSchema,
+        prompt: reviewerPrompt(
+          spec: spec,
+          specText: text,
+          diff: diff,
+          round: round,
+          gates: [
+            for (final row in rows)
+              if (GateReport.decode(row.gateReport) case final g?)
+                '${row.step}: ${g.ok ? 'aprovada' : 'falhou (${g.summary})'}',
+          ],
+          previous: previous,
+          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+          criteria: [for (final c in criteria) c.text],
+        ),
       ),
     );
-    final verdict = ReviewerVerdict.parse(structuredOutput(r));
+    final verdict = ReviewerVerdict.parse(r.data);
     if (verdict == null) {
       throw const PlannerException('O revisor não devolveu um veredito.');
     }
@@ -521,39 +519,38 @@ class AutoReviewer {
       final config = ProjectConfig.loadSync(ws.path);
       final git = _ref.read(gitServiceFactoryProvider)(s.worktreePath);
       final diff = await _diffAgainst(git, s.baseBranch ?? 'main');
-      final r = await runReadOnlyClaude(
+      final r = await runStructured(
         _ref,
-        flow: AppFlow.autoReview,
-        workspaceId: ws.id,
-        cwd: s.worktreePath,
-        timeout: timeout,
-        specId: s.specId,
-        usageSource: UsageSource.revisor,
-        usageStep: 'rodada $round',
-        options: ClaudeOptions(
-          model: config.reviewer.model,
-          appendSystemPrompt: builtinReviewerPrompt,
-          permissionMode: ClaudePermissionMode.defaultMode,
-          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-          jsonSchema: jsonEncode(reviewerSchema),
-          maxBudgetUsd: config.reviewer.budgetUsd > 0
-              ? config.reviewer.budgetUsd
-              : null,
-          includePartialMessages: false,
-        ),
-        prompt: prReviewerPrompt(
-          title: title,
-          body: body,
-          diff: diff,
-          round: round,
-          previous: [
-            for (final c in previous)
-              if (c.author == 'revisor') c,
-          ],
-          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+        StructuredIntent(
+          flow: AppFlow.autoReview,
+          workspaceId: ws.id,
+          cwd: s.worktreePath,
+          timeout: timeout,
+          specId: s.specId,
+          usageSource: UsageSource.revisor,
+          usageStep: 'rodada $round',
+          instructions: builtinReviewerPrompt,
+          schema: reviewerSchema,
+          claude: ClaudeStructuredExtras(
+            model: config.reviewer.model,
+            maxBudgetUsd: config.reviewer.budgetUsd > 0
+                ? config.reviewer.budgetUsd
+                : null,
+          ),
+          prompt: prReviewerPrompt(
+            title: title,
+            body: body,
+            diff: diff,
+            round: round,
+            previous: [
+              for (final c in previous)
+                if (c.author == 'revisor') c,
+            ],
+            memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+          ),
         ),
       );
-      final verdict = ReviewerVerdict.parse(structuredOutput(r));
+      final verdict = ReviewerVerdict.parse(r.data);
       if (verdict == null) {
         throw const PlannerException('O revisor não devolveu um veredito.');
       }

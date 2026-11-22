@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Color;
 
@@ -7,9 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../cost/usage_ledger.dart';
-import '../../../core/providers/capabilities.dart' show AppFlow;
-import '../../../core/claude/claude_args.dart';
-import '../../../core/claude/readonly_run.dart';
+import '../../../core/providers/structured_run.dart';
 import '../../../core/fs/dir_watcher.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
@@ -96,15 +93,44 @@ final prototypeSchema = {
 /// Options of a prototype run: writing allowed only in [dir] (relative to
 /// the workspace, the run's cwd) by the `Edit(<dir>/**)` rule — it covers
 /// Write and Edit; everything else asks and is denied (R2).
-ClaudeOptions prototypeOptions(String dir) => ClaudeOptions(
-  permissionMode: ClaudePermissionMode.defaultMode,
-  tools: prototypeTools,
-  allowedTools: ['Edit($dir/**)'],
-  disallowedTools: prototypeDisallowedTools,
-  appendSystemPrompt: prototypeSystemPrompt(dir),
-  jsonSchema: jsonEncode(prototypeSchema),
-  maxBudgetUsd: prototypeBudgetUsd,
-  includePartialMessages: false,
+/// Why the prototype stays on the Claude Code when "Planner e assistentes"
+/// is on another provider (SPEC-100 R8, R10, P1).
+const prototypeClaudeOnlyReason =
+    'O protótipo escreve só em docs/mockups/ usando regras por ferramenta '
+    '(--tools e allowedTools). O Codex só limita a escrita por pasta do '
+    'sandbox, sem essa granularidade. Esta execução roda no Claude Code e '
+    'gasta a cota dele.';
+
+/// What a prototype run asks (R2): instructions, schema and the Claude
+/// write rules. Só Claude Code (SPEC-100 R8, P1): the Codex only limits
+/// writing by sandbox folder, not by tool.
+@immutable
+class PrototypeRun {
+  const PrototypeRun({
+    required this.instructions,
+    required this.schema,
+    required this.claude,
+  });
+
+  final String instructions;
+  final Map<String, Object?> schema;
+  final ClaudeStructuredExtras claude;
+
+  List<String> get tools => claude.tools;
+  List<String> get allowedTools => claude.allowedTools;
+  List<String> get disallowedTools => claude.disallowedTools ?? const [];
+  String get appendSystemPrompt => instructions;
+}
+
+PrototypeRun prototypeOptions(String dir) => PrototypeRun(
+  instructions: prototypeSystemPrompt(dir),
+  schema: prototypeSchema,
+  claude: ClaudeStructuredExtras(
+    tools: prototypeTools,
+    allowedTools: ['Edit($dir/**)'],
+    disallowedTools: prototypeDisallowedTools,
+    maxBudgetUsd: prototypeBudgetUsd,
+  ),
 );
 
 /// "Gerar telas da spec" (R2).
@@ -194,7 +220,7 @@ String prototypeVariationPrompt({
 /// fake the CLI. Completing [cancelled] stops the agent (SPEC-025 R9).
 typedef PrototypeAgent = Future<Object?> Function({
   required String cwd,
-  required ClaudeOptions options,
+  required PrototypeRun options,
   required String prompt,
   Future<void>? cancelled,
 });
@@ -202,24 +228,27 @@ typedef PrototypeAgent = Future<Object?> Function({
 final prototypeAgentProvider = Provider<PrototypeAgent>(
   (ref) =>
       ({required cwd, required options, required prompt, cancelled}) async =>
-          structuredOutput(
-            await runReadOnlyClaude(
-              ref,
+          (await runStructured(
+            ref,
+            StructuredIntent(
               flow: AppFlow.prototype,
               cwd: cwd,
-              options: options,
+              instructions: options.instructions,
+              schema: options.schema,
+              claude: options.claude,
               prompt: prompt,
               cancelled: cancelled,
               timeout: prototypeTimeout,
               specCode: specCodeInText(prompt) ?? _promptSpecCode(prompt),
               usageSource: UsageSource.outros,
-              // Write rules are Claude's (other providers run read-only).
+              // Só Claude Code (SPEC-100 R8, P1): the write rules are
+              // Claude's tool rules.
               providerId: 'claude',
               denyMessage:
                   'O protótipo só pode gravar arquivos novos na pasta de '
                   'mockups da spec.',
             ),
-          ),
+          )).data,
 );
 
 /// A run in progress for a spec (R3: its screens show as being generated).

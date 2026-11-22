@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/providers/structured_run.dart';
+import '../../../ui/widgets/run_provider_line.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/providers/provider_preferences.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../data/providers.dart';
 import '../../../ui/widgets/app_dialog.dart';
@@ -101,7 +104,15 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
           candidates.any((s) => s.id == widget.selected!.id))
         widget.selected!.id,
     };
-    final provider = ref.read(defaultAgentProvider(ws.id));
+    // SPEC-100 R9, R10: the provider of "Planner e assistentes".
+    final provider = providerDisplayName(
+      providerForKind(
+        ref.read(appSettingsProvider),
+        ProviderKind.planner,
+        workspaceId: ws.id,
+        flows: ref.read(providerFlowsProvider),
+      ),
+    );
     final ok = await showAppDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -358,6 +369,11 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
             ),
           if (busy) ...[
             Text(_progress ?? 'Preparando verificação…'),
+            // SPEC-100 R10: who verifies, with which model and what it used.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: RunProviderLine(slot: verificationSlot(ws.id)),
+            ),
             TextButton(
               onPressed: _cancel!.cancel,
               child: const Text('Cancelar verificação'),

@@ -3,9 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/managed_hooks.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/core/claude/run_extensions.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
@@ -243,11 +242,13 @@ void main() {
     );
     final run = Provider(
       (ref) =>
-          () => runReadOnlyClaude(
+          () => runStructured(
             ref,
-            cwd: tmp.path,
-            options: const ClaudeOptions(sessionId: 'design-1'),
-            prompt: 'Leia e responda',
+            StructuredIntent(
+              cwd: tmp.path,
+              sessionId: 'design-1',
+              prompt: 'Leia e responda',
+            ),
           ),
     );
     final done = c.read(run)();

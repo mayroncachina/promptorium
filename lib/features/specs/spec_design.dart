@@ -1,12 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../cost/usage_ledger.dart';
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/claude_event.dart' show Result;
-import '../../core/claude/readonly_run.dart';
-import '../../core/providers/claude_code_provider.dart';
+import '../../core/providers/structured_run.dart';
 import '../../data/providers.dart';
 import '../project/project_memory.dart';
 import '../project/project_plan.dart' show Roadmap;
@@ -357,37 +352,39 @@ class SpecDesigner {
     // Registered before the run's own listener: the flag is set by the time
     // the run fails with "cancelada".
     cancelled?.then((_) => stopped = true);
-    final Result r;
+    final StructuredResult r;
     try {
-      r = await runReadOnlyClaude(
+      r = await runStructured(
         _ref,
-        workspaceId: ws.id,
-        cancelled: cancelled,
-        cwd: ws.path,
-        // SPEC-081 R2: "Outros" when it runs on a spec that exists.
-        specCode: specCodeInText(request),
-        usageSource: UsageSource.outros,
-        options: ClaudeOptions(
-          permissionMode: ClaudePermissionMode.defaultMode,
-          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-          appendSystemPrompt: systemPrompt,
-          jsonSchema: jsonEncode(schema),
-          maxBudgetUsd: budgetUsd,
-          includePartialMessages: false,
+        StructuredIntent(
+          workspaceId: ws.id,
+          cancelled: cancelled,
+          cwd: ws.path,
+          // SPEC-081 R2: "Outros" when it runs on a spec that exists.
+          specCode: specCodeInText(request),
+          usageSource: UsageSource.outros,
+          instructions: systemPrompt,
+          schema: schema,
+          claude: ClaudeStructuredExtras(maxBudgetUsd: budgetUsd),
+          slot: specDesignSlot(ws.id),
+          label: 'o Design da spec',
+          prompt: [
+            if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
+              'Memória do projeto:\n${m.toPrompt()}\n',
+            request,
+          ].join('\n'),
         ),
-        prompt: [
-          if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
-            'Memória do projeto:\n${m.toPrompt()}\n',
-          request,
-        ].join('\n'),
       );
     } on PlannerException {
       if (stopped) throw const SpecActionCancelled();
       rethrow;
     }
     if (stopped) throw const SpecActionCancelled();
-    return structuredOutput(r);
+    return r.data;
   }
 }
+
+/// Slot of the design's provider line (SPEC-100 R10).
+String specDesignSlot(int workspaceId) => 'design:$workspaceId';
 
 final specDesignerProvider = Provider(SpecDesigner.new);
