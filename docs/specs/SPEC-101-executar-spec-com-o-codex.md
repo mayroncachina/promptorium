@@ -1,6 +1,6 @@
 ---
 id: SPEC-101
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: funcionalidade
 epico: 332
@@ -107,17 +107,17 @@ Depois desta spec, o diálogo mostra **Provedor: Codex**, o modelo `gpt-6.1-terr
 
 ## Critérios de aceite
 
-- [ ] O Codex aparece no Executar quando o fluxo está liberado, e o padrão vem do tipo Executar spec [R1] verificar: teste de widget do diálogo.
-- [ ] Trocar o rodapé ou o tipo no meio não muda o provedor das próximas etapas, dos reenvios, do `REVn` e do Corrigir CI [R2, R9] verificar: teste do `spec_runner` com troca no meio.
-- [ ] Nenhuma etapa no Codex recebe `inherit`, alias do Claude, `agent` ou o bloco de subagentes [R3, R6] verificar: testes das opções e do prompt enviados.
-- [ ] YOLO só aparece com worktree, e as correções automáticas usam o modo equivalente no Codex [R4] verificar: testes de widget e do `ci_fixer`.
-- [ ] Automático e Agente mostram Só Claude Code com o Codex, e o Autopilot com "Abrir em Automático" roda em Manual registrando o motivo [R5, R6] verificar: testes de widget e do `runAuto`.
-- [ ] O commit da etapa funciona no sandbox do worktree, e uma recusa do sandbox para a etapa com mensagem clara [R8] verificar: teste com o `fake_codex` e e2e.
-- [ ] A próxima etapa continua na mesma sessão Codex quando o contexto medido está abaixo do limite efetivo [R10] verificar: teste com leituras de `ThreadTokenUsage`.
-- [ ] O trailer traz o modelo efetivo, e a falta da variável no sandbox gera aviso em vez de trailer inventado [R11] verificar: teste do trailer e e2e.
-- [ ] O Autopilot para de começar specs Codex com a cota acima do limite e notifica [R14] verificar: teste do Autopilot.
-- [ ] O card, as Atividades e as notificações mostram o provedor, e o custo por spec separa US$ e tokens [R15, R16] verificar: testes de widget.
-- [ ] No app isolado, uma spec de 3 etapas vai do Backlog ao Review só com o Codex, com gate, reenvio e commits marcados [R1–R16] verificar: capturas reais 1366×768 e relatório.
+- [x] O Codex aparece no Executar quando o fluxo está liberado, e o padrão vem do tipo Executar spec [R1] verificar: teste de widget do diálogo.
+- [x] Trocar o rodapé ou o tipo no meio não muda o provedor das próximas etapas, dos reenvios, do `REVn` e do Corrigir CI [R2, R9] verificar: teste do `spec_runner` com troca no meio.
+- [x] Nenhuma etapa no Codex recebe `inherit`, alias do Claude, `agent` ou o bloco de subagentes [R3, R6] verificar: testes das opções e do prompt enviados.
+- [x] YOLO só aparece com worktree, e as correções automáticas usam o modo equivalente no Codex [R4] verificar: testes de widget e do `ci_fixer`.
+- [x] Automático e Agente mostram Só Claude Code com o Codex, e o Autopilot com "Abrir em Automático" roda em Manual registrando o motivo [R5, R6] verificar: testes de widget e do `runAuto`.
+- [x] O commit da etapa funciona no sandbox do worktree, e uma recusa do sandbox para a etapa com mensagem clara [R8] verificar: teste com o `fake_codex` e e2e.
+- [x] A próxima etapa continua na mesma sessão Codex quando o contexto medido está abaixo do limite efetivo [R10] verificar: teste com leituras de `ThreadTokenUsage`.
+- [x] O trailer traz o modelo efetivo, e a falta da variável no sandbox gera aviso em vez de trailer inventado [R11] verificar: teste do trailer e e2e.
+- [x] O Autopilot para de começar specs Codex com a cota acima do limite e notifica [R14] verificar: teste do Autopilot.
+- [x] O card, as Atividades e as notificações mostram o provedor, e o custo por spec separa US$ e tokens [R15, R16] verificar: testes de widget.
+- [x] No app isolado, uma spec de 3 etapas vai do Backlog ao Review só com o Codex, com gate, reenvio e commits marcados [R1–R16] verificar: capturas reais 1366×768 e relatório.
 
 ## Telas
 
