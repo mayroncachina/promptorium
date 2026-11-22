@@ -1,6 +1,6 @@
 ---
 id: SPEC-101
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: funcionalidade
 epico: 332
@@ -64,12 +64,12 @@ Depois desta spec, o diálogo mostra **Provedor: Codex**, o modelo `gpt-6.1-terr
 - Escolher o provedor do revisor: [SPEC-102](SPEC-102-review-automatico-com-o-codex.md). Aqui, os passos `REVn` só seguem o provedor da execução.
 - Trocar de provedor no meio da execução sem a transferência explícita da SPEC-099.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde gravar o provedor da execução.** (a) chave `spec.<id>.provider` em `app_settings`, escrita no Executar e limpa quando a spec chega ao Review ou é rebobinada; (b) coluna nova em `specs`; (c) deduzir da última sessão, como hoje. **Recomendação: (a).** O comportamento de hoje (c) quebra quando a última sessão foi encerrada e a próxima é um passo `REVn` ou do Corrigir CI, e (b) pede uma migração para um dado que só vive enquanto a spec roda.
-- P2 · **Limite de continuação no Codex.** (a) o mesmo número absoluto do Claude; (b) o número absoluto limitado a 70% da janela informada; (c) um campo próprio do Codex. **Recomendação: (b).** O limite padrão foi calibrado com a janela do Claude, e os modelos do Codex informam a própria janela no `ThreadTokenUsage`. Um segundo campo agora é configuração sem dado que a justifique.
-- P3 · **Freio do Autopilot no Codex.** (a) parar novas specs Codex acima de 90% da janela de 5 h ou com limite atingido; (b) só com limite atingido; (c) usar a mesma regra de "Pausar automáticos". **Recomendação: (a).** Começar uma spec com 95% da cota quase certamente para no meio de uma etapa, e retomar uma etapa custa mais que esperar a janela renovar.
-- P4 · **Execução começada no Claude e o tipo trocado para o Codex.** (a) a spec termina no Claude (R2); (b) perguntar no próximo Executar. **Recomendação: (a)**, com o diálogo mostrando "Esta spec está rodando no Claude Code. Para trocar, use Passar para outro agente". Perguntar a cada etapa vira atrito no Autopilot.
+- P1 · **Onde gravar o provedor da execução.** (a) chave `spec.<id>.provider` em `app_settings`, escrita no Executar e limpa quando a spec chega ao Review ou é rebobinada; (b) coluna nova em `specs`; (c) deduzir da última sessão, como hoje. **Decidido:** (a). O comportamento de hoje (c) quebra quando a última sessão foi encerrada e a próxima é um passo `REVn` ou do Corrigir CI, e (b) pede uma migração para um dado que só vive enquanto a spec roda.
+- P2 · **Limite de continuação no Codex.** (a) o mesmo número absoluto do Claude; (b) o número absoluto limitado a 70% da janela informada; (c) um campo próprio do Codex. **Decidido:** (b). O limite padrão foi calibrado com a janela do Claude, e os modelos do Codex informam a própria janela no `ThreadTokenUsage`. Um segundo campo agora é configuração sem dado que a justifique.
+- P3 · **Freio do Autopilot no Codex.** (a) parar novas specs Codex acima de 90% da janela de 5 h ou com limite atingido; (b) só com limite atingido; (c) usar a mesma regra de "Pausar automáticos". **Decidido:** (a). Começar uma spec com 95% da cota quase certamente para no meio de uma etapa, e retomar uma etapa custa mais que esperar a janela renovar.
+- P4 · **Execução começada no Claude e o tipo trocado para o Codex.** (a) a spec termina no Claude (R2); (b) perguntar no próximo Executar. **Decidido:** (a), com o diálogo mostrando "Esta spec está rodando no Claude Code. Para trocar, use Passar para outro agente". Perguntar a cada etapa vira atrito no Autopilot.
 
 ## Design
 

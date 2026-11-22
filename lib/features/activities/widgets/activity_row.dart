@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../activity.dart';
 import '../activity_actions.dart';
@@ -28,10 +29,14 @@ String activityElapsed(DateTime? since, DateTime now) {
       : '${m ~/ 60} h ${rest.toString().padLeft(2, '0')}';
 }
 
-/// The robot's name in front of the subtitle (`Bruno · Em execução`).
+/// The robot's name in front of the subtitle (`Bruno · Em execução`),
+/// and who works when it is not the Claude Code (`Codex · gpt-6.1-terra`,
+/// SPEC-101 R15).
 String activitySubtitle(Activity a) => [
   if (a.seed != null) RobotIdentity.of(a.seed!).name,
   if (a.subtitle.isNotEmpty) a.subtitle,
+  if (a.provider case final p? when p != 'claude')
+    providerModelLabel(p, a.model),
 ].join(' · ');
 
 /// What a screen reader says of the line (R21).

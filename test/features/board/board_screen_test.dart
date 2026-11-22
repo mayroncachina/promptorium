@@ -866,6 +866,37 @@ void main() {
       await tester.pump(Duration.zero);
     });
   });
+  testWidgets('SPEC-101 R15: a card running on the Codex shows the Codex '
+      'badge beside the robot; a Claude-only spec has none', (tester) async {
+    final (_, db) = await pumpBoard(tester);
+    final specs = await db.select(db.specs).get();
+    final running = specs.firstWhere((s) => s.code == 'SPEC-002');
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: 's-codex',
+            workspaceId: running.workspaceId,
+            worktreePath: '/work/wt',
+            branch: 'b',
+            model: 'gpt-6.1-terra',
+            provider: const Value('codex'),
+            specId: Value(running.id),
+            steps: const Value('R2'),
+            status: const Value(SessionStatus.running),
+          ),
+        );
+    await pumpFor(tester, 20);
+    expect(
+      find.byKey(const ValueKey('board-provider-badge-SPEC-002')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('board-provider-badge-SPEC-003')),
+      findsNothing,
+    );
+    expect(cardProviderBadge(running, null), isNull);
+  });
 }
 
 /// [SpecAutoPlanner] with a state the test sets.

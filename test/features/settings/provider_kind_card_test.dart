@@ -140,7 +140,19 @@ void main() {
       final c = await pump(tester, codex: ProviderStatus.ready);
       expect(find.text('Planner e assistentes'), findsOneWidget);
       expect(find.text('segue o rodapé:'), findsOneWidget);
-      expect(find.text('Só Claude Code'), findsNWidgets(4));
+      // SPEC-101 R1: "Executar spec" is editable now; the reviewer and the
+      // two Claude-only flows keep the tag.
+      expect(find.text('Só Claude Code'), findsNWidgets(3));
+      await tester.tap(find.byKey(const ValueKey('kind-runSpec-codex')));
+      await tester.pumpAndSettle();
+      expect(
+        c.read(appSettingsProvider)[ProviderKind.runSpec.settingKey],
+        'codex',
+      );
+      expect(
+        providerForKind(c.read(appSettingsProvider), ProviderKind.runSpec),
+        'codex',
+      );
       expect(find.byKey(const ValueKey('provider-kind-order')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('kind-planner-codex')));
       await tester.pumpAndSettle();
