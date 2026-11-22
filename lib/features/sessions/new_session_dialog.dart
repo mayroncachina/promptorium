@@ -8,6 +8,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
 import '../../core/codex/codex_cli.dart';
+import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_probe.dart' show codexSandboxFixCommand;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_availability.dart';
@@ -567,6 +568,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       onChanged: (v) => setState(() => _mode = v),
                     ),
                   ),
+                  // SPEC-103 R7: without the app's hooks, the Codex YOLO has
+                  // no approval to block dangerous commands at.
+                  if (_mode == ClaudePermissionMode.skipPermissions &&
+                      _provider == 'codex' &&
+                      latestCodexHookStatus(ref.watch(codexHookStatusProvider))
+                              ?.mode !=
+                          CodexHookMode.native)
+                    const _YoloNoHooks(),
                   if (_mode == ClaudePermissionMode.skipPermissions)
                     Padding(
                       key: ValueKey('new-session-skip-warning'),
@@ -779,6 +788,56 @@ class _Notice extends StatelessWidget {
           SmallButton(label: action, onTap: onAction),
         ],
       ),
+    ),
+  );
+}
+
+/// "No Codex sem hooks, o YOLO não bloqueia comandos perigosos" (SPEC-103
+/// R7), before the session starts.
+class _YoloNoHooks extends StatelessWidget {
+  const _YoloNoHooks();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('new-session-yolo-no-hooks'),
+    margin: const EdgeInsets.only(top: 6),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.amberTint,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
+    ),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.amber),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text:
+                      'No Codex sem hooks, o YOLO não bloqueia comandos '
+                      'perigosos\n',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                TextSpan(
+                  text:
+                      'O YOLO não pede aprovação, então o app não tem onde '
+                      'barrar push forçado ou rm -rf. O vigia continua no '
+                      'push feito pelo app.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+            style: TextStyle(fontSize: 11.5),
+          ),
+        ),
+      ],
     ),
   );
 }

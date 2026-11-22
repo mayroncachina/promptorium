@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/managed_hooks.dart';
+import '../../core/codex/codex_hooks.dart';
 import '../../core/secrets/gitleaks.dart';
 import '../../core/secrets/secret_guard.dart';
 import '../../core/secrets/secret_rules.dart';
@@ -235,8 +237,13 @@ class _SecretsSettingsViewState extends ConsumerState<SecretsSettingsView> {
             sw(
               'secrets-agent',
               'Commits, push e PR do agente',
-              'Hook antes do Bash; no Codex e sem python3, ao fim do turno e '
-                  'antes do push',
+              secretsAgentWhere(
+                python: ref.watch(pythonAvailableProvider).value,
+                latest: latestCodexHookStatus(
+                  ref.watch(codexHookStatusProvider),
+                ),
+                last: ref.watch(hookActivityProvider)[ManagedHook.secrets],
+              ),
               p.enabled,
               null,
             ),
@@ -393,4 +400,35 @@ String _ruleName(String id) {
     if (r.id == id) return r.name;
   }
   return id.startsWith('gitleaks:') ? '${id.substring(9)} (gitleaks)' : id;
+}
+
+/// SPEC-103 R8: where the Vigia checks the agent's commits in each
+/// provider, and the last check (instead of a fixed sentence).
+String secretsAgentWhere({
+  bool? python,
+  CodexHookStatus? latest,
+  HookActivity? last,
+}) {
+  String where(HookWhen? w) => w == HookWhen.beforeTool
+      ? 'hook antes do comando'
+      : 'ao fim do turno e antes do push';
+  final claude = claudeHookWhen(ManagedHook.secrets, on: true, python: python);
+  final codex = codexHookWhen(
+    ManagedHook.secrets,
+    on: true,
+    python: python,
+    latest: latest,
+  );
+  final b = StringBuffer(
+    'Claude Code: ${where(claude)}. Codex: ${where(codex)}.',
+  );
+  if (last != null) {
+    final t = last.at;
+    b.write(
+      ' Última verificação: ${last.provider == 'codex' ? 'Codex' : 'Claude Code'}'
+      ' · ${last.text} · '
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+    );
+  }
+  return b.toString();
 }
