@@ -52,6 +52,7 @@ import 'app_notifier.dart';
 import '../cost/usage_ledger.dart';
 import 'restore/restore_service.dart';
 import 'session_changes.dart';
+import 'session_composer_draft.dart';
 import '../context/compaction_controller.dart';
 import '../context/context_tracker.dart';
 import 'timeline.dart';
@@ -98,6 +99,9 @@ class NewSessionRequest {
     this.environment,
     this.duelId,
     this.prUrl,
+    this.draft = false,
+    this.parentSessionId,
+    this.startEvent,
   });
 
   final Workspace workspace;
@@ -150,6 +154,18 @@ class NewSessionRequest {
   /// stored before the process starts, so its hooks already refuse the
   /// forced pushes (R7).
   final String? prUrl;
+
+  /// SPEC-099 P1: the process starts idle and [prompt] goes to the
+  /// session's message field ([sessionComposerDraftProvider]); nothing is
+  /// sent until the person sends it. An empty prompt is allowed.
+  final bool draft;
+
+  /// The session this one continues (SPEC-099 R9; the link of SPEC-096).
+  final String? parentSessionId;
+
+  /// App event written before anything else (the "continuação" record,
+  /// SPEC-099 P5): the note at the top of the timeline.
+  final Map<String, dynamic>? startEvent;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -465,6 +481,9 @@ class _Proc {
   int calls = 0;
   final Set<String> files = {};
   String? lastText;
+
+  /// The usage limit of this turn was noted (SPEC-099 R2): once per turn.
+  bool limitNoted = false;
   StreamSubscription<ClaudeEvent>? sub;
   StreamSubscription<String>? logSub;
 }
@@ -545,7 +564,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final title = r.title.trim();
     final prompt = r.prompt.trim();
     if (title.isEmpty) throw const SessionException('Informe um título.');
-    if (prompt.isEmpty) {
+    if (prompt.isEmpty && !r.draft) {
       throw const SessionException('Informe o prompt inicial.');
     }
     final id = ref.read(sessionIdGeneratorProvider)();
@@ -625,12 +644,41 @@ class SessionManager extends Notifier<SessionManagerState> {
       steps: r.steps,
       baseBranch: base,
       duelId: r.duelId,
+      parentSessionId: r.parentSessionId,
     );
     if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
+    if (r.startEvent != null) await _appEvent(id, r.startEvent!);
     if (r.origin != null) await _note(id, r.origin!);
+    if (r.draft) {
+      // SPEC-099 P1: idle, with the message in the field.
+      await _startNew(id, r, provider: provider, effort: effort, path: path);
+      await _repo.setStatus(id, SessionStatus.completed);
+      if (prompt.isNotEmpty) {
+        ref.read(sessionComposerDraftProvider.notifier).put(id, prompt);
+      }
+      return id;
+    }
     // SPEC-084 R1: the point of the first turn before the agent starts (its
     // start competes with the git work for the machine).
     _firstPoints[id] = await _checkpoint(id, prompt);
+    await _startNew(id, r, provider: provider, effort: effort, path: path);
+    try {
+      await send(id, prompt);
+    } finally {
+      _firstPoints.remove(id);
+    }
+    return id;
+  }
+
+  /// The first process of a new session ([create]).
+  Future<void> _startNew(
+    String id,
+    NewSessionRequest r, {
+    required String provider,
+    required String? effort,
+    required String path,
+  }) async {
+    final ws = r.workspace;
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
     final env =
@@ -651,16 +699,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         disallowedTools: mcp.disallowed,
       ),
       cwd: path,
-      title: title,
+      title: r.title.trim(),
       root: ws.path,
       environment: env,
     );
-    try {
-      await send(id, prompt);
-    } finally {
-      _firstPoints.remove(id);
-    }
-    return id;
   }
 
   /// Sends a user message; resumes the session (`--resume`, same worktree)
@@ -709,7 +751,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..calls = 0
       ..files.clear()
       ..formatFiles.clear()
-      ..seenNeutral.clear();
+      ..seenNeutral.clear()
+      ..limitNoted = false;
     _publish();
     // SPEC-084 R1: the restore point of the turn, before the message goes
     // (the first one was recorded by [create]).
@@ -1032,10 +1075,14 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final limits = await _agentLimits(s.agentName, ws?.path);
     final mcp = await _mcpRules();
+    // SPEC-099 P1: a continued session whose message was never sent has
+    // nothing for the CLI to resume: it starts again, as new.
+    final fresh = !await _repo.hasEventOfType(id, AppEventTypes.user);
     await _start(
       id,
       ClaudeOptions(
-        resumeId: id,
+        sessionId: fresh && isClaudeCode(s.provider) ? id : null,
+        resumeId: fresh ? null : id,
         model: _model(s.model),
         effort: !isClaudeCode(s.provider)
             ? effortArg(s.effort)
@@ -1580,6 +1627,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       return (budgetUsd: null, maxTurns: null);
     }
   }
+
+  /// The budget in US\$ of [agent] (`agent_settings`), shown as "fica para
+  /// trás" when the work goes to a provider without it (SPEC-099 R3).
+  Future<double?> agentBudget(String? agent, String? workspacePath) async =>
+      (await _agentLimits(agent, workspacePath)).budgetUsd;
 
   /// MCP tool rules (Fase 11): "Permitido" → `--allowedTools`, "Bloqueado"
   /// → `--disallowedTools`. Sessions have no read-only mode, so "Permitido"
@@ -2396,6 +2448,32 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
+        // SPEC-099 R2: the session stops at the limit.
+        if (e.status == 'rejected') {
+          await _noteLimit(
+            id,
+            p,
+            provider: 'claude',
+            minutes: switch (e.rateLimitType) {
+              'seven_day' || 'seven_day_opus' || 'seven_day_sonnet' => 10080,
+              _ => 300,
+            },
+            resetsAt: e.resetsAt ?? e.fiveHourResetsAt,
+            kind: e.rateLimitType,
+          );
+        }
+      case QuotaEvent(:final reached) when reached != null:
+        final w = e.windows
+            .where((w) => (w.usedPercent ?? 0) >= 100)
+            .firstOrNull;
+        await _noteLimit(
+          id,
+          p,
+          provider: e.provider,
+          minutes: w?.minutes ?? 300,
+          resetsAt: w?.resetsAt,
+          kind: reached,
+        );
       // SPEC-095 R9: files and commands of any provider.
       case FileChangeEvent():
         _trackNeutral(p, e);
@@ -2693,6 +2771,28 @@ class SessionManager extends Notifier<SessionManagerState> {
       'achados': [for (final f in fresh) f.toJson()],
       'parcial': res.partial,
     });
+  }
+
+  /// "Limite de uso atingido" in the timeline, once per turn (SPEC-099 R2).
+  Future<void> _noteLimit(
+    String id,
+    _Proc p, {
+    required String provider,
+    int? minutes,
+    DateTime? resetsAt,
+    String? kind,
+  }) async {
+    if (p.limitNoted) return;
+    p.limitNoted = true;
+    await _appEvent(
+      id,
+      AppEventTypes.limitEvent(
+        provider: provider,
+        minutes: minutes,
+        resetsAt: resetsAt,
+        kind: kind,
+      ),
+    );
   }
 
   Future<void> _appEvent(String id, Map<String, dynamic> json) async {

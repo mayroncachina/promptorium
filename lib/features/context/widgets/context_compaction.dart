@@ -447,7 +447,8 @@ class _Button extends StatelessWidget {
 }
 
 /// How a new conversation starts (R9).
-enum NewConversationStart { empty, summary }
+/// How a new conversation starts (R9; the ai-memory handoff, SPEC-099 R12).
+enum NewConversationStart { empty, summary, handoff }
 
 /// The actions of the panel (R9): adjust the auto compaction, review the
 /// next attachments, a new conversation (Prompt) and "Compactar agora".
@@ -462,6 +463,10 @@ class ContextActions extends StatefulWidget {
     this.onReviewAttachments,
     this.onNewConversation,
     this.summary,
+    this.providers = const [],
+    this.provider,
+    this.onProvider,
+    this.handoff,
   });
 
   final ContextSnapshot snapshot;
@@ -478,6 +483,17 @@ class ContextActions extends StatefulWidget {
 
   /// The summary built by the app (no model call) for a new conversation.
   final String Function()? summary;
+
+  /// SPEC-099 R12: the providers the new conversation can run in (more
+  /// than one only where the Codex runs in the Prompt), the current one and
+  /// the choice.
+  final List<String> providers;
+  final String? provider;
+  final ValueChanged<String>? onProvider;
+
+  /// SPEC-099 R12: the message that delivers the next ai-memory handoff
+  /// (null result = none); null = ai-memory off.
+  final Future<String?> Function()? handoff;
 
   @override
   State<ContextActions> createState() => _ContextActionsState();
@@ -511,15 +527,31 @@ class _ContextActionsState extends State<ContextActions> {
     }
   }
 
+  late String? _provider = widget.provider;
+
   Future<void> _newConversation() async {
     final go = widget.onNewConversation!;
-    if (_start == NewConversationStart.empty || widget.summary == null) {
+    if (_provider != null && _provider != widget.provider) {
+      widget.onProvider?.call(_provider!);
+    }
+    if (_start == NewConversationStart.empty ||
+        (_start == NewConversationStart.summary && widget.summary == null)) {
       go(null);
       return;
     }
+    String? initial;
+    if (_start == NewConversationStart.handoff) {
+      initial = await widget.handoff?.call();
+      if (initial == null) {
+        if (mounted) setState(() => _error = 'Nenhuma passagem aberta.');
+        return;
+      }
+    }
+    if (!mounted) return;
     final text = await showDialog<String>(
       context: context,
-      builder: (_) => _SummaryDialog(initial: widget.summary!()),
+      builder: (_) =>
+          _SummaryDialog(initial: initial ?? widget.summary!()),
     );
     if (text != null) go(text);
   }
@@ -642,17 +674,46 @@ class _ContextActionsState extends State<ContextActions> {
                     style: _label,
                   ),
                 ),
+                if (widget.providers.length > 1) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 26),
+                    child: Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text('Nova conversa em', style: _label),
+                        for (final p in widget.providers)
+                          ChoiceChip(
+                            key: ValueKey('context-new-provider-$p'),
+                            label: Text(
+                              p == 'codex' ? 'Codex' : 'Claude Code',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            selected: _provider == p,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => setState(() => _provider = p),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 4,
                   children: [
-                    for (final (v, label) in const [
+                    for (final (v, label) in [
                       (NewConversationStart.empty, 'Começar vazia'),
                       (
                         NewConversationStart.summary,
                         'Levar um resumo desta conversa',
                       ),
+                      if (widget.handoff != null)
+                        (
+                          NewConversationStart.handoff,
+                          'Com a passagem do ai-memory',
+                        ),
                     ])
                       InkWell(
                         key: ValueKey('context-new-${v.name}'),
@@ -692,9 +753,11 @@ class _ContextActionsState extends State<ContextActions> {
                   alignment: Alignment.centerRight,
                   child: _Button(
                     key: const ValueKey('context-new-go'),
-                    label: _start == NewConversationStart.summary
-                        ? 'Revisar resumo'
-                        : 'Começar vazia',
+                    label: switch (_start) {
+                      NewConversationStart.summary => 'Revisar resumo',
+                      NewConversationStart.handoff => 'Revisar mensagem',
+                      NewConversationStart.empty => 'Começar vazia',
+                    },
                     onTap: _newConversation,
                   ),
                 ),

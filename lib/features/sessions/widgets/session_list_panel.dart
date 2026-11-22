@@ -9,6 +9,7 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../board/widgets/card_extras.dart' show LiveToolLine;
+import '../handoff/continue_link.dart';
 import '../session_manager.dart';
 import '../replay/open_replay.dart';
 import '../replay/replay_view.dart' show replayAvailable;
@@ -194,6 +195,12 @@ class _SessionTile extends ConsumerWidget {
     final busy = ref.watch(
       sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
     );
+    // SPEC-099 R9: the origin of a continuation says where it went.
+    final continued = ref.watch(
+      continuationLinksProvider(session.workspaceId).select(
+        (l) => l.value?.continuedInto(session.id) != null,
+      ),
+    );
     final radius = BorderRadius.circular(8);
     final end = session.endedAt ?? DateTime.now();
     return AppPressable(
@@ -340,6 +347,8 @@ class _SessionTile extends ConsumerWidget {
                           child: Text(
                             secret
                                 ? 'Segredo encontrado'
+                                : continued
+                                ? 'continuada →'
                                 : sessionStatusLabel(session, look),
                             key: secret
                                 ? ValueKey('session-secret-${session.id}')
@@ -347,10 +356,18 @@ class _SessionTile extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: secret ? AppColors.amber : look.color,
+                              color: secret
+                                  ? AppColors.amber
+                                  : continued
+                                  ? AppColors.teal
+                                  : look.color,
                             ),
                           ),
                         ),
+                        if (continued)
+                          SizedBox.shrink(
+                            key: ValueKey('session-continued-${session.id}'),
+                          ),
                         const Spacer(),
                         Text(
                           formatRunCost(
