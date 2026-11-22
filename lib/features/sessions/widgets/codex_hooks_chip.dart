@@ -136,8 +136,8 @@ class CodexHooksDialog extends StatelessWidget {
                 status.mode == CodexHookMode.native
                     ? 'Origem: sessionFlags · confiança só desta sessão. '
                           'Nada é escrito no ~/.codex.'
-                    : '${status.reason ?? status.tooltip} Nada é escrito no '
-                          '~/.codex e o app nunca usa --trust.',
+                    : '${status.reason ?? status.tooltip} O app nunca usa '
+                          '--trust.',
                 key: const ValueKey('codex-hooks-dialog-origin'),
                 style: const TextStyle(
                   fontSize: 11,
