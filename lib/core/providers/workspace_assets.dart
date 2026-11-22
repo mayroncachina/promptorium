@@ -443,11 +443,11 @@ class CodexSkillsInventory {
   bool fromExtraRoot(String path) => extraRoots.any((r) => _under(path, r));
 
   /// The Codex's own skills (R8): everything not served from a Claude
-  /// folder — `system`, `admin`, plugins, `~/.codex/skills` and the
+  /// folder (an extra root or any `.claude/skills`) — `system`, `admin`, plugins, `~/.codex/skills` and the
   /// repository ones of `.agents/skills`.
   List<CodexSkill> get own => [
     for (final s in skills)
-      if (!fromExtraRoot(s.path)) s,
+      if (!fromExtraRoot(s.path) && !s.path.contains('/.claude/skills/')) s,
   ];
 
   /// What the Codex says of the Claude skill in [dir] (R7, R9, R10).

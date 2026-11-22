@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/capabilities.dart';
+import '../../../core/providers/workspace_assets.dart';
+import '../../../core/system/worktree_launcher.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../agents/agent_file.dart';
 import '../../project/widgets/project_widgets.dart';
 import '../../sessions/new_session_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../../project/project_config.dart';
 import '../skill_catalog.dart';
+import 'provider_badge.dart';
 import '../skill_repository.dart';
 import '../skills_state.dart';
 import 'skill_dialogs.dart';
@@ -155,6 +160,176 @@ class _InstalledSkillViewState extends ConsumerState<InstalledSkillView> {
     } catch (err) {
       if (mounted) setState(() => _error = '$err');
     }
+  }
+
+  Future<void> _openSkillMd() async {
+    final root = _workspacePath ?? e.dir;
+    try {
+      await ref
+          .read(worktreeLauncherProvider)
+          .editor(
+            e.skillMdPath,
+            editor: ProjectConfig.loadSync(root).editorCommand,
+            cwd: e.dir,
+          );
+    } catch (err) {
+      if (mounted) setState(() => _error = '$err');
+    }
+  }
+
+  /// Plano B (R10, P4): a relative link in the repository's
+  /// `.agents/skills`, after the confirmation.
+  Future<void> _exposeToCodex() async {
+    final root = _workspacePath;
+    if (root == null) return;
+    final ok = await confirmDialog(
+      context,
+      title: 'Disponibilizar ${e.name} no Codex?',
+      text:
+          'Cria o link $codexRepoSkillsDir/${e.name} → '
+          '../../.claude/skills/${e.name} neste repositório. O link aparece '
+          'no git status. Nada é copiado nem gravado em pasta global.',
+      action: 'Criar o link',
+    );
+    if (!ok) return;
+    try {
+      await linkSkillForCodex(root, e.name);
+      ref.read(codexSkillsReloadProvider.notifier).bump();
+      if (mounted) setState(() {});
+    } catch (err) {
+      if (mounted) setState(() => _error = '$err');
+    }
+  }
+
+  /// "Quem enxerga" (R7, R9, R10): one card per provider.
+  List<Widget> _whoSees() {
+    final caps = ref.watch(codexCapabilitiesProvider);
+    final extraRoots = caps.supports(ProviderCapability.skillsExtraRoots);
+    // Watched (same key as the list): one query per workspace.
+    final workspacePath = ref.watch(activeWorkspaceProvider)?.path;
+    final result = watchCodexSkills(ref, workspacePath).value;
+    final status = codexStatusFor(
+      e,
+      result,
+      extraRoots: extraRoots,
+      workspacePath: workspacePath,
+    );
+    final at = switch (result) {
+      CodexSkillsReady(:final inventory) => inventory.at,
+      _ => null,
+    };
+    final ignored = codexIgnoredFields(e.file.keys);
+    final where = e.isProject
+        ? '.claude/skills/${e.dir.split('/').last}'
+        : '~/.claude/skills/${e.dir.split('/').last}';
+    Widget card(String title, Widget badge, List<Widget> lines, {Key? key}) =>
+        Container(
+          key: key,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                  badge,
+                ],
+              ),
+              const SizedBox(height: 4),
+              ...lines,
+            ],
+          ),
+        );
+    Text small(String t, {Color color = AppColors.textSecondary, Key? key}) =>
+        Text(
+          t,
+          key: key,
+          style: TextStyle(fontSize: 11.5, color: color, height: 1.4),
+        );
+    final codexBadge = switch (status?.state) {
+      null => const ProviderBadge('…', tone: BadgeTone.muted),
+      CodexSkillState.active => const ProviderBadge(
+        'ativa',
+        tone: BadgeTone.claude,
+      ),
+      final CodexSkillState s => ProviderBadge(switch (s) {
+        CodexSkillState.error => 'erro',
+        CodexSkillState.disabled => 'desligada',
+        CodexSkillState.claudeOnly => 'Só Claude Code',
+        _ => 'indisponível',
+      }, tone: codexBadgeTone(s)),
+    };
+    final linkOffer =
+        !extraRoots &&
+        e.isProject &&
+        workspacePath != null &&
+        status?.state == CodexSkillState.claudeOnly;
+    return [
+      card('Claude Code', const ProviderBadge('ativa'), [small(where)]),
+      card('Codex', codexBadge, key: const ValueKey('skill-codex-card'), [
+        small(
+          status == null
+              ? 'Consultando o skills/list…'
+              : status.state == CodexSkillState.active
+              ? 'No Codex: ${status.detail} · sem cópia'
+              : status.state == CodexSkillState.error
+              ? 'skills/list: ${status.detail}'
+              : status.detail,
+          key: const ValueKey('skill-codex-detail'),
+          color: status?.state == CodexSkillState.error
+              ? AppColors.red
+              : AppColors.textSecondary,
+        ),
+        if (status?.scope != null && at != null)
+          small(
+            'escopo ${status!.scope} · conferido às '
+            '${at.hour.toString().padLeft(2, '0')}:'
+            '${at.minute.toString().padLeft(2, '0')}',
+          ),
+        if (ignored.isNotEmpty)
+          small(
+            '${ignored.join(', ')} ignorado${ignored.length == 1 ? '' : 's'} '
+            'no Codex',
+            key: const ValueKey('skill-codex-ignored'),
+          ),
+        if (status?.state == CodexSkillState.error) ...[
+          const SizedBox(height: 6),
+          SmallButton(
+            key: const ValueKey('skill-open-skillmd'),
+            label: 'Abrir SKILL.md',
+            onTap: _openSkillMd,
+          ),
+        ],
+        if (linkOffer) ...[
+          const SizedBox(height: 6),
+          SmallButton(
+            key: const ValueKey('skill-expose-codex'),
+            label: 'Disponibilizar no Codex',
+            onTap: _exposeToCodex,
+          ),
+        ],
+      ]),
+      small(
+        'Os selos vêm do skills/list do Codex, consultado ao abrir a aba e em '
+        '“Atualizar”. Nenhum prompt é enviado ao modelo.',
+        color: AppColors.textMuted,
+      ),
+    ];
   }
 
   void _test() {
@@ -322,9 +497,31 @@ class _InstalledSkillViewState extends ConsumerState<InstalledSkillView> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text(
-                                'allowed-tools (opcional)',
-                                style: label,
+                              Row(
+                                children: [
+                                  const Flexible(
+                                    child: Text(
+                                      'allowed-tools (opcional)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: label,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  // R9: marked, never blocks the save.
+                                  const Tooltip(
+                                    message:
+                                        'O Codex lê só name e description: '
+                                        'este campo vale para o Claude Code.',
+                                    child: ProviderBadge(
+                                      'ignorado no Codex',
+                                      key: ValueKey(
+                                        'skill-tools-codex-ignored',
+                                      ),
+                                      tone: BadgeTone.muted,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 6),
                               TextField(
@@ -431,11 +628,15 @@ class _InstalledSkillViewState extends ConsumerState<InstalledSkillView> {
           ),
         ),
         SidePanel(
-          title: 'Arquivos',
+          title: 'Quem enxerga',
           width: 300,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
+              ..._whoSees(),
+              const SizedBox(height: 16),
+              Text('ARQUIVOS', style: sectionTitleStyle),
+              const SizedBox(height: 8),
               for (final f in e.files)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
