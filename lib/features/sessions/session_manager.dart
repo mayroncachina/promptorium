@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show jsonEncode, jsonDecode;
+import 'dart:io' show File;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
 import '../../core/git/worktree_roots.dart';
 import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
@@ -467,6 +469,12 @@ class _Proc {
   /// Bytes of the hooks log already shown.
   int hookOffset = 0;
 
+  /// SPEC-103: the app's hooks of a Codex process and what `hooks/list`
+  /// said about them; the files the turn left (post-turn `formatar:`).
+  ManagedHookPlan? hookPlan;
+  CodexHookStatus? codexHooks;
+  final Set<String> formatFiles = {};
+
   /// SPEC-076 R3: the newest tool calls (newest first), calls and edited
   /// files of the turn, and the agent's newest text.
   final List<LiveTool> recent = [];
@@ -526,6 +534,9 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Claude sessions started without `python3` (no hook at all, R2).
   final Set<String> _noPython = {};
+
+  /// Codex sessions told once what stayed post-turn (SPEC-103 R7).
+  final Set<String> _hookFallbackNoted = {};
 
   /// Tests have no hooks: let them exercise the end-of-turn check (R2).
   @visibleForTesting
@@ -739,6 +750,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     proc
       ..calls = 0
       ..files.clear()
+      ..formatFiles.clear()
       ..seenNeutral.clear()
       ..limitNoted = false;
     _publish();
@@ -1659,6 +1671,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         : {...?environment, ...extra};
     final ManagedAgentRun process;
     McpRunLink? mcpLink;
+    ManagedHookPlan? hookPlan;
+    CodexHookStatus? hookStatus;
     try {
       if (!isClaudeCode(session.provider)) {
         final saved = session.runConfig == null
@@ -1697,6 +1711,7 @@ class SessionManager extends Notifier<SessionManagerState> {
                     'do Claude Code.',
                   ));
         final compact = saved['autocompact'] as String?;
+        final codexHooks = await _prepareCodexHooks(id, cwd: cwd, root: root);
         final effective = AgentStartOptions.forAccess(
           access,
           workingDirectory: cwd,
@@ -1724,11 +1739,30 @@ class SessionManager extends Notifier<SessionManagerState> {
               writableRoots: root != null && root != cwd
                   ? worktreeWritableRoots(cwd)
                   : const [],
+              configOverrides: codexHooks.overrides,
             ),
           ),
         );
         final run = await provider.start(effective);
         process = run as ManagedAgentRun;
+        if (run is CodexRun) {
+          hookPlan = codexHooks.plan;
+          hookStatus = await _confirmCodexHooks(
+            id,
+            run,
+            plan: codexHooks.plan,
+            command: codexHooks.command,
+          );
+          // P2: while the block hook does not run, its rules go to the
+          // command approvals.
+          final plan = codexHooks.plan;
+          if (plan != null &&
+              plan.enabled.contains(ManagedHook.block) &&
+              !(hookStatus?.active.contains(ManagedHook.block) ?? false)) {
+            run.commandFilter = (params) =>
+                codexApprovalBlockedBy(params, plan.rules);
+          }
+        }
         await _repo.setRunConfig(
           id,
           jsonEncode({
@@ -1796,7 +1830,9 @@ class SessionManager extends Notifier<SessionManagerState> {
               : providerModelLabel(session.provider, session.model)
           ..markedRoot = marking.isEmpty ? null : (root ?? cwd)
           ..mcp = mcpLink
-          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
+          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider)
+          ..hookPlan = hookPlan
+          ..codexHooks = hookStatus;
     _procs[id] = p;
     if (p.markedRoot != null) {
       ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
@@ -1829,6 +1865,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       onDone: () => _enqueue(id, p, () => _onExit(id, p)),
     );
     _publish();
+    await _announceHookFallback(id, p);
   }
 
   /// A new session / fork / PR worktree: `copiar:` and `preparar:` of the
@@ -1896,11 +1933,33 @@ class SessionManager extends Notifier<SessionManagerState> {
     Future<String?> plain() =>
         writeRunSettings(ref.read(runSettingsDirProvider), extra);
     if (hooks == null) return plain();
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (plan == null) return plain();
+    try {
+      final path = await hooks.prepareClaude(plan, extra: extra);
+      if (plan.enabled.contains(ManagedHook.secrets)) _secretHooks.add(id);
+      return path;
+    } catch (e) {
+      debugPrint('sessão $id: hooks do app não preparados — $e');
+      return null;
+    }
+  }
+
+  /// The neutral plan of the session's hooks (SPEC-103 R1); null = no
+  /// hooks of the app (tests, no `python3`, an error).
+  Future<ManagedHookPlan?> _hookPlan(
+    String id, {
+    required String cwd,
+    String? root,
+  }) async {
+    final hooks = ref.read(managedHooksProvider);
+    _secretHooks.remove(id);
+    if (hooks == null) return null;
     await _hookCleanups[id];
     try {
       if (!await pythonAvailable()) {
         _noPython.add(id);
-        return await plain();
+        return null;
       }
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
@@ -1923,12 +1982,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           debugPrint('sessão $id: regras do vigia não preparadas — $e');
         }
       }
-      if (secrets != null) {
-        _secretHooks.add(id);
-      } else {
-        _secretHooks.remove(id);
-      }
-      return await hooks.prepare(
+      return hooks.plan(
         id,
         enabled: enabled,
         rules: blockRules(
@@ -1939,12 +1993,229 @@ class SessionManager extends Notifier<SessionManagerState> {
         ),
         formatCommand: config?.formatCommand,
         secrets: secrets,
-        extra: extra,
       );
     } catch (e) {
-      _secretHooks.remove(id);
       debugPrint('sessão $id: hooks do app não preparados — $e');
       return null;
+    }
+  }
+
+  /// SPEC-103 R3: the Codex adapter — the plan's files in the session
+  /// folder and its `-c` overrides. Never `--trust`, never `~/.codex`.
+  Future<
+    ({ManagedHookPlan? plan, String? command, Map<String, String> overrides})
+  >
+  _prepareCodexHooks(String id, {required String cwd, String? root}) async {
+    final hooks = ref.read(managedHooksProvider);
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (hooks == null || plan == null) {
+      return (plan: plan, command: null, overrides: const <String, String>{});
+    }
+    try {
+      await hooks.writePlan(plan);
+      final command = hooks.commandOf(plan, provider: 'codex');
+      return (
+        plan: plan,
+        command: command,
+        overrides: codexHookOverrides(plan, command),
+      );
+    } catch (e) {
+      debugPrint('sessão $id: hooks do Codex não preparados — $e');
+      return (plan: null, command: null, overrides: const <String, String>{});
+    }
+  }
+
+  /// SPEC-103 R5: what `hooks/list` says the App Server will run; never
+  /// what was sent. Sets the session state (chip, R9) and the Vigia's hook.
+  Future<CodexHookStatus?> _confirmCodexHooks(
+    String id,
+    CodexRun run, {
+    required ManagedHookPlan? plan,
+    required String? command,
+  }) async {
+    if (ref.read(managedHooksProvider) == null) return null;
+    CodexHookStatus status;
+    if (plan == null || command == null) {
+      // R10: no python3 (or no files) = no hooks; only the Vigia keeps its
+      // end-of-turn check.
+      final on = {
+        for (final h in ManagedHook.values)
+          if (ref.read(appSettingsProvider.notifier).get(h.settingKey) != '0')
+            h,
+      };
+      status = CodexHookStatus(
+        mode: CodexHookMode.postTurn,
+        planned: on,
+        unavailable: on.difference({ManagedHook.secrets}),
+        reason: _noPython.contains(id)
+            ? 'python3 não encontrado: os hooks do app ficam desligados.'
+            : 'Os hooks do app não foram preparados.',
+        at: DateTime.now(),
+      );
+    } else if (plan.isEmpty) {
+      status = codexHookStatus(plan, command: command, at: DateTime.now());
+    } else {
+      Map<String, dynamic>? result;
+      Object? error;
+      try {
+        result = await run.hooksList();
+      } catch (e) {
+        error = e;
+      }
+      status = codexHookStatus(
+        plan,
+        command: command,
+        result: result,
+        error: error,
+        at: DateTime.now(),
+      );
+    }
+    for (final p in status.problems) {
+      debugPrint('codex[$id] hooks/list: $p');
+    }
+    if (status.active.contains(ManagedHook.secrets)) {
+      _secretHooks.add(id);
+    } else {
+      _secretHooks.remove(id);
+    }
+    if (ref.mounted) {
+      ref.read(codexHookStatusProvider.notifier).set(id, status);
+    }
+    return status;
+  }
+
+  static const _hookFallbackMark =
+      'Os hooks do app não ficaram ativos nesta sessão Codex';
+  static const _hookPartialMark = 'Hooks parciais nesta sessão Codex';
+
+  /// SPEC-103 R7: once per session, what stayed after the turn and why.
+  Future<void> _announceHookFallback(String id, _Proc p) async {
+    final status = p.codexHooks;
+    if (status == null ||
+        status.mode == CodexHookMode.native ||
+        status.mode == CodexHookMode.off) {
+      return;
+    }
+    if (!_hookFallbackNoted.add(id)) return;
+    // Once per session, also across app restarts (a resume after reopening).
+    try {
+      final told = (await _repo.events(id)).any(
+        (e) =>
+            e.type == AppEventTypes.note &&
+            (e.json.contains(_hookFallbackMark) ||
+                e.json.contains(_hookPartialMark)),
+      );
+      if (told) return;
+    } catch (_) {}
+    final yolo = p.skipPermissions;
+    final inactive = [
+      for (final h in ManagedHook.values)
+        if (status.inactive.contains(h)) h,
+    ];
+    if (inactive.contains(ManagedHook.secrets)) _secretNoHookNoted.add(id);
+    final subs = [
+      for (final h in inactive)
+        status.whenOf(h, yolo: yolo) == HookWhen.unavailable
+            ? '${h.label}: indisponível'
+            : '${h.label}: ${hookSubstitute(h, yolo: yolo)}',
+    ].join('; ');
+    final why = status.reason == null ? '' : ' ${status.reason}';
+    await _note(
+      id,
+      status.mode == CodexHookMode.partial
+          ? '$_hookPartialMark.$why Até o fim: $subs.'
+          : '$_hookFallbackMark.$why Até o fim: $subs.',
+      provider: 'codex',
+    );
+  }
+
+  /// SPEC-103 R7: `formatar:` on the files the turn left, when the Codex
+  /// did not run the hook; the result goes to the same card.
+  Future<void> _postTurnFormat(String id, _Proc p, String cwd) async {
+    final plan = p.hookPlan;
+    final status = p.codexHooks;
+    final command = plan?.formatCommand;
+    if (plan == null ||
+        status == null ||
+        command == null ||
+        !plan.enabled.contains(ManagedHook.format) ||
+        status.active.contains(ManagedHook.format) ||
+        p.formatFiles.isEmpty) {
+      return;
+    }
+    final files = [...p.formatFiles];
+    p.formatFiles.clear();
+    final done = <String>[];
+    String? failed;
+    for (final f in files) {
+      final full = f.startsWith('/') ? f : '$cwd/$f';
+      if (!File(full).existsSync()) continue;
+      final rel = full.startsWith('$cwd/') ? full.substring(cwd.length + 1) : f;
+      final r = await ref.read(shellRunnerProvider)(
+        command.replaceAll('{arquivo}', _shellQuote(full)),
+        cwd: cwd,
+        timeout: const Duration(seconds: 60),
+      );
+      if (r.exitCode == 0) {
+        done.add(rel);
+      } else {
+        failed ??= '$rel: ${r.output.trim()}'.trim();
+      }
+    }
+    if (done.isEmpty && failed == null) return;
+    final a = HookActivity(
+      hook: ManagedHook.format,
+      text: failed == null
+          ? 'Formatado ao fim do turno: ${done.join(', ')}'
+          : 'Falha ao formatar ao fim do turno: $failed',
+      at: DateTime.now(),
+      error: failed != null,
+      provider: 'codex',
+    );
+    await _note(id, a.text, error: a.error, provider: 'codex');
+    if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+  }
+
+  Future<void> _postTurnFormatOf(String id, _Proc p) async {
+    if (p.hookPlan == null || p.formatFiles.isEmpty) return;
+    final s = await _repo.getById(id);
+    final cwd = s?.worktreePath;
+    if (cwd == null) return;
+    await _postTurnFormat(id, p, cwd);
+  }
+
+  static String _shellQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
+
+  /// A Codex hook event (SPEC-103 R6): the app's hooks write the details
+  /// to hooks.log, read here once (a line is never shown twice); a run of
+  /// the app's hook that failed gets its own card. P2: a command refused at
+  /// its approval.
+  Future<void> _codexHookEvent(String id, _Proc p, SystemOther e) async {
+    if (e.subtype == 'codex_hook_refused') {
+      final cmd = unwrapShellCommand('${e.json['command'] ?? ''}');
+      final a = HookActivity(
+        hook: ManagedHook.block,
+        text: 'Recusado antes do balão: `$cmd` (${e.json['rule']})',
+        at: DateTime.now(),
+        error: true,
+        provider: 'codex',
+      );
+      await _note(id, a.text, error: true, provider: 'codex');
+      if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+      return;
+    }
+    if (e.json['method'] != 'hook/completed') return;
+    final before = p.hookOffset;
+    await _readHooks(id, p);
+    final hook = e.json['hook'] as Map? ?? const {};
+    final ours = hook['source'] == 'sessionFlags';
+    if (ours && hook['status'] == 'failed' && p.hookOffset == before) {
+      await _note(
+        id,
+        'Hook do app falhou no Codex (${hook['eventName'] ?? '?'})',
+        error: true,
+        provider: 'codex',
+      );
     }
   }
 
@@ -1959,7 +2230,13 @@ class SessionManager extends Notifier<SessionManagerState> {
         if (a.secrets != null) {
           await _secretBlocked(id, a.secrets!);
         } else {
-          await _note(id, a.text, error: a.error);
+          // P4: the provider's badge only in Codex sessions.
+          await _note(
+            id,
+            a.text,
+            error: a.error,
+            provider: a.provider == 'codex' ? 'codex' : null,
+          );
         }
         if (a.waived.isNotEmpty) {
           try {
@@ -2120,13 +2397,22 @@ class SessionManager extends Notifier<SessionManagerState> {
         // worktree is committed by the app at the end of the turn, before
         // the end of the point is captured (in the same queue).
         final codex = p.process is CodexRun;
+        if (codex) await _readHooks(id, p);
         final turnEnd = _restore.end(
           sessionId: id,
+          // SPEC-103 R7: the post-turn formatar: goes before the app's
+          // commit, so the formatted files are what gets committed.
           beforeEnd: codex
-              ? () => _codexTurnCommit(id, p, e.result).catchError(
-                  (Object err) =>
-                      debugPrint('sessão $id: commit do app — $err'),
-                )
+              ? () => _postTurnFormatOf(id, p)
+                    .catchError(
+                      (Object err) =>
+                          debugPrint('sessão $id: formatar pós-turno — $err'),
+                    )
+                    .then((_) => _codexTurnCommit(id, p, e.result))
+                    .catchError(
+                      (Object err) =>
+                          debugPrint('sessão $id: commit do app — $err'),
+                    )
               : null,
         );
         // SPEC-111 R4: the panel reloads once the app's commit is done
@@ -2191,8 +2477,21 @@ class SessionManager extends Notifier<SessionManagerState> {
       // SPEC-095 R9: files and commands of any provider.
       case FileChangeEvent():
         _trackNeutral(p, e);
+        // SPEC-103 R7: what the turn left, for the post-turn formatar:.
+        if (e.status == FileChangeStatus.applied) {
+          if (e.kind == FileChangeKind.delete) {
+            p.formatFiles.remove(e.path);
+          } else {
+            if (e.fromPath case final from?) p.formatFiles.remove(from);
+            p.formatFiles.add(e.path);
+          }
+        }
       case CommandEvent():
         _trackNeutral(p, e);
+        if (e.done && p.process is CodexRun) await _readHooks(id, p);
+      case SystemOther()
+          when e.subtype == 'codex_hook' || e.subtype == 'codex_hook_refused':
+        await _codexHookEvent(id, p, e);
       case ContextUsageEvent(:final tokens):
         if (tokens > 0) p.contextTokens = tokens;
       default:
@@ -2237,7 +2536,30 @@ class SessionManager extends Notifier<SessionManagerState> {
         // the database is closing
       }
     }
-    if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
+    if (ref.mounted && !_shuttingDown) {
+      await _readHooks(id, p);
+      // SPEC-103 R7: no sessionEnd hook in the Codex = the app records it.
+      final st = p.codexHooks;
+      if (st != null &&
+          st.planned.contains(ManagedHook.end) &&
+          st.whenOf(ManagedHook.end) == HookWhen.afterTurn) {
+        final why = p.stopping
+            ? 'parada pelo usuário'
+            : p.released
+            ? 'suspensa'
+            : 'processo encerrou, código $code';
+        final a = HookActivity(
+          hook: ManagedHook.end,
+          text: 'Sessão encerrada ($why)',
+          at: DateTime.now(),
+          provider: 'codex',
+        );
+        await _note(id, a.text, provider: 'codex');
+        ref.read(hookActivityProvider.notifier).add(a);
+      }
+    }
+    // The state stays after the exit: Automações and the YOLO warning use
+    // the last one seen (the chip only shows while the process lives).
     final hooks = ref.mounted ? ref.read(managedHooksProvider) : null;
     if (hooks != null) {
       final done = hooks.cleanup(id).catchError((Object e) {
@@ -2382,6 +2704,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         command: j['comando'] as String?,
         findings: [for (final f in findings) f.toJson()],
         partial: j['parcial'] == true,
+        // SPEC-103 P4: the badge only in Codex sessions.
+        provider: j['provedor'] == 'codex' ? 'codex' : null,
       ),
     );
     final row = await _repo.getById(id);
@@ -2480,8 +2804,17 @@ class SessionManager extends Notifier<SessionManagerState> {
     _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
-  Future<void> _note(String id, String text, {bool error = false}) async {
-    final json = AppEventTypes.noteMessage(text, error: error);
+  Future<void> _note(
+    String id,
+    String text, {
+    bool error = false,
+    String? provider,
+  }) async {
+    final json = AppEventTypes.noteMessage(
+      text,
+      error: error,
+      provider: provider,
+    );
     final row = await _repo.appendEvent(
       id,
       type: AppEventTypes.note,
