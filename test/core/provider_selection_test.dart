@@ -43,7 +43,8 @@ void main() {
   });
 
   test(
-    'SPEC-096 R1: Codex runs only in Prompt and Sessões; the emergency '
+    'SPEC-096 R1, SPEC-100 R8: Codex runs in Prompt, Sessões and the '
+    'structured runs; the emergency '
     'switch (P1) turns every flow off and the saved default stays Codex',
     () async {
       final db = memoryDatabase();
@@ -63,7 +64,9 @@ void main() {
             (AppFlow f) => agentProviderForFlow(ref, 'codex', f),
       );
       for (final f in AppFlow.values) {
-        if (f == AppFlow.prompt || f == AppFlow.sessions) {
+        if (f == AppFlow.prompt ||
+            f == AppFlow.sessions ||
+            f == AppFlow.structured) {
           expect(c.read(probe)(f).id, 'codex', reason: f.name);
         } else {
           expect(
