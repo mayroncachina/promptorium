@@ -2604,6 +2604,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         command: j['comando'] as String?,
         findings: [for (final f in findings) f.toJson()],
         partial: j['parcial'] == true,
+        // SPEC-103 P4: the badge only in Codex sessions.
+        provider: j['provedor'] == 'codex' ? 'codex' : null,
       ),
     );
     final row = await _repo.getById(id);

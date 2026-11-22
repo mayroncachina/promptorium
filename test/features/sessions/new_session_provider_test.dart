@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/managed_hooks.dart';
+import 'package:promptorium/core/codex/codex_hooks.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
@@ -137,5 +139,36 @@ void main() {
     await tester.tap(_key('new-session-worktree'));
     await tester.pumpAndSettle();
     expect(_key('new-session-writable-roots'), findsNothing);
+  });
+
+  testWidgets('SPEC-103 R7: Codex YOLO without native hooks warns before '
+      'starting; with native hooks it does not', (tester) async {
+    final c = await _open(
+      tester,
+      flows: ProviderFlows.defaults.copyWith('codex', {AppFlow.sessions}),
+    );
+    expect(_key('new-session-yolo-no-hooks'), findsNothing);
+    await tester.tap(_key('new-session-mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('YOLO').last);
+    await tester.pumpAndSettle();
+    expect(_key('new-session-yolo-no-hooks'), findsOneWidget);
+    expect(
+      find.textContaining('No Codex sem hooks, o YOLO não bloqueia comandos'),
+      findsOneWidget,
+    );
+    c
+        .read(codexHookStatusProvider.notifier)
+        .set(
+          'outra',
+          CodexHookStatus(
+            mode: CodexHookMode.native,
+            planned: ManagedHook.values.toSet(),
+            active: ManagedHook.values.toSet(),
+            at: DateTime.now(),
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect(_key('new-session-yolo-no-hooks'), findsNothing);
   });
 }

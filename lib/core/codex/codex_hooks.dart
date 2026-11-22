@@ -309,3 +309,71 @@ String? codexApprovalBlockedBy(
   }
   return null;
 }
+
+/// The newest state of a Codex session (Automações, R8; the YOLO warning,
+/// R7); null = no Codex session ran since the app opened.
+CodexHookStatus? latestCodexHookStatus(Map<String, CodexHookStatus> all) {
+  CodexHookStatus? best;
+  for (final s in all.values) {
+    if (s.mode == CodexHookMode.off) continue;
+    if (best == null || (s.at ?? DateTime(0)).isAfter(best.at ?? DateTime(0))) {
+      best = s;
+    }
+  }
+  return best;
+}
+
+/// Where [h] runs in a new session of each provider (R8, R10): null = the
+/// hook is off.
+HookWhen? claudeHookWhen(ManagedHook h, {required bool on, bool? python}) {
+  if (!on) return null;
+  if (python == false) {
+    return h == ManagedHook.secrets ? HookWhen.afterTurn : HookWhen.unavailable;
+  }
+  return HookWhen.beforeTool;
+}
+
+HookWhen? codexHookWhen(
+  ManagedHook h, {
+  required bool on,
+  bool? python,
+  CodexHookStatus? latest,
+}) {
+  if (!on) return null;
+  if (python == false) {
+    return h == ManagedHook.secrets ? HookWhen.afterTurn : HookWhen.unavailable;
+  }
+  return latest?.active.contains(h) == true
+      ? HookWhen.beforeTool
+      : HookWhen.afterTurn;
+}
+
+/// Reason of a cell in Automações (tooltip, R8).
+String hookWhenReason(
+  ManagedHook h,
+  HookWhen? when, {
+  required String provider,
+  CodexHookStatus? latest,
+}) {
+  if (when == null) return 'Desligado: vale para os dois provedores.';
+  return switch ((provider, when)) {
+    (_, HookWhen.unavailable) => 'python3 não encontrado: o script não roda.',
+    ('claude', HookWhen.beforeTool) =>
+      'settings.json temporário (--settings): o Claude Code roda o script '
+          '${h == ManagedHook.format
+              ? 'depois de cada Edit/Write/MultiEdit'
+              : h == ManagedHook.end
+              ? 'no SessionEnd'
+              : 'antes de cada comando Bash'}.',
+    ('claude', _) =>
+      'Sem python3: os commits são conferidos ao fim do turno e antes do push.',
+    (_, HookWhen.beforeTool) =>
+      'Hook de sessão (-c, origem sessionFlags) confirmado pelo hooks/list '
+          'da última sessão Codex.',
+    _ =>
+      '${latest?.reason ?? 'O Codex 0.170 não roda hooks de sessão sem '
+                  'confiança gravada (SPEC-093), e o app não grava nada no '
+                  '~/.codex.'} Substituto: ${hookSubstitute(h)}'
+          '${h == ManagedHook.block ? '; no YOLO, indisponível' : ''}.',
+  };
+}

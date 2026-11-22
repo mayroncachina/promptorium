@@ -357,3 +357,29 @@ class InfoTag extends StatelessWidget {
     ),
   );
 }
+
+/// The small "Codex" badge of a hook card in a Codex session (SPEC-103
+/// P4): who ran the hook, so a different reason text makes sense.
+class ProviderTag extends StatelessWidget {
+  const ProviderTag({super.key, this.name = 'Codex'});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+    decoration: BoxDecoration(
+      color: const Color(0xFF222732),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: AppColors.providerCodex.withValues(alpha: 0.5)),
+    ),
+    child: Text(
+      name,
+      style: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: AppColors.text,
+      ),
+    ),
+  );
+}
