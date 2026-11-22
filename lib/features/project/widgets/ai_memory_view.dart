@@ -769,31 +769,40 @@ class _HandoffCard extends StatelessWidget {
                     ),
                   ),
                 const SizedBox(width: 10),
-                Flexible(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: h.origin),
-                        TextSpan(text: '  ·  ${aiMemoryWhen(h.createdAt)}'),
-                        const TextSpan(text: '  ·  dono: '),
-                        TextSpan(
-                          text: list.ownerLabel(h),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(text: h.origin),
+                              TextSpan(
+                                text: '  ·  ${aiMemoryWhen(h.createdAt)}',
+                              ),
+                              const TextSpan(text: '  ·  dono: '),
+                              TextSpan(
+                                text: list.ownerLabel(h),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              if (!h.isOpen)
+                                TextSpan(text: '  ·  ${h.state.label}'),
+                            ],
                           ),
+                          key: ValueKey('ai-memory-handoff-meta-${h.id}'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: meta,
                         ),
-                        if (!h.isOpen) TextSpan(text: '  ·  ${h.state.label}'),
-                      ],
-                    ),
-                    key: ValueKey('ai-memory-handoff-meta-${h.id}'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: meta,
+                      ),
+                      if (dir != null) ...[const SizedBox(width: 8), _Tag(dir)],
+                    ],
                   ),
                 ),
-                if (dir != null) ...[const SizedBox(width: 8), _Tag(dir)],
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (next)
                   const AiMemoryPill(
                     'será entregue à próxima sessão',
