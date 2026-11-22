@@ -123,14 +123,17 @@ CodexSkillStatus? codexStatusFor(
   };
 }
 
-/// The Codex skills of [workspacePath], queried only once the workspaces
-/// have loaded: before that the active one reads as null, and a query for
-/// "no workspace" would start one App Server too many (R12).
+/// The Codex skills of [workspacePath], queried only once the active
+/// workspace has loaded: before that it reads as null, and a query for "no
+/// workspace" would start one App Server too many (R12).
 AsyncValue<CodexSkillsResult> watchCodexSkills(
   WidgetRef ref,
   String? workspacePath,
 ) {
-  if (!ref.watch(workspacesProvider.select((a) => a.hasValue))) {
+  final saved = ref.watch(
+    appSettingsProvider.select((s) => s[AppSettingKeys.activeWorkspace]),
+  );
+  if (workspacePath == null && (saved ?? '').isNotEmpty) {
     return const AsyncLoading();
   }
   return ref.watch(codexSkillsProvider(workspacePath));
