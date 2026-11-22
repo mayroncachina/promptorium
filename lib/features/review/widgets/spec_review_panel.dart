@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,9 @@ import '../../specs/spec_service.dart';
 import '../auto_reviewer.dart';
 import '../criteria_batch.dart';
 import '../review_service.dart';
+import '../reviewer_provider.dart';
+import '../../../core/providers/capabilities.dart' show isClaudeCode;
+import '../../../ui/providers/provider_logos.dart' show ProviderChip;
 import 'review_dialogs.dart';
 
 export '../criteria_batch.dart' show CriterionState, criterionChecked;
@@ -32,6 +37,27 @@ final reviewCommentsProvider =
       (ref, specId) =>
           ref.watch(reviewCommentsRepoProvider).watchBySpec(specId),
     );
+
+/// The provider that executed the spec (SPEC-102 R9: "segunda opinião").
+final _executedByProvider = FutureProvider.family<String, int>((
+  ref,
+  specId,
+) async {
+  // Re-read when the rounds change (a new round may follow new sessions).
+  await ref.watch(reviewCommentsProvider(specId).future);
+  final sessions = await ref.read(sessionsRepoProvider).bySpec(specId);
+  return executionProviderOf(sessions.map((s) => s.provider));
+});
+
+/// The project has its own reviewer agent (SPEC-102 R7).
+final _ownReviewerAgentProvider = FutureProvider.family<bool, int>((
+  ref,
+  workspaceId,
+) async {
+  final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+  return ws != null &&
+      File('${ws.path}/.claude/agents/spec-reviewer.md').existsSync();
+});
 
 final _marksProvider = StreamProvider.family<List<SpecCriteriaData>, int>(
   (ref, specId) => ref.watch(reviewCommentsRepoProvider).watchCriteria(specId),
@@ -271,6 +297,21 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
       for (final s in steps)
         if (s.gate != null) s,
     ];
+    final executedBy = ref.watch(_executedByProvider(specId)).value;
+    // R7: once per spec, when a round ran on another provider in a project
+    // with its own reviewer agent.
+    final agentNotice =
+        comments.any(
+          (c) =>
+              c.author == 'revisor' &&
+              c.verdict != null &&
+              c.provider != null &&
+              !isClaudeCode(c.provider!),
+        ) &&
+        (ref.watch(_ownReviewerAgentProvider(spec.workspaceId)).value ?? false);
+    final lastRound = rounds.isEmpty
+        ? null
+        : rounds.keys.reduce((a, b) => a > b ? a : b);
 
     return Container(
       key: const ValueKey('spec-review-panel'),
@@ -426,9 +467,32 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                   ],
                   if (rounds.isNotEmpty) ...[
                     const Text('RODADAS DE REVIEW', style: _title),
+                    if (agentNotice)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          ownReviewerAgentNotice,
+                          key: ValueKey('review-own-agent-notice'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     for (final MapEntry(key: round, value: list)
                         in rounds.entries.toList().reversed)
-                      _RoundTile(round: round, comments: list),
+                      _RoundTile(
+                        round: round,
+                        comments: list,
+                        executedBy: executedBy,
+                        // R2: the last round failed on a provider: the
+                        // other one, this time only.
+                        onRetry: round == lastRound && !auto
+                            ? (provider) => ref
+                                  .read(autoReviewerProvider)
+                                  .review(specId, providerOnce: provider)
+                            : null,
+                      ),
                   ],
                   if (resolutions.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -677,10 +741,21 @@ class _BatchToggleState extends State<_BatchToggle> {
 }
 
 class _RoundTile extends StatelessWidget {
-  const _RoundTile({required this.round, required this.comments});
+  const _RoundTile({
+    required this.round,
+    required this.comments,
+    this.executedBy,
+    this.onRetry,
+  });
 
   final int round;
   final List<ReviewCommentRow> comments;
+
+  /// The provider that executed the spec ("segunda opinião", R9).
+  final String? executedBy;
+
+  /// "Revisar com o … desta vez" after a failure (R2).
+  final void Function(String provider)? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -694,20 +769,54 @@ class _RoundTile extends StatelessWidget {
     final sha = head.commitSha == null
         ? ''
         : ' · ${head.commitSha!.substring(0, head.commitSha!.length.clamp(0, 7))}';
+    // R9: who reviewed (rounds of before have no provider: as before).
+    final author = head.author == 'revisor' && head.verdict != null
+        ? reviewerAuthorLabel(head.provider, head.model, executedBy: executedBy)
+        : null;
+    final count = comments.length - 1;
+    final countLabel = author != null && count > 0
+        ? ' · $count ${count == 1 ? 'comentário' : 'comentários'}'
+        : '';
+    final failed =
+        head.author == 'revisor' &&
+        head.verdict == null &&
+        head.provider != null &&
+        head.body.startsWith(AutoReviewer.failurePrefix);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Rodada $round · $who$verdict$sha',
-            key: ValueKey('review-round-$round'),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
-            ),
+          Row(
+            children: [
+              if (author != null) ...[
+                ProviderChip(head.provider!, dense: true),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  author == null
+                      ? 'Rodada $round · $who$verdict$sha'
+                      : 'Rodada $round · $who · $author$verdict$countLabel$sha',
+                  key: ValueKey('review-round-$round'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (failed && onRetry != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 8),
+              child: SmallButton(
+                key: ValueKey('review-retry-other-$round'),
+                label: reviewOnceLabel(head.provider!),
+                onTap: () => onRetry!(otherReviewerProvider(head.provider!)),
+              ),
+            ),
           for (final c in comments)
             Padding(
               padding: const EdgeInsets.only(top: 3, left: 8),

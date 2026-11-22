@@ -441,6 +441,43 @@ void main() {
       await db.close();
     },
   );
+  test('v35 → v36 (SPEC-102 R9, P3): review_comments get provider and '
+      'model, null for the rounds of before', () async {
+    final schema = await verifier.schemaAt(35);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO sessions (id, workspace_id, worktree_path, branch, "
+        "model) VALUES ('s', 1, '/r', 'main', 'haiku')",
+      )
+      ..execute(
+        'INSERT INTO review_comments (session_id, round, author, body, '
+        "verdict) VALUES ('s', 1, 'revisor', 'Ok.', 'aprovar')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final old = await db.select(db.reviewComments).getSingle();
+    expect(old.provider, equals(null));
+    expect(old.model, equals(null));
+    await db
+        .into(db.reviewComments)
+        .insert(
+          ReviewCommentsCompanion.insert(
+            sessionId: const Value('s'),
+            round: 2,
+            author: 'revisor',
+            body: 'Correções pedidas.',
+            verdict: const Value('corrigir'),
+            provider: const Value('codex'),
+            model: const Value('gpt-6.1-terra'),
+          ),
+        );
+    final rows = await db.select(db.reviewComments).get();
+    expect(rows.map((r) => (r.round, r.provider, r.model)), [
+      (1, null, null),
+      (2, 'codex', 'gpt-6.1-terra'),
+    ]);
+    await db.close();
+  });
   test('v33 → v34 (SPEC-097) marks the old turns as Claude\'s', () async {
     final schema = await verifier.schemaAt(33);
     schema.rawDatabase

@@ -16,6 +16,8 @@ import '../board/spec_runner.dart';
 import '../board/step_gate.dart';
 import '../project/project_config.dart';
 import '../project/project_memory.dart';
+import 'reviewer_findings.dart';
+import 'reviewer_provider.dart';
 import '../sessions/app_notifier.dart';
 import '../specs/spec_service.dart';
 
@@ -130,6 +132,23 @@ class ReviewerVerdict {
   /// Indices (0-based, as listed in the prompt) of the acceptance criteria
   /// the reviewer found met.
   final Set<int> met;
+
+  /// The verdict with its comments normalized (SPEC-102 R8).
+  ReviewerVerdict normalized({
+    required String diff,
+    required String worktree,
+    Set<String>? requirements,
+  }) => ReviewerVerdict(
+    approve: approve,
+    summary: summary,
+    met: met,
+    comments: normalizeReviewerComments(
+      comments,
+      diff: diff,
+      worktree: worktree,
+      requirements: requirements,
+    ),
+  );
 
   static ReviewerVerdict? parse(Object? data) {
     if (data is! Map) return null;
@@ -314,10 +333,15 @@ class AutoReviewer {
 
   bool isRunning(int specId) => _running.contains(specId);
 
-  Future<void> review(int specId) async {
+  /// [providerOnce]: "Revisar com o … desta vez" after a failure (R2): this
+  /// round only, the config never changes.
+  Future<void> review(int specId, {String? providerOnce}) async {
     if (!_running.add(specId)) return;
     try {
-      await _review(specId);
+      await _review(specId, providerOnce: providerOnce);
+    } on ReviewerRunFailure catch (e) {
+      debugPrint('revisor automático de $specId: $e');
+      await _handOver(specId, failure: e.message, provider: e.provider);
     } catch (e) {
       debugPrint('revisor automático de $specId: $e');
       await _handOver(specId, failure: '$e');
@@ -326,7 +350,7 @@ class AutoReviewer {
     }
   }
 
-  Future<void> _review(int specId) async {
+  Future<void> _review(int specId, {String? providerOnce}) async {
     final specs = _ref.read(specsRepoProvider);
     final spec = await specs.getById(specId);
     if (spec == null || spec.worktreePath == null) return;
@@ -338,67 +362,97 @@ class AutoReviewer {
     final text = await _ref.read(specServiceProvider).read(ws, spec) ?? '';
     final round = spec.reviewRounds + 1;
     final git = _ref.read(gitServiceFactoryProvider)(spec.worktreePath!);
-    final diff = await _diff(git, ws, spec);
+    final full = await _fullDiff(git, await _base(ws, spec));
     final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
     final previous = await _ref.read(reviewCommentsRepoProvider).bySpec(specId);
+    final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
     final criteria = parseCriteria(text);
     final ownAgent = File('${ws.path}/.claude/agents/spec-reviewer.md')
         .existsSync();
-    // SPEC-035 R8: a spec run in Automático (its steps have a plan) is
-    // reviewed with the rule Revisão (the line of the plan); in Manual, with
-    // the model of the project.
-    final rule = runsInAuto(rows)
+    // SPEC-102 R2, R3: who reviews. In Automático (SPEC-035 R8: the steps
+    // have a plan) the rule Revisão holds, unless `provedor:` is explicit.
+    final choice = resolveReviewerChoice(
+      config.reviewer,
+      executedBy: executionProviderOf(sessions.map((s) => s.provider)),
+      auto: runsInAuto(rows),
+    );
+    final provider = providerOnce ?? choice.provider;
+    final claude = isClaudeCode(provider);
+    final rule = choice.fromPlan && claude
         ? reviewRuleOf(
             _ref.read(appSettingsProvider),
             specId,
             _ref.read(orchestratorPrefsProvider),
           )
         : null;
-    final r = await runStructured(
-      _ref,
-      StructuredIntent(
-        flow: AppFlow.autoReview,
-        workspaceId: ws.id,
-        cwd: spec.worktreePath!,
-        timeout: timeout,
-        // SPEC-081 R2: the reviewer of the spec, by round.
-        specId: specId,
-        usageSource: UsageSource.revisor,
-        usageStep: 'rodada $round',
-        // The Orquestrador only uses the Claude Code (D5).
-        providerId: rule == null ? null : 'claude',
-        claude: ClaudeStructuredExtras(
-          model: rule?.model ?? config.reviewer.model,
-          effort: rule?.effort,
-          agent: ownAgent ? 'spec-reviewer' : null,
-          maxBudgetUsd: config.reviewer.budgetUsd > 0
-              ? config.reviewer.budgetUsd
-              : null,
+    // R7: the project's own agent is the Claude Code's (decisão 7); the
+    // other providers get the built-in instructions.
+    final agent = ownAgent && claude;
+    final StructuredResult r;
+    try {
+      r = await runStructured(
+        _ref,
+        StructuredIntent(
+          flow: AppFlow.autoReview,
+          workspaceId: ws.id,
+          cwd: spec.worktreePath!,
+          // R6: on the Codex the limit is the time (turn/interrupt).
+          timeout: timeout,
+          // SPEC-081 R2: the reviewer of the spec, by round.
+          specId: specId,
+          usageSource: UsageSource.revisor,
+          usageStep: 'rodada $round',
+          // R2: the resolved provider, never switched silently.
+          providerId: provider,
+          claude: ClaudeStructuredExtras(
+            model: rule?.model ?? config.reviewer.model,
+            effort: rule?.effort,
+            agent: agent ? 'spec-reviewer' : null,
+            maxBudgetUsd: config.reviewer.budgetUsd > 0
+                ? config.reviewer.budgetUsd
+                : null,
+          ),
+          // R4: `modelo-codex` / `codex.model.reviewer`; never a Claude alias.
+          modelOverride: claude
+              ? null
+              : reviewerCodexModel(
+                  config.reviewer,
+                  _ref.read(appSettingsProvider),
+                ),
+          instructions: agent ? null : builtinReviewerPrompt,
+          schema: reviewerSchema,
+          prompt: reviewerPrompt(
+            spec: spec,
+            specText: text,
+            diff: _cut(full),
+            round: round,
+            gates: [
+              for (final row in rows)
+                if (GateReport.decode(row.gateReport) case final g?)
+                  '${row.step}: ${g.ok ? 'aprovada' : 'falhou (${g.summary})'}',
+            ],
+            previous: previous,
+            memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+            criteria: [for (final c in criteria) c.text],
+          ),
         ),
-        // The project's own agent brings its instructions (Claude only);
-        // the other providers get the built-in ones.
-        instructions: ownAgent ? null : builtinReviewerPrompt,
-        schema: reviewerSchema,
-        prompt: reviewerPrompt(
-          spec: spec,
-          specText: text,
-          diff: diff,
-          round: round,
-          gates: [
-            for (final row in rows)
-              if (GateReport.decode(row.gateReport) case final g?)
-                '${row.step}: ${g.ok ? 'aprovada' : 'falhou (${g.summary})'}',
-          ],
-          previous: previous,
-          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
-          criteria: [for (final c in criteria) c.text],
-        ),
-      ),
-    );
-    final verdict = ReviewerVerdict.parse(r.data);
-    if (verdict == null) {
-      throw const PlannerException('O revisor não devolveu um veredito.');
+      );
+    } catch (e) {
+      throw ReviewerRunFailure(provider, '$e');
     }
+    final parsed = ReviewerVerdict.parse(r.data);
+    if (parsed == null) {
+      throw ReviewerRunFailure(
+        provider,
+        '${const PlannerException('O revisor não devolveu um veredito.')}',
+      );
+    }
+    // R8: the same findings, whoever reviewed.
+    final verdict = parsed.normalized(
+      diff: full,
+      worktree: spec.worktreePath!,
+      requirements: {for (final q in spec.requirements) q.id},
+    );
     for (final i in verdict.met) {
       if (i < 0 || i >= criteria.length) continue;
       await _ref
@@ -416,6 +470,9 @@ class AutoReviewer {
             : verdict.summary,
         verdict: Value(verdict.approve ? 'aprovar' : 'corrigir'),
         commitSha: Value(head),
+        // R9, P3: who reviewed, on the verdict line.
+        provider: Value(r.provider),
+        model: Value(r.model),
       ),
       for (final c in verdict.comments)
         ReviewCommentsCompanion.insert(
@@ -434,20 +491,21 @@ class AutoReviewer {
       await _handOver(specId);
       return;
     }
-    // Corrections: a REVn step, run like any other.
+    // Corrections: a REVn step, run like any other — on the provider that
+    // executed the spec, not the reviewer's (R11).
     final step = 'REV$round';
     await _ref
         .read(specStepsRepoProvider)
         .addExtra(specId, step, reviewStepBody(round, verdict.comments));
     await specs.setReview(specId, phase: ReviewPhase.auto, rounds: round);
     await specs.setStage(specId, SpecStage.running);
-    final last = (await _ref.read(sessionsRepoProvider).bySpec(specId))
-        .lastOrNull;
+    final last = sessions.lastOrNull;
     await _ref
         .read(specRunnerProvider)
         .runNext(
           specId,
           mode: ClaudePermissionMode.fromCli(last?.permissionMode),
+          provider: choice.executedBy,
           model: last?.model,
           effort: last?.effort,
           ignoreBlockers: true,
@@ -455,7 +513,11 @@ class AutoReviewer {
   }
 
   /// The user's turn: phase `human` (a failure is kept as a comment).
-  Future<void> _handOver(int specId, {String? failure}) async {
+  Future<void> _handOver(
+    int specId, {
+    String? failure,
+    String? provider,
+  }) async {
     final specs = _ref.read(specsRepoProvider);
     final spec = await specs.getById(specId);
     if (spec == null) return;
@@ -466,6 +528,9 @@ class AutoReviewer {
           round: spec.reviewRounds + 1,
           author: 'revisor',
           body: '${AutoReviewer.failurePrefix}: $failure',
+          // R2: the provider that failed; the Review offers the other one
+          // "desta vez".
+          provider: Value(provider),
         ),
       ]);
     }
@@ -499,11 +564,13 @@ class AutoReviewer {
   /// "Rodar revisor" on a PR brought into the app (SPEC-050 R6): off by
   /// default, run only on demand. The verdict and the comments go to the
   /// session's history (no spec, no criteria, no `REVn` step); a failure
-  /// becomes a comment too.
+  /// becomes a comment too. `execucao` / `outro` resolve from the PR's
+  /// session provider (SPEC-102 R2).
   Future<void> reviewSession(
     String sessionId, {
     required String title,
     String body = '',
+    String? providerOnce,
   }) async {
     if (!_runningSessions.add(sessionId)) return;
     final repo = _ref.read(reviewCommentsRepoProvider);
@@ -511,6 +578,7 @@ class AutoReviewer {
     final round = previous.isEmpty
         ? 1
         : previous.map((c) => c.round).reduce((a, b) => a > b ? a : b) + 1;
+    String? provider;
     try {
       final s = await _ref.read(sessionsRepoProvider).getById(sessionId);
       if (s == null) return;
@@ -518,7 +586,14 @@ class AutoReviewer {
       if (ws == null) return;
       final config = ProjectConfig.loadSync(ws.path);
       final git = _ref.read(gitServiceFactoryProvider)(s.worktreePath);
-      final diff = await _diffAgainst(git, s.baseBranch ?? 'main');
+      final full = await _fullDiff(git, s.baseBranch ?? 'main');
+      provider =
+          providerOnce ??
+          resolveReviewerChoice(
+            config.reviewer,
+            executedBy: s.provider,
+          ).provider;
+      final claude = isClaudeCode(provider);
       final r = await runStructured(
         _ref,
         StructuredIntent(
@@ -529,6 +604,7 @@ class AutoReviewer {
           specId: s.specId,
           usageSource: UsageSource.revisor,
           usageStep: 'rodada $round',
+          providerId: provider,
           instructions: builtinReviewerPrompt,
           schema: reviewerSchema,
           claude: ClaudeStructuredExtras(
@@ -537,10 +613,16 @@ class AutoReviewer {
                 ? config.reviewer.budgetUsd
                 : null,
           ),
+          modelOverride: claude
+              ? null
+              : reviewerCodexModel(
+                  config.reviewer,
+                  _ref.read(appSettingsProvider),
+                ),
           prompt: prReviewerPrompt(
             title: title,
             body: body,
-            diff: diff,
+            diff: _cut(full),
             round: round,
             previous: [
               for (final c in previous)
@@ -550,10 +632,15 @@ class AutoReviewer {
           ),
         ),
       );
-      final verdict = ReviewerVerdict.parse(r.data);
-      if (verdict == null) {
+      final parsed = ReviewerVerdict.parse(r.data);
+      if (parsed == null) {
         throw const PlannerException('O revisor não devolveu um veredito.');
       }
+      final verdict = parsed.normalized(
+        diff: full,
+        worktree: s.worktreePath,
+        requirements: const {},
+      );
       final head = await git.headSha();
       await repo.insertAll([
         ReviewCommentsCompanion.insert(
@@ -565,6 +652,8 @@ class AutoReviewer {
               : verdict.summary,
           verdict: Value(verdict.approve ? 'aprovar' : 'corrigir'),
           commitSha: Value(head),
+          provider: Value(r.provider),
+          model: Value(r.model),
         ),
         for (final c in verdict.comments)
           ReviewCommentsCompanion.insert(
@@ -586,6 +675,7 @@ class AutoReviewer {
           round: round,
           author: 'revisor',
           body: '${AutoReviewer.failurePrefix}: $e',
+          provider: Value(provider),
         ),
       ]);
     } finally {
@@ -593,50 +683,48 @@ class AutoReviewer {
     }
   }
 
-  /// `git diff <merge-base with base>` of a worktree (cut at [maxDiff]).
-  Future<String> _diffAgainst(GitService git, String base) async {
-    try {
-      final mb = (await git.git(['merge-base', base, 'HEAD'])).trim();
-      final d = await git.git([
-        'diff',
-        '--no-color',
-        '--no-ext-diff',
-        '--unified=3',
-        mb,
-      ]);
-      return d.length <= maxDiff
-          ? d
-          : '${d.substring(0, maxDiff)}\n…(diff cortado em $maxDiff caracteres)';
-    } on GitException catch (e) {
-      return '(diff indisponível: $e)';
-    }
-  }
-
   /// "Pular revisor" (Review screen) / interrupted run: straight to the user.
   Future<void> skip(int specId) => _handOver(specId);
 
-  /// `git diff <merge-base>` of the spec's branch (cut at [maxDiff]).
-  Future<String> _diff(GitService git, Workspace ws, Spec spec) async {
+  /// The base of the spec's branch.
+  Future<String> _base(Workspace ws, Spec spec) async =>
+      spec.baseBranch ??
+      await _ref.read(gitServiceFactoryProvider)(ws.path).currentBranch() ??
+      'main';
+
+  /// `git diff <merge-base with base>` of a worktree, whole: the findings
+  /// are normalized against it (R8); the prompt gets it cut ([_cut]).
+  Future<String> _fullDiff(GitService git, String base) async {
     try {
-      final base =
-          spec.baseBranch ??
-          await _ref.read(gitServiceFactoryProvider)(ws.path).currentBranch() ??
-          'main';
       final mb = (await git.git(['merge-base', base, 'HEAD'])).trim();
-      final d = await git.git([
+      return await git.git([
         'diff',
         '--no-color',
         '--no-ext-diff',
         '--unified=3',
         mb,
       ]);
-      return d.length <= maxDiff
-          ? d
-          : '${d.substring(0, maxDiff)}\n…(diff cortado em $maxDiff caracteres)';
     } on GitException catch (e) {
       return '(diff indisponível: $e)';
     }
   }
+
+  /// The diff of the prompt, cut at [maxDiff].
+  static String _cut(String d) => d.length <= maxDiff
+      ? d
+      : '${d.substring(0, maxDiff)}\n…(diff cortado em $maxDiff caracteres)';
+}
+
+/// A round that did not finish (R2): the provider that ran it, for the
+/// failure line and "Revisar com o … desta vez".
+class ReviewerRunFailure implements Exception {
+  const ReviewerRunFailure(this.provider, this.message);
+
+  final String provider;
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 final autoReviewerProvider = Provider(AutoReviewer.new);

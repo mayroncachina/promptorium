@@ -88,14 +88,15 @@ void main() {
   });
 
   group('providerFlows (R3)', () {
-    test('SPEC-096 R1, SPEC-100 R8: o Codex roda em Prompt, Sessões e '
-        'execuções estruturadas', () {
+    test('SPEC-096 R1, SPEC-100 R8, SPEC-102: o Codex roda em Prompt, '
+        'Sessões, execuções estruturadas e no revisor automático', () {
       for (final f in AppFlow.values) {
         expect(
           ProviderFlows.defaults.allows('codex', f),
           f == AppFlow.prompt ||
               f == AppFlow.sessions ||
-              f == AppFlow.structured,
+              f == AppFlow.structured ||
+              f == AppFlow.autoReview,
           reason: f.name,
         );
         expect(ProviderFlows.defaults.allows('claude', f), isTrue);
@@ -103,6 +104,7 @@ void main() {
       // Each flow still locked names the spec that releases it (mock 4).
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.prompt)));
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.structured)));
+      expect(codexFlowSpecs.keys, isNot(contains(AppFlow.autoReview)));
       expect(codexFlowSpecs[AppFlow.runSpec], 'SPEC-101');
       expect(flowLockedLabel('Codex'), 'Codex · Só Claude Code por enquanto');
     });
@@ -125,7 +127,7 @@ void main() {
       expect(all.whereType<CodexProvider>(), hasLength(1));
       final probe = Provider(
         (ref) =>
-            () => agentProviderForFlow(ref, 'codex', AppFlow.autoReview),
+            () => agentProviderForFlow(ref, 'codex', AppFlow.compare),
       );
       expect(
         () => c.read(probe)(),
@@ -133,7 +135,7 @@ void main() {
           isA<AgentUnavailable>().having(
             (e) => e.message,
             'message',
-            allOf(contains('Review automático'), contains('Claude Code')),
+            allOf(contains('Comparar'), contains('Claude Code')),
           ),
         ),
       );

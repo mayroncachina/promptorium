@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 35;
+const appSchemaVersion = 36;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -409,6 +409,12 @@ class ReviewComments extends Table {
   DateTimeColumn get resolvedAt => dateTime().nullable()();
   TextColumn get externalId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Who ran the automatic reviewer's round (SPEC-102 R9, P3, schema v36),
+  /// on its verdict line: `claude`, `codex`… and the model it reported.
+  /// Null on the rows of before and on the other lines.
+  TextColumn get provider => text().nullable()();
+  TextColumn get model => text().nullable()();
 }
 
 /// Acceptance criterion of a spec checked in the Review (schema v10), by
@@ -1508,6 +1514,19 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('sessions') &&
                 !await _hasColumn('sessions', 'parent_session_id')) {
               await m.addColumn(v.sessions, v.sessions.parentSessionId);
+            }
+          },
+          // v36: who reviewed each round (SPEC-102 R9, P3); the rows of
+          // before stay without it.
+          from35To36: (m, v) async {
+            if (!await _hasTable('review_comments')) return;
+            for (final c in [
+              v.reviewComments.provider,
+              v.reviewComments.model,
+            ]) {
+              if (!await _hasColumn('review_comments', c.name)) {
+                await m.addColumn(v.reviewComments, c);
+              }
             }
           },
           // v33: waivers of the Vigia de segredos (SPEC-085 R11).
