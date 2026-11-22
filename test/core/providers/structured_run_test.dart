@@ -9,6 +9,7 @@ import 'package:promptorium/core/claude/usage_tracker.dart';
 import 'package:promptorium/core/providers/agent_registry.dart' show ImagePart;
 import 'package:promptorium/core/claude/run_extensions.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
+import 'package:promptorium/core/codex/codex_probe.dart' show CodexModelInfo;
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/data/providers.dart';
@@ -442,6 +443,16 @@ void main() {
       () async {
         await set('codex.model.planner', 'gpt-6.1-terra');
         await set('codex.effort.planner', 'medium');
+        await set(
+          codexModelsCacheKey,
+          CodexModelsCache(
+            version: '0.170.0',
+            readAt: DateTime(2026, 11, 21),
+            models: const [
+              CodexModelInfo('gpt-6.1-terra', ['low', 'medium'], ['text']),
+            ],
+          ).encode(),
+        );
         final done = run(
           StructuredIntent(
             cwd: tmp.path,

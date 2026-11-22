@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../cost/usage_ledger.dart';
 import '../../core/providers/structured_run.dart';
-import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
 import 'spec_service.dart';
 
@@ -269,7 +267,13 @@ class SpecVerifier {
       );
     }
     final baseline = await repositoryState(ws);
-    final provider = ref.read(defaultAgentProvider(ws.id));
+    // SPEC-100 R9: the provider of "Planner e assistentes".
+    final provider = providerForKind(
+      ref.read(appSettingsProvider),
+      ProviderKind.planner,
+      workspaceId: ws.id,
+      flows: ref.read(providerFlowsProvider),
+    );
     cancellation.check();
     final data = await ref.read(verificationAgentProvider)(
       ws,

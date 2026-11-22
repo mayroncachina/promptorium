@@ -38,7 +38,7 @@ final customStackRunProvider = Provider<CustomStackRun>(
         ref,
         StructuredIntent(
           cwd: cwd,
-          providerId: 'claude',
+          // SPEC-100 R8: the kind's provider (no more fixed Claude Code).
           cancelled: cancelled,
           prompt: prompt,
           sessionId: sessionId,
