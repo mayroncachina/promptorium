@@ -11,6 +11,7 @@ import '../../ui/widgets/app_toast.dart';
 import '../context/context_panel_state.dart';
 import '../context/widgets/context_hosts.dart';
 import '../project/project_config.dart' show projectConfigProvider;
+import 'handoff/continue_widgets.dart';
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'preview_reload.dart';
@@ -24,6 +25,7 @@ import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
 import 'widgets/point_button.dart';
 import 'widgets/preview_tab.dart';
+import 'widgets/quota_switch_banner.dart';
 import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
@@ -442,6 +444,8 @@ class _SessionMain extends ConsumerWidget {
               assistantName: providerBrandName(s.provider),
             ),
           ),
+          // SPEC-099 R2: the quota ran out; the other agent has some.
+          QuotaSwitchBanner(session: s),
           // SPEC-087 R2: the context meter (one per pane, its own window).
           ContextBar(target: SessionTarget(s.id)),
           SessionComposer(
@@ -665,6 +669,8 @@ class _Header extends ConsumerWidget {
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
                 ),
+                // SPEC-099 R9: "continuada de …" / "Continuada no … →".
+                ContinueLinkLine(session: s),
               ],
             ),
           ),
@@ -719,6 +725,8 @@ class _Header extends ConsumerWidget {
                     label: 'Fork',
                     onTap: () => showForkDialog(context, s),
                   ),
+                  // SPEC-099 R1: beside Fork.
+                  ContinueButton(session: s),
                   if (previewPort != null)
                     SmallButton(
                       key: ValueKey('session-preview-${s.id}'),

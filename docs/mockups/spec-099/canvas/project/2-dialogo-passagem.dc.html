@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Diálogo Continuar no Codex</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;background:#0E1014}
+.ab{width:1366px;height:768px;position:relative;overflow:hidden;box-sizing:border-box;font-family:'IBM Plex Sans',sans-serif;color:#E7E9EE;font-size:13px;
+ background:radial-gradient(900px 500px at 85% 110%,rgba(79,209,181,.07),transparent 60%),radial-gradient(700px 420px at 0% 0%,rgba(242,165,65,.05),transparent 60%),#0E1014}
+.mono{font-family:'JetBrains Mono',monospace}
+.app{position:absolute;inset:0;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+.top{height:42px;flex:none;display:flex;align-items:center;gap:12px;padding:0 10px;border:1px solid #252B35;border-radius:10px;background:rgba(25,29,36,.55)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.ws{display:flex;gap:6px;align-items:center;border:1px solid #252B35;border-radius:7px;padding:4px 9px;font-size:12px;color:#A0A8B6;background:rgba(34,39,50,.6)}
+.ws b{color:#E7E9EE}.ws .br{color:#4FD1B5;font-family:'JetBrains Mono',monospace;font-size:11px}
+.search{margin:0 auto;width:460px;height:28px;border:1px solid #252B35;border-radius:7px;display:flex;align-items:center;padding:0 10px;gap:8px;color:#7C8595;font-size:12px;box-sizing:border-box}
+.kbd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid #3A4250;border-radius:4px;padding:1px 6px;color:#A0A8B6}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid #252B35;border-radius:7px;background:rgba(34,39,50,.6);color:#E7E9EE;font:500 12px 'IBM Plex Sans',sans-serif;box-sizing:border-box;white-space:nowrap}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.ghost{background:transparent}
+.btn.dis{color:#8A93A3;background:rgba(34,39,50,.35);border-style:dashed}
+.main{flex:1;display:flex;gap:8px;min-height:0}
+.rail{width:50px;flex:none;border:1px solid #252B35;border-radius:10px;background:rgba(25,29,36,.55);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:8px}
+.ri{width:36px;height:34px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#A0A8B6;font-size:9px;gap:2px}
+.ri.on{background:#2A2418;border:1px solid #5C4520;color:#F2A541;height:46px;font-weight:600}
+.col{border:1px solid #252B35;border-radius:10px;background:rgba(25,29,36,.55);min-height:0;display:flex;flex-direction:column;box-sizing:border-box}
+.sec{font-size:11px;letter-spacing:.08em;font-weight:600;color:#A0A8B6;text-transform:uppercase}
+.conv{padding:7px 10px;border-radius:8px;font-size:13px;line-height:1.35}
+.conv small{display:block;color:#7C8595;font-size:11px}
+.conv.on{background:#1F2430;border:1px solid #2E3542}
+.status{height:24px;flex:none;border:1px solid #252B35;border-radius:8px;display:flex;align-items:center;gap:16px;padding:0 12px;font-size:11px;color:#A0A8B6;background:rgba(25,29,36,.55)}
+.status b{color:#E7E9EE}
+.dot{width:7px;height:7px;border-radius:50%;background:#4FD1B5;display:inline-block}
+.hdr{height:48px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid #252B35}
+.hdr h2{margin:0;font-size:14px;font-weight:600;flex:1}
+.msgs{flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:10px;overflow:hidden;min-height:0}
+.who{font-size:11px;color:#A0A8B6}
+.txt{font-size:13px;line-height:1.5;color:#E7E9EE}
+.txt code{font-family:'JetBrains Mono',monospace;font-size:12px;color:#F2A541}
+.tool{display:flex;gap:14px;align-items:center;border:1px solid #252B35;border-radius:7px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px}
+.tool .k{color:#C79BF2;width:38px}.tool .ok{margin-left:auto;color:#7C8595;font-size:11px}
+.you{align-self:flex-end;max-width:70%;background:#1A1E26;border:1px solid #2E3542;border-radius:10px;padding:8px 12px}
+.composer{margin:0 14px 14px;border:1px solid #2E3542;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.ph{color:#7C8595;font-size:13px}
+.seg{display:flex;border:1px solid #252B35;border-radius:7px;padding:2px;gap:2px}
+.seg span{padding:3px 9px;border-radius:5px;font-size:12px;color:#A0A8B6;font-weight:500}
+.seg span.on{background:#2A2418;color:#F2A541}
+.kv{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;padding:4px 0;color:#A0A8B6;gap:10px}
+.kv b{color:#E7E9EE;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #252B35;border-radius:6px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;background:rgba(34,39,50,.6)}
+.tag{position:absolute;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;z-index:5;line-height:1.3}
+.tag.t{background:#4FD1B5;color:#0E1014}.tag.a{background:#F2A541;color:#1A1206}.tag.l{background:#C79BF2;color:#0E1014}
+/* medidor */
+.meter{display:flex;align-items:center;gap:10px;margin:0 14px 8px;padding:7px 12px;border:1px solid #5C4520;background:#1d1910;border-radius:8px;font-size:12px;color:#A0A8B6;white-space:nowrap}
+.mbar{position:relative;width:110px;height:8px;border-radius:4px;background:#2b313d;flex:none}
+.mfill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#F2A541}
+.mtick{position:absolute;top:-4px;width:2px;height:16px;background:#4FD1B5;border-radius:1px}
+.meter b{color:#E7E9EE;font-family:'JetBrains Mono',monospace;font-weight:500}
+.sep{color:#3A4250}
+/* painel contexto */
+.drawer{width:540px;flex:none;border:1px solid #3A4250;border-radius:10px;background:#14171D;display:flex;flex-direction:column;min-height:0;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.dhead{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.dhead h3{margin:0;font-size:15px;font-weight:600}
+.tabs{display:flex;gap:18px;padding:0 16px;border-bottom:1px solid #252B35}
+.tabs span{padding:7px 0 8px;font-size:13px;color:#A0A8B6;font-weight:500}
+.tabs span.on{color:#E7E9EE;border-bottom:2px solid #F2A541}
+.dbody{padding:12px 16px;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden}
+.card{border:1px solid #252B35;border-radius:9px;padding:10px 12px;background:rgba(14,16,20,.45)}
+.lbl{font-size:11px;color:#A0A8B6}
+.big{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#E7E9EE}
+.bar{position:relative;height:14px;border-radius:5px;background:repeating-linear-gradient(135deg,#232833 0 6px,#1d222b 6px 12px);border:1px solid #2E3542}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:#F2A541;border-radius:4px 0 0 4px}
+.bar .lim{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px dashed #4FD1B5}
+.select{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 10px;border:1px solid #626C7C;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#E7E9EE;background:rgba(0,0,0,.3)}
+.note{font-size:11px;color:#A0A8B6;line-height:1.45}
+.note.am{color:#FFD08A}
+.grp{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.06em;color:#A0A8B6;text-transform:uppercase;margin-top:3px}
+.grp i{font-style:normal;color:#7C8595;font-weight:500;letter-spacing:0}
+.src{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:7px;font-size:12px;min-height:22px}
+.src .n{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#E7E9EE;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src .w{font-size:11px;color:#7C8595;white-space:nowrap}
+.ev{font-size:10.5px;padding:1px 7px;border-radius:10px;white-space:nowrap;border:1px solid}
+.ev.now{color:#4FD1B5;border-color:#2F6B5E;background:#11201D}
+.ev.read{color:#8EA4C8;border-color:#34405a;background:#151b26}
+.ev.agent{color:#C79BF2;border-color:#4b3a5e;background:#1c1624}
+.ev.hist{color:#A0A8B6;border-color:#3A4250;border-style:dashed}
+.src.focus{outline:2px solid #FFD08A;outline-offset:-1px;background:#1A1E26}
+.ico{width:14px;height:14px;flex:none;color:#7C8595}
+.board-title{position:absolute;left:28px;top:22px}
+.board-title h1{margin:0;font-size:20px;font-weight:600}
+.board-title p{margin:4px 0 0;font-size:13px;color:#A0A8B6}
+.pnl{position:absolute;border:1px solid #252B35;border-radius:12px;background:rgba(25,29,36,.55);box-sizing:border-box}
+.pnl > .ph2{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #252B35;font-weight:600;font-size:13px}
+.num{display:inline-flex;width:18px;height:18px;border-radius:50%;background:#2A2418;color:#F2A541;font-size:11px;font-weight:700;align-items:center;justify-content:center;border:1px solid #5C4520}
+.warn{display:flex;gap:10px;align-items:flex-start;border:1px solid #5C4520;background:#241E12;border-radius:9px;padding:10px 12px}
+.state{display:flex;align-items:center;gap:10px;border:1px solid #252B35;border-radius:8px;padding:8px 12px;font-size:12px;color:#A0A8B6}
+.state b{color:#E7E9EE;font-weight:600}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid #2F6B5E;border-top-color:#4FD1B5;flex:none}
+.act{display:flex;align-items:center;gap:10px;border:1px solid #252B35;border-radius:8px;padding:9px 12px;background:rgba(34,39,50,.45)}
+.act .t{font-weight:600;font-size:13px}
+.act .d{font-size:11.5px;color:#A0A8B6;line-height:1.4}
+.radio{display:flex;align-items:center;gap:8px;font-size:12px;color:#E7E9EE}
+.radio i{width:12px;height:12px;border-radius:50%;border:2px solid #626C7C;box-sizing:border-box;flex:none}
+.radio i.on{border-color:#F2A541;background:radial-gradient(#F2A541 0 3px,transparent 3.5px)}
+
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:1px 7px;border-radius:10px;border:1px solid #3A4250;color:#A0A8B6;white-space:nowrap;line-height:16px}
+.pill.t{color:#4FD1B5;border-color:#2F6B5E;background:#11201D}
+.pill.a{color:#FFD08A;border-color:#5C4520;background:#241E12}
+.pill.r{color:#F27A6E;border-color:#6b3631;background:#241514}
+.pill.b{color:#8EA4C8;border-color:#34405a;background:#151b26}
+.pill.l{color:#C79BF2;border-color:#4b3a5e;background:#1c1624}
+.prov{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:11.5px;font-weight:600;white-space:nowrap;border:1px solid #5C4520;background:#221c12;color:#F2A541}
+.prov.cx{border-color:#2F6B5E;background:#11201D;color:#4FD1B5}
+.btn.tl{border-color:#2F6B5E;color:#4FD1B5;background:#11201D}
+.btn.red{color:#F27A6E;border-color:#5A2E2A;background:transparent}
+.btn.sm{height:24px;padding:0 9px;font-size:11.5px}
+.tabs2{display:flex;gap:20px;padding:0 18px;border-bottom:1px solid #252B35;height:38px;align-items:flex-end;flex:none}
+.tabs2 span{padding:0 0 9px;font-size:13px;color:#A0A8B6;font-weight:500}
+.tabs2 span.on{color:#E7E9EE;border-bottom:2px solid #F2A541}
+.modal{position:absolute;border:1px solid #3A4250;border-radius:12px;background:#14171D;box-shadow:0 20px 60px rgba(0,0,0,.6);box-sizing:border-box;z-index:4;display:flex;flex-direction:column}
+.modal .mh{display:flex;align-items:center;gap:8px;padding:14px 18px 10px;font-size:15px;font-weight:600;flex:none}
+.modal .mb{padding:2px 18px 12px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.modal .mf{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:11px 18px;border-top:1px solid #252B35;margin-top:auto;flex:none}
+.shade{position:absolute;inset:0;background:rgba(8,9,12,.62);z-index:3}
+.code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#0B0D10;border:1px solid #252B35;border-radius:7px;padding:8px 10px;color:#E7E9EE;line-height:1.6;white-space:pre}
+.ho{border:1px solid #252B35;border-radius:10px;background:rgba(14,16,20,.45);display:flex;flex-direction:column}
+.ho.sel{border-color:#2F6B5E}
+.ho .hh{display:flex;align-items:center;gap:8px;padding:9px 12px;flex-wrap:nowrap}
+.ho .hb{padding:2px 12px 11px;display:flex;flex-direction:column;gap:7px;border-top:1px solid #252B35}
+.k2{font-size:10.5px;font-weight:600;letter-spacing:.06em;color:#7C8595;text-transform:uppercase;margin-top:6px}
+.li{font-size:12px;color:#E7E9EE;line-height:1.45;display:flex;gap:7px}
+.li:before{content:'•';color:#7C8595}
+.muted{color:#7C8595}
+.sub{color:#A0A8B6;font-size:12px}
+.row{display:flex;align-items:center;gap:8px}
+.navi{padding:7px 10px;border-radius:7px;font-size:12.5px;color:#A0A8B6}
+.navi.on{background:#1F2430;border:1px solid #2E3542;color:#E7E9EE;font-weight:500}
+.navg{font-size:10.5px;letter-spacing:.08em;font-weight:600;color:#7C8595;text-transform:uppercase;padding:10px 10px 4px}
+.ok{color:#4FD1B5}
+.chk{width:13px;height:13px;border:1.5px solid #626C7C;border-radius:3px;display:inline-block;box-sizing:border-box;flex:none}
+.chk.on{background:#F2A541;border-color:#F2A541}
+.chk.dis{border-style:dashed;border-color:#3A4250}
+.evl{display:flex;align-items:center;gap:8px;font-size:12px;color:#A0A8B6}
+.evl .d{width:7px;height:7px;border-radius:50%;background:#7C8595;flex:none}
+.evl .tm{margin-left:auto;font-size:11px;color:#7C8595}
+.sitem{padding:8px 10px;border-radius:8px;display:flex;flex-direction:column;gap:3px}
+.sitem.on{background:#1F2430;border:1px solid #2E3542}
+.sitem .t1{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.sitem .t2{font-size:11px;color:#7C8595;display:flex;gap:6px;align-items:center}
+</style>
+</helmet>
+<div class="ab"><div class="app"><div class="top">
+<div class="brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 10h14l-5-10V3"></path></svg><span>Promptorium</span></div>
+<div class="ws"><span>Workspace</span><b>promptorium</b><span class="br">main</span></div>
+<div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4-4"></path></svg><span>Buscar ou executar comando…</span><span class="kbd">Ctrl K</span></div>
+<span class="btn pri">+ Nova sessão</span>
+</div><div class="main"><div class="rail"><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6H3z"></path><path d="M3 13h5l1 3h6l1-3h5"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M15 9l-2 5-4 1 2-5z"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path><path d="M9 10h6"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M9 12h6M9 16h6"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="15" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="12" rx="1"></rect></svg></div><div class="ri on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg><span>Sessões</span></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="8" r="2"></circle><path d="M6 7v10M18 10c0 5-12 3-12 7"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg></div><div class="ri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="11" rx="3"></rect><path d="M12 4v4M9 13h.01M15 13h.01"></path></svg></div><div class="ri" style="margin-top:auto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"></path></svg></div></div><div class="col" style="width:246px;flex:none;padding:12px 8px;gap:6px">
+<div class="row" style="padding:0 8px 4px"><span class="sec">Sessões</span><span class="mono muted" style="margin-left:auto;font-size:11px">0 ativas</span></div>
+<div class="sitem on"><span class="t1">Parser de front-matter</span><span class="t2"><span class="prov" style="height:16px;font-size:10px;padding:0 5px">Claude</span> parada · limite de uso</span></div><div class="sitem"><span class="t1">Revisão da 0.21.1</span><span class="t2"><span class="prov cx" style="height:16px;font-size:10px;padding:0 5px">Codex</span> concluída</span></div></div><div class="col" style="flex:1;min-width:0">
+<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px 10px;flex:none;border-bottom:1px solid #252B35">
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<div class="row"><span class="dot" style="background:#8EA4C8"></span><span style="font-size:15px;font-weight:600">Parser de front-matter</span></div>
+<div class="row" style="gap:6px;white-space:nowrap"><span class="prov">Claude Code</span><span class="chip">opus · alto</span><span class="chip">worktree: spec-parser</span></div></div>
+<div class="row" style="margin-left:auto;gap:6px;flex:none"><span class="btn">Abrir terminal</span><span class="btn">Fork</span><span class="btn tl">Continuar no Codex</span></div></div>
+<div class="tabs2" style="padding:0 16px"><span class="on">Timeline</span><span>Replay</span><span>Terminal</span><span>Diff · 5</span><span>Log bruto</span></div>
+<div class="msgs"><div class="who">Claude · 11:40</div></div>
+
+<div class="composer"><div class="ph">Envie uma mensagem para a sessão…  @ arquivo  / prompt salvo  (Ctrl+Enter envia)</div>
+<div class="row"><span class="btn sm">Permissão: editar</span><span class="btn sm">Anexar spec</span><span class="note" style="margin-left:auto">retoma a sessão ao enviar</span><span class="btn pri">Enviar</span></div></div>
+</div><div class="col" style="width:258px;flex:none;padding:12px 14px;gap:2px">
+<div class="sec" style="margin-bottom:6px">Aprovações pendentes · 0</div><div class="note" style="margin-bottom:12px">Nada aguardando.</div>
+<div class="sec" style="margin-bottom:4px">Detalhes</div>
+<div class="kv"><span>Provedor</span><b>Claude Code</b></div>
+<div class="kv"><span>Modelo</span><b class="mono">opus</b></div>
+<div class="kv"><span>Worktree</span><b class="mono">spec-parser</b></div>
+<div class="kv"><span>Branch</span><b class="mono">spec/parser-linhas</b></div>
+
+<div class="sec" style="margin:12px 0 4px">Arquivos alterados · 5</div>
+<div class="note mono" style="line-height:1.7;font-size:10.5px">lib/core/spec_parser.dart<br>test/core/spec_parser_test.dart<br>lib/features/specs/spec_draft.dart<br>lib/core/text/bom.dart<br>docs/specs/README.md</div>
+</div></div><div class="status"><span><span class="dot"></span> Claude Code CLI conectado ▴</span><span>Sessões <b>1</b></span><span>Subagentes <b>0</b></span><span style="margin-left:auto">Claude 5h <b style="color:#F27A6E">100%</b> · reinicia em 1h43</span><span>Codex 5h <b>22%</b></span><span class="mono">0.23.0</span></div></div><div class="shade"></div>
+<div class="modal" style="left:263px;top:66px;width:840px;height:636px">
+<div class="mh">Continuar no Codex<span class="muted" style="margin-left:auto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></span></div>
+<div class="mb">
+<div class="row" style="gap:10px">
+<div class="card" style="flex:1;padding:8px 12px"><div class="lbl">Origem</div><div class="row" style="margin-top:4px"><span class="prov">Claude Code</span><b style="font-size:12.5px">Parser de front-matter</b><span class="sub" style="white-space:nowrap">· parada (limite)</span></div></div>
+<span class="muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+<div class="card" style="flex:1;padding:8px 12px;border-color:#2F6B5E"><div class="lbl">Destino · sessão nova</div><div class="row" style="margin-top:4px"><span class="prov cx">Codex</span><b style="font-size:12.5px">Parser de front-matter (Codex)</b></div></div>
+</div>
+<div class="ho sel">
+<div class="hh"><span class="row ok" style="gap:6px;font-weight:600;font-size:12.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l9-9"></path><path d="M14 4l6 6-4 4-6-6z"></path></svg> Passagem do ai-memory</span>
+<span class="sub">automática · gravada às 11:41 ao encerrar a sessão</span><span class="sub">· dono: <b style="color:#E7E9EE">você</b></span><span class="chip" style="margin-left:auto">01JDX4…</span></div>
+<div class="hb" style="gap:5px">
+<div class="txt" style="font-size:12px">Parser trocado de regex para leitor por linhas em <span class="mono" style="font-size:11px">lib/core/spec_parser.dart</span>.</div>
+<div style="display:flex;gap:14px">
+<div style="flex:1"><div class="k2" style="margin-top:2px">O que falhou</div><div class="li">Regex: 3 testes com BOM (saída 1)</div></div>
+<div style="flex:1"><div class="k2" style="margin-top:2px">Perguntas abertas</div><div class="li">Front-matter vazio vira erro?</div></div>
+<div style="flex:1"><div class="k2" style="margin-top:2px">Próximos passos</div><div class="li">test/spec_parser_bom_test.dart</div></div></div>
+</div></div>
+<div style="display:flex;gap:14px">
+<div style="flex:1;display:flex;flex-direction:column;gap:2px">
+<div class="k2" style="margin-top:0">O que vai junto</div>
+<div class="kv" style="padding:2px 0"><span>Worktree e branch</span><b class="mono" style="font-size:11.5px">spec-parser · spec/parser-linhas</b></div>
+<div class="kv" style="padding:2px 0"><span>Não commitados</span><b>5 arquivos, ficam no worktree</b></div>
+<div class="k2">Fica para trás</div>
+<div class="row" style="font-size:12px;color:#A0A8B6;gap:6px">agente <span class="mono" style="color:#E7E9EE">revisor</span><span class="pill a">Só Claude Code</span></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:2px">
+<div class="k2" style="margin-top:0">No Codex</div>
+<div class="kv" style="padding:2px 0"><span>Modelo</span><span class="select" style="height:24px">padrão do Codex <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+<div class="kv" style="padding:2px 0"><span>Esforço</span><span class="select" style="height:24px">médio <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+<div class="kv" style="padding:2px 0"><span>Acesso</span><b>Editar · escreve com confirmação</b></div>
+</div></div>
+<div class="k2" style="margin-top:0">Como passar o trabalho</div>
+<div style="display:flex;gap:14px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div class="row" style="align-items:flex-start;gap:8px;"><span class="radio"><i class="on"></i></span><div><div style="font-size:12.5px;font-weight:600">Passagem do ai-memory · recomendado</div><div class="note">O Codex recebe a passagem ao começar; a mensagem cita o id.</div></div></div>
+<div class="row" style="align-items:flex-start;gap:8px;"><span class="radio"><i class=""></i></span><div><div style="font-size:12.5px;font-weight:500">Resumo do app</div><div class="note">Montado pelo app, sem chamar modelo; você edita.</div></div></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div class="row" style="align-items:flex-start;gap:8px;"><span class="radio"><i class=""></i></span><div><div style="font-size:12.5px;font-weight:500">Terminal com ai-memory run codex</div><div class="note">Mais opções · experimental · fora da timeline.</div></div></div>
+<div class="row" style="gap:8px;align-items:flex-start;opacity:.55"><span class="chk dis" style="margin-top:2px"></span><div><div style="font-size:12.5px">Pedir ao Claude uma passagem caprichada</div><div class="note">1 turno · indisponível: cota esgotada</div></div></div>
+</div></div>
+<div class="k2" style="margin-top:0">Mensagem inicial · vai para o composer, você envia</div>
+<div class="code" style="white-space:pre-wrap;font-size:11px;padding:7px 10px">Continue o trabalho da sessão "Parser de front-matter" (Claude Code) neste worktree. A passagem 01JDX4… do ai-memory foi entregue no início; se não estiver no seu contexto, aceite-a com memory_handoff_accept. Confira o git status e siga pelos próximos passos.</div>
+</div>
+<div class="mf"><span class="note" style="margin-right:auto">O Claude não troca no meio de um turno: a sessão de origem fica concluída e ligada à nova.</span><span class="btn">Cancelar</span><span class="btn pri">Continuar no Codex</span></div>
+</div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

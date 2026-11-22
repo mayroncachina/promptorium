@@ -436,12 +436,26 @@ class ReviewService {
         latestOfSpec[id] = s;
       }
     }
+    // SPEC-099 P7: sessions that share a worktree (a continuation in the
+    // other agent) are one item, the newest of the chain.
+    final latestOfWorktree = <String, Session>{};
+    for (final s in sessions) {
+      if (s.specId != null || s.duelId != null || s.worktreePath == ws.path) {
+        continue;
+      }
+      final cur = latestOfWorktree[s.worktreePath];
+      if (cur == null || s.startedAt.isAfter(cur.startedAt)) {
+        latestOfWorktree[s.worktreePath] = s;
+      }
+    }
     final items = <ReviewItem>[];
     for (final s in sessions) {
       // Best-of-N attempts are compared on the card, not reviewed.
       if (s.duelId != null) continue;
       final spec = s.specId == null ? null : specById[s.specId];
       if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
+      final newest = s.specId == null ? latestOfWorktree[s.worktreePath] : null;
+      if (newest != null && newest.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];
       final wt = hasWorktree(s, ws);
       // SPEC-050 R5: a PR brought into the app leaves the queue once it is
