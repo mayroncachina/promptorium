@@ -1,6 +1,6 @@
 ---
 id: SPEC-106
-status: rascunho
+status: em implementação
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -54,11 +54,11 @@ Esta spec é o "depois" da decisão 7: o app **traduz** o agente para o que o Co
 
 ## Decisões em aberto
 
-- P1 · **Tabela de modelos vazia na primeira vez.** (a) Vazia, usando o modelo do tipo de execução até a pessoa escolher; (b) sugerir pela posição no `model/list` (maior → `opus`, médio → `sonnet`, menor → `haiku`) e pedir confirmação. **Recomendação: (b) como sugestão visível, nunca aplicada sem confirmar.** Sem confirmação, vale (a).
-- P2 · **`max` e `xhigh` de esforço.** O Codex vai de `low` até `ultra`, e os modelos variam. (a) Mapear para o maior esforço do modelo; (b) mapear para `high`. **Recomendação: (a)**, com o aviso de custo de cota quando o maior for `ultra`.
-- P3 · **Ajuste por agente.** (a) Só a tabela global; (b) campo opcional `codex-model` no frontmatter. **Recomendação: (a).** Campos desconhecidos no `.md` podem gerar aviso no Claude Code, e a tabela resolve o caso comum.
-- P4 · **Subagentes no Codex.** (a) Avisar e oferecer seguir sem eles ou trocar para o Claude; (b) bloquear. **Recomendação: (a)**, conforme a R9.
-- P5 · **`Bash` sem `Edit`/`Write`.** O `Bash` pode escrever arquivos. (a) Tratar como escrita (sandbox do modo); (b) tratar como leitura. **Recomendação: (a).** Só leitura de verdade é o que o sandbox `read-only` garante.
+- P1 · **Tabela de modelos vazia na primeira vez.** **Decidido:** (b) como sugestão visível pela posição no `model/list` (o primeiro → `opus`, o do meio → `sonnet`, o último → `haiku`), nunca aplicada sem confirmar ("Usar sugestão" grava as três linhas; "Escolher um por um" esconde a sugestão). Sem confirmação, vale (a): o modelo do tipo de execução.
+- P2 · **`max` e `xhigh` de esforço.** **Decidido:** (a) mapear para o maior esforço do modelo escolhido ("o maior do modelo", padrão dessas duas linhas), com o aviso "ultra gasta mais cota" quando o maior for `ultra`.
+- P3 · **Ajuste por agente.** **Decidido:** (a) só a tabela global; nenhum campo `codex-*` no frontmatter.
+- P4 · **Subagentes no Codex.** **Decidido:** (a) avisar e oferecer "Executar sem os subagentes" ou "Executar com o Claude Code", conforme a R9.
+- P5 · **`Bash` sem `Edit`/`Write`.** **Decidido:** (a) tratar como escrita (sandbox do modo). Só leitura de verdade é o que o sandbox `read-only` garante.
 
 ## Design
 
