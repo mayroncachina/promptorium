@@ -1,6 +1,6 @@
 ---
 id: SPEC-102
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: funcionalidade
 epico: 332
@@ -63,12 +63,12 @@ Depois desta spec, o projeto tem `revisor: provedor: execucao`. A SPEC-031, exec
 - Escolha de provedor pelo Orquestrador: SPEC-109.
 - Mudar o schema dos achados ou as regras do que o revisor deve pedir.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Motor da rodada no Codex.** (a) `runStructured` com o `reviewerSchema` atual; (b) `review/start` nativo, com alvo `baseBranch`, e um segundo turno para converter a resposta no schema; (c) `review/start` puro. **Recomendação: (a).** O schema do 0.170 mostra que o `review/start` devolve o achado como texto livre (`exitedReviewMode.review` é uma string). Por isso (c) perde os critérios e a ancoragem, e (b) paga dois turnos por rodada. (a) mantém o mesmo veredito nos dois provedores. Reavaliar (b) depois da SPEC-093, se o texto nativo trouxer arquivo e linha confiáveis.
-- P2 · **Padrão do `provedor:`.** (a) `execucao`; (b) `outro`. **Recomendação: (a).** A segunda opinião gasta a cota do outro plano a cada rodada, e quem só tem um dos dois logado teria o revisor falhando por padrão. A opção fica a um clique em Configuração do projeto.
-- P3 · **Onde gravar a autoria da rodada.** (a) colunas novas `provider` e `model` (anuláveis) em `review_comments`, na linha do veredito; (b) cruzar com o `usage_entries` da rodada; (c) prefixar no texto do resumo. **Recomendação: (a).** Cruzar com o ledger (b) falha quando a rodada não grava uso, como no cancelamento, e o texto (c) não serve para filtrar nem para a SPEC-108. São duas colunas anuláveis numa migração pequena.
-- P4 · **`modelo-codex:` no config do time.** (a) no config, como o `modelo:`; (b) só na preferência local (`codex.model.reviewer`). **Recomendação: (a), opcional.** Quem quer revisor igual para o time inteiro já usa o `modelo:` no config, e sem `modelo-codex:` vale a preferência local.
+- P1 · **Motor da rodada no Codex.** (a) `runStructured` com o `reviewerSchema` atual; (b) `review/start` nativo, com alvo `baseBranch`, e um segundo turno para converter a resposta no schema; (c) `review/start` puro. **Decidido:** (a). O schema do 0.170 mostra que o `review/start` devolve o achado como texto livre (`exitedReviewMode.review` é uma string). Por isso (c) perde os critérios e a ancoragem, e (b) paga dois turnos por rodada. (a) mantém o mesmo veredito nos dois provedores. Reavaliar (b) depois da SPEC-093, se o texto nativo trouxer arquivo e linha confiáveis.
+- P2 · **Padrão do `provedor:`.** (a) `execucao`; (b) `outro`. **Decidido:** (a). A segunda opinião gasta a cota do outro plano a cada rodada, e quem só tem um dos dois logado teria o revisor falhando por padrão. A opção fica a um clique em Configuração do projeto.
+- P3 · **Onde gravar a autoria da rodada.** (a) colunas novas `provider` e `model` (anuláveis) em `review_comments`, na linha do veredito; (b) cruzar com o `usage_entries` da rodada; (c) prefixar no texto do resumo. **Decidido:** (a). Cruzar com o ledger (b) falha quando a rodada não grava uso, como no cancelamento, e o texto (c) não serve para filtrar nem para a SPEC-108. São duas colunas anuláveis numa migração pequena.
+- P4 · **`modelo-codex:` no config do time.** (a) no config, como o `modelo:`; (b) só na preferência local (`codex.model.reviewer`). **Decidido:** (a), opcional. Quem quer revisor igual para o time inteiro já usa o `modelo:` no config, e sem `modelo-codex:` vale a preferência local.
 
 ## Design
 

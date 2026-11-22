@@ -248,6 +248,49 @@ void main() {
     expect(ProjectConfig.loadSync(tmp.path).autoResolveConflicts, isTrue);
   });
 
+  testWidgets('Revisor automático: Provedor, modelo no Codex e o orçamento '
+      'só do Claude Code (SPEC-102 R1, R4, R6)', (tester) async {
+    File('${tmp.path}/${ProjectConfig.filePath}')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('revisor:\n  ligado: true\n  modelo: haiku\n');
+    await pumpView(tester);
+    final other = find.byKey(const ValueKey('config-reviewer-provider-outro'));
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('config-reviewer-codex-note')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    for (final label in [
+      'Mesmo da execução',
+      'O outro provedor (segunda opinião)',
+      'Claude Code',
+      'Codex',
+    ]) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
+    expect(find.text(reviewerBudgetHint), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('config-reviewer-codex-note')),
+      findsOneWidget,
+    );
+    await tester.tap(other);
+    await tester.enterText(
+      find.byKey(const ValueKey('config-reviewer-codex-model')),
+      'gpt-6.1-terra',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('config-save')));
+    await tester.tap(find.byKey(const ValueKey('config-save')));
+    await pumpUntil(
+      tester,
+      () => ProjectConfig.loadSync(tmp.path).reviewer.explicitProvider,
+    );
+    final r = ProjectConfig.loadSync(tmp.path).reviewer;
+    expect(r.provider, ReviewerProvider.other);
+    expect(r.codexModel, 'gpt-6.1-terra');
+    expect(r.model, 'haiku');
+  });
+
   testWidgets('status: since and count of marked commits (R1, R5)', (
     tester,
   ) async {

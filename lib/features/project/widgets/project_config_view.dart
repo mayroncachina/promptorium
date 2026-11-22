@@ -8,6 +8,7 @@ import '../../../core/git/git_service.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../agents/widgets/agent_style.dart' show ToggleBox;
 import '../../sessions/agent_names.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_file.dart' show SpecSubagent;
@@ -15,6 +16,24 @@ import '../../specs/widgets/subagents_editor.dart';
 import '../../sessions/session_manager.dart' show markedSessionsProvider;
 import '../project_config.dart';
 import 'agent_trailer_dialog.dart';
+
+/// Options of `revisor: provedor:` in Configuração do projeto (SPEC-102
+/// R1), in the order of the canvas.
+const reviewerProviderChoices = [
+  (ReviewerProvider.execution, 'Mesmo da execução'),
+  (ReviewerProvider.other, 'O outro provedor (segunda opinião)'),
+  (ReviewerProvider.claude, 'Claude Code'),
+  (ReviewerProvider.codex, 'Codex'),
+];
+
+/// Hint of the budget field (SPEC-102 R6).
+const reviewerBudgetHint = 'US\$ por rodada (só Claude Code)';
+
+/// What changes on the Codex (SPEC-102 R6, R7).
+const reviewerCodexNote =
+    'No Codex, o limite de cada rodada é o tempo (10 min). O agente '
+    '.claude/agents/spec-reviewer.md só vale no Claude Code; no Codex roda o '
+    'revisor embutido.';
 
 /// Entries of a fresh repository that are not code (SPEC-071 R24): git /
 /// app / editor folders, `CLAUDE.md`, `README*`, `LICENSE*`, `.gitignore`.
@@ -213,6 +232,10 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _reviewerRounds = TextEditingController(
     text: '${_saved.reviewer.rounds}',
   );
+  late String _reviewerProvider = _saved.reviewer.provider;
+  late final _reviewerCodexModel = TextEditingController(
+    text: _saved.reviewer.codexModel ?? '',
+  );
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
   late bool _markAgents = _saved.git.markAgentCommits;
@@ -245,6 +268,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _reviewerModel,
       _reviewerBudget,
       _reviewerRounds,
+      _reviewerCodexModel,
     ]) {
       c.dispose();
     }
@@ -306,6 +330,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       rounds:
           int.tryParse(_reviewerRounds.text.trim()) ??
           const ReviewerConfig().rounds,
+      provider: _reviewerProvider,
+      codexModel: _text(_reviewerCodexModel),
     ),
     git: GitConfig(markAgentCommits: _markAgents),
     autoFixCi: _autoFixCi,
@@ -396,6 +422,22 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
           ),
         ],
+      ],
+    ),
+  );
+
+  /// A field with its caption above (SPEC-102: the reviewer's fields).
+  Widget _captioned(String caption, double width, Widget field) => SizedBox(
+    width: width,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          caption,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 2),
+        field,
       ],
     ),
   );
@@ -892,42 +934,94 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
         ),
         onChanged: (v) => setState(() => _reviewerOn = v ?? false),
       ),
-      if (_reviewerOn)
+      if (_reviewerOn) ...[
+        // SPEC-102 R1: who reviews.
+        const Padding(
+          padding: EdgeInsets.only(top: 4, bottom: 4),
+          child: Text(
+            'Provedor',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (final (id, label) in reviewerProviderChoices)
+              IntrinsicWidth(
+                child: ToggleBox(
+                  key: ValueKey('config-reviewer-provider-$id'),
+                  on: _reviewerProvider == id,
+                  height: 28,
+                  onTap: () => setState(() => _reviewerProvider = id),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _reviewerProvider == id
+                          ? AppColors.amber
+                          : AppColors.text,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 6,
           children: [
-            SizedBox(
-              width: 140,
-              child: _field(
+            _captioned(
+              'Modelo no Claude Code',
+              150,
+              _field(
                 const ValueKey('config-reviewer-model'),
                 _reviewerModel,
-                'modelo',
+                'haiku',
               ),
             ),
-            SizedBox(
-              width: 140,
-              child: _field(
+            // SPEC-102 R4: optional; empty = the local preference.
+            _captioned(
+              'Modelo no Codex (opcional)',
+              170,
+              _field(
+                const ValueKey('config-reviewer-codex-model'),
+                _reviewerCodexModel,
+                'preferência local',
+              ),
+            ),
+            // SPEC-102 R6: the budget limits the Claude Code only.
+            _captioned(
+              reviewerBudgetHint,
+              190,
+              _field(
                 const ValueKey('config-reviewer-budget'),
                 _reviewerBudget,
-                'US\$ por rodada',
+                '0.30',
               ),
             ),
-            SizedBox(
-              width: 140,
-              child: _field(
+            _captioned(
+              'Rodadas',
+              100,
+              _field(
                 const ValueKey('config-reviewer-rounds'),
                 _reviewerRounds,
-                'rodadas',
+                '2',
               ),
             ),
           ],
         ),
+        const SizedBox(height: 6),
+        const Text(
+          reviewerCodexNote,
+          key: ValueKey('config-reviewer-codex-note'),
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
+      ],
       // SPEC-073 R13: `review: corrigir-ci: automatico`.
-      _label(
-        'CI do PR',
-        'o que fazer quando um check do GitHub Actions falha',
-      ),
+      _label('CI do PR', 'o que fazer quando um check do GitHub Actions falha'),
       CheckboxListTile(
         key: const ValueKey('config-ci-auto'),
         dense: true,

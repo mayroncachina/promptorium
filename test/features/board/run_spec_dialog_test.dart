@@ -533,6 +533,64 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('SPEC-102 R3: provedor: explícito no config vence a regra do '
+        'plano e a linha Revisão diz quem revisa', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('promptorium-run-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File('${tmp.path}/${ProjectConfig.filePath}')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          'revisor:\n  ligado: true\n  provedor: outro\n'
+          '  modelo-codex: gpt-6.1-terra\n',
+        );
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+        workspace: Workspace(
+          id: 1,
+          path: tmp.path,
+          name: 'w',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await answer(tester, {'R1': 'mecanica'});
+      // The plan's selector leaves; the line of the config takes its place.
+      expect(key('step-plan-review'), findsNothing);
+      expect(key('run-spec-reviewer-line'), findsOneWidget);
+      expect(
+        tester.widget<Text>(key('run-spec-reviewer-why')).data,
+        'segunda opinião · do config do projeto · provedor: outro',
+      );
+      expect(
+        tester.widget<Text>(key('run-spec-reviewer-model')).data,
+        'gpt-6.1-terra',
+      );
+      expect(find.text('Codex'), findsWidgets);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SPEC-102 R3: em Manual, a linha Revisão segue o provedor da '
+        'execução', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('promptorium-run-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File('${tmp.path}/${ProjectConfig.filePath}')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('revisor:\n  ligado: true\n  modelo: haiku\n');
+      await open(
+        tester,
+        workspace: Workspace(
+          id: 1,
+          path: tmp.path,
+          name: 'w',
+          createdAt: DateTime(2026),
+        ),
+      );
+      expect(key('run-spec-reviewer-line'), findsOneWidget);
+      expect(key('run-spec-reviewer-why'), findsNothing);
+      expect(tester.widget<Text>(key('run-spec-reviewer-model')).data, 'haiku');
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('R4: the selector offers Haiku · low, Sonnet · medium and '
         'Opus · high, plus a rule changed in Configurações', (tester) async {
       await open(

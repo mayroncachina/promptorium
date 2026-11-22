@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/features/settings/settings_sections.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/core/providers/structured_run.dart';
@@ -54,10 +55,14 @@ void main() {
         'enquanto o fluxo não roda no Codex', () {
       final s = {
         providerPreferenceKey(null): 'codex',
+        ProviderKind.runSpec.settingKey: 'codex',
         ProviderKind.reviewer.settingKey: 'codex',
       };
+      expect(providerKindChoice(s, ProviderKind.runSpec), isNull);
+      expect(providerForKind(s, ProviderKind.runSpec), 'claude');
+      // SPEC-102: the reviewer runs on the Codex, but its choice is the
+      // project's (`revisor: provedor:`), never saved here.
       expect(providerKindChoice(s, ProviderKind.reviewer), isNull);
-      expect(providerForKind(s, ProviderKind.reviewer), 'claude');
       expect(providerForKind(s, ProviderKind.sessions), 'codex');
     });
 
@@ -140,7 +145,9 @@ void main() {
       final c = await pump(tester, codex: ProviderStatus.ready);
       expect(find.text('Planner e assistentes'), findsOneWidget);
       expect(find.text('segue o rodapé:'), findsOneWidget);
-      expect(find.text('Só Claude Code'), findsNWidgets(4));
+      // Executar spec + the two kept on the Claude Code (SPEC-102: the
+      // reviewer row shows the project's choice).
+      expect(find.text('Só Claude Code'), findsNWidgets(3));
       expect(find.byKey(const ValueKey('provider-kind-order')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('kind-planner-codex')));
       await tester.pumpAndSettle();
@@ -158,6 +165,35 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         c.read(appSettingsProvider)[ProviderKind.planner.settingKey],
+        isNull,
+      );
+    });
+
+    testWidgets('Revisor automático mostra o valor do projeto e leva à '
+        'Configuração do projeto, sem guardar escolha (SPEC-102 R4)', (
+      tester,
+    ) async {
+      final c = await pump(tester, codex: ProviderStatus.ready);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('kind-reviewer-value')))
+            .data,
+        'do projeto: Mesmo da execução',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('kind-reviewer-models')))
+            .data,
+        'Claude Code haiku · Codex modelo do tipo',
+      );
+      expect(find.byKey(const ValueKey('kind-reviewer-codex')), findsNothing);
+      await tester.tap(
+        find.byKey(const ValueKey('kind-reviewer-open-project')),
+      );
+      await tester.pumpAndSettle();
+      expect(c.read(selectedSettingsSectionProvider), SettingsSection.project);
+      expect(
+        c.read(appSettingsProvider)[ProviderKind.reviewer.settingKey],
         isNull,
       );
     });

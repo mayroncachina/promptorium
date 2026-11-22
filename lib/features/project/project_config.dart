@@ -44,6 +44,8 @@ import '../specs/spec_file.dart';
 ///   modelo: haiku
 ///   orcamento: 0.30
 ///   rodadas: 2
+///   provedor: execucao       # outro | claude | codex (SPEC-102 R1)
+///   modelo-codex: gpt-6.1-terra  # optional (SPEC-102 R4)
 /// autopilot:
 ///   paralelo: 3
 ///   orcamento-dia: 10
@@ -195,14 +197,32 @@ class ReviewerConfig {
     this.model = 'haiku',
     this.budgetUsd = 0.30,
     this.rounds = 2,
+    this.provider = ReviewerProvider.execution,
+    this.codexModel,
   });
 
   final bool enabled;
+
+  /// Claude Code model (`modelo:`): never sent to another provider.
   final String model;
+
+  /// US\$ per round (`orcamento:`): Claude Code only (SPEC-102 R6).
   final double budgetUsd;
 
   /// Correction rounds before handing the spec to the user.
   final int rounds;
+
+  /// Who reviews (`provedor:`, SPEC-102 R1): `execucao` (default), `outro`,
+  /// `claude` or `codex`.
+  final String provider;
+
+  /// Codex model (`modelo-codex:`, SPEC-102 R4, P4): null = the local
+  /// preference.
+  final String? codexModel;
+
+  /// Whether `provedor:` was written explicitly (it beats the plan's rule
+  /// in Automático, SPEC-102 R3).
+  bool get explicitProvider => provider != ReviewerProvider.execution;
 
   bool get isDefault => this == const ReviewerConfig();
 
@@ -212,10 +232,31 @@ class ReviewerConfig {
       other.enabled == enabled &&
       other.model == model &&
       other.budgetUsd == budgetUsd &&
-      other.rounds == rounds;
+      other.rounds == rounds &&
+      other.provider == provider &&
+      other.codexModel == codexModel;
 
   @override
-  int get hashCode => Object.hash(enabled, model, budgetUsd, rounds);
+  int get hashCode =>
+      Object.hash(enabled, model, budgetUsd, rounds, provider, codexModel);
+}
+
+/// Values of `revisor: provedor:` (SPEC-102 R1).
+abstract final class ReviewerProvider {
+  /// The provider that executed the spec (default, P2).
+  static const execution = 'execucao';
+
+  /// The provider that did not execute it: a second opinion.
+  static const other = 'outro';
+  static const claude = 'claude';
+  static const codex = 'codex';
+
+  static const values = [execution, other, claude, codex];
+
+  /// The value of the config, or [execution] for an unknown one.
+  static String parse(String? v) => values.contains(v?.trim().toLowerCase())
+      ? v!.trim().toLowerCase()
+      : execution;
 }
 
 /// `autopilot:` of the config: limits of the Quadro's Autopilot.
@@ -700,6 +741,8 @@ class ProjectConfig {
         model: str(r['modelo']) ?? dr.model,
         budgetUsd: number(r['orcamento']) ?? dr.budgetUsd,
         rounds: integer(r['rodadas']) ?? dr.rounds,
+        provider: ReviewerProvider.parse(str(r['provedor'])),
+        codexModel: str(r['modelo-codex']),
       ),
       autopilot: AutopilotConfig(
         parallel: integer(a['paralelo'], min: 1),
@@ -805,6 +848,12 @@ class ProjectConfig {
         ..writeln('  modelo: ${reviewer.model}')
         ..writeln('  orcamento: ${reviewer.budgetUsd}')
         ..writeln('  rodadas: ${reviewer.rounds}');
+      if (reviewer.explicitProvider) {
+        b.writeln('  provedor: ${reviewer.provider}');
+      }
+      if (reviewer.codexModel case final m?) {
+        b.writeln('  modelo-codex: ${jsonEncode(m)}');
+      }
     }
     if (!autopilot.isDefault) {
       b.writeln('autopilot:');
