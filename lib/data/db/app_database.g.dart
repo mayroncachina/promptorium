@@ -4949,6 +4949,20 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _parentSessionIdMeta = const VerificationMeta(
+    'parentSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> parentSessionId = GeneratedColumn<String>(
+    'parent_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     provider,
@@ -4977,6 +4991,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5159,6 +5174,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         duelId.isAcceptableOrUnknown(data['duel_id']!, _duelIdMeta),
       );
     }
+    if (data.containsKey('parent_session_id')) {
+      context.handle(
+        _parentSessionIdMeta,
+        parentSessionId.isAcceptableOrUnknown(
+          data['parent_session_id']!,
+          _parentSessionIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5274,6 +5298,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.int,
         data['${effectivePrefix}duel_id'],
       ),
+      parentSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_session_id'],
+      ),
     );
   }
 
@@ -5338,6 +5366,10 @@ class Session extends DataClass implements Insertable<Session> {
   /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
   /// result does not move the spec's steps, the user picks a winner.
   final int? duelId;
+
+  /// Session this one was forked from (schema v35, SPEC-096 R16); null for
+  /// sessions that did not come from a fork. Claude and Codex.
+  final String? parentSessionId;
   const Session({
     required this.provider,
     this.externalId,
@@ -5365,6 +5397,7 @@ class Session extends DataClass implements Insertable<Session> {
     this.prUrl,
     this.pid,
     this.duelId,
+    this.parentSessionId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5429,6 +5462,9 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || duelId != null) {
       map['duel_id'] = Variable<int>(duelId);
     }
+    if (!nullToAbsent || parentSessionId != null) {
+      map['parent_session_id'] = Variable<String>(parentSessionId);
+    }
     return map;
   }
 
@@ -5488,6 +5524,9 @@ class Session extends DataClass implements Insertable<Session> {
       duelId: duelId == null && nullToAbsent
           ? const Value.absent()
           : Value(duelId),
+      parentSessionId: parentSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentSessionId),
     );
   }
 
@@ -5525,6 +5564,7 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: serializer.fromJson<String?>(json['prUrl']),
       pid: serializer.fromJson<int?>(json['pid']),
       duelId: serializer.fromJson<int?>(json['duelId']),
+      parentSessionId: serializer.fromJson<String?>(json['parentSessionId']),
     );
   }
   @override
@@ -5559,6 +5599,7 @@ class Session extends DataClass implements Insertable<Session> {
       'prUrl': serializer.toJson<String?>(prUrl),
       'pid': serializer.toJson<int?>(pid),
       'duelId': serializer.toJson<int?>(duelId),
+      'parentSessionId': serializer.toJson<String?>(parentSessionId),
     };
   }
 
@@ -5589,6 +5630,7 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> prUrl = const Value.absent(),
     Value<int?> pid = const Value.absent(),
     Value<int?> duelId = const Value.absent(),
+    Value<String?> parentSessionId = const Value.absent(),
   }) => Session(
     provider: provider ?? this.provider,
     externalId: externalId.present ? externalId.value : this.externalId,
@@ -5618,6 +5660,9 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
     pid: pid.present ? pid.value : this.pid,
     duelId: duelId.present ? duelId.value : this.duelId,
+    parentSessionId: parentSessionId.present
+        ? parentSessionId.value
+        : this.parentSessionId,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -5659,6 +5704,9 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
       pid: data.pid.present ? data.pid.value : this.pid,
       duelId: data.duelId.present ? data.duelId.value : this.duelId,
+      parentSessionId: data.parentSessionId.present
+          ? data.parentSessionId.value
+          : this.parentSessionId,
     );
   }
 
@@ -5690,7 +5738,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
-          ..write('duelId: $duelId')
+          ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId')
           ..write(')'))
         .toString();
   }
@@ -5723,6 +5772,7 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5753,7 +5803,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.mergeCommit == this.mergeCommit &&
           other.prUrl == this.prUrl &&
           other.pid == this.pid &&
-          other.duelId == this.duelId);
+          other.duelId == this.duelId &&
+          other.parentSessionId == this.parentSessionId);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -5783,6 +5834,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> prUrl;
   final Value<int?> pid;
   final Value<int?> duelId;
+  final Value<String?> parentSessionId;
   final Value<int> rowid;
   const SessionsCompanion({
     this.provider = const Value.absent(),
@@ -5811,6 +5863,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -5840,6 +5893,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -5873,6 +5927,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? prUrl,
     Expression<int>? pid,
     Expression<int>? duelId,
+    Expression<String>? parentSessionId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5902,6 +5957,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (prUrl != null) 'pr_url': prUrl,
       if (pid != null) 'pid': pid,
       if (duelId != null) 'duel_id': duelId,
+      if (parentSessionId != null) 'parent_session_id': parentSessionId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5933,6 +5989,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? prUrl,
     Value<int?>? pid,
     Value<int?>? duelId,
+    Value<String?>? parentSessionId,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -5962,6 +6019,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       prUrl: prUrl ?? this.prUrl,
       pid: pid ?? this.pid,
       duelId: duelId ?? this.duelId,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6049,6 +6107,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (duelId.present) {
       map['duel_id'] = Variable<int>(duelId.value);
     }
+    if (parentSessionId.present) {
+      map['parent_session_id'] = Variable<String>(parentSessionId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6084,6 +6145,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
           ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11192,6 +11254,26 @@ class $ReviewCommentsTable extends ReviewComments
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -11210,6 +11292,8 @@ class $ReviewCommentsTable extends ReviewComments
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11325,6 +11409,18 @@ class $ReviewCommentsTable extends ReviewComments
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
     return context;
   }
 
@@ -11398,6 +11494,14 @@ class $ReviewCommentsTable extends ReviewComments
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
     );
   }
 
@@ -11443,6 +11547,12 @@ class ReviewCommentRow extends DataClass
   final DateTime? resolvedAt;
   final String? externalId;
   final DateTime createdAt;
+
+  /// Who ran the automatic reviewer's round (SPEC-102 R9, P3, schema v36),
+  /// on its verdict line: `claude`, `codex`… and the model it reported.
+  /// Null on the rows of before and on the other lines.
+  final String? provider;
+  final String? model;
   const ReviewCommentRow({
     required this.id,
     this.specId,
@@ -11460,6 +11570,8 @@ class ReviewCommentRow extends DataClass
     this.resolvedAt,
     this.externalId,
     required this.createdAt,
+    this.provider,
+    this.model,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11500,6 +11612,12 @@ class ReviewCommentRow extends DataClass
       map['external_id'] = Variable<String>(externalId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || provider != null) {
+      map['provider'] = Variable<String>(provider);
+    }
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
     return map;
   }
 
@@ -11537,6 +11655,12 @@ class ReviewCommentRow extends DataClass
           ? const Value.absent()
           : Value(externalId),
       createdAt: Value(createdAt),
+      provider: provider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provider),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
     );
   }
 
@@ -11562,6 +11686,8 @@ class ReviewCommentRow extends DataClass
       resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
       externalId: serializer.fromJson<String?>(json['externalId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      provider: serializer.fromJson<String?>(json['provider']),
+      model: serializer.fromJson<String?>(json['model']),
     );
   }
   @override
@@ -11584,6 +11710,8 @@ class ReviewCommentRow extends DataClass
       'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
       'externalId': serializer.toJson<String?>(externalId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'provider': serializer.toJson<String?>(provider),
+      'model': serializer.toJson<String?>(model),
     };
   }
 
@@ -11604,6 +11732,8 @@ class ReviewCommentRow extends DataClass
     Value<DateTime?> resolvedAt = const Value.absent(),
     Value<String?> externalId = const Value.absent(),
     DateTime? createdAt,
+    Value<String?> provider = const Value.absent(),
+    Value<String?> model = const Value.absent(),
   }) => ReviewCommentRow(
     id: id ?? this.id,
     specId: specId.present ? specId.value : this.specId,
@@ -11621,6 +11751,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
     externalId: externalId.present ? externalId.value : this.externalId,
     createdAt: createdAt ?? this.createdAt,
+    provider: provider.present ? provider.value : this.provider,
+    model: model.present ? model.value : this.model,
   );
   ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
     return ReviewCommentRow(
@@ -11646,6 +11778,8 @@ class ReviewCommentRow extends DataClass
           ? data.externalId.value
           : this.externalId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      model: data.model.present ? data.model.value : this.model,
     );
   }
 
@@ -11667,7 +11801,9 @@ class ReviewCommentRow extends DataClass
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -11690,6 +11826,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   );
   @override
   bool operator ==(Object other) =>
@@ -11710,7 +11848,9 @@ class ReviewCommentRow extends DataClass
           other.resolved == this.resolved &&
           other.resolvedAt == this.resolvedAt &&
           other.externalId == this.externalId &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.provider == this.provider &&
+          other.model == this.model);
 }
 
 class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
@@ -11730,6 +11870,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<DateTime?> resolvedAt;
   final Value<String?> externalId;
   final Value<DateTime> createdAt;
+  final Value<String?> provider;
+  final Value<String?> model;
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
@@ -11747,6 +11889,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   });
   ReviewCommentsCompanion.insert({
     this.id = const Value.absent(),
@@ -11765,6 +11909,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   }) : round = Value(round),
        author = Value(author),
        body = Value(body);
@@ -11785,6 +11931,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Expression<DateTime>? resolvedAt,
     Expression<String>? externalId,
     Expression<DateTime>? createdAt,
+    Expression<String>? provider,
+    Expression<String>? model,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -11803,6 +11951,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       if (resolvedAt != null) 'resolved_at': resolvedAt,
       if (externalId != null) 'external_id': externalId,
       if (createdAt != null) 'created_at': createdAt,
+      if (provider != null) 'provider': provider,
+      if (model != null) 'model': model,
     });
   }
 
@@ -11823,6 +11973,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Value<DateTime?>? resolvedAt,
     Value<String?>? externalId,
     Value<DateTime>? createdAt,
+    Value<String?>? provider,
+    Value<String?>? model,
   }) {
     return ReviewCommentsCompanion(
       id: id ?? this.id,
@@ -11841,6 +11993,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       resolvedAt: resolvedAt ?? this.resolvedAt,
       externalId: externalId ?? this.externalId,
       createdAt: createdAt ?? this.createdAt,
+      provider: provider ?? this.provider,
+      model: model ?? this.model,
     );
   }
 
@@ -11895,6 +12049,12 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
     return map;
   }
 
@@ -11916,7 +12076,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -16930,6 +17092,30 @@ class $UsageEntriesTable extends UsageEntries
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('claude'),
+  );
+  static const VerificationMeta _tokensReasoningMeta = const VerificationMeta(
+    'tokensReasoning',
+  );
+  @override
+  late final GeneratedColumn<int> tokensReasoning = GeneratedColumn<int>(
+    'tokens_reasoning',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -16949,6 +17135,8 @@ class $UsageEntriesTable extends UsageEntries
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -17069,6 +17257,21 @@ class $UsageEntriesTable extends UsageEntries
         estimated.isAcceptableOrUnknown(data['estimated']!, _estimatedMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('tokens_reasoning')) {
+      context.handle(
+        _tokensReasoningMeta,
+        tokensReasoning.isAcceptableOrUnknown(
+          data['tokens_reasoning']!,
+          _tokensReasoningMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -17148,6 +17351,14 @@ class $UsageEntriesTable extends UsageEntries
         DriftSqlType.bool,
         data['${effectivePrefix}estimated'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      tokensReasoning: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_reasoning'],
+      )!,
     );
   }
 
@@ -17189,6 +17400,14 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
 
   /// Rebuilt from the events of before (R5): weighed by today's ruler.
   final bool estimated;
+
+  /// Who ran the turn (SPEC-097 R8, schema v34): a provider without cost in
+  /// US\$ (the Codex) has "custo indisponível", never a measured 0.
+  final String provider;
+
+  /// Reasoning output tokens (Codex `reasoningOutputTokens`): part of
+  /// [tokensOut], shown apart (SPEC-097 R8).
+  final int tokensReasoning;
   const UsageEntry({
     required this.id,
     this.workspaceId,
@@ -17207,6 +17426,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     this.fiveHourPct,
     this.weekPct,
     required this.estimated,
+    required this.provider,
+    required this.tokensReasoning,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -17248,6 +17469,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       map['week_pct'] = Variable<double>(weekPct);
     }
     map['estimated'] = Variable<bool>(estimated);
+    map['provider'] = Variable<String>(provider);
+    map['tokens_reasoning'] = Variable<int>(tokensReasoning);
     return map;
   }
 
@@ -17284,6 +17507,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ? const Value.absent()
           : Value(weekPct),
       estimated: Value(estimated),
+      provider: Value(provider),
+      tokensReasoning: Value(tokensReasoning),
     );
   }
 
@@ -17312,6 +17537,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       fiveHourPct: serializer.fromJson<double?>(json['fiveHourPct']),
       weekPct: serializer.fromJson<double?>(json['weekPct']),
       estimated: serializer.fromJson<bool>(json['estimated']),
+      provider: serializer.fromJson<String>(json['provider']),
+      tokensReasoning: serializer.fromJson<int>(json['tokensReasoning']),
     );
   }
   @override
@@ -17337,6 +17564,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       'fiveHourPct': serializer.toJson<double?>(fiveHourPct),
       'weekPct': serializer.toJson<double?>(weekPct),
       'estimated': serializer.toJson<bool>(estimated),
+      'provider': serializer.toJson<String>(provider),
+      'tokensReasoning': serializer.toJson<int>(tokensReasoning),
     };
   }
 
@@ -17358,6 +17587,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     Value<double?> fiveHourPct = const Value.absent(),
     Value<double?> weekPct = const Value.absent(),
     bool? estimated,
+    String? provider,
+    int? tokensReasoning,
   }) => UsageEntry(
     id: id ?? this.id,
     workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
@@ -17378,6 +17609,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct: fiveHourPct.present ? fiveHourPct.value : this.fiveHourPct,
     weekPct: weekPct.present ? weekPct.value : this.weekPct,
     estimated: estimated ?? this.estimated,
+    provider: provider ?? this.provider,
+    tokensReasoning: tokensReasoning ?? this.tokensReasoning,
   );
   UsageEntry copyWithCompanion(UsageEntriesCompanion data) {
     return UsageEntry(
@@ -17408,6 +17641,10 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           : this.fiveHourPct,
       weekPct: data.weekPct.present ? data.weekPct.value : this.weekPct,
       estimated: data.estimated.present ? data.estimated.value : this.estimated,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      tokensReasoning: data.tokensReasoning.present
+          ? data.tokensReasoning.value
+          : this.tokensReasoning,
     );
   }
 
@@ -17430,7 +17667,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -17454,6 +17693,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   );
   @override
   bool operator ==(Object other) =>
@@ -17475,7 +17716,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           other.costUsd == this.costUsd &&
           other.fiveHourPct == this.fiveHourPct &&
           other.weekPct == this.weekPct &&
-          other.estimated == this.estimated);
+          other.estimated == this.estimated &&
+          other.provider == this.provider &&
+          other.tokensReasoning == this.tokensReasoning);
 }
 
 class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
@@ -17496,6 +17739,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
   final Value<double?> fiveHourPct;
   final Value<double?> weekPct;
   final Value<bool> estimated;
+  final Value<String> provider;
+  final Value<int> tokensReasoning;
   const UsageEntriesCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -17514,6 +17759,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   });
   UsageEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -17533,6 +17780,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   }) : source = Value(source),
        at = Value(at);
   static Insertable<UsageEntry> custom({
@@ -17553,6 +17802,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Expression<double>? fiveHourPct,
     Expression<double>? weekPct,
     Expression<bool>? estimated,
+    Expression<String>? provider,
+    Expression<int>? tokensReasoning,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -17572,6 +17823,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       if (fiveHourPct != null) 'five_hour_pct': fiveHourPct,
       if (weekPct != null) 'week_pct': weekPct,
       if (estimated != null) 'estimated': estimated,
+      if (provider != null) 'provider': provider,
+      if (tokensReasoning != null) 'tokens_reasoning': tokensReasoning,
     });
   }
 
@@ -17593,6 +17846,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Value<double?>? fiveHourPct,
     Value<double?>? weekPct,
     Value<bool>? estimated,
+    Value<String>? provider,
+    Value<int>? tokensReasoning,
   }) {
     return UsageEntriesCompanion(
       id: id ?? this.id,
@@ -17612,6 +17867,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       fiveHourPct: fiveHourPct ?? this.fiveHourPct,
       weekPct: weekPct ?? this.weekPct,
       estimated: estimated ?? this.estimated,
+      provider: provider ?? this.provider,
+      tokensReasoning: tokensReasoning ?? this.tokensReasoning,
     );
   }
 
@@ -17671,6 +17928,12 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     if (estimated.present) {
       map['estimated'] = Variable<bool>(estimated.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (tokensReasoning.present) {
+      map['tokens_reasoning'] = Variable<int>(tokensReasoning.value);
+    }
     return map;
   }
 
@@ -17693,7 +17956,9 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -19995,6 +20260,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('sessions', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('sessions', kind: UpdateKind.update)],
@@ -25227,6 +25499,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -25256,6 +25529,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 
@@ -25308,6 +25582,23 @@ final class $$SessionsTableReferences
       $_db.specs,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _parentSessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('sessions__parent_session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get parentSessionId {
+    final $_column = $_itemColumn<String>('parent_session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_parentSessionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -25626,6 +25917,29 @@ class $$SessionsTableFilterComposer
           }) => $$SpecsTableFilterComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get parentSessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26003,6 +26317,29 @@ class $$SessionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SessionsTableOrderingComposer get parentSessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$SessionsTableAnnotationComposer
@@ -26153,6 +26490,29 @@ class $$SessionsTableAnnotationComposer
           }) => $$SpecsTableAnnotationComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get parentSessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26355,6 +26715,7 @@ class $$SessionsTableTableManager
             bool workspaceId,
             bool taskId,
             bool specId,
+            bool parentSessionId,
             bool sessionEventsRefs,
             bool conversationsRefs,
             bool pendingNoticesRefs,
@@ -26403,6 +26764,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 provider: provider,
@@ -26431,6 +26793,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -26461,6 +26824,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 provider: provider,
@@ -26489,6 +26853,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -26504,6 +26869,7 @@ class $$SessionsTableTableManager
                 workspaceId = false,
                 taskId = false,
                 specId = false,
+                parentSessionId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
@@ -26569,6 +26935,17 @@ class $$SessionsTableTableManager
                                 ._specIdTable(db),
                             referencedColumn: $$SessionsTableReferences
                                 ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (parentSessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.parentSessionId,
+                            referencedTable: $$SessionsTableReferences
+                                ._parentSessionIdTable(db),
+                            referencedColumn: $$SessionsTableReferences
+                                ._parentSessionIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -26748,6 +27125,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool workspaceId,
         bool taskId,
         bool specId,
+        bool parentSessionId,
         bool sessionEventsRefs,
         bool conversationsRefs,
         bool pendingNoticesRefs,
@@ -30717,6 +31095,8 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
     ReviewCommentsCompanion Function({
@@ -30736,6 +31116,8 @@ typedef $$ReviewCommentsTableUpdateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 
 final class $$ReviewCommentsTableReferences
@@ -30858,6 +31240,16 @@ class $$ReviewCommentsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -30987,6 +31379,16 @@ class $$ReviewCommentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -31091,6 +31493,12 @@ class $$ReviewCommentsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -31184,6 +31592,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion(
                 id: id,
                 specId: specId,
@@ -31201,6 +31611,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           createCompanionCallback:
               ({
@@ -31220,6 +31632,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion.insert(
                 id: id,
                 specId: specId,
@@ -31237,6 +31651,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -34648,6 +35064,8 @@ typedef $$UsageEntriesTableCreateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 typedef $$UsageEntriesTableUpdateCompanionBuilder =
     UsageEntriesCompanion Function({
@@ -34668,6 +35086,8 @@ typedef $$UsageEntriesTableUpdateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 
 final class $$UsageEntriesTableReferences
@@ -34816,6 +35236,16 @@ class $$UsageEntriesTableFilterComposer
 
   ColumnFilters<bool> get estimated => $composableBuilder(
     column: $table.estimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34986,6 +35416,16 @@ class $$UsageEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -35133,6 +35573,14 @@ class $$UsageEntriesTableAnnotationComposer
   GeneratedColumn<bool> get estimated =>
       $composableBuilder(column: $table.estimated, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => column,
+  );
+
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -35276,6 +35724,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -35294,6 +35744,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           createCompanionCallback:
               ({
@@ -35314,6 +35766,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -35332,6 +35786,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           withReferenceMapper: (p0) => p0
               .map(

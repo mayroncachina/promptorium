@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/dev/dev_server.dart' show DevServerStatus;
 import '../../data/providers.dart';
+import '../sessions/widgets/session_style.dart' show interruptedByUser;
 import '../board/board_rules.dart';
 import '../home/home_inbox.dart' show approvalVerb, stepRef;
 import '../project/project_planner.dart' show PlannerActivity;
@@ -132,6 +133,7 @@ class Activity {
     this.specCode,
     this.seed,
     this.model,
+    this.provider,
     this.mode,
     this.branch,
     this.agentName,
@@ -187,6 +189,9 @@ class Activity {
   /// The robot's identity (R5); null = an icon (release, dev server).
   final String? seed;
   final String? model;
+
+  /// `claude` / `codex` (SPEC-096 R3): the panel shows "Codex · gpt-…".
+  final String? provider;
   final String? mode;
   final String? branch;
 
@@ -310,6 +315,15 @@ String specSeed(int workspaceId, String code) => 'spec:$workspaceId:$code';
 /// already answered, is thinking.
 ActivityPose poseOfTool(LiveTool? tool) {
   if (tool == null || tool.done) return ActivityPose.think;
+  // SPEC-095 R9: files and commands by what they do, whatever the provider.
+  switch (tool.kind) {
+    case LiveToolKind.file:
+      return ActivityPose.edit;
+    case LiveToolKind.command:
+      return ActivityPose.run;
+    case LiveToolKind.tool:
+      break;
+  }
   return switch (tool.name) {
     'Read' ||
     'Grep' ||
@@ -466,6 +480,7 @@ List<Activity> _ofWorkspace(
           specCode: spec?.code,
           seed: seed,
           model: s.model,
+          provider: s.provider,
           mode: s.permissionMode,
           branch: s.branch,
           agentName: s.agentName,
@@ -508,6 +523,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: seed,
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         agentName: s.agentName,
@@ -551,6 +567,7 @@ List<Activity> _ofWorkspace(
             ? 'session:${s?.id ?? p.key}'
             : specSeed(ws.id, spec.code),
         model: s?.model,
+        provider: s?.provider,
         mode: s?.permissionMode,
         branch: s?.branch,
         agentName: s?.agentName,
@@ -612,6 +629,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: spec == null ? 'session:${s.id}' : specSeed(ws.id, spec.code),
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         tasks: tasks(spec),
@@ -646,7 +664,9 @@ List<Activity> _ofWorkspace(
           subtitle: 'parou em ${st.id}',
           status: failed
               ? (s.status == SessionStatus.interrupted
-                    ? 'interrompida ao fechar o app'
+                    ? (interruptedByUser(s)
+                          ? 'interrompida por você'
+                          : 'interrompida ao fechar o app')
                     : 'sessão falhou')
               : st.gateFailed
               ? 'gate recusou ${st.id}'
@@ -662,6 +682,7 @@ List<Activity> _ofWorkspace(
           specCode: spec.code,
           seed: specSeed(ws.id, spec.code),
           model: s?.model,
+          provider: s?.provider,
           mode: s?.permissionMode,
           branch: s?.branch,
           tasks: tasks(spec),
@@ -704,7 +725,9 @@ List<Activity> _ofWorkspace(
         title: spec == null ? sessionTitle(s) : '${spec.code} · ${spec.title}',
         subtitle: 'parou com erro',
         status: s.status == SessionStatus.interrupted
-            ? 'interrompida ao fechar o app'
+            ? (interruptedByUser(s)
+                  ? 'interrompida por você'
+                  : 'interrompida ao fechar o app')
             : 'sessão falhou',
         tone: ActivityTone.error,
         needsYou: true,
@@ -716,6 +739,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: spec == null ? 'session:${s.id}' : specSeed(ws.id, spec.code),
         model: s.model,
+        provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
         agentName: s.agentName,
@@ -867,6 +891,7 @@ List<Activity> _ofWorkspace(
         specCode: spec?.code,
         seed: 'conv:${c.id}',
         model: c.model,
+        provider: c.provider,
         mode: c.mode,
         recent: _recent(l.recent, ws.path),
         lastText: l.lastText,

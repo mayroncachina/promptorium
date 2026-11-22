@@ -121,12 +121,7 @@ class ReplayStep {
   String? get toolName => tool?.name;
 
   /// Absolute or relative path of the file it reads or edits.
-  String? get filePath {
-    final t = tool;
-    if (t == null) return null;
-    final p = t.input['file_path'] ?? t.input['notebook_path'];
-    return p is String && p.isNotEmpty ? p : null;
-  }
+  String? get filePath => tool?.filePath;
 
   ReplayLane? get lane => switch (kind) {
     ReplayKind.read || ReplayKind.web || ReplayKind.subagent => ReplayLane.read,
@@ -154,6 +149,15 @@ class ReplayStep {
 
   /// "+6 −2" of an edit.
   String get statsLabel => added == null ? '' : '+$added −${removed ?? 0}';
+}
+
+/// Kind of a card (R2): the neutral events by what they are (SPEC-095
+/// R9), a Claude call by its tool.
+ReplayKind replayKindOfTool(ToolItem t) {
+  if (t.change != null) return ReplayKind.edit;
+  if (t.commandEvent != null) return ReplayKind.run;
+  if (t.other != null) return ReplayKind.other;
+  return replayKindOf(t.name);
 }
 
 /// Kind of the tool [name] (R2).
@@ -246,7 +250,7 @@ ReplayStep? _stepOf(
 
   switch (item) {
     case ToolItem():
-      final kind = replayKindOf(item.name);
+      final kind = replayKindOfTool(item);
       final outcome = item.denied
           ? ReplayOutcome.denied
           : item.isError
@@ -254,7 +258,7 @@ ReplayStep? _stepOf(
           : item.done
           ? ReplayOutcome.ok
           : ReplayOutcome.pending;
-      final stats = editStats(item.name, item.input);
+      final stats = item.stats;
       final children = <ReplayStep>[];
       final step = ReplayStep(
         index: index,

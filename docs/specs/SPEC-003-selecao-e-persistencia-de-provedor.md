@@ -7,6 +7,8 @@ depende-de: [SPEC-002]
 # Seleção e persistência de Claude Code ou Codex
 
 > **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+>
+> **Absorvida pela [SPEC-096 · Codex no Prompt e nas Sessões](SPEC-096-codex-prompt-e-sessoes.md)** em 20/11/2026 (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12). A persistência já existe (chaves `agent.provider.*`, colunas `provider`/`externalId`, rodapé); o que falta entra na 096, e o padrão por tipo de execução na [SPEC-100](../pesquisa/plano-codex.md). Esta spec não deve ser executada.
 
 ## Objetivo
 

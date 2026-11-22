@@ -175,7 +175,9 @@ void main() {
     await until(() async => cli.processes.length == 4);
     final round2 = cli.last.writtenJson.single['message']['content'] as String;
     expect(round2, contains('rodada 2'));
-    expect(round2, contains('rodada 1: tchau.txt — R2 não foi feito'));
+    // SPEC-102 R8: tchau.txt was outside the diff of round 1, so the
+    // comment became a general one with the path in its text.
+    expect(round2, contains('rodada 1: spec — tchau.txt — R2 não foi feito'));
     cli.last.emit(
       verdictLine({'veredito': 'aprovar', 'resumo': 'Ok.', 'comentarios': []}),
     );
