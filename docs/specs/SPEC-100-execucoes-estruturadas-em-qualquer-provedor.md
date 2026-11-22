@@ -1,6 +1,6 @@
 ---
 id: SPEC-100
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: melhoria
 epico: 332
@@ -73,12 +73,12 @@ Depois desta spec, a mesma Nova spec roda no Codex com `gpt-6.1-terra` (o modelo
 - Gerar skills no formato do Codex: SPEC-104 (Instruções e skills).
 - Estimar custo em US$ para o Codex (decisão 5).
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Protótipo de telas no Codex.** (a) Só Claude Code; (b) rodar o Codex em `workspace-write` numa pasta temporária isolada e copiar o resultado para `docs/mockups/`. **Recomendação: (a).** O protótipo depende de restringir a escrita por ferramenta (`--tools` + `allowedTools`), e a cópia de (b) cria um caminho de escrita novo só para esta tela. Reavaliar quando a SPEC-109 abrir o multi-provedor.
-- P2 · **Perfil "rápido" no Codex.** (a) o menor modelo do `model/list` com esforço `low`; (b) o modelo do planner com esforço `low`; (c) uma escolha própria em Consumo. **Recomendação: (b) agora**, sem tela nova. A SPEC-094 lê os modelos do catálogo e não fixa nomes no código. A opção (c) entra se a checagem da VIBE ficar lenta.
-- P3 · **Tipos de execução.** (a) um tipo só, "Planner e assistentes", para todo o R8; (b) separar Verificação e Decidir na etapa. **Recomendação: (a).** Os fluxos têm o mesmo perfil (somente leitura, curtos), e mais linhas no cartão só confundem. O `RunKind.planner` atual já agrupa esses fluxos para modelo e esforço.
-- P4 · **Tempo-limite no Codex.** (a) o mesmo de cada chamador; (b) 1,5× no Codex enquanto não houver medida. **Recomendação: (a)**, com o tempo de cada rodada registrado no ledger para revisar depois com dados.
+- P1 · **Protótipo de telas no Codex.** (a) Só Claude Code; (b) rodar o Codex em `workspace-write` numa pasta temporária isolada e copiar o resultado para `docs/mockups/`. **Decidido:** (a) Só Claude Code. O protótipo depende de restringir a escrita por ferramenta (`--tools` + `allowedTools`), e a cópia de (b) cria um caminho de escrita novo só para esta tela. Reavaliar quando a SPEC-109 abrir o multi-provedor.
+- P2 · **Perfil "rápido" no Codex.** (a) o menor modelo do `model/list` com esforço `low`; (b) o modelo do planner com esforço `low`; (c) uma escolha própria em Consumo. **Decidido:** (b), o modelo do planner com esforço `low`, sem tela nova. A SPEC-094 lê os modelos do catálogo e não fixa nomes no código. A opção (c) entra se a checagem da VIBE ficar lenta.
+- P3 · **Tipos de execução.** (a) um tipo só, "Planner e assistentes", para todo o R8; (b) separar Verificação e Decidir na etapa. **Decidido:** (a), um tipo só, "Planner e assistentes". Os fluxos têm o mesmo perfil (somente leitura, curtos), e mais linhas no cartão só confundem. O `RunKind.planner` atual já agrupa esses fluxos para modelo e esforço.
+- P4 · **Tempo-limite no Codex.** (a) o mesmo de cada chamador; (b) 1,5× no Codex enquanto não houver medida. **Decidido:** (a), o mesmo tempo-limite de cada chamador, com o tempo de cada rodada registrado no ledger para revisar depois com dados.
 
 ## Design
 
