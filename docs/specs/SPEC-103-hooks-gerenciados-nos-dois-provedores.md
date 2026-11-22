@@ -1,6 +1,6 @@
 ---
 id: SPEC-103
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: melhoria
 epico: 332
@@ -115,15 +115,25 @@ Depois desta spec, a mesma sessão Codex sobe com os hooks do app como **hooks d
 
 ## Critérios de aceite
 
-- [ ] O `settings.json` do Claude é idêntico ao de hoje para as mesmas entradas [R1] verificar: teste de regressão do adaptador Claude.
-- [ ] O script decide igual para entradas equivalentes do Claude e do Codex e responde no formato de cada um [R2, R11] verificar: teste de paridade.
-- [ ] Nenhuma sessão Codex grava no `~/.codex`, usa `--trust` ou troca o `CODEX_HOME` [R3, R4] verificar: teste dos argumentos e do ambiente do processo e inspeção manual do `~/.codex` antes e depois do e2e.
-- [ ] O estado da sessão vem do `hooks/list`, nunca da configuração enviada [R5] verificar: teste com o `fake_codex` devolvendo um hook inativo.
-- [ ] Com os hooks ativos no Codex, push forçado e commit com segredo são recusados antes de rodar e geram os mesmos cartões do Claude, uma vez só [R2, R6] verificar: teste com o `fake_codex` e e2e.
-- [ ] Sem hooks ativos, cada hook usa o substituto do R7, e a sessão anuncia o pós-turno uma vez [R7] verificar: testes do `session_manager`.
-- [ ] No modo Editar sem hooks, um comando das regras embutidas é recusado no pedido de aprovação, e o YOLO sem hooks avisa antes de começar [R7, P2] verificar: testes do `session_manager` e de widget.
-- [ ] Automações e o chip da sessão mostram o estado real por provedor, com o motivo [R8, R9] verificar: testes de widget.
-- [ ] No app isolado, a sessão Codex bloqueia o push forçado e o commit com segredo, e o modo pós-turno aparece quando forçado [R1–R11] verificar: capturas reais 1366×768 e relatório.
+- [x] O `settings.json` do Claude é idêntico ao de hoje para as mesmas entradas [R1] verificar: teste de regressão do adaptador Claude.
+- [x] O script decide igual para entradas equivalentes do Claude e do Codex e responde no formato de cada um [R2, R11] verificar: teste de paridade.
+- [x] Nenhuma sessão Codex grava no `~/.codex`, usa `--trust` ou troca o `CODEX_HOME` [R3, R4] verificar: teste dos argumentos e do ambiente do processo e inspeção manual do `~/.codex` antes e depois do e2e.
+- [x] O estado da sessão vem do `hooks/list`, nunca da configuração enviada [R5] verificar: teste com o `fake_codex` devolvendo um hook inativo.
+- [x] Com os hooks ativos no Codex, push forçado e commit com segredo são recusados antes de rodar e geram os mesmos cartões do Claude, uma vez só [R2, R6] verificar: teste com o `fake_codex` e e2e.
+- [x] Sem hooks ativos, cada hook usa o substituto do R7, e a sessão anuncia o pós-turno uma vez [R7] verificar: testes do `session_manager`.
+- [x] No modo Editar sem hooks, um comando das regras embutidas é recusado no pedido de aprovação, e o YOLO sem hooks avisa antes de começar [R7, P2] verificar: testes do `session_manager` e de widget.
+- [x] Automações e o chip da sessão mostram o estado real por provedor, com o motivo [R8, R9] verificar: testes de widget.
+- [x] No app isolado, a sessão Codex bloqueia o push forçado e o commit com segredo, e o modo pós-turno aparece quando forçado [R1–R11] verificar: capturas reais 1366×768 e relatório.
+
+## Implementação
+
+- **0.170:** o hook por `-c` é listado como `sessionFlags`, mas fica `untrusted` (P1 (a)). Toda sessão Codex real fica em **Hooks só pós-turno** até uma versão que aceite a confiança só da sessão. O caminho nativo depende só do `hooks/list` e foi validado com o `fake_codex` e com um Codex falso no E2E (`docs/pesquisa/spec-103-hooks-e2e.md`).
+- **Decisões além da spec:**
+  - recusa do Codex = código 2 com o motivo no stderr; a do Claude não muda;
+  - na coluna Codex de Automações, o substituto do bloqueio aparece como "Na aprovação" (P2), não como "Ao fim do turno";
+  - o Vigia entrou na tabela de Automações, com o mesmo interruptor da seção dele;
+  - o aviso pós-turno vale uma vez por sessão, também depois de reabrir o app;
+  - sem `python3`, o Codex mostra "Indisponível" em tudo, menos no Vigia (R10).
 
 ## Telas
 

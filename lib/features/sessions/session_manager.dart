@@ -2022,6 +2022,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     return status;
   }
 
+  static const _hookFallbackMark =
+      'Os hooks do app não ficaram ativos nesta sessão Codex';
+  static const _hookPartialMark = 'Hooks parciais nesta sessão Codex';
+
   /// SPEC-103 R7: once per session, what stayed after the turn and why.
   Future<void> _announceHookFallback(String id, _Proc p) async {
     final status = p.codexHooks;
@@ -2031,6 +2035,16 @@ class SessionManager extends Notifier<SessionManagerState> {
       return;
     }
     if (!_hookFallbackNoted.add(id)) return;
+    // Once per session, also across app restarts (a resume after reopening).
+    try {
+      final told = (await _repo.events(id)).any(
+        (e) =>
+            e.type == AppEventTypes.note &&
+            (e.json.contains(_hookFallbackMark) ||
+                e.json.contains(_hookPartialMark)),
+      );
+      if (told) return;
+    } catch (_) {}
     final yolo = p.skipPermissions;
     final inactive = [
       for (final h in ManagedHook.values)
@@ -2047,9 +2061,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _note(
       id,
       status.mode == CodexHookMode.partial
-          ? 'Hooks parciais nesta sessão Codex.$why Até o fim: $subs.'
-          : 'Os hooks do app não ficaram ativos nesta sessão Codex.$why '
-                'Até o fim: $subs.',
+          ? '$_hookPartialMark.$why Até o fim: $subs.'
+          : '$_hookFallbackMark.$why Até o fim: $subs.',
       provider: 'codex',
     );
   }
@@ -2457,9 +2470,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         ref.read(hookActivityProvider.notifier).add(a);
       }
     }
-    if (!_procs.containsKey(id) && ref.mounted) {
-      ref.read(codexHookStatusProvider.notifier).remove(id);
-    }
+    // The state stays after the exit: Automações and the YOLO warning use
+    // the last one seen (the chip only shows while the process lives).
     final hooks = ref.mounted ? ref.read(managedHooksProvider) : null;
     if (hooks != null) {
       final done = hooks.cleanup(id).catchError((Object e) {

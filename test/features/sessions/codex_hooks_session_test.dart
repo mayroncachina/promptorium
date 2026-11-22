@@ -459,7 +459,11 @@ void main() {
           (await notes(id)).firstWhere((n) => n.$1.startsWith('Sessão enc')),
           ('Sessão encerrada (parada pelo usuário)', 'codex'),
         );
-        expect(c.read(codexHookStatusProvider)[id], isNull);
+        // The last state stays for Automações and the YOLO warning.
+        expect(
+          c.read(codexHookStatusProvider)[id]!.mode,
+          CodexHookMode.postTurn,
+        );
       },
       skip: hasPython ? false : 'python3 ausente',
     );
