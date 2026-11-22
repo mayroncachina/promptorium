@@ -97,10 +97,13 @@ abstract final class AppEventTypes {
     String text, {
     bool error = false,
     DateTime? at,
+    String? provider,
   }) => {
     'type': note,
     'level': error ? 'error' : 'info',
     'text': text,
+    // SPEC-103 P4: the hook cards of a Codex session carry its badge.
+    'provider': ?provider,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 }

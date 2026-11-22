@@ -178,6 +178,11 @@ class CodexRun implements ManagedAgentRun {
   /// does not carry the changes (SPEC-093 D5).
   final _fileItems = <String, Map<String, dynamic>>{};
 
+  /// SPEC-103 P2: the block rules applied to command approvals while the
+  /// app's hooks are not active; returns the rule that refuses the
+  /// command, or null. A refused command never reaches the person.
+  String? Function(Map<String, dynamic> params)? commandFilter;
+
   /// "Interromper" was asked: the turn ends as interrupted by the person
   /// (SPEC-096 P3).
   bool _interruptAsked = false;
@@ -814,6 +819,25 @@ class CodexRun implements ManagedAgentRun {
         }),
       );
       return;
+    }
+    if (command && commandFilter != null) {
+      final rule = commandFilter!(p);
+      if (rule != null) {
+        unawaited(
+          rpc.write({
+            'id': id,
+            'result': {'decision': 'decline'},
+          }),
+        );
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook_refused',
+          'command': p['command'],
+          'rule': rule,
+          'tool_use_id': p['itemId'],
+        });
+        return;
+      }
     }
     final key = 'codex-$id';
     _pending[key] = (id, method, p);
