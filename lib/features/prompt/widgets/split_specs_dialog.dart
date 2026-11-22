@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import '../../../core/providers/structured_run.dart';
+import '../../../ui/widgets/run_provider_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -106,7 +109,7 @@ class _SplitSpecsDialogState extends ConsumerState<SplitSpecsDialog> {
       if (specs.isEmpty) {
         setState(() {
           _running = false;
-          _error = 'O Claude não devolveu nenhuma spec.';
+          _error = 'O $_agent não devolveu nenhuma spec.';
         });
         return;
       }
@@ -119,6 +122,15 @@ class _SplitSpecsDialogState extends ConsumerState<SplitSpecsDialog> {
       });
     }
   }
+
+  /// Who runs the split (SPEC-100 R10): the provider line's, else the
+  /// Claude Code.
+  String get _agent => providerDisplayName(
+    ref
+            .read(structuredRunsProvider)[splitSpecsSlot(widget.workspace.id)]
+            ?.provider ??
+        'claude',
+  );
 
   void _close() {
     if (!_cancel.isCompleted) _cancel.complete();
@@ -181,6 +193,11 @@ class _SplitSpecsDialogState extends ConsumerState<SplitSpecsDialog> {
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final slot = splitSpecsSlot(widget.workspace.id);
+    final agent = providerDisplayName(
+      ref.watch(structuredRunsProvider.select((m) => m[slot]?.provider)) ??
+          'claude',
+    );
     return Align(
       alignment: Alignment.bottomRight,
       child: Padding(
@@ -232,7 +249,7 @@ class _SplitSpecsDialogState extends ConsumerState<SplitSpecsDialog> {
                               liveRegion: true,
                               child: Text(
                                 error ??
-                                    'O Claude está lendo a conversa e '
+                                    'O $agent está lendo a conversa e '
                                         'separando as specs…',
                                 key: const ValueKey('split-specs-status'),
                                 style: TextStyle(
@@ -258,6 +275,11 @@ class _SplitSpecsDialogState extends ConsumerState<SplitSpecsDialog> {
                     ),
                   ),
                 if (_running) const Divider(height: 1),
+                // SPEC-100 R10, R11: provider, model and use of the run.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: RunProviderLine(slot: slot, onRetry: _run),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                   child: Row(

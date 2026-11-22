@@ -19,6 +19,7 @@ import '../project/widgets/project_config_view.dart';
 import '../sessions/widgets/session_style.dart';
 import 'app_mcp_card.dart';
 import 'automations_view.dart';
+import 'provider_kind_card.dart';
 import 'codex_consumption.dart';
 import 'backups_view.dart';
 import 'notifications_view.dart';
@@ -402,6 +403,7 @@ class _ConsumptionSectionState extends ConsumerState<_ConsumptionSection> {
         intro: 'Modelo e esforço de cada tipo de execução com o Codex.',
         children: [
           _tabs(),
+          const ProviderKindCard(),
           const CodexConsumptionTab(),
           const CodexCapabilitiesCard(),
         ],
@@ -502,6 +504,8 @@ class _ConsumptionSectionState extends ConsumerState<_ConsumptionSection> {
             ),
           ],
         ),
+        // SPEC-100 R9: who runs each kind of execution.
+        const ProviderKindCard(),
       ],
     );
   }
