@@ -144,7 +144,23 @@ class ContextSources {
   int get turn => _turn;
 
   static const _readTools = {'Read', 'NotebookRead'};
-  static const _editTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+
+  /// [path] edited, unless the agent read it already (a read says more).
+  void _edited(String path, int turn, int itemIndex) {
+    final old = _byKey['file:$path'];
+    if (old != null && old.evidence == ContextEvidence.read) return;
+    _put(
+      'file:$path',
+      ContextSource(
+        group: ContextSourceGroup.files,
+        label: path,
+        ref: path,
+        evidence: ContextEvidence.edited,
+        turn: turn,
+        itemIndex: itemIndex,
+      ),
+    );
+  }
 
   void apply(
     AgentEvent e, {
@@ -174,23 +190,27 @@ class ContextSources {
                 itemIndex: itemIndex,
               ),
             );
-          } else if (_editTools.contains(b.name)) {
-            final old = _byKey['file:$path'];
-            if (old != null && old.evidence == ContextEvidence.read) {
-              continue;
-            }
-            _put(
-              'file:$path',
-              ContextSource(
-                group: ContextSourceGroup.files,
-                label: path,
-                ref: path,
-                evidence: ContextEvidence.edited,
-                turn: turn,
-                itemIndex: itemIndex,
-              ),
-            );
+          } else if (b.fileChanges.isNotEmpty) {
+            _edited(path, turn, itemIndex);
           }
+        }
+      // SPEC-095 R9: files of any provider (Codex: file changes, and the
+      // files its commands read).
+      case FileChangeEvent(:final path) when path.isNotEmpty:
+        _edited(path, turn, itemIndex);
+      case CommandEvent(:final reads) when reads.isNotEmpty:
+        for (final path in reads) {
+          _put(
+            'file:$path',
+            ContextSource(
+              group: ContextSourceGroup.files,
+              label: path,
+              ref: path,
+              evidence: ContextEvidence.read,
+              turn: turn,
+              itemIndex: itemIndex,
+            ),
+          );
         }
       case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
         _turn = turn;

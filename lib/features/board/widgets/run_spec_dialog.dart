@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +9,8 @@ import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/spec_steps_repo.dart';
-import '../../../core/providers/agent_registry.dart' show codexEnabledProvider;
+import '../../../core/providers/agent_registry.dart';
+import '../../../ui/widgets/only_provider_tag.dart';
 import '../../../core/providers/permission_policy.dart';
 import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/provider_preferences.dart';
@@ -236,14 +239,20 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       widget.spec.agentName ?? ProjectConfig.loadSync(_projectPath).agent;
   late String _model =
       widget.previous?.model ??
-      (_provider == 'claude'
-          ? ref.read(runPrefsProvider).model(RunKind.session)
-          : 'inherit');
+      providerModelFrom(
+        ref.read(runPrefsProvider),
+        ref.read(appSettingsProvider),
+        _provider,
+        RunKind.session,
+      );
   late String _effort =
       widget.previous?.effort ??
-      (_provider == 'claude'
-          ? ref.read(runPrefsProvider).effort(RunKind.session)
-          : 'default');
+      providerEffortFrom(
+        ref.read(runPrefsProvider),
+        ref.read(appSettingsProvider),
+        _provider,
+        RunKind.session,
+      );
   late ClaudePermissionMode _mode = () {
     final saved = ClaudePermissionMode.fromCli(
       widget.previous?.permissionMode ??
@@ -256,6 +265,24 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
         : ClaudePermissionMode.defaultMode;
   }();
   bool _fromAgent = false;
+
+  void _setProvider(String v) {
+    _provider = v;
+    _model = providerModelFrom(
+      ref.read(runPrefsProvider),
+      ref.read(appSettingsProvider),
+      v,
+      RunKind.session,
+    );
+    _effort = providerEffortFrom(
+      ref.read(runPrefsProvider),
+      ref.read(appSettingsProvider),
+      v,
+      RunKind.session,
+    );
+    _agent = null;
+    _mode = ClaudePermissionMode.defaultMode;
+  }
 
   /// Automático / Manual (R1): Manual unless "Abrir Executar em Automático".
   late bool _auto = ref.read(orchestratorPrefsProvider).autoByDefault;
@@ -388,8 +415,9 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       String key,
       T value,
       List<(T, String)> items,
-      ValueChanged<T> onChanged,
-    ) => Padding(
+      ValueChanged<T> onChanged, {
+      Widget? Function(T)? leading,
+    }) => Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -428,7 +456,17 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                 for (final (v, l) in items)
                   DropdownMenuItem(
                     value: v,
-                    child: Text(l, overflow: TextOverflow.ellipsis),
+                    child: Row(
+                      children: [
+                        if (leading?.call(v) case final w?) ...[
+                          w,
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(l, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => onChanged(v as T)),
@@ -460,6 +498,11 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           )
         : const SizedBox.shrink();
 
+    final caps = capabilitiesFor(_provider);
+    // R12: not released for "Executar spec" = does not start, says why.
+    final flowLocked =
+        widget.previous == null &&
+        !ref.watch(providerFlowsProvider).allows(_provider, AppFlow.runSpec);
     final manualFields = <Widget>[
       if (widget.previous != null)
         Text('Provedor: ${_provider == 'codex' ? 'Codex' : 'Claude Code'}'),
@@ -468,26 +511,69 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           'Provedor',
           'run-spec-provider',
           _provider,
+          // R11: a provider not released here shows up with the tag.
           [
             ('claude', 'Claude Code'),
-            if (ref.watch(codexEnabledProvider) || _provider == 'codex')
-              ('codex', 'Codex'),
+            (
+              'codex',
+              ref.watch(providerFlowsProvider).allows('codex', AppFlow.runSpec)
+                  ? 'Codex'
+                  : flowLockedLabel('Codex'),
+            ),
           ],
-          (v) {
-            _provider = v;
-            _model = 'inherit';
-            _effort = 'default';
-            _agent = null;
-            _mode = ClaudePermissionMode.defaultMode;
-          },
+          _setProvider,
+          leading: (v) => hasProviderIdentity(v) ? ProviderLogo(v) : null,
         ),
-      field<String?>('Agente (--agent)', 'run-spec-agent', _agent, [
-        (null, 'nenhum'),
-        for (final a in agents)
-          (a.name, a.project ? '${a.name} · projeto' : a.name),
-        if (_agent != null && !agents.any((a) => a.name == _agent))
-          (_agent, _agent!),
-      ], (v) => _pick(v, agents)),
+      if (flowLocked)
+        Padding(
+          key: const ValueKey('run-spec-flow-locked'),
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ref
+                      .watch(providerFlowsProvider)
+                      .refusal(_provider, caps.displayName, AppFlow.runSpec),
+                  style: const TextStyle(fontSize: 12, color: AppColors.amber),
+                ),
+              ),
+              SmallButton(
+                key: const ValueKey('run-spec-use-claude'),
+                label: 'Usar Claude Code',
+                onTap: () => setState(() => _setProvider('claude')),
+              ),
+            ],
+          ),
+        ),
+      if (caps.supports(ProviderCapability.agentFiles))
+        field<String?>('Agente (--agent)', 'run-spec-agent', _agent, [
+          (null, 'nenhum'),
+          for (final a in agents)
+            (a.name, a.project ? '${a.name} · projeto' : a.name),
+          if (_agent != null && !agents.any((a) => a.name == _agent))
+            (_agent, _agent!),
+        ], (v) => _pick(v, agents))
+      else
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            children: [
+              const Text(
+                'Agente',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: OnlyProviderTag(
+                  key: const ValueKey('run-spec-agent-only'),
+                  provider: 'Claude Code',
+                  reason: caps.reasonFor(ProviderCapability.agentFiles),
+                ),
+              ),
+            ],
+          ),
+        ),
       Row(
         children: [
           Expanded(
@@ -511,16 +597,18 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       bypass(_provider),
     ];
 
-    void submitManual() => Navigator.of(context).pop((
-      provider: _provider,
-      agent: _agent ?? '',
-      model: _model,
-      effort: _effort,
-      mode: _mode,
-      auto: false,
-      plan: const <StepPlanEntry>[],
-      review: null,
-    ));
+    void submitManual() => flowLocked
+        ? null
+        : Navigator.of(context).pop((
+            provider: _provider,
+            agent: _agent ?? '',
+            model: _model,
+            effort: _effort,
+            mode: _mode,
+            auto: false,
+            plan: const <StepPlanEntry>[],
+            review: null,
+          ));
 
     // --- Automático ----------------------------------------------------------
     final orchestrator = ref.watch(orchestratorPrefsProvider);

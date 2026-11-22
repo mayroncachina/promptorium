@@ -7,6 +7,7 @@ import '../../core/providers/provider_availability.dart';
 import '../../data/providers.dart';
 import '../activities/quota_forecast.dart';
 import '../sessions/session_manager.dart';
+import 'usage_ledger.dart' show entryHasCost;
 
 /// What a spec cost (SPEC-081 R6–R12): the sum of the entries of every
 /// origin, in weight of the plan quota (or dollars with an API key).
@@ -22,6 +23,9 @@ class CostSlice {
     this.cacheRead = 0,
     this.costUsd = 0,
     this.units = 0,
+    this.unpricedTurns = 0,
+    this.unpricedTokens = 0,
+    this.reasoning = 0,
   });
 
   final int turns;
@@ -40,20 +44,45 @@ class CostSlice {
 
   /// Sessions, conversations or rounds (the line of each origin).
   final int units;
+
+  /// Turns of a provider without cost in US\$ (the Codex, SPEC-097 R9) and
+  /// their tokens (part of [tokens]): "custo indisponível", never 0.
+  final int unpricedTurns;
+  final int unpricedTokens;
+
+  /// Reasoning tokens (part of [tokens]).
+  final int reasoning;
+
+  /// Tokens of the turns with a cost.
+  int get pricedTokens => tokens - unpricedTokens;
+
+  bool get hasUnpriced => unpricedTurns > 0;
+
+  /// Every turn is without cost: no US\$ and no weight to show.
+  bool get onlyUnpriced => turns > 0 && unpricedTurns == turns;
 }
 
 double? _add(double? a, double? b) => b == null ? a : (a ?? 0) + b;
 
 CostSlice _sum(Iterable<UsageEntry> entries, {int Function()? units}) {
   var turns = 0, tokens = 0, cacheRead = 0;
+  var unpricedTurns = 0, unpricedTokens = 0, reasoning = 0;
   double? week, five;
   var cost = 0.0;
   for (final e in entries) {
     turns++;
+    final t = e.tokensIn + e.tokensCacheWrite + e.tokensOut;
+    tokens += t;
+    cacheRead += e.tokensCacheRead;
+    reasoning += e.tokensReasoning;
+    // SPEC-097 R9, R10: no cost and no weight, never a measured 0.
+    if (!entryHasCost(e)) {
+      unpricedTurns++;
+      unpricedTokens += t;
+      continue;
+    }
     week = _add(week, e.weekPct);
     five = _add(five, e.fiveHourPct);
-    tokens += e.tokensIn + e.tokensCacheWrite + e.tokensOut;
-    cacheRead += e.tokensCacheRead;
     cost += e.costUsd;
   }
   return CostSlice(
@@ -64,6 +93,9 @@ CostSlice _sum(Iterable<UsageEntry> entries, {int Function()? units}) {
     cacheRead: cacheRead,
     costUsd: cost,
     units: units?.call() ?? 0,
+    unpricedTurns: unpricedTurns,
+    unpricedTokens: unpricedTokens,
+    reasoning: reasoning,
   );
 }
 
@@ -318,26 +350,52 @@ class SpecCostRank {
 /// The weight that orders the ranking: the week, else the cost.
 double rankWeight(SpecCost c) => c.total.week ?? c.total.costUsd;
 
-/// The specs of [entries] with the most weight, at most [limit]. Pure.
-List<SpecCostRank> rankSpecCosts(
-  List<UsageEntry> entries, {
-  required Map<int, (Spec, Workspace)> specs,
-  int limit = 10,
-}) {
+List<SpecCostRank> _specRanks(
+  List<UsageEntry> entries,
+  Map<int, (Spec, Workspace)> specs,
+) {
   final bySpec = <int, List<UsageEntry>>{};
   for (final e in entries) {
     final id = e.specId;
     if (id == null || !specs.containsKey(id)) continue;
     bySpec.putIfAbsent(id, () => []).add(e);
   }
-  final out = [
+  return [
     for (final MapEntry(:key, :value) in bySpec.entries)
       SpecCostRank(
         spec: specs[key]!.$1,
         workspace: specs[key]!.$2,
         cost: specCostOf(value),
       ),
+  ];
+}
+
+/// The specs of [entries] with the most weight, at most [limit]. Pure.
+/// Only what has a cost is ranked (SPEC-097 R9): a spec with only tokens
+/// (the Codex) is never "the cheapest"; [rankTokenOnlySpecs] lists them.
+List<SpecCostRank> rankSpecCosts(
+  List<UsageEntry> entries, {
+  required Map<int, (Spec, Workspace)> specs,
+  int limit = 10,
+}) {
+  final out = [
+    for (final r in _specRanks(entries, specs))
+      if (!r.cost.total.onlyUnpriced) r,
   ]..sort((a, b) => rankWeight(b.cost).compareTo(rankWeight(a.cost)));
+  return out.length > limit ? out.sublist(0, limit) : out;
+}
+
+/// The specs whose turns have no cost (SPEC-097 R9), most tokens first, at
+/// most [limit]. Pure.
+List<SpecCostRank> rankTokenOnlySpecs(
+  List<UsageEntry> entries, {
+  required Map<int, (Spec, Workspace)> specs,
+  int limit = 10,
+}) {
+  final out = [
+    for (final r in _specRanks(entries, specs))
+      if (r.cost.total.onlyUnpriced) r,
+  ]..sort((a, b) => b.cost.total.tokens.compareTo(a.cost.total.tokens));
   return out.length > limit ? out.sublist(0, limit) : out;
 }
 
@@ -354,33 +412,53 @@ final _rankingEntriesProvider = StreamProvider.autoDispose
 
 String _ids(Iterable<int> ids) => (ids.toList()..sort()).join(',');
 
+/// The specs of the period with only tokens (SPEC-097 R9), apart from the
+/// ranking by cost.
+final specTokenOnlyRankingProvider = Provider.autoDispose
+    .family<List<SpecCostRank>?, CostRankingQuery>((ref, q) {
+      final d = ref.watch(_rankingDataProvider(q));
+      return d == null ? null : rankTokenOnlySpecs(d.$1, specs: d.$2);
+    });
+
 /// The ranking of the workspace (or of every open workspace) in the period.
 final specCostRankingProvider = Provider.autoDispose
     .family<List<SpecCostRank>?, CostRankingQuery>((ref, q) {
-      final workspaces = ref.watch(workspacesProvider).value ?? const [];
-      final chosen = [
-        for (final w in workspaces)
-          if (q.all || w.id == q.workspaceId) w,
-      ];
-      final span = q.period.span;
-      // A day as the unit keeps the key stable while the screen is open.
-      final now = DateTime.now();
-      final since = span == null
-          ? null
-          : DateTime(now.year, now.month, now.day).subtract(span);
-      final entries = ref.watch(
-        _rankingEntriesProvider((_ids([for (final w in chosen) w.id]), since)),
-      );
-      if (!entries.hasValue) return null;
-      final specs = <int, (Spec, Workspace)>{};
-      for (final w in chosen) {
-        for (final s
-            in ref.watch(specsProvider(w.id)).value ?? const <Spec>[]) {
-          specs[s.id] = (s, w);
-        }
-      }
-      return rankSpecCosts(entries.value!, specs: specs);
+      final d = ref.watch(_rankingDataProvider(q));
+      return d == null ? null : rankSpecCosts(d.$1, specs: d.$2);
     });
+
+/// The entries of the period and the specs they may belong to.
+final _rankingDataProvider = Provider.autoDispose
+    .family<(List<UsageEntry>, Map<int, (Spec, Workspace)>)?, CostRankingQuery>(
+      (ref, q) {
+        final workspaces = ref.watch(workspacesProvider).value ?? const [];
+        final chosen = [
+          for (final w in workspaces)
+            if (q.all || w.id == q.workspaceId) w,
+        ];
+        final span = q.period.span;
+        // A day as the unit keeps the key stable while the screen is open.
+        final now = DateTime.now();
+        final since = span == null
+            ? null
+            : DateTime(now.year, now.month, now.day).subtract(span);
+        final entries = ref.watch(
+          _rankingEntriesProvider((
+            _ids([for (final w in chosen) w.id]),
+            since,
+          )),
+        );
+        if (!entries.hasValue) return null;
+        final specs = <int, (Spec, Workspace)>{};
+        for (final w in chosen) {
+          for (final s
+              in ref.watch(specsProvider(w.id)).value ?? const <Spec>[]) {
+            specs[s.id] = (s, w);
+          }
+        }
+        return (entries.value!, specs);
+      },
+    );
 
 /// The cost of every spec of a workspace, all time (the "Cota (semana)" of
 /// Projeto → Métricas, R11).

@@ -1,12 +1,14 @@
 ---
 id: SPEC-004
-status: rascunho
+status: arquivada
 depende-de: [SPEC-003]
 ---
 
 # Paridade das opções de Claude Code e Codex
 
 > **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+>
+> **Arquivada como referência em 20/11/2026** (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12). A matriz de opções continua útil como insumo, mas **não há mais exigência de paridade total**: o critério "uma lacuna explícita não satisfaz a conclusão" foi trocado por capacidades declaradas por provedor ([SPEC-094](SPEC-094-capacidades-por-provedor.md)), com o Codex entrando fluxo por fluxo e a etiqueta "Só Claude Code" onde não houver suporte. As lacunas restantes ficam nas SPEC-104 a SPEC-107 do épico.
 
 ## Objetivo
 

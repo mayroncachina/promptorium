@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/codex/codex_command.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_provider.dart';
 import 'package:promptorium/core/providers/permission_policy.dart';
+import 'package:promptorium/features/sessions/timeline.dart';
 
 import 'fake_codex.dart';
 
@@ -68,13 +70,7 @@ void main() {
       permissionModeLabel(ClaudePermissionMode.skipPermissions),
       isNot(contains('YOLO')),
     );
-    expect(
-      codexPermissionPolicy(
-        ClaudePermissionMode.skipPermissions,
-        readOnly: true,
-      ).sandbox,
-      'read-only',
-    );
+    expect(codexAccessPolicy(AgentAccess.ask).sandbox, 'read-only');
   });
 
   for (final operation in ['start', 'resume', 'fork']) {
@@ -92,7 +88,7 @@ void main() {
               mode: PromptMode.edit,
               resumeId: operation == 'start' ? null : 'parent-thread',
               forkSession: operation == 'fork',
-              permissionMode: ClaudePermissionMode.skipPermissions,
+              yolo: true,
             ),
           );
       run.events.listen((_) {});
@@ -100,8 +96,10 @@ void main() {
       final thread = fake.writtenJson.singleWhere(
         (m) => m['method'] == 'thread/$operation',
       );
+      // SPEC-096 R10 / SPEC-093 D1: the thread opens read-only (no trust
+      // saved in ~/.codex/config.toml); the turn carries YOLO.
       expect(thread['params']['approvalPolicy'], 'never');
-      expect(thread['params']['sandbox'], 'danger-full-access');
+      expect(thread['params']['sandbox'], 'read-only');
       await run.send('Execute');
       final turn = fake.writtenJson.last;
       expect(turn['params']['approvalPolicy'], 'never');
@@ -109,21 +107,33 @@ void main() {
     });
   }
 
-  test('server that does not apply YOLO is rejected and stopped', () async {
-    final fake = FakeCodex(rejectYolo: true);
-    await expectLater(
-      CodexProvider(
-        starter: (exe, args, {workingDirectory, environment}) async => fake,
-      ).start(
-        const AgentStartOptions(
-          workingDirectory: '/w',
-          mode: PromptMode.edit,
-          permissionMode: ClaudePermissionMode.skipPermissions,
-        ),
-      ),
-      throwsA(isA<AgentUnavailable>()),
-    );
-    expect(fake.signals, contains(ProcessSignal.sigterm));
+  test('SPEC-096 R10: whatever the access, every thread opens read-only + '
+      'never and the turn raises the sandbox', () async {
+    for (final yolo in [false, true]) {
+      final fake = FakeCodex();
+      final run =
+          await CodexProvider(
+            starter: (exe, args, {workingDirectory, environment}) async => fake,
+          ).start(
+            AgentStartOptions(
+              workingDirectory: '/w',
+              mode: PromptMode.edit,
+              yolo: yolo,
+            ),
+          );
+      run.events.listen((_) {});
+      final thread = fake.writtenJson.singleWhere(
+        (m) => m['method'] == 'thread/start',
+      )['params'];
+      expect(thread['sandbox'], 'read-only');
+      expect(thread['approvalPolicy'], 'never');
+      await run.send('Olá');
+      expect(
+        fake.writtenJson.last['params']['sandboxPolicy']['type'],
+        yolo ? 'dangerFullAccess' : 'workspaceWrite',
+      );
+      await run.stop();
+    }
   });
 
   for (final mode in [PromptMode.ask, PromptMode.plan, PromptMode.edit]) {
@@ -135,15 +145,36 @@ void main() {
       run.events.listen((_) {});
       addTearDown(run.stop);
       final thread = fake.writtenJson.last['params'];
-      expect(
-        thread['sandbox'],
-        mode == PromptMode.edit ? 'workspace-write' : 'read-only',
-      );
+      expect(thread['sandbox'], 'read-only');
       await run.send('Olá');
       expect(
         fake.writtenJson.last['params']['sandboxPolicy']['type'],
-        isNot('dangerFullAccess'),
+        mode == PromptMode.edit ? 'workspaceWrite' : 'readOnly',
       );
     });
   }
+
+  test(
+    'Perguntar com o Codex é rotulado como Perguntar, não Planejar',
+    () async {
+      expect(codexAccessLabel(AgentAccess.ask), startsWith('perguntar'));
+      expect(codexAccessLabel(AgentAccess.ask), contains('read-only'));
+      expect(codexAccessLabel(AgentAccess.plan), startsWith('planejar'));
+      for (final (mode, label) in [
+        (PromptMode.ask, 'perguntar — somente leitura'),
+        (PromptMode.plan, 'planejar'),
+      ]) {
+        final fake = FakeCodex();
+        final run = await CodexProvider(
+          starter: (exe, args, {workingDirectory, environment}) async => fake,
+        ).start(AgentStartOptions(workingDirectory: '/w', mode: mode));
+        final init = await run.events.firstWhere((e) => e is SystemInit);
+        expect('${init.json['permission_label']}', startsWith(label));
+        final timeline = Timeline()..apply(init);
+        final notice = timeline.items.whereType<NoticeItem>().single;
+        expect(notice.text, contains(label));
+        await run.stop();
+      }
+    },
+  );
 }
