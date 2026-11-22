@@ -66,7 +66,8 @@ void main() {
       for (final f in AppFlow.values) {
         if (f == AppFlow.prompt ||
             f == AppFlow.sessions ||
-            f == AppFlow.structured) {
+            f == AppFlow.structured ||
+            f == AppFlow.runSpec) {
           expect(c.read(probe)(f).id, 'codex', reason: f.name);
         } else {
           expect(

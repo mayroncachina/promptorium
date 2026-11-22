@@ -42,10 +42,7 @@ class ProviderKindCard extends ConsumerWidget {
     final codex = ref.exists(probe) ? ref.watch(probe).value : null;
     // R9: Codex is offered when available and compatible; a saved Codex
     // stays selected even if it went away (the run then says why).
-    final codexOffered =
-        codex != null &&
-        codex.available &&
-        flows.allows('codex', AppFlow.structured);
+    final codexOffered = codex != null && codex.available;
     return AgentCard(
       key: const ValueKey('provider-kind-card'),
       title: 'Provedor por tipo',
@@ -121,7 +118,9 @@ class ProviderKindCard extends ConsumerWidget {
       final choices = <(String?, String)>[
         (null, 'Seguir o rodapé'),
         ('claude', 'Claude Code'),
-        if (codexOffered || saved == 'codex') ('codex', 'Codex'),
+        if ((codexOffered && flows.allows('codex', kind.flow)) ||
+            saved == 'codex')
+          ('codex', 'Codex'),
       ];
       state = Wrap(
         spacing: 4,
@@ -176,9 +175,13 @@ class ProviderKindCard extends ConsumerWidget {
         ],
       );
     }
+    // "Executar spec" runs with the model of Sessões (SPEC-101 R3).
+    final runKind = kind == ProviderKind.runSpec
+        ? RunKind.session
+        : RunKind.planner;
     final model = editable
-        ? '${providerModelFrom(RunPrefs(s), s, resolved, RunKind.planner)} · '
-              '${providerEffortFrom(RunPrefs(s), s, resolved, RunKind.planner)}'
+        ? '${providerModelFrom(RunPrefs(s), s, resolved, runKind)} · '
+              '${providerEffortFrom(RunPrefs(s), s, resolved, runKind)}'
         : null;
     return Row(
       key: ValueKey('kind-row-${kind.name}'),

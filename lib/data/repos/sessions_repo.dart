@@ -96,6 +96,13 @@ class SessionsRepo {
         SessionsCompanion(steps: Value(steps), title: Value(title)),
       );
 
+  /// The model the provider reported for a session started with its
+  /// default (`inherit`): the Codex thread's model (SPEC-101 R11).
+  Future<int> setModel(String id, String model) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(model: Value(model)),
+      );
+
   Future<int> setRunConfig(String id, String config) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(runConfig: Value(config)),

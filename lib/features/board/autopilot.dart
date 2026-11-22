@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart';
+import '../../core/providers/quota_source.dart';
 import '../../data/providers.dart';
 import '../project/project_config.dart';
 import '../project/spec_auto_planner.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import 'board_rules.dart';
+import 'spec_run_provider.dart';
 import 'spec_runner.dart';
 import 'sprint_rules.dart';
 import '../activities/automation_pause.dart';
@@ -387,9 +390,51 @@ class Autopilot extends Notifier<Set<int>> {
         .read(sessionsRepoProvider)
         .watchByWorkspace(workspaceId)
         .first;
+    // SPEC-101 R14: only the sessions with a cost in US\$ count; a Codex
+    // session is never a \$0 in the budget (SPEC-097 R9).
     return sessions
-        .where((s) => s.specId != null && !s.startedAt.isBefore(day))
+        .where(
+          (s) =>
+              s.specId != null &&
+              !s.startedAt.isBefore(day) &&
+              capabilitiesFor(s.provider).supports(ProviderCapability.costUsd),
+        )
         .fold<double>(0, (a, s) => a + s.costUsd);
+  }
+
+  /// Workspaces whose autopilot already said it holds the Codex specs
+  /// (R14): one notice until the quota goes down.
+  final Set<int> _codexBraked = {};
+
+  /// Provider the next session of [spec] would run on (R14): the recorded
+  /// one for a spec already begun, else the "Executar spec" kind.
+  Future<String> _providerOf(Spec spec) async {
+    final sessions = await ref.read(sessionsRepoProvider).bySpec(spec.id);
+    return specRunProviderFor(
+      ref.read(appSettingsProvider),
+      spec.id,
+      last: sessions.lastOrNull,
+      workspaceId: spec.workspaceId,
+      flows: ref.read(providerFlowsProvider),
+    );
+  }
+
+  /// "Autopilot parado: cota do Codex em 92%" (R14, P3), once per hold.
+  void _announceBrake(int workspaceId, String why) {
+    if (!_codexBraked.add(workspaceId)) return;
+    const title = 'Autopilot parado';
+    final body =
+        '$why (janela de 5 h): as specs no Codex esperam; os '
+        'turnos em andamento terminam.';
+    unawaited(
+      ref
+          .read(notificationsRepoProvider)
+          .add(title: title, body: body, section: 'tasks')
+          .catchError((_) {}),
+    );
+    unawaited(
+      ref.read(appNotifierProvider).show(title, body).catchError((_) => null),
+    );
   }
 
   /// Off (with a notification) when the day's budget is spent. Returns
@@ -463,7 +508,18 @@ class Autopilot extends Notifier<Set<int>> {
     final review = plan.unblockAt == UnblockAt.review;
     final wasWaiting = _waitingIds[workspaceId] ?? const <int>{};
     var started = 0;
+    // SPEC-101 R14, P3: the Codex quota holds new specs on the Codex.
+    final brake = codexAutopilotBrake(
+      ref.read(quotaSnapshotProvider('codex')),
+      DateTime.now(),
+    );
+    if (brake == null) _codexBraked.remove(workspaceId);
+    var held = 0;
     for (final s in plan.start) {
+      if (brake != null && !isClaudeCode(await _providerOf(s))) {
+        held++;
+        continue;
+      }
       try {
         // With "Abrir Executar em Automático" on, in Automático
         // (SPEC-035 R19).
@@ -495,6 +551,7 @@ class Autopilot extends Notifier<Set<int>> {
         .watchByWorkspace(workspaceId)
         .first;
     final starting = ref.read(specRunnerProvider).starting;
+    if (held > 0) _announceBrake(workspaceId, brake!);
     if (started == 0 &&
         !waiting &&
         !now.any(
@@ -503,6 +560,11 @@ class Autopilot extends Notifier<Set<int>> {
               s.kind != SpecKind.vibe,
         )) {
       _off(workspaceId);
+      // Held by the Codex quota: not finished, the notice said why.
+      if (held > 0) {
+        _waitingIds.remove(workspaceId);
+        return;
+      }
       _waitingIds.remove(workspaceId);
       final inReview = now
           .where((s) => s.stage == SpecStage.review && s.kind != SpecKind.vibe)

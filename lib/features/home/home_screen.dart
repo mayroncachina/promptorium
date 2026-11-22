@@ -418,9 +418,8 @@ class _NowPanel extends ConsumerWidget {
     final config = ref.watch(projectConfigProvider(ws.path)).value;
     final parallel = config?.autopilot.parallel;
     final budget = config?.autopilot.dailyBudgetUsd;
-    final spent = today
-        .where((s) => s.specId != null)
-        .fold<double>(0, (a, s) => a + s.costUsd);
+    // SPEC-101 R14 (SPEC-097 R9): the Codex runs never add as \$0.00.
+    final spent = formatRunsCost(today.where((s) => s.specId != null));
     final schedule = AutopilotSchedule.decode(
       ref.watch(
         appSettingsProvider.select((m) => m[AutopilotSchedule.key(ws.id)]),
@@ -543,9 +542,7 @@ class _NowPanel extends ConsumerWidget {
               ),
               _kv(
                 'Orçamento do dia',
-                budget == null
-                    ? formatCost(spent)
-                    : '${formatCost(spent)} / ${formatCost(budget)}',
+                budget == null ? spent : '$spent / ${formatCost(budget)}',
               ),
               _kv('Agendado', schedule?.label ?? '—'),
             ],
