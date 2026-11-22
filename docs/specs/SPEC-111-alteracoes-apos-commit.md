@@ -1,6 +1,6 @@
 ---
 id: SPEC-111
-status: em implementação
+status: concluida
 versao: 0.23.1
 tipo: correcao
 epico: 332
@@ -47,9 +47,9 @@ Exemplo concreto, achado na conferência da main da 0.23.0: uma sessão do Codex
 
 ## Critérios de aceite
 
-- [ ] Sessão do Codex em worktree, depois do commit do app: o painel lista os arquivos do turno e o Diff mostra as linhas.
-- [ ] Sessão do Claude que commitou: idem.
-- [ ] Commit e alteração solta juntos: os dois aparecem.
-- [ ] Sessão na raiz do workspace: comportamento igual ao de hoje.
-- [ ] Sem `merge-base`: cai para o `HEAD` sem erro na tela.
-- [ ] O painel atualiza sozinho quando o commit do app termina.
+- [x] Sessão do Codex em worktree, depois do commit do app: o painel lista os arquivos do turno e o Diff mostra as linhas.
+- [x] Sessão do Claude que commitou: idem.
+- [x] Commit e alteração solta juntos: os dois aparecem.
+- [x] Sessão na raiz do workspace: comportamento igual ao de hoje.
+- [x] Sem `merge-base`: cai para o `HEAD` sem erro na tela.
+- [x] O painel atualiza sozinho quando o commit do app termina.
