@@ -36,6 +36,13 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
   bool _loaded = false;
   int _version = 0;
 
+  /// Highest `seq` the load read from the database: a live event of a row
+  /// already loaded is not applied again (SPEC-096: the first message of a
+  /// new conversation showed twice when its row was written while the load
+  /// ran and pushed right after it). Live events above it are always
+  /// applied — one stored line may expand into several events.
+  int _storedMax = 0;
+
   /// Rows already persisted, in `seq` order.
   Future<List<StoredTimelineEvent>> loadStored();
 
@@ -59,8 +66,9 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
       debugPrint('timeline $debugName: falha ao carregar eventos — $e');
     }
     _loaded = true;
+    _storedMax = maxSeq;
     for (final (seq, e) in _pending) {
-      if (seq == null || seq > maxSeq) _t.apply(e);
+      if (seq == null || seq > _storedMax) _t.apply(e);
     }
     _pending.clear();
     _emit();
@@ -73,6 +81,7 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
       _pending.add((seq, e));
       return;
     }
+    if (seq != null && seq <= _storedMax) return;
     _t.apply(e);
     _emit();
   }

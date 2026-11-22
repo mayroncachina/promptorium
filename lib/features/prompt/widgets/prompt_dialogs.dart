@@ -291,7 +291,9 @@ class _ContinueSessionDialogState extends ConsumerState<ContinueSessionDialog> {
     final sid = c.claudeSessionId;
     if (sid == null) {
       return setState(
-        () => _error = 'A conversa ainda não tem uma sessão do Claude.',
+        () => _error =
+            'A conversa ainda não tem uma sessão do '
+            '${c.provider == 'codex' ? 'Codex' : 'Claude'}.',
       );
     }
     setState(() {
@@ -314,7 +316,7 @@ class _ContinueSessionDialogState extends ConsumerState<ContinueSessionDialog> {
               resumeFrom: sid,
               origin:
                   'Continuação da conversa "${c.title}" do Prompt '
-                  '(--resume ${sid.substring(0, 8)}… --fork-session)',
+                  '(${c.provider == 'codex' ? 'thread/fork ${sid.substring(0, 8)}…' : '--resume ${sid.substring(0, 8)}… --fork-session'})',
             ),
           );
       await ref.read(conversationsRepoProvider).linkSession(c.id, id);
@@ -338,7 +340,8 @@ class _ContinueSessionDialogState extends ConsumerState<ContinueSessionDialog> {
       title: 'Continuar como sessão',
       subtitle:
           'Cria uma sessão num worktree novo (branch pr/<slug>) levando o '
-          'histórico desta conversa como contexto (--resume --fork-session). '
+          'histórico desta conversa como contexto '
+          '(${widget.conversation.provider == 'codex' ? 'thread/fork do Codex' : '--resume --fork-session'}). '
           'A conversa continua disponível aqui.',
       error: _error,
       busy: _busy,
