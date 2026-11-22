@@ -57,8 +57,10 @@ abstract final class AppEventTypes {
     required List<Map<String, Object?>> findings,
     bool partial = false,
     DateTime? at,
+    String? provider,
   }) => {
     'type': secrets,
+    'provider': ?provider,
     'block': block,
     'action': action,
     'command': ?command,
@@ -125,10 +127,13 @@ abstract final class AppEventTypes {
     String text, {
     bool error = false,
     DateTime? at,
+    String? provider,
   }) => {
     'type': note,
     'level': error ? 'error' : 'info',
     'text': text,
+    // SPEC-103 P4: the hook cards of a Codex session carry its badge.
+    'provider': ?provider,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 }
@@ -310,10 +315,18 @@ enum NoticeLevel { info, success, error }
 
 /// Small status line (session start, end of turn, errors, app notes).
 class NoticeItem extends TimelineItem {
-  NoticeItem(this.text, {this.level = NoticeLevel.info, super.at});
+  NoticeItem(
+    this.text, {
+    this.level = NoticeLevel.info,
+    this.provider,
+    super.at,
+  });
 
   final String text;
   final NoticeLevel level;
+
+  /// SPEC-103 P4: `codex` on the hook cards of a Codex session (badge).
+  final String? provider;
 }
 
 /// A chosen comparison (SPEC-079 R11): the folded card with both sides.
@@ -335,6 +348,7 @@ class SecretBlockItem extends NoticeItem {
     required this.findings,
     this.command,
     this.partial = false,
+    super.provider,
     super.at,
   }) : super(
          secretBlockTitle(action, findings.length),
@@ -377,14 +391,13 @@ class HandoffItem extends NoticeItem {
 /// "Limite de uso atingido · cota de 5h do Claude Code · reinicia às 13:23"
 /// (SPEC-099 R2): what triggers the quota banner.
 class LimitItem extends NoticeItem {
-  LimitItem({
-    required this.provider,
-    this.minutes,
-    this.resetsAt,
-    super.at,
-  }) : super(limitNotice(provider, minutes, resetsAt), level: NoticeLevel.error);
+  LimitItem({required String provider, this.minutes, this.resetsAt, super.at})
+    : agent = provider,
+      super(limitNotice(provider, minutes, resetsAt), level: NoticeLevel.error);
 
-  final String provider;
+  /// The agent that hit its limit (`claude`, `codex`). Not
+  /// [NoticeItem.provider], the badge of the hook cards (SPEC-103 P4).
+  final String agent;
   final int? minutes;
   final DateTime? resetsAt;
 }
@@ -751,6 +764,7 @@ class Timeline {
           NoticeItem(
             '${j['text'] ?? ''}',
             level: j['level'] == 'error' ? NoticeLevel.error : NoticeLevel.info,
+            provider: j['provider'] as String?,
             at: at,
           ),
         );
@@ -772,6 +786,7 @@ class Timeline {
           action: '${j['action'] ?? 'commit'}',
           command: j['command'] as String?,
           partial: j['partial'] == true,
+          provider: j['provider'] as String?,
           findings: [
             if (j['findings'] case final List l)
               for (final f in l) ?SecretFinding.fromJson(f),

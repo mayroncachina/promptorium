@@ -20,8 +20,9 @@ class _Dismissed extends Notifier<Set<String>> {
   void add(String id) => state = {...state, id};
 }
 
-final quotaBannerDismissedProvider =
-    NotifierProvider<_Dismissed, Set<String>>(_Dismissed.new);
+final quotaBannerDismissedProvider = NotifierProvider<_Dismissed, Set<String>>(
+  _Dismissed.new,
+);
 
 /// "1h43", "12 min".
 String untilWords(Duration d) {
@@ -43,13 +44,20 @@ int? freePercent(QuotaSnapshot s) {
 }
 
 /// The text of the banner (R2).
-String quotaBannerText(LimitItem limit, {required String target, int? free, DateTime? now}) {
+String quotaBannerText(
+  LimitItem limit, {
+  required String target,
+  int? free,
+  DateTime? now,
+}) {
   final b = StringBuffer(
     '${quotaWindowWords(limit.minutes).replaceFirst('cota', 'Cota')} do '
-    '${providerWords(limit.provider)} esgotada',
+    '${providerWords(limit.agent)} esgotada',
   );
   if (limit.resetsAt case final at?) {
-    b.write(' · reinicia em ${untilWords(at.difference(now ?? DateTime.now()))}');
+    b.write(
+      ' · reinicia em ${untilWords(at.difference(now ?? DateTime.now()))}',
+    );
   }
   if (free != null) b.write(' · ${providerWords(target)} com $free% livre');
   return b.toString();
@@ -75,9 +83,8 @@ class QuotaSwitchBanner extends ConsumerWidget {
     }
     // Already continued: the link in the header says where.
     final continued = ref.watch(
-      continuationLinksProvider(
-        s.workspaceId,
-      ).select((l) => l.value?.continuedInto(s.id) != null),
+      continuationLinksProvider(s.workspaceId)
+          .select((l) => l.value?.continuedInto(s.id) != null),
     );
     if (continued) return const SizedBox.shrink();
     final a = watchContinueAvailability(ref, s);

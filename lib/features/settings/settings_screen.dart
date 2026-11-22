@@ -200,11 +200,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
-                  title: 'Automações',
+                  title: 'Automações (hooks)',
                   intro:
-                      'Hooks que o app adiciona a cada sessão num settings.json '
-                      'temporário (--settings); os do seu ~/.claude continuam '
-                      'valendo.',
+                      'Hooks que o app adiciona a cada sessão, no Claude Code e '
+                      'no Codex; os seus e os do projeto continuam valendo.',
                   children: [AutomationsCard()],
                 ),
                 SettingsSection.providers => const _Page(

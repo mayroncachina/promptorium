@@ -820,6 +820,11 @@ class _Notice extends StatelessWidget {
             style: TextStyle(fontSize: 11, color: color),
           ),
         ),
+        // SPEC-103 P4: the hook cards of a Codex session carry its badge.
+        if (item.provider == 'codex') ...[
+          const ProviderTag(key: ValueKey('notice-provider-codex')),
+          const SizedBox(width: 6),
+        ],
         if (item.at != null)
           Text(
             formatClock(item.at),

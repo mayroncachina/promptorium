@@ -5,6 +5,7 @@ import '../../ui/providers/provider_logos.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/claude_args.dart' show ClaudePermissionMode;
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
@@ -20,6 +21,7 @@ import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
 import 'tool_expanded.dart';
+import 'widgets/codex_hooks_chip.dart';
 import 'widgets/composer.dart';
 import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
@@ -665,6 +667,14 @@ class _Header extends ConsumerWidget {
                       InfoTag('TASK #${s.taskId}'),
                     if (hasProviderIdentity(s.provider))
                       ProviderChip(s.provider, dense: true),
+                    // SPEC-103 R9: what hooks/list said, while it runs.
+                    if (codex && alive)
+                      CodexHooksChip(
+                        sessionId: s.id,
+                        yolo:
+                            s.permissionMode ==
+                            ClaudePermissionMode.skipPermissions.cliValue,
+                      ),
                     InfoTag(agentModel),
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
