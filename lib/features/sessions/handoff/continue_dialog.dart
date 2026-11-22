@@ -126,6 +126,7 @@ class _ContinueDialogState extends ConsumerState<ContinueDialog> {
       path: _path,
       handoff: _source.handoff,
       summary: _path == ContinuePath.summary ? _summary() : null,
+      cut: _source.status == HandoffSourceStatus.cut,
     );
     _generated = text;
     _message.text = text;

@@ -347,6 +347,8 @@ class _SessionTile extends ConsumerWidget {
                           child: Text(
                             secret
                                 ? 'Segredo encontrado'
+                                : continued
+                                ? 'continuada →'
                                 : sessionStatusLabel(session, look),
                             key: secret
                                 ? ValueKey('session-secret-${session.id}')
@@ -354,15 +356,17 @@ class _SessionTile extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: secret ? AppColors.amber : look.color,
+                              color: secret
+                                  ? AppColors.amber
+                                  : continued
+                                  ? AppColors.teal
+                                  : look.color,
                             ),
                           ),
                         ),
                         if (continued)
-                          Text(
-                            ' · continuada →',
+                          SizedBox.shrink(
                             key: ValueKey('session-continued-${session.id}'),
-                            style: const TextStyle(color: AppColors.teal),
                           ),
                         const Spacer(),
                         Text(

@@ -6,6 +6,7 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../handoff/continue_controller.dart';
 import '../handoff/continue_dialog.dart';
+import '../handoff/continue_link.dart';
 import '../handoff/continue_widgets.dart';
 import '../handoff/session_summary.dart' show providerWords;
 import '../timeline.dart';
@@ -72,6 +73,13 @@ class QuotaSwitchBanner extends ConsumerWidget {
     if (ref.watch(quotaBannerDismissedProvider).contains(s.id)) {
       return const SizedBox.shrink();
     }
+    // Already continued: the link in the header says where.
+    final continued = ref.watch(
+      continuationLinksProvider(
+        s.workspaceId,
+      ).select((l) => l.value?.continuedInto(s.id) != null),
+    );
+    if (continued) return const SizedBox.shrink();
     final a = watchContinueAvailability(ref, s);
     if (!a.enabled) return const SizedBox.shrink();
     final target = a.target!;
