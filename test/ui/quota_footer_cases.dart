@@ -23,6 +23,10 @@ import '../helpers/test_db.dart';
 /// Unix seconds of [t].
 int _unix(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
 
+/// The renewal of the 5 h window, today or after midnight (the CI clock is
+/// UTC, so "in 2 h" can be tomorrow).
+final _renewsAt = RegExp(r'renova (\S+ \d\d/\d\d )?às \d\d:\d\d');
+
 /// A reading of the Codex like `account/rateLimits/read` (R1).
 QuotaSnapshot codexReading({
   int five = 38,
@@ -194,7 +198,14 @@ void main() {
 
     testWidgets('a failed reading shows "cota indisponível" with the reason '
         'and the time of the old reading (R4)', (tester) async {
-      final read = DateTime.now().subtract(const Duration(hours: 1));
+      // An hour ago, but never yesterday: a reading from another day shows
+      // the date instead of "às HH:mm" (the CI clock is UTC, so this case
+      // broke between 00:00 and 01:00).
+      final now = DateTime.now();
+      final hourAgo = now.subtract(const Duration(hours: 1));
+      final read = hourAgo.day == now.day
+          ? hourAgo
+          : DateTime(now.year, now.month, now.day);
       await _pumpFooter(
         tester,
         active: 'codex',
@@ -222,7 +233,9 @@ void main() {
       final limit = tester.widget<Text>(
         find.byKey(const ValueKey('footer-limit')),
       );
-      expect(limit.data, startsWith('limite atingido · renova às '));
+      // The 5 h window renews in 2 h: "renova às HH:mm" today, or
+      // "renova dom 22/11 às HH:mm" when that crosses midnight.
+      expect(limit.data, matches(_renewsAt));
       expect(limit.style?.color, AppColors.red);
       expect(_tip(tester, 'footer-usage-5h'), contains('limite do plano'));
       expect(
@@ -259,12 +272,13 @@ void main() {
       expect(_inKey('quota-card-codex', find.text('ativo')), findsOneWidget);
       expect(_inKey('quota-card-codex', find.text('38%')), findsOneWidget);
       expect(_inKey('quota-card-codex', find.text('61%')), findsOneWidget);
+      // Both windows with the renewal time: "renova às HH:mm" today or
+      // "renova seg. HH:mm" another day (the 5 h one can cross midnight).
       expect(
-        _inKey('quota-card-codex', find.textContaining('renova às ')),
-        findsOneWidget,
-      );
-      expect(
-        _inKey('quota-card-codex', find.textContaining('renova ')),
+        _inKey(
+          'quota-card-codex',
+          find.textContaining(RegExp(r'renova (às|\S+) \d\d:\d\d')),
+        ),
         findsNWidgets(2),
       );
       expect(_text(tester, 'quota-credits-codex'), 'sem créditos extras');
