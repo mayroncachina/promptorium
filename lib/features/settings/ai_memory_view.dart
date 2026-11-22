@@ -8,6 +8,7 @@ import '../../core/memory/ai_memory_cli.dart';
 import '../../core/memory/ai_memory_state.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/widgets/session_style.dart';
+import 'ai_memory_links.dart';
 
 /// Opens a URL or a folder outside the app (`xdg-open`). Tests replace it.
 typedef AiMemoryOpener = Future<void> Function(String target);
@@ -123,8 +124,13 @@ class AiMemorySettingsView extends ConsumerWidget {
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           )
-        else
+        else ...[
           AiMemoryStatusCard(detection: d),
+          if (d.installed) ...[
+            const SizedBox(height: 12),
+            const AiMemoryLinksView(),
+          ],
+        ],
       ],
     );
   }
