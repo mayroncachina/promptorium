@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/codex/codex_cli.dart' show codexExecutableProvider;
+import '../../core/codex/codex_mcp_overrides.dart' show codexMcpStartupUpdates;
+import '../../core/mcp/app_mcp_tools.dart' show appMcpServerName;
 import '../../core/providers/provider_preferences.dart'
     show activeAgentProvider;
 import '../../data/providers.dart';
@@ -78,7 +80,33 @@ final codexMcpStatusProvider =
 /// these when the Codex is the provider in focus.
 class CodexMcpBoard extends Notifier<McpStatusBoardState> {
   @override
-  McpStatusBoardState build() => const McpStatusBoardState();
+  McpStatusBoardState build() {
+    // Codex runs report each server as it starts.
+    final sub = codexMcpStartupUpdates.stream.listen(setFromStartup);
+    ref.onDispose(sub.cancel);
+    return const McpStatusBoardState();
+  }
+
+  /// `mcpServer/startupStatus/updated` of a run (`starting`, `ready`,
+  /// `failed`, `cancelled`). The app's own server is per run: not counted.
+  void setFromStartup(Map<String, dynamic> p) {
+    final name = p['name'];
+    if (name is! String || name == appMcpServerName) return;
+    final st = switch (p['status']) {
+      'ready' => McpConnState.connected,
+      'starting' => McpConnState.checking,
+      'failed' || 'cancelled' =>
+        p['failureReason'] == 'reauthenticationRequired'
+            ? McpConnState.needsAuth
+            : McpConnState.failed,
+      _ => McpConnState.unknown,
+    };
+    setOne(
+      name,
+      st,
+      detail: p['error'] is String ? p['error'] as String : null,
+    );
+  }
 
   void setFromStatus(List<CodexMcpStatus> list) => state = McpStatusBoardState(
     byName: {

@@ -655,6 +655,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
                   ? await runSettingsFile(ref)
                   : null,
             ),
+            // SPEC-105 R9: "Bloqueado" becomes `disabled_tools`.
+            codex: CodexExtras(mcpDisallowedTools: mcp.disallowed),
           ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
