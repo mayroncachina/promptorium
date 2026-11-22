@@ -1,6 +1,6 @@
 ---
 id: SPEC-107
-status: rascunho
+status: em implementação
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -59,11 +59,11 @@ Esta spec liga o contrato da SPEC-087 aos dados do Codex. Ela não muda o compor
 
 ## Decisões em aberto
 
-- P1 · **Preferência de limiar por provedor.** (a) Uma preferência para cada provedor (`codex.autocompact`, começando em "padrão do agente"); (b) a mesma do Claude (hoje 200 mil). **Recomendação: (a).** As janelas e o comportamento são diferentes: o Claude compacta em `janela − 33 mil` (SPEC-087, sonda), e reaproveitar os 200 mil no Codex seria um número sem base.
-- P2 · **Escopo do limiar.** (a) Não expor e enviar só o limite; (b) expor "total" ou "corpo depois do prefixo". **Recomendação: (a).** Se o `config/read` informar o escopo, ele aparece como texto no painel, sem controle.
-- P3 · **Foco no Compactar agora.** (a) Esconder no Codex; (b) mandar o foco como `compact_prompt` só daquela compactação. **Recomendação: (a).** O `compact_prompt` substitui o prompt inteiro de compactação do Codex, e um foco mal escrito pode piorar o resumo.
-- P4 · **Leituras por comando.** (a) Usar só `commandActions` com tipo conhecido; (b) também interpretar o texto do comando (`cat`, `sed -n`, `rg`). **Recomendação: (a).** O texto do comando é frágil, e o protocolo já classifica as ações.
-- P5 · **Leitura no meio do turno.** O Codex pode mandar várias `tokenUsage` por turno. (a) Mostrar todas na Evolução; (b) só a última de cada turno. **Recomendação: (b) no gráfico e (a) no detalhe do turno**, como a SPEC-087 faz com as várias chamadas do Claude.
+- P1 · **Preferência de limiar por provedor.** (a) Uma preferência para cada provedor (`codex.autocompact`, começando em "padrão do agente"); (b) a mesma do Claude (hoje 200 mil). **Decidido: (a).** Uma preferência própria (`codex.autocompact`), começando em "padrão do agente". As janelas e o comportamento são diferentes: o Claude compacta em `janela − 33 mil` (SPEC-087, sonda), e reaproveitar os 200 mil no Codex seria um número sem base.
+- P2 · **Escopo do limiar.** (a) Não expor e enviar só o limite; (b) expor "total" ou "corpo depois do prefixo". **Decidido: (a).** O app envia só o limite. Se o `config/read` informar o escopo, ele aparece como texto no painel, sem controle.
+- P3 · **Foco no Compactar agora.** (a) Esconder no Codex; (b) mandar o foco como `compact_prompt` só daquela compactação. **Decidido: (a).** O campo some no Codex. O `compact_prompt` substitui o prompt inteiro de compactação do Codex, e um foco mal escrito pode piorar o resumo.
+- P4 · **Leituras por comando.** (a) Usar só `commandActions` com tipo conhecido; (b) também interpretar o texto do comando (`cat`, `sed -n`, `rg`). **Decidido: (a).** Só `commandActions` com tipo conhecido. O texto do comando é frágil, e o protocolo já classifica as ações.
+- P5 · **Leitura no meio do turno.** O Codex pode mandar várias `tokenUsage` por turno. (a) Mostrar todas na Evolução; (b) só a última de cada turno. **Decidido: (b) no gráfico e (a) no detalhe do turno**, como a SPEC-087 faz com as várias chamadas do Claude.
 
 ## Design
 
