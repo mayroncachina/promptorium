@@ -559,9 +559,13 @@ class CodexMcpCli {
 final codexMcpCliProvider = Provider<CodexMcpCli>(
   (ref) => CodexMcpCli(
     executable: ref.watch(codexExecutableProvider),
-    run: ref.watch(mcpRunnerProvider),
+    run: ref.watch(codexMcpRunnerProvider),
   ),
 );
+
+/// Runner of the `codex mcp …` commands (tests inject a fake; the real one
+/// refuses to run under `flutter test`).
+final codexMcpRunnerProvider = Provider<McpRunner>((ref) => defaultMcpRunner);
 
 // --- App Server (status and OAuth) ----------------------------------------------
 
