@@ -19,6 +19,7 @@ import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../project/spec_auto_planner.dart';
 import '../../project/project_config.dart';
+import '../../review/widgets/reviewer_run_line.dart';
 import '../../review/auto_reviewer.dart' show reviewerApplies;
 import '../../settings/settings_sections.dart';
 import '../../sessions/agent_names.dart';
@@ -321,6 +322,10 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
   late final bool _reviewOn = reviewerApplies(
     ProjectConfig.loadSync(_projectPath),
   );
+
+  /// `revisor:` of the project: the line Revisão (SPEC-102 R3).
+  late final ReviewerConfig _reviewer = ProjectConfig.loadSync(_projectPath)
+      .reviewer;
 
   /// What the person chose in the lines of the plan, by step id
   /// ([StepPlanList.reviewStep] for the reviewer). A new classification
@@ -727,6 +732,12 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           key: const ValueKey('run-spec-running-on'),
           text: runningOnNotice(caps.displayName),
         ),
+      // SPEC-102 R3: who will review it.
+      if (_reviewOn)
+        ReviewerRunLine(
+          config: _reviewer,
+          executedBy: widget.previous?.provider ?? _provider,
+        ),
     ];
 
     void submitManual() => flowLocked || codexUnavailable
@@ -890,10 +901,15 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           ),
           StepClassifierStatus.ready => StepPlanList(
             entries: plan,
-            review: review,
+            // SPEC-102 R3: an explicit `provedor:` beats the plan's rule.
+            review: _reviewer.explicitProvider ? null : review,
             onPick: (step, rule) => setState(() => _picks[step] = rule),
           ),
         },
+        if (status == StepClassifierStatus.ready &&
+            _reviewOn &&
+            _reviewer.explicitProvider)
+          ReviewerRunLine(config: _reviewer, executedBy: 'claude', auto: true),
         modeField('claude'),
         bypass('claude'),
         if (status == StepClassifierStatus.ready && plan.isNotEmpty)

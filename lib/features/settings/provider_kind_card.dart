@@ -10,6 +10,11 @@ import '../../ui/providers/provider_logos.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/only_provider_tag.dart';
 import '../agents/widgets/agent_style.dart';
+import '../project/project_config.dart';
+import '../project/widgets/project_config_view.dart'
+    show reviewerProviderChoices;
+import '../review/reviewer_provider.dart';
+import 'settings_sections.dart';
 import '../specs/prototype/prototype_service.dart'
     show prototypeClaudeOnlyReason;
 
@@ -145,6 +150,9 @@ class ProviderKindCard extends ConsumerWidget {
             ),
         ],
       );
+    } else if (kind == ProviderKind.reviewer) {
+      // SPEC-102 R4: the project's choice, no second one saved here.
+      state = const ReviewerKindState(key: ValueKey('kind-reviewer-state'));
     } else if (kind == ProviderKind.sessions) {
       state = Row(
         mainAxisSize: MainAxisSize.min,
@@ -225,6 +233,60 @@ class ProviderKindCard extends ConsumerWidget {
               color: AppColors.textSecondary,
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// The row Revisor automático (SPEC-102 R4): `revisor: provedor:` of the
+/// active project, resolved, and the way to Configuração do projeto.
+class ReviewerKindState extends ConsumerWidget {
+  const ReviewerKindState({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ws = ref.watch(activeWorkspaceProvider);
+    final s = ref.watch(appSettingsProvider);
+    final config = ws == null
+        ? null
+        : ref.watch(projectConfigProvider(ws.path)).value;
+    final reviewer = config?.reviewer ?? const ReviewerConfig();
+    final label = reviewerProviderChoices
+        .firstWhere(
+          (c) => c.$1 == reviewer.provider,
+          orElse: () => reviewerProviderChoices.first,
+        )
+        .$2;
+    final codex = reviewerCodexModel(reviewer, s);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          'do projeto: $label',
+          key: const ValueKey('kind-reviewer-value'),
+          style: const TextStyle(fontSize: 12, color: AppColors.text),
+        ),
+        Text(
+          'Claude Code ${reviewer.model} · Codex ${codex ?? 'modelo do tipo'}',
+          key: const ValueKey('kind-reviewer-models'),
+          style: const TextStyle(
+            fontFamily: AppFonts.mono,
+            fontSize: 11,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        TextButton(
+          key: const ValueKey('kind-reviewer-open-project'),
+          onPressed: () => ref
+              .read(selectedSettingsSectionProvider.notifier)
+              .select(SettingsSection.project),
+          child: const Text(
+            'Configuração do projeto',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
       ],
     );
   }

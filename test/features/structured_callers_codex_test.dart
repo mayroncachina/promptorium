@@ -236,11 +236,12 @@ void main() {
     await out;
   });
 
-  test('Só Claude Code: o revisor fica no Claude Code até a SPEC-102', () {
+  test('Só Claude Code: Executar spec fica no Claude Code até a SPEC-101; '
+      'o revisor segue o projeto (SPEC-102)', () {
     final settings = {providerPreferenceKey(ws.id): 'codex'};
     expect(
       providerForKind(settings, ProviderKind.reviewer, workspaceId: ws.id),
-      'claude',
+      'codex',
     );
     // SPEC-101 R1: "Executar spec" follows the footer to the Codex.
     expect(

@@ -38,6 +38,7 @@ import 'merge_options.dart';
 import 'review_host.dart';
 import '../project/project_config.dart';
 import 'auto_reviewer.dart' show AutoReviewer, ReviewPhase;
+import 'reviewer_provider.dart' show executionProviderOf, reviewerAuthorLabel;
 import '../board/board_rules.dart';
 import 'widgets/spec_review_panel.dart';
 
@@ -2786,6 +2787,7 @@ class ReviewService {
     List<String> pending = [], failed = [];
     var open = 0, uncommitted = 0;
     var reviewerFailed = false;
+    String? reviewerAuthor;
     String? root, stacked, worktree, pr;
     final spec = c.spec;
     if (spec != null) {
@@ -2804,6 +2806,24 @@ class ReviewService {
             last != null &&
             !last.resolved &&
             last.body.startsWith(AutoReviewer.failurePrefix);
+        // SPEC-102 R9: who reviewed the last round.
+        final verdict = rows
+            .where((r) => r.author == 'revisor' && r.verdict != null)
+            .lastOrNull;
+        if (!reviewerFailed && verdict != null) {
+          final sessions = await _ref
+              .read(sessionsRepoProvider)
+              .bySpec(spec.id);
+          final who = reviewerAuthorLabel(
+            verdict.provider,
+            null,
+            executedBy: executionProviderOf(sessions.map((s) => s.provider)),
+          );
+          if (who != null) {
+            reviewerAuthor =
+                '$who · ${verdict.verdict == 'aprovar' ? 'aprovou' : 'pediu correções'}';
+          }
+        }
       } catch (e) {
         unknown['comentarios'] = '$e';
       }
@@ -2907,6 +2927,7 @@ class ReviewService {
           spec?.reviewPhase == ReviewPhase.auto &&
           spec?.stage == SpecStage.review,
       reviewerFailed: reviewerFailed,
+      reviewerAuthor: reviewerAuthor,
       pendingCriteria: pending,
       failedGates: failed,
       openComments: open,

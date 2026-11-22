@@ -11254,6 +11254,26 @@ class $ReviewCommentsTable extends ReviewComments
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -11272,6 +11292,8 @@ class $ReviewCommentsTable extends ReviewComments
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11387,6 +11409,18 @@ class $ReviewCommentsTable extends ReviewComments
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
     return context;
   }
 
@@ -11460,6 +11494,14 @@ class $ReviewCommentsTable extends ReviewComments
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
     );
   }
 
@@ -11505,6 +11547,12 @@ class ReviewCommentRow extends DataClass
   final DateTime? resolvedAt;
   final String? externalId;
   final DateTime createdAt;
+
+  /// Who ran the automatic reviewer's round (SPEC-102 R9, P3, schema v36),
+  /// on its verdict line: `claude`, `codex`… and the model it reported.
+  /// Null on the rows of before and on the other lines.
+  final String? provider;
+  final String? model;
   const ReviewCommentRow({
     required this.id,
     this.specId,
@@ -11522,6 +11570,8 @@ class ReviewCommentRow extends DataClass
     this.resolvedAt,
     this.externalId,
     required this.createdAt,
+    this.provider,
+    this.model,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11562,6 +11612,12 @@ class ReviewCommentRow extends DataClass
       map['external_id'] = Variable<String>(externalId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || provider != null) {
+      map['provider'] = Variable<String>(provider);
+    }
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
     return map;
   }
 
@@ -11599,6 +11655,12 @@ class ReviewCommentRow extends DataClass
           ? const Value.absent()
           : Value(externalId),
       createdAt: Value(createdAt),
+      provider: provider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provider),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
     );
   }
 
@@ -11624,6 +11686,8 @@ class ReviewCommentRow extends DataClass
       resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
       externalId: serializer.fromJson<String?>(json['externalId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      provider: serializer.fromJson<String?>(json['provider']),
+      model: serializer.fromJson<String?>(json['model']),
     );
   }
   @override
@@ -11646,6 +11710,8 @@ class ReviewCommentRow extends DataClass
       'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
       'externalId': serializer.toJson<String?>(externalId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'provider': serializer.toJson<String?>(provider),
+      'model': serializer.toJson<String?>(model),
     };
   }
 
@@ -11666,6 +11732,8 @@ class ReviewCommentRow extends DataClass
     Value<DateTime?> resolvedAt = const Value.absent(),
     Value<String?> externalId = const Value.absent(),
     DateTime? createdAt,
+    Value<String?> provider = const Value.absent(),
+    Value<String?> model = const Value.absent(),
   }) => ReviewCommentRow(
     id: id ?? this.id,
     specId: specId.present ? specId.value : this.specId,
@@ -11683,6 +11751,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
     externalId: externalId.present ? externalId.value : this.externalId,
     createdAt: createdAt ?? this.createdAt,
+    provider: provider.present ? provider.value : this.provider,
+    model: model.present ? model.value : this.model,
   );
   ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
     return ReviewCommentRow(
@@ -11708,6 +11778,8 @@ class ReviewCommentRow extends DataClass
           ? data.externalId.value
           : this.externalId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      model: data.model.present ? data.model.value : this.model,
     );
   }
 
@@ -11729,7 +11801,9 @@ class ReviewCommentRow extends DataClass
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -11752,6 +11826,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   );
   @override
   bool operator ==(Object other) =>
@@ -11772,7 +11848,9 @@ class ReviewCommentRow extends DataClass
           other.resolved == this.resolved &&
           other.resolvedAt == this.resolvedAt &&
           other.externalId == this.externalId &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.provider == this.provider &&
+          other.model == this.model);
 }
 
 class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
@@ -11792,6 +11870,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<DateTime?> resolvedAt;
   final Value<String?> externalId;
   final Value<DateTime> createdAt;
+  final Value<String?> provider;
+  final Value<String?> model;
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
@@ -11809,6 +11889,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   });
   ReviewCommentsCompanion.insert({
     this.id = const Value.absent(),
@@ -11827,6 +11909,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   }) : round = Value(round),
        author = Value(author),
        body = Value(body);
@@ -11847,6 +11931,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Expression<DateTime>? resolvedAt,
     Expression<String>? externalId,
     Expression<DateTime>? createdAt,
+    Expression<String>? provider,
+    Expression<String>? model,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -11865,6 +11951,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       if (resolvedAt != null) 'resolved_at': resolvedAt,
       if (externalId != null) 'external_id': externalId,
       if (createdAt != null) 'created_at': createdAt,
+      if (provider != null) 'provider': provider,
+      if (model != null) 'model': model,
     });
   }
 
@@ -11885,6 +11973,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Value<DateTime?>? resolvedAt,
     Value<String?>? externalId,
     Value<DateTime>? createdAt,
+    Value<String?>? provider,
+    Value<String?>? model,
   }) {
     return ReviewCommentsCompanion(
       id: id ?? this.id,
@@ -11903,6 +11993,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       resolvedAt: resolvedAt ?? this.resolvedAt,
       externalId: externalId ?? this.externalId,
       createdAt: createdAt ?? this.createdAt,
+      provider: provider ?? this.provider,
+      model: model ?? this.model,
     );
   }
 
@@ -11957,6 +12049,12 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
     return map;
   }
 
@@ -11978,7 +12076,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -30995,6 +31095,8 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
     ReviewCommentsCompanion Function({
@@ -31014,6 +31116,8 @@ typedef $$ReviewCommentsTableUpdateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 
 final class $$ReviewCommentsTableReferences
@@ -31136,6 +31240,16 @@ class $$ReviewCommentsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -31265,6 +31379,16 @@ class $$ReviewCommentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -31369,6 +31493,12 @@ class $$ReviewCommentsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -31462,6 +31592,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion(
                 id: id,
                 specId: specId,
@@ -31479,6 +31611,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           createCompanionCallback:
               ({
@@ -31498,6 +31632,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion.insert(
                 id: id,
                 specId: specId,
@@ -31515,6 +31651,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           withReferenceMapper: (p0) => p0
               .map(
