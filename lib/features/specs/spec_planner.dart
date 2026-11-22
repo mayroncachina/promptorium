@@ -361,7 +361,14 @@ class SpecPlanner extends Notifier<Set<int>> {
       final resume = row.plannerSessionId;
       final sid = resume ?? ref.read(sessionIdGeneratorProvider)();
       // R6: the images go once; a resumed session already has them.
-      final withPrints = data.prints.isNotEmpty && !data.printsSent;
+      // SPEC-100 R6: "Enviar sem os prints" holds for this turn.
+      final drop =
+          ref
+              .read(structuredRunsProvider.notifier)
+              .peekOnce(specPlannerSlot(ws.id))
+              ?.dropImages ??
+          false;
+      final withPrints = data.prints.isNotEmpty && !data.printsSent && !drop;
       final images = withPrints
           ? await printImages(data.prints)
           : const <ImagePart>[];
@@ -400,7 +407,7 @@ class SpecPlanner extends Notifier<Set<int>> {
           knownSpecs: {for (final s in specs) s.code},
           printNotes: out.prints,
         );
-        return withPrints ? next.withPrintsSent() : next;
+        return withPrints || drop ? next.withPrintsSent() : next;
       }, sessionId: sid);
     } catch (e) {
       debugPrint('Planner da nova spec: $e');

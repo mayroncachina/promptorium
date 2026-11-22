@@ -93,6 +93,14 @@ final prototypeSchema = {
 /// Options of a prototype run: writing allowed only in [dir] (relative to
 /// the workspace, the run's cwd) by the `Edit(<dir>/**)` rule — it covers
 /// Write and Edit; everything else asks and is denied (R2).
+/// Why the prototype stays on the Claude Code when "Planner e assistentes"
+/// is on another provider (SPEC-100 R8, R10, P1).
+const prototypeClaudeOnlyReason =
+    'O protótipo escreve só em docs/mockups/ usando regras por ferramenta '
+    '(--tools e allowedTools). O Codex só limita a escrita por pasta do '
+    'sandbox, sem essa granularidade. Esta execução roda no Claude Code e '
+    'gasta a cota dele.';
+
 /// What a prototype run asks (R2): instructions, schema and the Claude
 /// write rules. Só Claude Code (SPEC-100 R8, P1): the Codex only limits
 /// writing by sandbox folder, not by tool.

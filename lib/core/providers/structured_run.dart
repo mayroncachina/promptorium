@@ -363,11 +363,15 @@ class StructuredRunInfo {
     this.elapsed,
     this.switchedFrom,
     this.resumed = false,
+    this.failure,
   });
 
   final String provider;
   final String? model;
   final bool running;
+
+  /// Why the run did not finish (R6, R11): the dialog offers the choices.
+  final PlannerException? failure;
   final int? tokens;
   final double? costUsd;
   final Duration? elapsed;
@@ -377,10 +381,26 @@ class StructuredRunInfo {
   final bool resumed;
 }
 
+/// A choice that holds for the next run of a slot only (R6, R11): "Usar o
+/// Claude Code desta vez" or "Enviar sem os prints". The saved preference
+/// never changes.
+typedef StructuredOnce = ({String? provider, bool dropImages});
+
 /// Runs by [StructuredIntent.slot] (R10): the dialogs watch their slot.
 class StructuredRuns extends Notifier<Map<String, StructuredRunInfo>> {
   @override
   Map<String, StructuredRunInfo> build() => const {};
+
+  final _once = <String, StructuredOnce>{};
+
+  /// The next run of [slot] goes to [provider] and/or without images.
+  void once(String slot, {String? provider, bool dropImages = false}) =>
+      _once[slot] = (provider: provider, dropImages: dropImages);
+
+  /// The pending choice of [slot], without using it.
+  StructuredOnce? peekOnce(String slot) => _once[slot];
+
+  StructuredOnce? takeOnce(String slot) => _once.remove(slot);
 
   void put(String slot, StructuredRunInfo info) {
     if (ref.mounted) state = {...state, slot: info};
@@ -406,6 +426,12 @@ String structuredProviderFor(Ref ref, StructuredIntent intent, int? ws) {
     return settings['agent.run.$id.provider'] ?? 'claude';
   }
   if (intent.providerId case final id?) return id;
+  return structuredKindProvider(ref, intent, ws);
+}
+
+/// The provider the kind gives [intent] (R9), ignoring its own choice.
+String structuredKindProvider(Ref ref, StructuredIntent intent, int? ws) {
+  final settings = ref.read(appSettingsProvider);
   return providerForKind(
     settings,
     providerKindOf(intent.flow),
@@ -426,6 +452,22 @@ Future<StructuredResult> runStructured(
   String? switchedFrom,
 }) async {
   final ws = intent.workspaceId ?? ref.read(activeWorkspaceProvider)?.id;
+  final runs = ref.read(structuredRunsProvider.notifier);
+  if (intent.slot case final slot?) {
+    // R6, R11: a choice "desta vez" holds for this run only; a
+    // continuation stays where its round started (R7).
+    final once = runs.takeOnce(slot);
+    if (once != null) {
+      final kind = structuredProviderFor(ref, intent, ws);
+      if (once.provider != null &&
+          intent.resumeId == null &&
+          once.provider != kind) {
+        switchedFrom ??= kind;
+        intent = intent.copyWith(providerId: once.provider);
+      }
+      if (once.dropImages) intent = intent.copyWith(images: const []);
+    }
+  }
   final chosen = structuredProviderFor(ref, intent, ws);
   final settings = ref.read(appSettingsProvider.notifier);
   final name = providerDisplayName(chosen);
@@ -433,7 +475,6 @@ Future<StructuredResult> runStructured(
     await settings.set('agent.run.${intent.sessionId}.provider', chosen);
   }
   final started = DateTime.now();
-  final runs = ref.read(structuredRunsProvider.notifier);
   final claude = isClaudeCode(chosen);
   final StructuredStart start;
   try {
@@ -453,28 +494,51 @@ Future<StructuredResult> runStructured(
       start = await startProviderStructured(ref, provider, intent);
     }
   } catch (e) {
-    if (intent.slot case final slot?) runs.clear(slot);
     final reason = '$e';
-    throw StructuredProviderFailure(
+    final failure = StructuredProviderFailure(
       'Falha ao iniciar $name: $reason',
       provider: chosen,
       reason: reason,
       alternative: alternativeProvider(chosen),
     );
+    if (intent.slot case final slot?) {
+      runs.put(
+        slot,
+        StructuredRunInfo(
+          provider: chosen,
+          model: null,
+          running: false,
+          failure: failure,
+          switchedFrom: switchedFrom,
+        ),
+      );
+    }
+    throw failure;
   }
   final process = start.run;
   if (intent.images.isNotEmpty &&
       process is CodexRun &&
       !process.supportsImages) {
     await process.stop(timeout: const Duration(seconds: 2));
-    if (intent.slot case final slot?) runs.clear(slot);
     final m = process.model ?? start.model;
-    throw StructuredImagesUnsupported(
+    final failure = StructuredImagesUnsupported(
       'O modelo ${m ?? 'padrão'} do $name não lê imagens.',
       provider: chosen,
       model: m,
       count: intent.images.length,
     );
+    if (intent.slot case final slot?) {
+      runs.put(
+        slot,
+        StructuredRunInfo(
+          provider: chosen,
+          model: m,
+          running: false,
+          failure: failure,
+        ),
+      );
+    }
+    throw failure;
   }
   var model = start.model;
   final slot = intent.slot;
@@ -620,7 +684,23 @@ Future<StructuredResult> runStructured(
     );
     return out;
   } catch (e) {
-    if (slot != null) runs.clear(slot);
+    if (slot != null) {
+      if (e is PlannerException && e is! StructuredCancelled) {
+        runs.put(
+          slot,
+          StructuredRunInfo(
+            provider: chosen,
+            model: model,
+            running: false,
+            failure: e,
+            switchedFrom: switchedFrom,
+            resumed: intent.resumeId != null,
+          ),
+        );
+      } else {
+        runs.clear(slot);
+      }
+    }
     rethrow;
   } finally {
     finished = true;
@@ -652,7 +732,9 @@ Future<StructuredStart> startProviderStructured(
     final efforts = id == ProviderCapabilities.codex.providerId
         ? codexModelsCache(settings)?.byId(model)?.efforts
         : caps.efforts;
-    effort = efforts == null || efforts.contains('low') ? 'low' : effort;
+    // An unknown catalog keeps the kind's effort: the App Server refuses
+    // an effort the model does not have.
+    effort = efforts != null && efforts.contains('low') ? 'low' : effort;
   }
   final resume = intent.resumeId;
   final run = await provider.start(

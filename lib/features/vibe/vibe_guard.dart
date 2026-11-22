@@ -181,11 +181,15 @@ String unrelatedPrompt({
 ].join('\n\n');
 
 /// Runs the check (Haiku). Tests answer in its place.
+///
+/// [provider] is the VIBE conversation's: the check follows it, with the
+/// profile "rápido" (SPEC-100 R4, R8).
 typedef UnrelatedCheck = Future<UnrelatedVerdict> Function({
   required Spec vibe,
   required List<String> changed,
   required List<String> accepted,
   required String request,
+  String? provider,
 });
 
 final unrelatedRequestProvider = Provider<UnrelatedCheck>(
@@ -195,13 +199,15 @@ final unrelatedRequestProvider = Provider<UnrelatedCheck>(
         required changed,
         required accepted,
         required request,
+        provider,
       }) async {
         final r = await runStructured(
           ref,
           StructuredIntent(
             cwd: vibe.worktreePath ?? Directory.systemTemp.path,
             workspaceId: vibe.workspaceId,
-            providerId: 'claude',
+            // R8: the provider of the VIBE conversation.
+            providerId: provider ?? 'claude',
             timeout: const Duration(seconds: 60),
             // R4: a profile, never a model name; each provider resolves it.
             profile: StructuredProfile.fast,
