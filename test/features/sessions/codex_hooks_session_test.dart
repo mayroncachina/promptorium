@@ -392,6 +392,10 @@ void main() {
         final id = await start();
         await wait();
         final f = servers.single;
+        // The first message's turn started (send() resets the turn's files).
+        await until(
+          () async => f.writtenJson.any((m) => m['method'] == 'turn/start'),
+        );
         final wt = (await c.read(sessionsRepoProvider).getById(id))!
             .worktreePath;
         File('$wt/lib/a.dart')
