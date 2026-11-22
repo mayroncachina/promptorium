@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../memory/ai_memory_env.dart';
 import '../providers/agent_registry.dart';
 import '../providers/structured_run.dart';
 import 'claude_args.dart';
@@ -94,8 +95,18 @@ Future<StructuredStart> startClaudeStructured(
       options,
       workingDirectory: intent.cwd,
       executable: ref.read(claudeExecutableProvider),
+      // SPEC-098 R6: auxiliaries neither capture nor take or leave a handoff.
+      environment: await auxiliaryMemoryEnvironment(ref),
       starter: ref.read(claudeProcessStarterProvider),
     ),
   );
   return (run: run as AgentRun, model: options.model);
 }
+
+/// The environment of a structured (auxiliary) run: out of the ai-memory
+/// capture, without taking or leaving a handoff (SPEC-098 R6).
+Future<Map<String, String>?> auxiliaryMemoryEnvironment(Ref ref) async =>
+    withAiMemory(
+      null,
+      await aiMemoryRunEnvironment(ref, AiMemoryRunKind.auxiliary),
+    );
