@@ -1,3 +1,5 @@
+import '../../core/providers/capabilities.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,7 +37,8 @@ CompactAvailability compactAvailability({
   required bool busy,
   required ContextSnapshot snapshot,
 }) {
-  if (provider != 'claude') {
+  // Codex has `compactNow` (SPEC-093) but its app path is SPEC-107's.
+  if (!isClaudeCode(provider)) {
     return const CompactAvailability._(
       'Indisponível: este agente não confirmou um comando nativo de '
       'compactação no modo usado pelo app. A compactação automática segue a '

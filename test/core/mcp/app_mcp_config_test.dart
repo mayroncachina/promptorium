@@ -162,24 +162,24 @@ void main() {
           .read(conversationManagerProvider.notifier)
           .create(workspace: ws, text: 'oi', mode: PromptMode.ask);
       final o = provider.last.options;
-      expect(o.mcpConfigs.single, startsWith('${tmp.path}/run/mcp-'));
+      expect(o.appMcpConfigs.single, startsWith('${tmp.path}/run/mcp-'));
       expect(o.appAllowedTools, appMcpReadToolIds);
-      expect(o.mcpDisallowedTools, containsAll(appMcpWriteToolIds));
+      expect(o.claude.mcpDisallowedTools, containsAll(appMcpWriteToolIds));
       expect(server.grants.single.access, McpAccess.read);
       // The CLI options keep the reads even where "Permitido" is ignored.
       final cli = ClaudeCodeProvider.optionsFor(o);
       expect(cli.allowedTools, appMcpReadToolIds);
       expect(cli.strictMcpConfig, isTrue);
-      expect(cli.mcpConfigs, o.mcpConfigs);
+      expect(cli.mcpConfigs, o.appMcpConfigs);
     });
 
     test('Planejar and Editar: reads and writes', () async {
       final m = c.read(conversationManagerProvider.notifier);
       await m.create(workspace: ws, text: 'oi', mode: PromptMode.plan);
-      expect(provider.last.options.mcpDisallowedTools, isEmpty);
+      expect(provider.last.options.claude.mcpDisallowedTools, isEmpty);
       expect(server.grants.last.access, McpAccess.write);
       await m.create(workspace: ws, text: 'oi', mode: PromptMode.edit);
-      expect(provider.last.options.mcpConfigs, hasLength(1));
+      expect(provider.last.options.appMcpConfigs, hasLength(1));
       expect(server.grants.last.access, McpAccess.write);
     });
 
@@ -187,7 +187,7 @@ void main() {
       await c
           .read(conversationManagerProvider.notifier)
           .create(workspace: ws, text: 'oi', mode: PromptMode.refine);
-      expect(provider.last.options.mcpConfigs, isEmpty);
+      expect(provider.last.options.appMcpConfigs, isEmpty);
       expect(server.grants, isEmpty);
     });
 
@@ -195,7 +195,7 @@ void main() {
       await c
           .read(conversationManagerProvider.notifier)
           .create(workspace: ws, text: 'oi', mode: PromptMode.ask);
-      final path = provider.last.options.mcpConfigs.single;
+      final path = provider.last.options.appMcpConfigs.single;
       await provider.last.finish(0);
       await until(() async => server.grants.isEmpty);
       expect(File(path).existsSync(), isFalse);

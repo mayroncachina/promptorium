@@ -499,7 +499,11 @@ class _ExitBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = step.tool!;
-    final code = _exit.firstMatch(t.result ?? '')?.group(1);
+    // SPEC-095 R2: a neutral command brings its exit code.
+    final neutral = t.commandEvent?.exitCode;
+    final code = neutral != null
+        ? '$neutral'
+        : _exit.firstMatch(t.result ?? '')?.group(1);
     final error = step.outcome == ReplayOutcome.error;
     final label = !t.done
         ? 'sem resposta'

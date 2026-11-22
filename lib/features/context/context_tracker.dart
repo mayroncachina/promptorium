@@ -120,6 +120,12 @@ class ContextTracker {
         _status(e.json, status, at);
       case SystemOther(subtype: 'compact_boundary'):
         _boundary(e.json, at, itemIndex);
+      // SPEC-095 R3, R4: the neutral events (Codex) land in the same
+      // readings and markers.
+      case ContextUsageEvent():
+        _neutralReading(e, at, itemIndex, live);
+      case CompactionEvent():
+        _neutralCompaction(e, at, itemIndex);
       case UnknownEvent(:final json):
         switch (json['type']) {
           case ContextEventTypes.usage:
@@ -133,28 +139,47 @@ class ContextTracker {
   }
 
   void _reading(AssistantMessage e, DateTime at, int itemIndex, bool live) {
-    final u = e.json['message'];
-    if (u is! Map || u['usage'] is! Map<String, dynamic>) return;
-    final usage = Usage.fromJson(u['usage'] as Map<String, dynamic>);
-    final tokens =
-        usage.inputTokens +
-        usage.cacheCreationInputTokens +
-        usage.cacheReadInputTokens;
+    // The Claude usage seen through the neutral event (SPEC-095 R8).
+    final u = e.contextUsage;
+    if (u != null) _add(u, at, itemIndex, live);
+  }
+
+  /// A reading of a neutral event (Codex `tokenUsage.last`, R4): it
+  /// replaces the previous one and brings the model's window.
+  void _neutralReading(
+    ContextUsageEvent e,
+    DateTime at,
+    int itemIndex,
+    bool live,
+  ) {
+    final window = e.window;
+    if (window != null && window > 0) {
+      _windows[e.model ?? _model ?? _anyModel] = window;
+    }
+    _add(e, at, itemIndex, live);
+  }
+
+  /// Key of a window reported without a model.
+  static const _anyModel = '*';
+
+  void _add(ContextUsageEvent u, DateTime at, int itemIndex, bool live) {
+    final tokens = u.tokens;
     if (tokens <= 0) return;
-    if (e.model != null && e.model!.isNotEmpty) {
-      _changeModel(e.model!, at, itemIndex);
+    if (u.model != null && u.model!.isNotEmpty) {
+      _changeModel(u.model!, at, itemIndex);
     }
     final r = ContextReading(
       tokens: tokens,
-      input: usage.inputTokens,
-      cacheWrite: usage.cacheCreationInputTokens,
-      cacheRead: usage.cacheReadInputTokens,
-      model: e.model ?? _model,
-      messageId: e.messageId.isEmpty ? null : e.messageId,
+      input: u.input,
+      cacheWrite: u.cacheWrite,
+      cacheRead: u.cacheRead,
+      model: u.model ?? _model,
+      messageId: u.messageId,
       at: at,
       turn: _results + 1,
       itemIndex: itemIndex,
       live: live,
+      source: u.source,
     );
     final last = _readings.lastOrNull;
     if (last != null &&
@@ -213,10 +238,11 @@ class ContextTracker {
     // `modelUsage` keys are full ids; the init may carry the same id.
     if (m != null) {
       for (final MapEntry(:key, :value) in _windows.entries) {
+        if (key == _anyModel) continue;
         if (key.startsWith(m) || m.startsWith(key)) return value;
       }
     }
-    return null;
+    return _windows[_anyModel];
   }
 
   void _status(Map<String, dynamic> json, String? status, DateTime at) {
@@ -247,7 +273,58 @@ class ContextTracker {
     final key =
         json['uuid'] as String? ??
         '${m['trigger']}:${m['pre_tokens']}:${m['post_tokens']}';
+    int? n(Object? v) => v is num ? v.toInt() : null;
+    _compacted(
+      key: key,
+      trigger: m['trigger'] as String?,
+      preTokens: n(m['pre_tokens']),
+      postTokens: n(m['post_tokens']),
+      at: at,
+      itemIndex: itemIndex,
+    );
+  }
+
+  /// A neutral compaction (R4): started → compacting; completed → the
+  /// marker, and the reading waits for the next measurement; failed.
+  void _neutralCompaction(CompactionEvent e, DateTime at, int itemIndex) {
+    switch (e.phase) {
+      case CompactionEventPhase.started:
+        if (_phase != CompactionPhase.compacting) {
+          _phase = CompactionPhase.compacting;
+          _phaseSince = at;
+          _compactError = null;
+        }
+      case CompactionEventPhase.completed:
+        _compacted(
+          key: e.key ?? '${e.trigger}:${e.preTokens}:${e.postTokens}:$at',
+          trigger: e.trigger,
+          preTokens: e.preTokens,
+          postTokens: e.postTokens,
+          at: at,
+          itemIndex: itemIndex,
+        );
+      case CompactionEventPhase.failed:
+        _phase = CompactionPhase.failed;
+        _phaseSince = at;
+        _phaseTurn = _results + 1;
+        _compactError = e.error;
+    }
+  }
+
+  void _compacted({
+    required String key,
+    required String? trigger,
+    required int? preTokens,
+    required int? postTokens,
+    required DateTime at,
+    required int itemIndex,
+  }) {
     if (!_compactionKeys.add(key)) return;
+    final m = {
+      'trigger': trigger,
+      'pre_tokens': preTokens,
+      'post_tokens': postTokens,
+    };
     int? n(Object? v) => v is num ? v.toInt() : null;
     _markers.add(
       ContextMarker(

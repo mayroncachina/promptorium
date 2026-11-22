@@ -400,4 +400,60 @@ void main() {
     expect(row.scope, 'arquivo');
     await db.close();
   });
+  test(
+    'v33 → v35 (SPEC-096 R16): sessions get parentSessionId, null for '
+    'the old ones; a fork points to its parent and loses it with set null',
+    () async {
+      final schema = await verifier.schemaAt(33);
+      schema.rawDatabase.execute(
+        "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+      );
+      schema.rawDatabase.execute(
+        'INSERT INTO sessions (id, workspace_id, worktree_path, branch, model) '
+        "VALUES ('pai', 1, '/r', 'main', 'gpt')",
+      );
+      final db = AppDatabase(schema.newConnection());
+      final old = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('pai'))).getSingle();
+      expect(old.parentSessionId, equals(null));
+      await db
+          .into(db.sessions)
+          .insert(
+            SessionsCompanion.insert(
+              id: 'filho',
+              workspaceId: 1,
+              worktreePath: '/wt',
+              branch: 'b',
+              model: 'gpt',
+              parentSessionId: const Value('pai'),
+            ),
+          );
+      final child = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('filho'))).getSingle();
+      expect(child.parentSessionId, 'pai');
+      await (db.delete(db.sessions)..where((s) => s.id.equals('pai'))).go();
+      final orphan = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('filho'))).getSingle();
+      expect(orphan.parentSessionId, equals(null));
+      await db.close();
+    },
+  );
+  test('v33 → v34 (SPEC-097) marks the old turns as Claude\'s', () async {
+    final schema = await verifier.schemaAt(33);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        'INSERT INTO usage_entries (workspace_id, source, at, tokens_in, '
+        "tokens_out, cost_usd) VALUES (1, 'etapa', 1795224676, 10, 5, 4.2)",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.usageEntries).getSingle();
+    expect(row.provider, 'claude');
+    expect(row.tokensReasoning, 0);
+    expect(row.costUsd, 4.2, reason: 'the cost of before stays');
+    await db.close();
+  });
 }

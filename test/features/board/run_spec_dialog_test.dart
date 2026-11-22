@@ -284,6 +284,34 @@ void main() {
       await pump(tester);
     }
 
+    testWidgets('SPEC-094 R11, R12: Codex · Só Claude Code por enquanto; '
+        'nothing switches by itself', (tester) async {
+      await open(tester, settings: const {'agent.provider.default': 'codex'});
+      // The saved Codex stays selected and the screen says why before the
+      // click; the agent field shows the tag instead of disappearing.
+      expect(key('run-spec-flow-locked'), findsOneWidget);
+      expect(find.textContaining('ainda não roda com o Codex'), findsOneWidget);
+      expect(key('run-spec-agent-only'), findsOneWidget);
+      expect(key('run-spec-agent'), findsNothing);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isFalse);
+      await tester.tap(key('run-spec-provider'));
+      await pump(tester);
+      expect(find.text('Codex · Só Claude Code por enquanto'), findsWidgets);
+      await tester.tapAt(const Offset(5, 5));
+      await pump(tester);
+      // The explicit option to run with the other provider.
+      await tester.tap(key('run-spec-use-claude'));
+      await pump(tester);
+      expect(key('run-spec-flow-locked'), findsNothing);
+      expect(key('run-spec-agent'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isTrue);
+      expect(result?.provider, 'claude');
+    });
+
     testWidgets('R1: opens in Manual with the fields of today', (tester) async {
       await open(tester);
       expect(key('run-spec-provider'), findsOneWidget);

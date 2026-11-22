@@ -36,6 +36,8 @@ SpecStatus? specStatusFromValue(String? value) {
     'rascunho' || 'draft' => SpecStatus.draft,
     'em-revisao' || 'revisao' || 'review' => SpecStatus.review,
     'aprovada' || 'aprovado' || 'approved' => SpecStatus.approved,
+    // An approved spec being built (the docs write `em implementação`).
+    'em-implementacao' || 'implementing' => SpecStatus.approved,
     'concluida' || 'feita' || 'done' => SpecStatus.done,
     'arquivada' || 'arquivado' || 'archived' => SpecStatus.archived,
     _ => null,

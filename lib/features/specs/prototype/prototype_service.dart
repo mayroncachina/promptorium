@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../cost/usage_ledger.dart';
+import '../../../core/providers/capabilities.dart' show AppFlow;
 import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/readonly_run.dart';
 import '../../../core/fs/dir_watcher.dart';
@@ -204,6 +205,7 @@ final prototypeAgentProvider = Provider<PrototypeAgent>(
           structuredOutput(
             await runReadOnlyClaude(
               ref,
+              flow: AppFlow.prototype,
               cwd: cwd,
               options: options,
               prompt: prompt,

@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart' show AppFlow;
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/readonly_run.dart';
 import '../../core/git/git_service.dart';
@@ -358,6 +359,7 @@ class AutoReviewer {
         : null;
     final r = await runReadOnlyClaude(
       _ref,
+      flow: AppFlow.autoReview,
       workspaceId: ws.id,
       cwd: spec.worktreePath!,
       timeout: timeout,
@@ -521,6 +523,7 @@ class AutoReviewer {
       final diff = await _diffAgainst(git, s.baseBranch ?? 'main');
       final r = await runReadOnlyClaude(
         _ref,
+        flow: AppFlow.autoReview,
         workspaceId: ws.id,
         cwd: s.worktreePath,
         timeout: timeout,
