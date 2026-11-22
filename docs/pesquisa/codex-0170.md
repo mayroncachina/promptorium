@@ -243,9 +243,21 @@ Um turno com `{"type":"image","url":"data:image/png;base64,…"}` (vermelho) e `
 - O `CODEX_HOME` temporário com o `auth.json` por link simbólico não foi tentado, para não criar link para a credencial. Um `CODEX_HOME` próprio grava a confiança no `config.toml` *dele*, o que resolveria, mas fica para a SPEC-103 decidir com o resultado acima.
 - **SPEC-103:** pelo App Server, só com *trust* persistido, o que o app não deve gravar no global. Alternativas: `CODEX_HOME` do app, `codex exec --dangerously-bypass-hook-trust` (plano B) ou o fallback pós-turno da SPEC-085.
 
-### ai-memory (R16) · não testado
+### ai-memory (R16) · lido no código da 3.5.1, sem rodar
 
-O roteiro depende da SPEC-098, que ainda não foi escrita, e o ai-memory não está instalado. Instalar só para a sonda contraria R16 ("nada é instalado no ambiente da pessoa"). Fica para a T1 da SPEC-098, num repositório temporário e com o binário fora do PATH global.
+A SPEC-098 foi implementada sem instalar o ai-memory e sem rodar os instaladores dele, por ordem do usuário. O roteiro da 098 foi conferido no código-fonte da versão 3.5.1 (clone raso do repositório, 19/11/2026). Os testes usam um `ai-memory` falso que responde no formato desse código. **Nenhum turno do Claude ou do Codex foi gasto.**
+
+| Passo do roteiro | O que o código da 3.5.1 mostra | Efeito na 098 |
+|---|---|---|
+| 1 · `setup --plan` | `setup --plan --json` imprime um `PlanDocument` com `format: 1`, `data_dir`, `agents[]` (`agent`, `found{kind,path}` e `wiring`, que vale `mcp+hooks+skills` ou `plugin`) e `other_agents`. **Não diz se os hooks e o MCP já estão instalados.** | O estado por agente (R3) junta três leituras: o `--plan` (detecção e plugin), `uninstall --only hooks\|mcp` **sem `--apply`** (o *dry-run* lista "would remove … from <arquivo>") e `doctor --json` (`codex_hooks.skipped` = aguardando confiança) |
+| 2 · `install-hooks` / `install-mcp --apply` | Os dois são idempotentes, só trocam as entradas do ai-memory e gravam uma cópia com data ao lado de cada arquivo antes de mudar | São os únicos comandos que "Ligar" roda (R4) |
+| 3 · auxiliar sem sessão e sem consumir a passagem | `hooks/_lib.sh`: com `AI_MEMORY_CAPTURE_OWNER` não vazio, `ai_memory_post_hook` descarta o evento antes do *spool*, e `ai_memory_get_handoff` manda `claim=0`, ou seja, oferece a passagem sem consumir (#2148). `AI_MEMORY_AUTO_HANDOFF=off` vira `auto_handoff=0`, e o fim da sessão não deixa passagem (#1951). O hook nativo e os plugins gerados leem as mesmas variáveis | P4 confirmada no código: auxiliares com as duas variáveis; sessões de etapa só com `AUTO_HANDOFF=off` (R6) |
+| 4 · Codex pelo App Server | Os hooks do `~/.codex` só rodam depois de o Codex confiar neles (`hooks/list` → `trustStatus`). O `doctor` pergunta isso ao próprio Codex | O app não isola o `CODEX_HOME`, então as sessões do Codex no app herdam os hooks e o MCP. Enquanto não houver confiança, o bloco do Codex diz "Codex no app sem memória" (R7) |
+| 5 · `memory_handoff_list` | Devolve `{handoffs: [...], newer_unended_session?}`. Cada linha vem plana: `id`, `from_session_id` (nulo = manual), `from_agent`, `cwd`, `owner_user` (nulo = compartilhada), `summary`, `open_questions`, `next_steps`, `files_touched`, `state`, `created_at`, `accepted_*`. **Só lista as abertas**, sem estado como filtro. O dono é filtrado pelo servidor (as suas e as compartilhadas) | Ordem de entrega e selo "será entregue" (R9); o filtro "Mostrar aceitas e expiradas" avisa que esta versão só informa as abertas |
+| 6 · `memory_handoff_cancel` e desinstalar por agente | `memory_handoff_cancel {handoff_id}` devolve `cancelled`/`state`. `uninstall` só tem `--only hooks\|mcp\|instructions\|skills`, **sem filtro por agente** | "Descartar" com confirmação (R11, P6); "Desligar" só mostra `ai-memory uninstall --only hooks --apply` e `--only mcp --apply` com o aviso "remove de todos os agentes" (P5) |
+| 7 · `status --json` | Traz `data_dir`; o wiki fica em `<data_dir>/wiki/<workspace>/<projeto>`. A interface web responde em `/web/w/<ws>/<proj>` (página em `/p/<caminho>`) | "Abrir wiki" testa a interface web e, sem ela, abre a pasta (R12) |
+
+Pendente para quando o ai-memory estiver instalado de propósito: repetir os passos 3 e 4 com o binário real, num `CLAUDE_CONFIG_DIR`/`CODEX_HOME` temporário.
 
 ## Divergências do adaptador (R19, registradas, não corrigidas)
 
@@ -274,7 +286,7 @@ O `CodexRun` atual **não quebra** com nenhuma das transcrições (`codex_0170_f
 - **SPEC-095:** payloads de `fileChange`, `commandExecution`, aprovação e uso registrados nas fixtures. Fórmula de contexto em R14. `kind` objeto, `phase` e `contextCompaction`.
 - **SPEC-096:** (1) thread em `read-only` e política por turno (D1); (2) worktree com o recorte do *git common dir* nas `writableRoots` e reserva "o app commita depois do turno"; (3) sem sandbox (Ubuntu 24.04 padrão), avisar e oferecer só o que funciona: YOLO em worktree, ou orientar a liberar o bwrap no AppArmor. Não alterar nada no sistema pelo app; (4) terminal sem `-a untrusted`; (5) `untrusted` no App Server só quando quiser aprovar cada comando, sabendo que aprovar = rodar fora do sandbox.
 - **SPEC-097:** `account/rateLimits/read` e `account/rateLimits/updated` (parcial, juntar) prontos. Janelas de 300 min e 10 080 min, `usedPercent` inteiro.
-- **SPEC-098:** o cenário do ai-memory ficou para ela (R16).
+- **SPEC-098:** o roteiro do ai-memory foi conferido no código da 3.5.1 (seção R16), sem instalar e sem rodar.
 - **SPEC-103:** hooks por `-c` não rodam sem *trust*, e o App Server não tem *bypass*. Ver R15.
 - **SPEC-104/105/107:** `CLAUDE.md` por fallback comprovado; MCP desligável por servidor; "Compactar agora" comprovado.
 

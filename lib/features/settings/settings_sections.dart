@@ -123,6 +123,16 @@ enum SettingsSection {
     'agente',
     'prompt',
   ]),
+  aiMemory('Memória (ai-memory)', SettingsGroup.app, [
+    'ai-memory',
+    'memória',
+    'passagem',
+    'handoff',
+    'wiki',
+    'hooks',
+    'mcp',
+    'codex',
+  ]),
   backups('Banco e backups', SettingsGroup.app, [
     'banco',
     'backup',
@@ -237,6 +247,7 @@ bool sectionChanged(
     ),
     SettingsSection.providers =>
       (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,
+    SettingsSection.aiMemory => false,
     SettingsSection.backups => false,
     SettingsSection.updates => settings[UpdateChecker.enabledKey] == '0',
     SettingsSection.project => config != null && !config.isDefault,
