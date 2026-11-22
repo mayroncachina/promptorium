@@ -1,6 +1,6 @@
 ---
 id: SPEC-111
-status: rascunho
+status: em implementação
 versao: 0.23.1
 tipo: correcao
 epico: 332
@@ -29,9 +29,9 @@ Exemplo concreto, achado na conferência da main da 0.23.0: uma sessão do Codex
 
 ## Decisões
 
-- P1 · **Separar o que já foi commitado do que não foi?** Recomendação: não nesta correção. A lista e o Diff ficam iguais; só deixam de ficar vazios. Uma marca visual de "commitado" ou "não commitado" seria tela nova e pediria canvas, então fica para uma spec própria se fizer falta.
-- P2 · **O Desfazer passa a contar os commits?** Recomendação: não mudar o Desfazer aqui. Ele já usa os pontos de restauração (SPEC-084, corrigido no #372) para os commits; só a contagem "N arquivos" que ele mostra passa a vir da nova medida.
-- P3 · **Mock.** Não precisa de canvas: o layout não muda. O PR leva os prints de antes e depois do painel, tirados no app.
+- P1 · **Separar o que já foi commitado do que não foi?** **Decidido:** não nesta correção. A lista e o Diff ficam iguais; só deixam de ficar vazios. Uma marca visual de "commitado" ou "não commitado" seria tela nova e pediria canvas, então fica para uma spec própria se fizer falta.
+- P2 · **O Desfazer passa a contar os commits?** **Decidido:** não mudar o Desfazer aqui. Ele já usa os pontos de restauração (SPEC-084, corrigido no #372) para os commits; só a contagem "N arquivos" que ele mostra passa a vir da nova medida.
+- P3 · **Mock.** **Decidido:** não precisa de canvas: o layout não muda. O PR leva os prints de antes e depois do painel, tirados no app.
 
 ## Fora do escopo
 

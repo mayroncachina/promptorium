@@ -2067,6 +2067,15 @@ class SessionManager extends Notifier<SessionManagerState> {
                 )
               : null,
         );
+        // SPEC-111 R4: the panel reloads once the app's commit is done
+        // (the reload above ran before it).
+        if (codex) {
+          unawaited(
+            turnEnd.then((_) {
+              if (ref.mounted) ref.invalidate(sessionChangesProvider(id));
+            }),
+          );
+        }
         _notify(
           e.isSuccess
               ? 'Sessão concluída'
