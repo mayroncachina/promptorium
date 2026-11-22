@@ -174,11 +174,11 @@ class ProviderCapabilities {
         'Subagentes do Codex não foram testados.',
       ),
       ProviderCapability.mcpConfig: CapabilityValue.partial(
-        'desligar servidores e Bloqueado (disabled_tools) por execução',
+        'desligar e Bloqueado',
       ),
       // SPEC-105 R7: by override of the run, only the read tools.
       ProviderCapability.appMcpServer: CapabilityValue.partial(
-        'só as ferramentas de leitura; as de escrita ficam de fora',
+        'só ferramentas de leitura',
       ),
       ProviderCapability.compactNow: CapabilityValue.supported(
         'gasta uma chamada',
