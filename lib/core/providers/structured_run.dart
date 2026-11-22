@@ -107,7 +107,8 @@ enum ProviderKind {
   String get settingKey => 'agent.provider.kind.$name';
 
   /// Rows editable in this version: the others show their state (R9).
-  static const editable = {planner};
+  /// SPEC-101 R1 releases "Executar spec".
+  static const editable = {planner, runSpec};
 }
 
 /// The [ProviderKind] of a structured flow.

@@ -243,9 +243,10 @@ void main() {
       providerForKind(settings, ProviderKind.reviewer, workspaceId: ws.id),
       'codex',
     );
+    // SPEC-101 R1: "Executar spec" follows the footer to the Codex.
     expect(
       providerForKind(settings, ProviderKind.runSpec, workspaceId: ws.id),
-      'claude',
+      'codex',
     );
     expect(
       providerForKind(settings, ProviderKind.planner, workspaceId: ws.id),

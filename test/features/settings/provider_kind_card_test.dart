@@ -55,11 +55,8 @@ void main() {
         'enquanto o fluxo não roda no Codex', () {
       final s = {
         providerPreferenceKey(null): 'codex',
-        ProviderKind.runSpec.settingKey: 'codex',
         ProviderKind.reviewer.settingKey: 'codex',
       };
-      expect(providerKindChoice(s, ProviderKind.runSpec), isNull);
-      expect(providerForKind(s, ProviderKind.runSpec), 'claude');
       // SPEC-102: the reviewer runs on the Codex, but its choice is the
       // project's (`revisor: provedor:`), never saved here.
       expect(providerKindChoice(s, ProviderKind.reviewer), isNull);
@@ -145,9 +142,20 @@ void main() {
       final c = await pump(tester, codex: ProviderStatus.ready);
       expect(find.text('Planner e assistentes'), findsOneWidget);
       expect(find.text('segue o rodapé:'), findsOneWidget);
-      // Executar spec + the two kept on the Claude Code (SPEC-102: the
-      // reviewer row shows the project's choice).
-      expect(find.text('Só Claude Code'), findsNWidgets(3));
+      // SPEC-101 R1: "Executar spec" is editable now; SPEC-102: the reviewer
+      // row shows the project's choice; only the two Claude-only flows keep
+      // the tag.
+      expect(find.text('Só Claude Code'), findsNWidgets(2));
+      await tester.tap(find.byKey(const ValueKey('kind-runSpec-codex')));
+      await tester.pumpAndSettle();
+      expect(
+        c.read(appSettingsProvider)[ProviderKind.runSpec.settingKey],
+        'codex',
+      );
+      expect(
+        providerForKind(c.read(appSettingsProvider), ProviderKind.runSpec),
+        'codex',
+      );
       expect(find.byKey(const ValueKey('provider-kind-order')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('kind-planner-codex')));
       await tester.pumpAndSettle();

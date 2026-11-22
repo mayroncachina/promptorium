@@ -88,14 +88,16 @@ void main() {
   });
 
   group('providerFlows (R3)', () {
-    test('SPEC-096 R1, SPEC-100 R8, SPEC-102: o Codex roda em Prompt, '
-        'Sessões, execuções estruturadas e no revisor automático', () {
+    test('SPEC-096 R1, SPEC-100 R8, SPEC-101 R1, SPEC-102: o Codex roda em '
+        'Prompt, Sessões, execuções estruturadas, Executar spec e no revisor '
+        'automático', () {
       for (final f in AppFlow.values) {
         expect(
           ProviderFlows.defaults.allows('codex', f),
           f == AppFlow.prompt ||
               f == AppFlow.sessions ||
               f == AppFlow.structured ||
+              f == AppFlow.runSpec ||
               f == AppFlow.autoReview,
           reason: f.name,
         );
@@ -104,8 +106,9 @@ void main() {
       // Each flow still locked names the spec that releases it (mock 4).
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.prompt)));
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.structured)));
+      expect(codexFlowSpecs.keys, isNot(contains(AppFlow.runSpec)));
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.autoReview)));
-      expect(codexFlowSpecs[AppFlow.runSpec], 'SPEC-101');
+      expect(codexFlowSpecs[AppFlow.compare], 'SPEC-108');
       expect(flowLockedLabel('Codex'), 'Codex · Só Claude Code por enquanto');
     });
 

@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart' show isClaudeCode;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/motion.dart';
@@ -1926,6 +1927,21 @@ class SpecCard extends ConsumerWidget {
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
+                                  // SPEC-101 R15: who works on it, beside
+                                  // the robot; a Claude-only spec has none.
+                                  if (cardProviderBadge(spec, last)
+                                      case final p?) ...[
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: ProviderChip(
+                                        p,
+                                        key: ValueKey(
+                                          'board-provider-badge-${spec.code}',
+                                        ),
+                                        dense: true,
+                                      ),
+                                    ),
+                                  ],
                                   // SPEC-074 R1.
                                   if (spec.issueNumber != null) ...[
                                     const SizedBox(width: 6),
@@ -2117,6 +2133,16 @@ class SpecCard extends ConsumerWidget {
     );
   }
 }
+
+/// Provider of the badge of a card in execution (SPEC-101 R15): the
+/// provider of its session when it is not the Claude Code; null otherwise.
+String? cardProviderBadge(Spec spec, Session? last) =>
+    spec.stage == SpecStage.running &&
+        last != null &&
+        !isClaudeCode(last.provider) &&
+        hasProviderIdentity(last.provider)
+    ? last.provider
+    : null;
 
 /// Shared by columns and the canvas detail panel.
 class BoardSpecAction extends ConsumerWidget {

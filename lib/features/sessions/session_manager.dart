@@ -369,6 +369,30 @@ void _trackNeutral(_Proc p, AgentEvent e) {
   p.files.addAll(t.files);
 }
 
+/// SPEC-101 R8: a `git commit` of a non-Claude agent that failed because
+/// the sandbox did not let git write (the git common dir out of the
+/// writable roots, `bwrap` not starting). Returns the timeline line with
+/// the command and the path; null for any other command or failure.
+String? sandboxCommitRefusal(CommandEvent e) {
+  if (e.provider == 'claude' || e.status != CommandStatus.failed) return null;
+  if (!RegExp(r'\bgit\b[^|;&]*\bcommit\b').hasMatch(e.command)) return null;
+  final out = e.output ?? '';
+  final denied = RegExp(
+    r'Permiss(ão|ion) (negada|denied)|Operation not permitted|'
+    r'Read-only file system|bwrap:|index\.lock',
+    caseSensitive: false,
+  );
+  if (!denied.hasMatch(out)) return null;
+  final path =
+      RegExp(r"'([^']*\.git[^']*)'").firstMatch(out)?.group(1) ?? e.cwd;
+  final cmd = e.command.length > 120
+      ? '${e.command.substring(0, 119)}…'
+      : e.command;
+  return 'O sandbox do Codex bloqueou o commit: `$cmd`'
+      '${path == null ? '' : ' em $path'}. O app commita o que ficou no fim '
+      'do turno.';
+}
+
 /// The agent's text as one line of at most 200 characters.
 String liveTextLine(String text) {
   final one = text.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -415,6 +439,14 @@ class _Proc {
   /// Context of the last top-level answer (input + cache read + cache
   /// write): what the next call sends again (SPEC-017 R4).
   int? contextTokens;
+
+  /// Window the provider reports for the model (Codex
+  /// `modelContextWindow`, SPEC-101 R10); null = not reported.
+  int? contextWindow;
+
+  /// Commands whose sandbox refusal of `git commit` was noted (SPEC-101
+  /// R8).
+  final Set<String> sandboxCommitNoted = {};
 
   /// Ids of the neutral calls of the turn already counted (SPEC-095).
   final Set<String> seenNeutral = {};
@@ -1223,6 +1255,16 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _repo.setRunConfig(id, jsonEncode(config));
   }
 
+  Future<void> _recordThreadModel(String id, _Proc p, String? model) async {
+    final m = model?.trim() ?? '';
+    if (m.isEmpty || m == 'inherit') return;
+    final s = await _repo.getById(id);
+    if (s == null || isClaudeCode(s.provider)) return;
+    if (s.model.isNotEmpty && s.model != 'inherit') return;
+    await _repo.setModel(id, m);
+    p.who = providerModelLabel(s.provider, m);
+  }
+
   /// R10, R10a: commits what the Codex left in its worktree at the end of
   /// a writing turn, with the agent's message as body and the trailer of
   /// SPEC-048. Never in the project root, never in Perguntar / Planejar.
@@ -1397,6 +1439,9 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Context of the session's last answer (null: no process or no usage).
   int? contextTokens(String id) => _procs[id]?.contextTokens;
+
+  /// Model window reported by the live process of [id] (SPEC-101 R10).
+  int? contextWindow(String id) => _procs[id]?.contextWindow;
 
   /// A spec session that goes on to more steps (SPEC-017 R4).
   Future<void> setSteps(String id, String steps, String title) async {
@@ -1947,6 +1992,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     switch (e) {
       case SystemInit():
         if (e.sessionId != null) await _repo.setExternalId(id, e.sessionId!);
+        // SPEC-101 R11: a session on the provider's default records the
+        // model the thread reports, so trailers and labels never say
+        // `inherit`.
+        if (p.process is CodexRun) await _recordThreadModel(id, p, e.model);
         await recordKnownExtensions(ref, e.json);
         state = SessionManagerState(live: state.live, lastInit: e);
       case PermissionRequest():
@@ -2105,8 +2154,13 @@ class SessionManager extends Notifier<SessionManagerState> {
         _trackNeutral(p, e);
       case CommandEvent():
         _trackNeutral(p, e);
-      case ContextUsageEvent(:final tokens):
+        // SPEC-101 R8: the sandbox refused the agent's commit.
+        if (sandboxCommitRefusal(e) case final why?) {
+          if (p.sandboxCommitNoted.add(e.toolUseId)) await _note(id, why);
+        }
+      case ContextUsageEvent(:final tokens, :final window):
         if (tokens > 0) p.contextTokens = tokens;
+        if (window != null && window > 0) p.contextWindow = window;
       default:
         break;
     }

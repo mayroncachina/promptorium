@@ -23,8 +23,14 @@ void main() {
       gateResends: 2,
       rejectedHunks: 3,
     );
-    Session s(String id, String steps, int minutes, double cost) => Session(
-      provider: 'claude',
+    Session s(
+      String id,
+      String steps,
+      int minutes,
+      double cost, {
+      String provider = 'claude',
+    }) => Session(
+      provider: provider,
       id: id,
       workspaceId: 1,
       worktreePath: '/w',
@@ -68,5 +74,25 @@ void main() {
     expect(m.reviewerRounds, 1);
     expect(m.humanRounds, 1);
     expect(m.rejectedHunks, 3);
+    expect(m.hasCost, isTrue);
+
+    // SPEC-101 R16 (issue #346): a Codex session never adds \$0 to the
+    // cost; a spec only on the Codex has no cost to average.
+    final mixed = computeSpecMetrics(
+      specs: [spec],
+      sessions: [
+        s('a', 'R1', 10, 0.10),
+        s('x', 'R2', 10, 3, provider: 'codex'),
+      ],
+      comments: const [],
+    ).single;
+    expect(mixed.cost, closeTo(0.10, 1e-9));
+    expect((mixed.sessions, mixed.pricedSessions), (2, 1));
+    final codex = computeSpecMetrics(
+      specs: [spec],
+      sessions: [s('x', 'R1', 10, 0, provider: 'codex')],
+      comments: const [],
+    ).single;
+    expect(codex.hasCost, isFalse);
   });
 }

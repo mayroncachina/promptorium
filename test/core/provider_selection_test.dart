@@ -67,6 +67,7 @@ void main() {
         if (f == AppFlow.prompt ||
             f == AppFlow.sessions ||
             f == AppFlow.structured ||
+            f == AppFlow.runSpec ||
             // SPEC-102: the automatic reviewer runs on the Codex.
             f == AppFlow.autoReview) {
           expect(c.read(probe)(f).id, 'codex', reason: f.name);
