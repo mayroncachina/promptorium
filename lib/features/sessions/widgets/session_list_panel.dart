@@ -1,5 +1,7 @@
 import '../../secrets/secret_blocks.dart';
 
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -319,6 +321,11 @@ class _SessionTile extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
+                        // R15: the provider's chip (logo + name).
+                        if (hasProviderIdentity(session.provider)) ...[
+                          ProviderChip(session.provider, dense: true),
+                          const SizedBox(width: 6),
+                        ],
                         Flexible(
                           child: Text(
                             session.agentName ?? 'sem agente',
@@ -331,7 +338,9 @@ class _SessionTile extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            secret ? 'Segredo encontrado' : look.label,
+                            secret
+                                ? 'Segredo encontrado'
+                                : sessionStatusLabel(session, look),
                             key: secret
                                 ? ValueKey('session-secret-${session.id}')
                                 : null,
@@ -344,7 +353,11 @@ class _SessionTile extends ConsumerWidget {
                         ),
                         const Spacer(),
                         Text(
-                          formatCost(session.costUsd),
+                          formatRunCost(
+                            session.provider,
+                            session.costUsd,
+                            unavailable: 'indisp.',
+                          ),
                           style: const TextStyle(fontFamily: AppFonts.mono),
                         ),
                       ],

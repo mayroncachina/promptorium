@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../process/process_runner.dart';
 import 'claude_cli.dart' show claudeExecutableProvider;
 import 'claude_event.dart';
+import '../providers/quota_source.dart' show QuotaVia;
 import 'usage_tracker.dart';
 
 /// Reads the plan usage without spending tokens: `claude -p "/usage"` is a
@@ -160,7 +161,9 @@ class UsagePoller {
         debugPrint('uso do plano: formato do /usage não reconhecido');
         return;
       }
-      await _ref.read(rateLimitProvider.notifier).record(r);
+      await _ref
+          .read(rateLimitProvider.notifier)
+          .record(r, via: QuotaVia.usage);
     } finally {
       _running = false;
     }

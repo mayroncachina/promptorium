@@ -7,6 +7,8 @@ depende-de: []
 # Integração Codex e contrato compartilhado de execução
 
 > **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+>
+> **Substituída em 20/11/2026** (épico [#332](https://github.com/mayroncachina/promptorium/issues/332), decisão 12) pela [SPEC-094 · Capacidades e opções por provedor](SPEC-094-capacidades-por-provedor.md), pela [SPEC-095 · Eventos neutros](SPEC-095-eventos-neutros.md) e pela [SPEC-096 · Codex no Prompt e nas Sessões](SPEC-096-codex-prompt-e-sessoes.md). Os requisitos R1–R6 abaixo servem de checklist de aceite dessas specs. O status continua `rascunho` só porque o app não tem o status "substituída"; esta spec não deve ser executada.
 
 ## Objetivo
 

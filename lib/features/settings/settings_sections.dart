@@ -116,7 +116,7 @@ enum SettingsSection {
     'comandos',
     'sessionend',
   ]),
-  providers('Provedores (ACP)', SettingsGroup.app, [
+  providers('Provedores', SettingsGroup.app, [
     'acp',
     'gemini',
     'codex',

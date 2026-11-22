@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../ui/providers/provider_logos.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -2089,6 +2091,17 @@ class SpecCard extends ConsumerWidget {
                       style: TextStyle(fontSize: 11, color: metaColor),
                     ),
                   ),
+                  // SPEC-094 R15: who ran it last (glyph, never state).
+                  if (last != null && hasProviderIdentity(last.provider)) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: providerBrandName(last.provider),
+                      child: ProviderGlyph(
+                        last.provider,
+                        key: ValueKey('board-provider-${spec.code}'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               // SPEC-076 R13: the agent's request, answered from here.

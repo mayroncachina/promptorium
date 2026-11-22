@@ -157,7 +157,16 @@ class ThinkingItem extends TimelineItem {
   bool live;
 }
 
-/// A `tool_use` block and (once it arrives) its `tool_result`.
+/// Names of the cards built from neutral events (SPEC-095): what the card
+/// shows where a Claude card shows the tool name.
+abstract final class NeutralToolNames {
+  static const file = 'arquivo';
+  static const command = 'comando';
+  static const other = 'outro';
+}
+
+/// A `tool_use` block and (once it arrives) its `tool_result`; or a card of
+/// a neutral event (a file, a command, an item without translation).
 class ToolItem extends TimelineItem {
   ToolItem({
     required this.id,
@@ -197,6 +206,74 @@ class ToolItem extends TimelineItem {
 
   /// Task / Agent tool: runs a subagent.
   bool get isSubagent => isSubagentTool(name);
+
+  // --- neutral view (SPEC-095 R9) -------------------------------------------
+
+  /// The file change behind a neutral card (Codex); null for a Claude call,
+  /// whose block brings its own ([fileChanges]).
+  FileChangeEvent? change;
+
+  /// The command behind a neutral card (Codex).
+  CommandEvent? commandEvent;
+
+  /// An item the app does not translate (R6): shown collapsed.
+  OtherItemEvent? other;
+
+  late final ToolUseBlock _block = ToolUseBlock(
+    id: id,
+    name: name,
+    input: input,
+  );
+
+  /// Status of this call as a change: from the event, or from the result.
+  FileChangeStatus get _status => denied
+      ? FileChangeStatus.declined
+      : isError
+      ? FileChangeStatus.failed
+      : done
+      ? FileChangeStatus.applied
+      : FileChangeStatus.proposed;
+
+  /// The files this card changes, in the neutral vocabulary (both
+  /// providers).
+  List<FileChangeEvent> get fileChanges {
+    final c = change;
+    if (c != null) {
+      return [denied ? c.withStatus(FileChangeStatus.declined) : c];
+    }
+    if (commandEvent == null && other == null) {
+      return [for (final f in _block.fileChanges) f.withStatus(_status)];
+    }
+    return const [];
+  }
+
+  /// The command of this card (both providers), completed by its result.
+  CommandEvent? get command {
+    final c = commandEvent;
+    if (c != null) return c;
+    if (other != null || change != null) return null;
+    final start = _block.command;
+    if (start == null || result == null) return start;
+    return start.completedWith(output: result!, isError: isError);
+  }
+
+  /// A card that changes files / runs a command.
+  bool get isFileChange => fileChanges.isNotEmpty;
+  bool get isCommand => command != null;
+
+  /// A card built from a neutral event (not a Claude tool call).
+  bool get isNeutral => change != null || commandEvent != null || other != null;
+
+  /// The file this card reads or changes (null = none).
+  String? get filePath {
+    final c = change;
+    if (c != null) return c.path;
+    final p = input['file_path'] ?? input['notebook_path'];
+    return p is String && p.isNotEmpty ? p : null;
+  }
+
+  /// Lines added / removed (an edit), null when unknown.
+  (int, int)? get stats => change?.stats ?? editStats(name, input);
 
   static bool isSubagentTool(String name) => name == 'Task' || name == 'Agent';
 }
@@ -272,6 +349,10 @@ class Timeline {
   final Map<String?, ThinkingItem> _liveThinking = {};
   bool _sawInit = false;
   final Set<String> _deniedIds = {};
+
+  /// Neutral cards by the id of their item (a Codex item changes several
+  /// files: one card per file, R1).
+  final Map<String, List<ToolItem>> _groups = {};
   final Map<String, SecretBlockItem> _secretBlocks = {};
 
   /// A block of the Vigia de segredos by its id (SPEC-085).
@@ -325,11 +406,14 @@ class Timeline {
         model ??= e.model.isEmpty ? null : e.model;
         if (!_sawInit) {
           _sawInit = true;
+          final stored = e.json['permission_label'];
           final label = e.json['provider'] == 'codex'
-              ? permissionModeLabel(
-                  ClaudePermissionMode.fromCli(e.permissionMode),
-                  provider: 'codex',
-                )
+              ? stored is String && stored.isNotEmpty
+                    ? stored
+                    : permissionModeLabel(
+                        ClaudePermissionMode.fromCli(e.permissionMode),
+                        provider: 'codex',
+                      )
               : e.permissionMode;
           final mode = label.isEmpty ? '' : ' · $label';
           items.add(NoticeItem('Sessão iniciada · ${e.model}$mode', at: now));
@@ -435,11 +519,96 @@ class Timeline {
         items.add(NoticeItem('Falha na API; tentando novamente…', at: now));
       case SystemOther(subtype: 'compact_boundary'):
         items.add(NoticeItem(compactionNotice, at: now));
+      case FileChangeEvent():
+        _applyFile(e, now);
+      case CommandEvent():
+        _applyCommand(e, now);
+      case OtherItemEvent():
+        _applyOther(e, now);
+      case CompactionEvent(phase: CompactionEventPhase.completed):
+        items.add(NoticeItem(compactionNotice, at: now));
+      case ContextUsageEvent(:final tokens):
+        contextTokens.add((items: items.length, tokens: tokens));
       case UnknownEvent():
         _applyApp(e.json, now);
       default:
         break;
     }
+  }
+
+  /// The card of [id] (a neutral event), created at the end when new.
+  ToolItem _neutral(
+    String id,
+    String group,
+    String name,
+    Map<String, dynamic> input,
+    DateTime now,
+  ) {
+    final old = _tools[id];
+    if (old != null) return old;
+    _finishLive(null);
+    _finishThinking(null);
+    final t = ToolItem(id: id, name: name, input: input, at: now);
+    if (_deniedIds.contains(group)) t.denied = true;
+    _tools[id] = t;
+    _groups.putIfAbsent(group, () => []).add(t);
+    items.add(t);
+    return t;
+  }
+
+  /// One card per file (R1, R9). Later events of the same file update it.
+  void _applyFile(FileChangeEvent e, DateTime now) {
+    final id = e.index == 0 ? e.toolUseId : '${e.toolUseId}#${e.index}';
+    final t = _neutral(id, e.toolUseId, NeutralToolNames.file, {
+      'path': e.path,
+    }, now);
+    t.change = e;
+    switch (e.status) {
+      case FileChangeStatus.proposed:
+        break;
+      case FileChangeStatus.applied:
+        t
+          ..result = ''
+          ..isError = false
+          ..doneAt = now;
+      case FileChangeStatus.failed:
+        t
+          ..result = ''
+          ..isError = true
+          ..doneAt = now;
+      case FileChangeStatus.declined:
+        t
+          ..result = ''
+          ..denied = true
+          ..doneAt = now;
+    }
+  }
+
+  void _applyCommand(CommandEvent e, DateTime now) {
+    final t = _neutral(e.toolUseId, e.toolUseId, NeutralToolNames.command, {
+      'command': e.displayCommand,
+      'cwd': ?e.cwd,
+    }, now);
+    t.commandEvent = e;
+    if (!e.done) return;
+    t
+      ..result = e.output ?? ''
+      ..isError = e.failed
+      ..doneAt = now;
+    if (e.status == CommandStatus.declined) t.denied = true;
+  }
+
+  /// R6: collapsed, with the type and the one-line summary.
+  void _applyOther(OtherItemEvent e, DateTime now) {
+    final id = e.toolUseId.isEmpty ? 'other-${items.length}' : e.toolUseId;
+    final summary = e.summary.isEmpty ? '' : ' · "${e.summary}"';
+    final t = _neutral(id, id, NeutralToolNames.other, {
+      'description': '${e.itemType}$summary',
+    }, now);
+    t
+      ..other = e
+      ..result = e.summary
+      ..doneAt = now;
   }
 
   /// Notice of a `system/compact_boundary` (SPEC-082 R2).
@@ -476,6 +645,9 @@ class Timeline {
         final id = j['tool_use_id'];
         if (id is String) _deniedIds.add(id);
         _tools[id]?.denied = true;
+        for (final t in _groups[id] ?? const <ToolItem>[]) {
+          t.denied = true;
+        }
       case AppEventTypes.compare when j['status'] == 'chosen':
         _applyCompare(j, at);
       case AppEventTypes.note:
@@ -564,6 +736,16 @@ class Timeline {
       return NoticeItem(
         'Concluído · $turns · ${secs}s$denials',
         level: NoticeLevel.success,
+        at: at,
+      );
+    }
+    // SPEC-096 R7: an interrupted turn is not a failure.
+    if (r.isInterrupted) {
+      return NoticeItem(
+        r.interruptReason == 'user'
+            ? 'Interrompido por você · dá para continuar'
+            : 'Interrompido · dá para continuar',
+        level: NoticeLevel.info,
         at: at,
       );
     }
