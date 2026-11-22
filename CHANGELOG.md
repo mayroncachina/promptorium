@@ -2,6 +2,83 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.24.0] - 2026-11-22
+
+### Funcionalidades
+
+- **planner:** RunStructured neutro com adaptadores do Claude Code e do Codex (SPEC-100 T1, T2) (b5c69fe)
+- **planner:** Fluxos do R8 no provedor do tipo, perfil rápido, falha e escolha desta vez (SPEC-100 T3) (321a0ff)
+- **planner:** Provedor por tipo, linha do provedor nos diálogos e escolha desta vez (SPEC-100 T4) (bbcb18f)
+- **revisor:** Provedor do revisor no config do projeto, resolução e linha Revisão do Executar (SPEC-102 T1) (e9806b1)
+- **revisor:** Rodada no Codex, achados normalizados e autoria da rodada (schema v36) (SPEC-102 T2, T3) (5050e7b)
+- **quadro:** Executar spec com o Codex, com provedor fixo por execução (SPEC-101) (c23e06b)
+- **memoria:** Detectar o ai-memory e mostrar o estado em Configurações (SPEC-098 T1) (a7caa94)
+- **memoria:** Execuções auxiliares e etapas fora da memória do ai-memory (SPEC-098 T2) (9566f46)
+- **memoria:** Ligar o ai-memory no Claude Code e no Codex com prévia (SPEC-098 T3) (cc80bcc)
+- **memoria:** Passagens do ai-memory na aba Memória do projeto (SPEC-098 T4) (7a60073)
+- **memoria:** Detecção na abertura, E2E com capturas e SPEC-098 concluída (SPEC-098 T5) (b3860b0)
+- **sessoes:** Continuar no outro agente com resumo do app e vínculo (SPEC-099 T1+T2) (163cbba)
+- **sessoes:** Passagem do ai-memory ao continuar no outro agente (SPEC-099 T3) (e76345f)
+- **sessoes:** Faixa de cota, Prompt e Memória levam ao outro agente (SPEC-099 T4) (f7f7484)
+- **hooks:** Plano neutro e adaptador Claude, provedor no hooks.log (SPEC-103 T1) (78580fe)
+- **hooks:** Script nos formatos do Claude e do Codex, teste de paridade (SPEC-103 T2) (6fe86ce)
+- **codex:** Hooks do app por -c e estado da sessão pelo hooks/list (SPEC-103 T3) (5fdf51b)
+- **sessoes:** Atividade dos hooks do Codex, pós-turno e bloqueio pela aprovação (SPEC-103 T4) (dd45953)
+- **telas:** Automações por provedor, chip dos hooks na sessão Codex, selo nos cartões e aviso do YOLO (SPEC-103 T5) (89d21ad)
+- **hooks:** E2E no app isolado, estado do Codex mantido após o fim e SPEC-103 concluída (SPEC-103 T6) (79462c5)
+
+### Correções
+
+- **planner:** Opções do Provedor por tipo na largura do texto e contraste do botão desta vez (SPEC-100 T4) (2ed47d3)
+- **revisor:** Rodada repetida "desta vez" leva o veredito no título; campos do revisor numa linha (SPEC-102) (1c1168a)
+- **sessoes:** Ajustes do teste no app da SPEC-099 (746e7b7)
+
+### Documentação
+
+- **spec:** SPEC-102 Review automático com o Codex, com mocks (16f7f46)
+- **spec:** SPEC-102 aponta para a issue #347 (03a5106)
+- **spec:** SPEC-102 vai para a 0.24.0 (c79d9f6)
+- **spec:** SPEC-102 arquiva o canvas no repositório (77fb307)
+- **spec:** SPEC-100 Execuções estruturadas em qualquer provedor, com mocks (9b612b2)
+- **spec:** SPEC-100 aponta para a issue #345 (b27705e)
+- **spec:** SPEC-100 vai para a 0.24.0 (be54bf9)
+- **spec:** SPEC-100 arquiva o canvas no repositório (79e0d44)
+- **spec:** SPEC-100 em implementação, decisões P fechadas (f2ee0a4)
+- **spec:** SPEC-100 concluída, com o E2E no app isolado e os prints (T5) (56dfc91)
+- **spec:** SPEC-102 concluída, com o E2E no app isolado e os prints (T4) (5be8958)
+- **spec:** SPEC-101 Executar spec com o Codex, com mocks (00d5c8a)
+- **spec:** SPEC-101 aponta para a issue #346 (fe66c34)
+- **spec:** SPEC-101 vai para a 0.24.0 (c5beb18)
+- **spec:** SPEC-101 arquiva o canvas no repositório (3dccc68)
+- **spec:** SPEC-101 concluída, com o E2E no app isolado e os prints (T5) (2e614a3)
+- **spec:** SPEC-098 Memória com ai-memory (eca6fc9)
+- **spec:** SPEC-098 com a issue #337 (9621dfb)
+- **spec:** SPEC-098 vai para a 0.24.0 (b5e8a39)
+- **spec:** SPEC-098 arquiva o canvas no repositório (3742e77)
+- **spec:** SPEC-098 em implementação, decisões P1–P8 fechadas (55cce44)
+- README de projeto com logo, badges e apresentação (66633d0)
+- **spec:** SPEC-099 Passar o trabalho entre agentes (603ff8d)
+- **spec:** SPEC-099 com a issue #338 (cb1b3ad)
+- **spec:** SPEC-099 vai para a 0.24.0 (90c9161)
+- **spec:** SPEC-099 arquiva o canvas no repositório (983337c)
+- **spec:** SPEC-099 em implementação, com as decisões P (91e3586)
+- **spec:** SPEC-099 concluída, com a implementação e o E2E (3916b3f)
+- **spec:** SPEC-103 Hooks gerenciados nos dois provedores, com mocks (ff9d39e)
+- **spec:** SPEC-103 aponta para a issue #348 (931280c)
+- **spec:** SPEC-103 vai para a 0.24.0 (3fd6203)
+- **spec:** SPEC-103 arquiva o canvas no repositório (b75571c)
+- **spec:** SPEC-103 em implementação, decisões P fechadas (ac9f72b)
+
+### Testes
+
+- O Codex roda nas execuções estruturadas (SPEC-100 R8) (0932c65)
+- **revisor:** O Codex libera o fluxo do revisor automático na seleção de provedor (SPEC-102) (f3d846c)
+- **configurações:** Executar spec liberado no chip do Codex (SPEC-101) (4580bf0)
+- **provedores:** Executar spec liberado para o Codex no registro de fluxos (SPEC-101) (fea62cf)
+- Desfaz formatação acidental em codex_consumption_test (SPEC-098 T3) (9711f2c)
+- **sessoes:** Formatar pós-turno espera o turno começar (SPEC-103) (91c7161)
+- **sessoes:** Formatar pós-turno espera o turno começar (SPEC-103) (81ce0aa)
+
 ## [0.23.1] - 2026-11-22
 
 ### Correções
