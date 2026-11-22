@@ -97,6 +97,10 @@ FileBaseResolver _resolver(Ref ref, ReplaySource src) {
             }
           },
     root: src.root,
+    readFile: (path) async {
+      final f = File(path);
+      return await f.exists() ? await f.readAsString() : null;
+    },
   );
 }
 

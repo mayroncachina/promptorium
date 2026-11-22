@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/providers/agent_registry.dart'
-    show codexEnabledProvider;
+    show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/features/sessions/new_session_dialog.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -20,7 +20,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           databaseOverride(memoryDatabase()),
         ],
         child: MaterialApp(
@@ -40,7 +42,9 @@ void main() {
     expect(mode.initialValue, ClaudePermissionMode.defaultMode);
     await tester.tap(find.byKey(const ValueKey('new-session-mode')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('YOLO — sem aprovações e sem sandbox').last);
+    await tester.tap(
+      find.textContaining('YOLO — sem aprovações e sem sandbox').last,
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('codex --yolo:'), findsOneWidget);
     expect(

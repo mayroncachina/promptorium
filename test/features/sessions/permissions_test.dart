@@ -25,7 +25,7 @@ void main() {
       const AgentStartOptions(
         workingDirectory: '/w',
         mode: PromptMode.ask,
-        mcpAllowedTools: ['mcp__a__b'],
+        extras: ClaudeExtras(mcpAllowedTools: ['mcp__a__b']),
       ),
     );
     expect(ask.tools, ClaudeCodeProvider.readOnlyTools);
