@@ -110,6 +110,7 @@ class CodexHookStatus {
     required this.mode,
     this.planned = const {},
     this.active = const {},
+    this.unavailable = const {},
     this.problems = const [],
     this.reason,
     this.at,
@@ -122,6 +123,10 @@ class CodexHookStatus {
 
   /// Hooks the App Server listed on, from `sessionFlags`, and trusted.
   final Set<ManagedHook> active;
+
+  /// Hooks with no substitute either (no `python3`, R10: only the Vigia
+  /// keeps its post-turn check).
+  final Set<ManagedHook> unavailable;
 
   /// Errors and warnings of `hooks/list` (debug log and tooltip, R5).
   final List<String> problems;
@@ -138,6 +143,7 @@ class CodexHookStatus {
   /// Where [h] runs in this session (R7, R8).
   HookWhen whenOf(ManagedHook h, {bool yolo = false}) {
     if (active.contains(h)) return HookWhen.beforeTool;
+    if (unavailable.contains(h)) return HookWhen.unavailable;
     if (h == ManagedHook.block && yolo) return HookWhen.unavailable;
     return HookWhen.afterTurn;
   }
@@ -254,3 +260,52 @@ final codexHookStatusProvider =
     NotifierProvider<CodexHookStatuses, Map<String, CodexHookStatus>>(
       CodexHookStatuses.new,
     );
+
+/// The command lines of a Codex command approval (`item/commandExecution/
+/// requestApproval`): the raw `command` (`/usr/bin/zsh -lc '…'`), the
+/// script inside the shell call, and each `commandActions[].command`.
+List<String> codexApprovalCommands(Map<String, dynamic> input) {
+  final out = <String>[];
+  final raw = input['command'];
+  if (raw is String && raw.isNotEmpty) {
+    out.add(raw);
+    final inner = unwrapShellCommand(raw);
+    if (inner != raw) out.add(inner);
+  } else if (raw is List) {
+    out.add(raw.join(' '));
+  }
+  for (final a in input['commandActions'] as List? ?? const []) {
+    if (a is Map && a['command'] is String) out.add(a['command'] as String);
+  }
+  return out;
+}
+
+/// `/usr/bin/zsh -lc 'rm -rf ~'` → `rm -rf ~`; anything else unchanged.
+String unwrapShellCommand(String cmd) {
+  final m = RegExp(r'^\S*\b(?:ba|z)?sh\s+-l?c\s+([\s\S]+)$')
+      .firstMatch(cmd.trim());
+  if (m == null) return cmd;
+  final rest = m.group(1)!.trim();
+  if (rest.length >= 2 && rest.startsWith("'") && rest.endsWith("'")) {
+    return rest.substring(1, rest.length - 1).replaceAll("'\\''", "'");
+  }
+  if (rest.length >= 2 && rest.startsWith('"') && rest.endsWith('"')) {
+    return rest
+        .substring(1, rest.length - 1)
+        .replaceAll(r'\"', '"')
+        .replaceAll(r'\\', r'\');
+  }
+  return rest;
+}
+
+/// P2: the rule that refuses a command approval of the Codex, or null.
+String? codexApprovalBlockedBy(
+  Map<String, dynamic> input,
+  List<BlockRule> rules,
+) {
+  for (final c in codexApprovalCommands(input)) {
+    final r = blockedBy(c, rules);
+    if (r != null) return r;
+  }
+  return null;
+}
