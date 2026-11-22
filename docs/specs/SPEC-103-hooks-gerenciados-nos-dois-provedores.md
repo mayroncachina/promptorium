@@ -1,6 +1,6 @@
 ---
 id: SPEC-103
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: melhoria
 epico: 332
@@ -75,10 +75,10 @@ Depois desta spec, a mesma sessão Codex sobe com os hooks do app como **hooks d
 
 ## Decisões em aberto
 
-- P1 · **Se o 0.170 só rodar hooks com confiança gravada.** (a) modo pós-turno com aviso (R7) até uma versão que permita; (b) gravar a confiança só dos hooks do app no `~/.codex`, com o consentimento da pessoa; (c) oferecer um `CODEX_HOME` próprio do app. **Recomendação: (a).** (b) quebra a regra de nunca escrever na configuração global do usuário, e (c) exigiria copiar ou ler o `auth.json`, que o app nunca lê. A SPEC-093 diz qual caso vale. Se for (a), esta spec ainda entrega o R6 a R11.
-- P2 · **Bloqueio pela aprovação de comandos.** (a) aplicar as regras de bloqueio aos pedidos de aprovação do Codex quando os hooks não estão ativos; (b) só pós-turno. **Recomendação: (a).** O pedido já passa pelo app antes de chegar à pessoa, então barrar ali uma regra embutida (push forçado, `rm -rf ~`) é barato e dá ao modo Editar a mesma proteção do hook. No YOLO não há pedido, e o aviso do R7 cobre esse caso.
-- P3 · **Execpolicy temporária.** (a) fora do escopo; (b) investigar na SPEC-093 se o Codex aceita um arquivo `.rules` por `-c`, sem o `~/.codex`. **Recomendação: (b) como pergunta da sondagem, sem compromisso aqui.** Se funcionar, o bloqueio no YOLO sem hooks vira uma spec pequena depois.
-- P4 · **Selo do provedor nos cartões de hook.** (a) só nas sessões Codex; (b) em todas. **Recomendação: (a).** Quem só usa o Claude não ganha ruído, e numa sessão Codex o selo explica por que o texto do motivo pode ser diferente.
+- P1 · **Se o 0.170 só rodar hooks com confiança gravada.** (a) modo pós-turno com aviso (R7) até uma versão que permita; (b) gravar a confiança só dos hooks do app no `~/.codex`, com o consentimento da pessoa; (c) oferecer um `CODEX_HOME` próprio do app. **Decidido:** (a). A SPEC-093 (R15) comprovou que, no 0.170, o hook por `-c` aparece no `hooks/list` como `sessionFlags` mas fica `untrusted` e não roda, e o App Server não aceita `--dangerously-bypass-hook-trust`. Os hooks do app no Codex ficam no modo pós-turno com aviso até uma versão que permita. (b) quebra a regra de nunca escrever na configuração global do usuário, e (c) exigiria copiar ou ler o `auth.json`, que o app nunca lê. A SPEC-093 diz qual caso vale. Se for (a), esta spec ainda entrega o R6 a R11.
+- P2 · **Bloqueio pela aprovação de comandos.** (a) aplicar as regras de bloqueio aos pedidos de aprovação do Codex quando os hooks não estão ativos; (b) só pós-turno. **Decidido:** (a). O pedido já passa pelo app antes de chegar à pessoa, então barrar ali uma regra embutida (push forçado, `rm -rf ~`) é barato e dá ao modo Editar a mesma proteção do hook. No YOLO não há pedido, e o aviso do R7 cobre esse caso.
+- P3 · **Execpolicy temporária.** (a) fora do escopo; (b) investigar na SPEC-093 se o Codex aceita um arquivo `.rules` por `-c`, sem o `~/.codex`. **Decidido:** (b) como pergunta da sondagem, sem compromisso aqui. Se funcionar, o bloqueio no YOLO sem hooks vira uma spec pequena depois.
+- P4 · **Selo do provedor nos cartões de hook.** (a) só nas sessões Codex; (b) em todas. **Decidido:** (a). Quem só usa o Claude não ganha ruído, e numa sessão Codex o selo explica por que o texto do motivo pode ser diferente.
 
 ## Design
 
