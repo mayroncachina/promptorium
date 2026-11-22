@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../ui/widgets/run_provider_line.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
@@ -418,6 +421,13 @@ class _Stepper extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  // SPEC-100 R10: provider, model and use of the last call.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                    child: RunProviderLine(
+                      slot: projectPlannerSlot(workspace.id),
+                    ),
+                  ),
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.all(10),

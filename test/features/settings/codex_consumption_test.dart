@@ -96,12 +96,16 @@ void main() {
       find.textContaining('gpt-5.9-sol salvo antes: indisponível nesta versão'),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('codex-model-missing-session')), findsNothing);
-    // R11: flows not released yet carry the tag, and the capabilities card
-    // says what the Codex does here.
+    expect(
+      find.byKey(const ValueKey('codex-model-missing-session')),
+      findsNothing,
+    );
+    // R11: flows not released yet carry the tag (the planner runs on the
+    // Codex since SPEC-100 R8), and the capabilities card says what the
+    // Codex does here.
     expect(
       find.byKey(const ValueKey('codex-kind-locked-planner')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.text('O QUE O CODEX FAZ NESTE APP'), findsOneWidget);
     expect(find.text('Só Claude Code'), findsWidgets);

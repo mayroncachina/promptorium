@@ -3,11 +3,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
 import 'package:promptorium/core/claude/run_extensions.dart';
 import 'package:promptorium/core/memory/ai_memory_env.dart';
 import 'package:promptorium/core/memory/ai_memory_state.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 
@@ -59,11 +58,13 @@ void main() {
       await c.read(appSettingsProvider.notifier).load();
       final run = Provider(
         (ref) =>
-            () => runReadOnlyClaude(
+            () => runStructured(
               ref,
-              cwd: tmp.path,
-              options: const ClaudeOptions(sessionId: 'aux-1'),
-              prompt: 'Leia e responda',
+              StructuredIntent(
+                cwd: tmp.path,
+                sessionId: 'aux-1',
+                prompt: 'Leia e responda',
+              ),
             ),
       );
       final done = c.read(run)();
@@ -81,16 +82,13 @@ void main() {
       return cli.envs.single;
     }
 
-    test(
-      'R6: an auxiliary (runReadOnlyClaude) runs outside the memory',
-      () async {
-        final env = await auxiliaryEnv('/opt/x/ai-memory');
-        expect(env, {
-          'AI_MEMORY_CAPTURE_OWNER': 'promptorium',
-          'AI_MEMORY_AUTO_HANDOFF': 'off',
-        });
-      },
-    );
+    test('R6: an auxiliary (runStructured) runs outside the memory', () async {
+      final env = await auxiliaryEnv('/opt/x/ai-memory');
+      expect(env, {
+        'AI_MEMORY_CAPTURE_OWNER': 'promptorium',
+        'AI_MEMORY_AUTO_HANDOFF': 'off',
+      });
+    });
 
     test('R2: without the binary the auxiliary gets the same environment '
         'as before (none)', () async {

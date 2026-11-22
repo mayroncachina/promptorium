@@ -107,11 +107,15 @@ class VibeFlow extends Notifier<Map<int, VibePending>> {
       return false;
     }
     try {
+      final conv = await ref
+          .read(conversationsRepoProvider)
+          .getById(conversationId);
       final verdict = await ref.read(unrelatedRequestProvider)(
         vibe: spec,
         changed: size?.paths ?? const [],
         accepted: acceptedOf(spec.id),
         request: text,
+        provider: conv?.provider,
       );
       if (verdict.ask) {
         _set(

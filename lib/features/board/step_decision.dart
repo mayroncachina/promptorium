@@ -6,9 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
-import '../../core/providers/claude_code_provider.dart';
+import '../../core/providers/structured_run.dart';
 import '../../data/providers.dart';
 import '../sessions/timeline.dart';
 import '../specs/spec_service.dart';
@@ -543,24 +541,21 @@ class StepDecisionOptions
         ? worktree
         : ws.path;
     if (run.stopped) return stopped;
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       ref,
-      workspaceId: ws.id,
-      cancelled: run.stopRequest,
-      specId: spec.id,
-      usageSource: UsageSource.orquestrador,
-      cwd: cwd,
-      options: ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: stepDecisionPrompt,
-        jsonSchema: jsonEncode(stepDecisionSchema),
-        maxBudgetUsd: budgetUsd,
-        includePartialMessages: false,
+      StructuredIntent(
+        workspaceId: ws.id,
+        cancelled: run.stopRequest,
+        specId: spec.id,
+        usageSource: UsageSource.orquestrador,
+        cwd: cwd,
+        instructions: stepDecisionPrompt,
+        schema: stepDecisionSchema,
+        claude: const ClaudeStructuredExtras(maxBudgetUsd: budgetUsd),
+        prompt: stepDecisionInput(specText: specText, step: step, items: items),
       ),
-      prompt: stepDecisionInput(specText: specText, step: step, items: items),
     );
-    final result = parseStepDecisions(structuredOutput(r));
+    final result = parseStepDecisions(r.data);
     if (result.error == null) _cache[key] = result;
     return result;
   }

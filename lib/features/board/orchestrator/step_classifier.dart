@@ -6,10 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/claude/claude_args.dart';
-import '../../../core/claude/readonly_run.dart';
-import '../../../core/providers/agent_event.dart' show Result;
-import '../../../core/providers/claude_code_provider.dart';
+import '../../../core/providers/structured_run.dart';
 import '../../../data/providers.dart';
 import '../../specs/spec_service.dart';
 import '../board_rules.dart';
@@ -218,25 +215,16 @@ String stepClassifierReason(Object error) {
   return '${text[0].toLowerCase()}${text.substring(1)}';
 }
 
-/// Signature of [runReadOnlyClaude]: [stepClassifierRunProvider] lets tests
+/// Signature of [runStructured]: [stepClassifierRunProvider] lets tests
 /// answer in its place.
-typedef ReadOnlyClaudeRun = Future<Result> Function(
-  Ref ref, {
-  required String cwd,
-  required ClaudeOptions options,
-  required String prompt,
-  Duration timeout,
-  int? workspaceId,
-  String? providerId,
-  Future<void>? cancelled,
-  int? specId,
-  UsageSource? usageSource,
-  String? usageStep,
-});
+typedef StructuredRun = Future<StructuredResult> Function(
+  Ref ref,
+  StructuredIntent intent,
+);
 
 /// The read-only run of the classification.
-final stepClassifierRunProvider = Provider<ReadOnlyClaudeRun>(
-  (ref) => runReadOnlyClaude,
+final stepClassifierRunProvider = Provider<StructuredRun>(
+  (ref) => runStructured,
 );
 
 /// Cache key: spec, requirement and [stepTextHash] of its text (R3).
@@ -455,27 +443,27 @@ class StepClassifier extends Notifier<Map<int, StepClassifierState>> {
         : ws.path;
     final r = await ref.read(stepClassifierRunProvider)(
       ref,
-      workspaceId: ws.id,
-      // The Orquestrador only uses the Claude Code (D5).
-      providerId: 'claude',
-      cancelled: cancelled,
-      specId: spec.id,
-      usageSource: UsageSource.orquestrador,
-      cwd: cwd,
-      timeout: timeout,
-      options: ClaudeOptions(
-        model: ref.read(orchestratorPrefsProvider).classifierModel,
-        effort: 'low',
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: stepClassifierPrompt,
-        jsonSchema: jsonEncode(stepClassifierSchema),
-        maxBudgetUsd: budgetUsd,
-        includePartialMessages: false,
+      StructuredIntent(
+        workspaceId: ws.id,
+        // The Orquestrador only uses the Claude Code until SPEC-109 (D5,
+        // SPEC-100 R8).
+        providerId: 'claude',
+        cancelled: cancelled,
+        specId: spec.id,
+        usageSource: UsageSource.orquestrador,
+        cwd: cwd,
+        timeout: timeout,
+        instructions: stepClassifierPrompt,
+        schema: stepClassifierSchema,
+        claude: ClaudeStructuredExtras(
+          model: ref.read(orchestratorPrefsProvider).classifierModel,
+          effort: 'low',
+          maxBudgetUsd: budgetUsd,
+        ),
+        prompt: stepClassifierInput(specText: specText, targets: targets),
       ),
-      prompt: stepClassifierInput(specText: specText, targets: targets),
     );
-    return structuredOutput(r);
+    return r.data;
   }
 
   void _write(int specId, StepClassifierState value) {

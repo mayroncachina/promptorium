@@ -27,15 +27,25 @@ List<CodexLine> readCodexTranscript(String path) => [
 /// up to its `turn/completed`. Requests missing from the transcript use
 /// [fallback] (e.g. `model/list` from the handshake) or an empty result.
 class FakeCodex extends FakeProcess {
-  FakeCodex({this.threadId = 'thread-codex', this.rejectYolo = false})
-    : transcript = null,
-      fallback = const {} {
+  FakeCodex({
+    this.threadId = 'thread-codex',
+    this.rejectYolo = false,
+    this.models = const [
+      {
+        'id': 'test-model',
+        'supportedReasoningEfforts': [],
+        'inputModalities': ['text'],
+      },
+    ],
+  }) : transcript = null,
+       fallback = const {} {
     _timer = Timer.periodic(const Duration(milliseconds: 1), (_) => _respond());
   }
 
   FakeCodex.replay(List<CodexLine> this.transcript, {this.fallback = const {}})
     : threadId = '',
-      rejectYolo = false {
+      rejectYolo = false,
+      models = const [] {
     _timer = Timer.periodic(const Duration(milliseconds: 1), (_) => _replay());
   }
 
@@ -64,6 +74,8 @@ class FakeCodex extends FakeProcess {
     }
   }
 
+  /// `model/list` of the in-memory server; the first is the thread's.
+  final List<Map<String, dynamic>> models;
   final List<CodexLine>? transcript;
   final Map<String, Map<String, dynamic>> fallback;
   late final Timer _timer;
@@ -178,19 +190,10 @@ class FakeCodex extends FakeProcess {
         'hooks/list' => hooksList ?? <String, dynamic>{},
         'initialize' => {'userAgent': 'codex-test'},
         'account/read' => {'requiresOpenaiAuth': false},
-        'model/list' => {
-          'data': [
-            {
-              'id': 'test-model',
-              'supportedReasoningEfforts': [],
-              'inputModalities': ['text'],
-            },
-          ],
-          'nextCursor': null,
-        },
+        'model/list' => {'data': models, 'nextCursor': null},
         'thread/start' || 'thread/resume' || 'thread/fork' => {
           'thread': {'id': threadId},
-          'model': 'test-model',
+          'model': p['model'] ?? models.first['id'],
           'approvalPolicy': p['approvalPolicy'],
           'sandbox': {
             'type': rejectYolo
@@ -210,6 +213,23 @@ class FakeCodex extends FakeProcess {
       emit(jsonEncode({'id': m['id'], 'result': result}));
     }
   }
+
+  /// The final agent message of the turn ([text] = the structured answer
+  /// of an `outputSchema` turn, SPEC-093 R12).
+  void answer(String text, {String id = 'msg-1'}) => emit(
+    jsonEncode({
+      'method': 'item/completed',
+      'params': {
+        'threadId': threadId,
+        'item': {
+          'id': id,
+          'type': 'agentMessage',
+          'text': text,
+          'phase': 'final_answer',
+        },
+      },
+    }),
+  );
 
   void completeTurn() => emit(
     jsonEncode({

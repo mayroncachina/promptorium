@@ -1,21 +1,16 @@
-import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../memory/ai_memory_env.dart';
 import '../providers/agent_registry.dart';
-import '../providers/provider_preferences.dart';
-import '../../data/providers.dart';
-import '../../features/cost/usage_ledger.dart';
+import '../providers/structured_run.dart';
 import 'claude_args.dart';
 import 'claude_cli.dart';
 import 'claude_event.dart';
 import 'run_extensions.dart';
 import 'claude_process.dart';
 import 'run_prefs.dart';
-import 'usage_tracker.dart';
 
 /// Limit of one planner run.
 const plannerTimeout = Duration(minutes: 5);
@@ -48,206 +43,70 @@ Object? structuredOutput(Result r) {
   }
 }
 
-/// Runs one non-interactive turn of `claude -p` in [cwd] and returns its
-/// `result`: permission requests are denied (read-only runs), rate limits go
-/// to the usage tracker and the process is stopped afterwards. Throws
-/// [PlannerException] when the CLI cannot start, exits early or times out.
+/// The Claude adapter of [runStructured] (SPEC-100 R1, R2): the options of
+/// one non-interactive `claude -p` turn for [intent].
 ///
-/// Runs given their own [ClaudeOptions.tools] and `allowedTools` (the
-/// prototype screens, SPEC-022 R2) may write where those rules allow; any
-/// other permission request is denied with [denyMessage].
+/// Read-only as before: the read tools only (`--tools`), the read-only
+/// `--disallowedTools`, no MCP server (F12) and permission requests denied.
+/// Runs given their own [ClaudeStructuredExtras.tools] and `allowedTools`
+/// (the prototype screens, SPEC-022 R2) may write where those rules allow.
 ///
-/// Model, effort and auto-compact not set in [options] come from the planner
-/// defaults of Configurações ([RunPrefs]).
-///
-/// [images] go as `image` blocks of the message, before the text (the
-/// prints of "Nova spec", SPEC-083 R6).
-/// Its turn goes to `usage_entries` (SPEC-081 R1) with [specId],
-/// [usageSource] and [usageStep] (who called it on which spec, R2; or the
-/// spec by its [specCode]).
-Future<Result> runReadOnlyClaude(
-  Ref ref, {
-  required String cwd,
-  required ClaudeOptions options,
-  required String prompt,
-  Duration timeout = plannerTimeout,
-  int? workspaceId,
-  String? providerId,
-  Future<void>? cancelled,
-  String denyMessage = 'O planner do Promptorium é somente leitura.',
-  List<ImagePart> images = const [],
-  int? specId,
-  String? specCode,
-  UsageSource? usageSource,
-  String? usageStep,
-  AppFlow flow = AppFlow.structured,
-}) async {
+/// Model, effort and auto-compact not set in the extras come from the
+/// kind's defaults of Configurações ([RunPrefs]); the profile "rápido" is
+/// Haiku · low (R4).
+Future<ClaudeOptions> claudeStructuredOptions(
+  Ref ref,
+  StructuredIntent intent,
+) async {
   final prefs = ref.read(runPrefsProvider);
-  final sourceId = options.resumeId;
-  final settings = ref.read(appSettingsProvider.notifier);
-  final chosen =
-      providerId ??
-      (sourceId == null
-          ? ref.read<String>(
-              defaultAgentProvider(
-                workspaceId ?? ref.read(activeWorkspaceProvider)?.id,
-              ),
-            )
-          : settings.get('agent.run.$sourceId.provider') ?? 'claude');
-  final AgentRun process;
-  // SPEC-098 R6: auxiliaries neither capture nor take or leave a handoff.
-  final memoryEnv = withAiMemory(
-    null,
-    await aiMemoryRunEnvironment(ref, AiMemoryRunKind.auxiliary),
+  final e = intent.claude;
+  final fast = intent.profile == StructuredProfile.fast;
+  return ClaudeOptions(
+    sessionId: intent.sessionId,
+    resumeId: intent.resumeId,
+    forkSession: intent.forkSession,
+    permissionMode: ClaudePermissionMode.defaultMode,
+    tools: e.tools.isEmpty ? ClaudeCodeProvider.readOnlyTools : e.tools,
+    allowedTools: e.allowedTools,
+    disallowedTools:
+        e.disallowedTools ?? ClaudeCodeProvider.readOnlyDisallowedTools,
+    appendSystemPrompt: intent.instructions,
+    jsonSchema: intent.schema == null ? null : jsonEncode(intent.schema),
+    maxBudgetUsd: e.maxBudgetUsd,
+    maxTurns: e.maxTurns,
+    agent: e.agent,
+    includePartialMessages: false,
+    strictMcpConfig: true,
+    settingsFile: e.settingsFile ?? await runSettingsFile(ref),
+    model: e.model ?? (fast ? 'haiku' : prefs.modelArg(intent.kind)),
+    effort: e.effort ?? (fast ? 'low' : effortArg(prefs.effort(intent.kind))),
+    autocompact: prefs.autocompact,
   );
-  if (options.sessionId != null) {
-    await settings.set('agent.run.${options.sessionId}.provider', chosen);
-  }
-  try {
-    if (chosen != 'claude') {
-      final provider = agentProviderForFlow(ref, chosen, flow);
-      final caps = provider.capabilities;
-      // R5: only what the provider supports is built (no budget without
-      // `budgetUsd`, no agent without `agentFiles`, no schema without
-      // `structuredOutput`); the 16 callers stay as they are (SPEC-100).
-      process = await provider.start(
-        AgentStartOptions(
-          workingDirectory: cwd,
-          mode: PromptMode.ask,
-          model: options.model ?? providerModel(ref, chosen, RunKind.planner),
-          effort:
-              options.effort ??
-              effortArg(providerEffort(ref, chosen, RunKind.planner)),
-          resumeId: sourceId == null
-              ? null
-              : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
-          forkSession: options.forkSession,
-          appendSystemPrompt: options.appendSystemPrompt,
-          jsonSchema: caps.supports(ProviderCapability.structuredOutput)
-              ? options.jsonSchema
-              : null,
-          environment: memoryEnv,
-          extras: extrasFor(
-            caps,
-            claude: ClaudeExtras(
-              maxBudgetUsd: options.maxBudgetUsd,
-              maxTurns: options.maxTurns,
-              agent: options.agent,
-              mcpConfigs: options.mcpConfigs,
-              strictMcpConfig: true,
-              mcpDisallowedTools: options.disallowedTools
-                  .where(
-                    (t) =>
-                        !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
-                  )
-                  .toList(),
-            ),
-          ),
-        ),
-      );
-    } else {
-      process = ClaudeRun(
-        await ClaudeProcess.start(
-          options.copyWith(
-            // Read-only allow list, no MCP server (F12).
-            tools: options.tools.isEmpty
-                ? ClaudeCodeProvider.readOnlyTools
-                : options.tools,
-            strictMcpConfig: true,
-            settingsFile: options.settingsFile ?? await runSettingsFile(ref),
-            model: options.model ?? prefs.modelArg(RunKind.planner),
-            effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
-            autocompact: options.autocompact ?? prefs.autocompact,
-          ),
-          workingDirectory: cwd,
-          executable: ref.read(claudeExecutableProvider),
-          environment: memoryEnv,
-          starter: ref.read(claudeProcessStarterProvider),
-        ),
-      );
-    }
-  } catch (e) {
-    throw PlannerException('Falha ao iniciar $chosen: $e');
-  }
-  final done = Completer<Result>();
-  final logSub = process.logs.listen(
-    (l) => debugPrint('planner: $l'),
-    onError: (_) {},
-  );
-  final sub = process.events.listen(
-    (e) {
-      switch (e) {
-        case SystemInit():
-          final key = options.sessionId ?? options.resumeId;
-          if (key != null && e.sessionId != null) {
-            unawaited(settings.set('agent.run.$key.externalId', e.sessionId!));
-          }
-        case PermissionRequest():
-          // Non-interactive and read-only: nothing to approve.
-          process.deny(e.requestId, denyMessage);
-        case Result():
-          if (!done.isCompleted) done.complete(e);
-        case RateLimit():
-          if (chosen == 'claude') ref.read(usageTrackerProvider).handle(e);
-        default:
-          break;
-      }
-    },
-    onDone: () {
-      if (!done.isCompleted) {
-        done.completeError(
-          PlannerException('O provedor $chosen encerrou antes de responder.'),
-        );
-      }
-    },
-  );
-  final response = done.future.timeout(
-    timeout,
-    onTimeout: () => throw PlannerException(
-      'O planner não respondeu em ${timeout.inMinutes} minutos.',
+}
+
+/// Starts the Claude Code round of [intent].
+Future<StructuredStart> startClaudeStructured(
+  Ref ref,
+  StructuredIntent intent,
+) async {
+  final options = await claudeStructuredOptions(ref, intent);
+  final run = ClaudeRun(
+    await ClaudeProcess.start(
+      options,
+      workingDirectory: intent.cwd,
+      executable: ref.read(claudeExecutableProvider),
+      // SPEC-098 R6: auxiliaries neither capture nor take or leave a handoff.
+      environment: await auxiliaryMemoryEnvironment(ref),
+      starter: ref.read(claudeProcessStarterProvider),
     ),
   );
-  // Cancellation can arrive while send is still flushing. Attach an error
-  // listener now; awaiting response below still propagates the failure.
-  response.ignore();
-  var finished = false;
-  if (cancelled != null) {
-    unawaited(
-      cancelled.then((_) async {
-        if (finished) return;
-        if (!done.isCompleted) {
-          done.completeError(const PlannerException('Verificação cancelada.'));
-        }
-        await process.stop(timeout: const Duration(seconds: 2));
-      }),
-    );
-  }
-  try {
-    await process.send(prompt, images: images);
-    final result = await response;
-    await ref
-        .read(usageLedgerProvider)
-        .record(
-          workspaceId: workspaceId ?? ref.read(activeWorkspaceProvider)?.id,
-          specId: specId,
-          specCode: specCode,
-          source:
-              usageSource ??
-              (specId == null && specCode == null
-                  ? UsageSource.livre
-                  : UsageSource.outros),
-          step: usageStep,
-          model: resultModel(result, options.model),
-          usage: result.usage,
-          costUsd: result.totalCostUsd,
-          provider: chosen,
-          reasoningTokens: reasoningTokensOf(result),
-        );
-    return result;
-  } finally {
-    finished = true;
-    await process.stop(timeout: const Duration(seconds: 2));
-    await sub.cancel();
-    await logSub.cancel();
-  }
+  return (run: run as AgentRun, model: options.model);
 }
+
+/// The environment of a structured (auxiliary) run: out of the ai-memory
+/// capture, without taking or leaving a handoff (SPEC-098 R6).
+Future<Map<String, String>?> auxiliaryMemoryEnvironment(Ref ref) async =>
+    withAiMemory(
+      null,
+      await aiMemoryRunEnvironment(ref, AiMemoryRunKind.auxiliary),
+    );

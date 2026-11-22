@@ -30,6 +30,10 @@ enum SettingsSection {
     'sonnet',
     'haiku',
     'custo',
+    'provedor',
+    'codex',
+    'planner',
+    'tipo de execução',
   ]),
   orchestrator('Orquestrador', SettingsGroup.app, [
     'orquestrador',

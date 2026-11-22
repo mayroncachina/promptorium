@@ -4,8 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
@@ -48,7 +47,7 @@ class _Call {
   _Call(this.prompt, this.options, this.cancelled);
 
   final String prompt;
-  final ClaudeOptions options;
+  final StructuredIntent options;
   final Future<void>? cancelled;
   final answer = Completer<Result>();
 }
@@ -88,20 +87,10 @@ void main() {
       retry: (_, _) => null,
       overrides: [
         databaseOverride(memoryDatabase()),
-        stepClassifierRunProvider.overrideWithValue((
-          ref, {
-          required cwd,
-          required options,
-          required prompt,
-          timeout = plannerTimeout,
-          workspaceId,
-          providerId,
-          cancelled,
-          specId,
-          usageSource,
-          usageStep,
-        }) {
-          final call = _Call(prompt, options, cancelled);
+        stepClassifierRunProvider.overrideWithValue((ref, intent) {
+          final prompt = intent.prompt;
+          final cancelled = intent.cancelled;
+          final call = _Call(prompt, intent, cancelled);
           calls.add(call);
           cancelled?.then((_) {
             if (!call.answer.isCompleted) {
@@ -110,7 +99,14 @@ void main() {
               );
             }
           });
-          return call.answer.future;
+          return call.answer.future.then(
+            (r) => StructuredResult(
+              raw: r,
+              provider: 'claude',
+              model: null,
+              elapsed: Duration.zero,
+            ),
+          );
         }),
       ],
     );
@@ -191,9 +187,10 @@ void main() {
     await called(1);
     expect(state().status, StepClassifierStatus.loading);
     final call = calls.single;
-    expect(call.options.model, 'sonnet');
-    expect(call.options.appendSystemPrompt, stepClassifierPrompt);
-    expect(jsonDecode(call.options.jsonSchema!), stepClassifierSchema);
+    expect(call.options.claude.model, 'sonnet');
+    expect(call.options.providerId, 'claude');
+    expect(call.options.instructions, stepClassifierPrompt);
+    expect(call.options.schema, stepClassifierSchema);
     expect(call.prompt, contains(_spec.trimRight()));
     expect(call.prompt, contains('- R2: Criar a tabela de relatórios'));
 
