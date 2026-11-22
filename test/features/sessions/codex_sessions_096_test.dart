@@ -9,6 +9,7 @@ import 'package:promptorium/core/git/worktree_roots.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/sessions/session_changes.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart';
 
@@ -151,6 +152,38 @@ void main() {
     expect(log, contains('Gravei o provedor no ledger.'));
     final status = await gitIn(s.worktreePath, ['status', '--porcelain']);
     expect(status.trim(), isEmpty);
+  });
+
+  test("SPEC-111 R1, R4: after the app's commit of the turn the changes "
+      'still list the files of the turn, and the provider reloads by itself '
+      'once the commit is done', () async {
+    final id = await start(ClaudePermissionMode.acceptEdits);
+    await settle();
+    final s = (await c.read(sessionsRepoProvider).getById(id))!;
+    expect(s.baseBranch, isNotNull);
+    final seen = <SessionChanges>[];
+    final sub = c.listen(
+      sessionChangesProvider(id),
+      (_, next) => next.whenData(seen.add),
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    File('${s.worktreePath}/ledger.txt').writeAsStringSync('provider\n');
+    complete(servers.single, 'completed', answer: 'Gravei.');
+    // Nobody invalidates by hand: the last value must be the committed file.
+    bool committedSeen() =>
+        seen.isNotEmpty &&
+        seen.last.entries.any((e) => e.path == 'ledger.txt' && !e.isUntracked);
+    for (var i = 0; i < 100 && !committedSeen(); i++) {
+      await settle(100);
+    }
+    final status = await gitIn(s.worktreePath, ['status', '--porcelain']);
+    expect(status.trim(), isEmpty);
+    expect(committedSeen(), isTrue);
+    final last = seen.last;
+    expect(last.base, isNotNull);
+    expect(last.numstat['ledger.txt'], (1, 0));
+    expect(last.files.map((f) => f.path), ['ledger.txt']);
   });
 
   test('R12, P3: Interromper leaves the session interrupted by you (not '
