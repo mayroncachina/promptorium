@@ -1,6 +1,6 @@
 ---
 id: SPEC-099
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: recurso
 epico: 332
@@ -90,14 +90,14 @@ Exemplo concreto:
 
 ## Decisões em aberto
 
-- P1 · **Mensagem inicial.** (a) Vai para o composer da sessão nova e só sai quando a pessoa envia; (b) é enviada sozinha ao abrir. **Recomendação:** (a), como na "Nova conversa com resumo" da SPEC-087. A pessoa confere o que vai, e o primeiro turno pago só acontece quando ela quer.
-- P2 · **Passagem caprichada.** Um turno extra da origem antes de encerrar, pedindo ao agente uma passagem manual (`memory_handoff_begin`) com o que falhou e os próximos passos. **Recomendação:** opção desmarcada por padrão, só com a origem viva e com cota. Ela custa um turno e não funciona justamente no caso mais comum, a cota acabada. A passagem automática dos hooks não chama modelo.
-- P3 · **Terminal com `ai-memory run`.** O histórico local da sessão anterior só vem quando a origem é uma sessão que o `run` conhece; as sessões abertas pelo app não passam pelo `run`. **Recomendação:** manter em "Mais opções" como experimental, com `--no-autowire`, e a sondagem registra o que o destino recebe nesse caso. Se receber só a passagem, a opção fica apenas para quem prefere o terminal.
-- P4 · **Sessões de etapa.** **Recomendação:** esconder a ação nelas e deixar a troca para a execução da spec (SPEC-101), que fixa o provedor por execução.
-- P5 · **Onde guardar o vínculo.** (a) Reaproveitar o vínculo com a sessão pai que a SPEC-096 cria para o fork, com um tipo "continuação"; (b) colunas próprias. **Recomendação:** (a) se a 096 entregar um vínculo com tipo. Senão, (b) com uma migração.
-- P6 · **Prompt nesta spec.** **Recomendação:** incluir (R12). O custo é pequeno, porque o diálogo e o resumo da SPEC-087 já existem. Nas conversas o vínculo fica só na nota de origem, sem coluna nova.
-- P7 · **Worktree depois da troca.** As duas sessões apontam para o mesmo worktree. **Recomendação:** o Review e "Abrir no Review" seguem a sessão mais nova da cadeia, e a origem mostra "trabalho continuado em <título>". Merge e PR acontecem uma vez só, pela branch.
-- P8 · **Encerrar a origem viva.** Fechar a entrada do processo deve disparar o `SessionEnd` no Claude (`-p` com `stream-json`) e no App Server do Codex, mas isso precisa de prova. **Recomendação:** confirmar na sondagem. Se não disparar, o app chama `ai-memory finalize-session --session-id <id>` depois de encerrar, que fecha a sessão e grava a passagem pelo servidor.
+- P1 · **Mensagem inicial.** (a) Vai para o composer da sessão nova e só sai quando a pessoa envia; (b) é enviada sozinha ao abrir. **Decidido:** (a). A mensagem vai para o composer da sessão nova e só sai quando a pessoa envia, como na "Nova conversa com resumo" da SPEC-087. O primeiro turno pago só acontece quando ela quer.
+- P2 · **Passagem caprichada.** Um turno extra da origem antes de encerrar, pedindo ao agente uma passagem manual (`memory_handoff_begin`) com o que falhou e os próximos passos. **Decidido:** opção "Pedir ao Claude uma passagem caprichada" desmarcada por padrão, habilitada só com a origem viva, ociosa e com cota. Custa um turno; a passagem automática dos hooks não chama modelo.
+- P3 · **Terminal com `ai-memory run`.** O histórico local da sessão anterior só vem quando a origem é uma sessão que o `run` conhece; as sessões abertas pelo app não passam pelo `run`. **Decidido:** fica em "Mais opções" como experimental, com `--no-autowire`. A sondagem com o binário real fica pendente (o ai-memory não foi instalado nesta máquina); a opção é apresentada como "fora da timeline".
+- P4 · **Sessões de etapa.** **Decidido:** a ação fica escondida nas sessões de etapa; a troca é da execução da spec (SPEC-101). O motivo "Sessões de etapa trocam de provedor pela execução da spec (SPEC-101)" aparece quando se chega ao diálogo por outro caminho (a passagem da Memória apontando o worktree de uma sessão de etapa).
+- P5 · **Onde guardar o vínculo.** (a) Reaproveitar o vínculo com a sessão pai que a SPEC-096 cria para o fork, com um tipo "continuação"; (b) colunas próprias. **Decidido:** (a). O vínculo reaproveita `sessions.parentSessionId` (v35, SPEC-096) e o tipo "continuação" é um evento do app (`promptorium_handoff`) gravado no início da sessão nova, em `session_events`, com a origem, o caminho e o id da passagem. Sem migração: o fork não grava esse evento, então o tipo fica explícito e a nota do topo da timeline sai do mesmo registro.
+- P6 · **Prompt nesta spec.** **Decidido:** incluir (R12). Nas conversas o vínculo fica só na nota de origem, sem coluna nova.
+- P7 · **Worktree depois da troca.** As duas sessões apontam para o mesmo worktree. **Decidido:** o Review e "Abrir no Review" seguem a sessão mais nova da cadeia (a fila mostra uma sessão por worktree compartilhado), e a origem mostra "trabalho continuado em <título>". Merge e PR acontecem uma vez só, pela branch.
+- P8 · **Encerrar a origem viva.** Fechar a entrada do processo deve disparar o `SessionEnd` no Claude (`-p` com `stream-json`) e no App Server do Codex, mas isso precisa de prova. **Decidido:** encerrar a origem com o fim limpo do processo e esperar a passagem; se ela não aparecer na primeira metade da espera, o app chama `ai-memory finalize-session --agent <agente> --session-id <id>` uma vez e continua esperando até os 10 s. A confirmação com o binário real fica para a sondagem.
 
 ## Design
 
@@ -122,7 +122,7 @@ Exemplo concreto:
 
 Arquivos alterados: `sessions_screen.dart`, `session_manager.dart` (encerrar limpo, vínculo), `session_terminal.dart`, `session_list_panel.dart` (vínculo na lista), `context_compaction.dart` e `prompt_screen.dart` (R12), `ai_memory_view.dart` da SPEC-098 (R13) e o diário de atividades (R11).
 
-**Migração do banco:** sim, salvo se a SPEC-096 entregar um vínculo com tipo (P5). Com colunas próprias: `sessions.continuedFrom` (texto, referência a `sessions.id`, `set null` ao excluir) e `sessions.handoffRef` (id da passagem do ai-memory ou `resumo`).
+**Migração do banco:** não (P5). O vínculo reaproveita `sessions.parentSessionId` (v35) e o tipo "continuação" fica num evento do app (`promptorium_handoff`) da sessão nova, com a origem, o caminho e o id da passagem (ou `resumo`).
 
 ### Dependências
 
