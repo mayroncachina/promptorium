@@ -187,6 +187,31 @@ void main() {
     expect(find.byKey(const ValueKey('review-retry-other-1')), findsOneWidget);
   });
 
+  testWidgets('a rodada repetida "desta vez" depois da falha leva o '
+      'veredito no título, sem o botão (R2, R9)', (tester) async {
+    await setUp(
+      tester,
+      executedBy: 'codex',
+      rows: [
+        (id) => ReviewCommentsCompanion.insert(
+          specId: Value(id),
+          round: 1,
+          author: 'revisor',
+          body: '${AutoReviewer.failurePrefix}: Falha ao iniciar Claude Code',
+          provider: const Value('claude'),
+        ),
+        verdict(1, provider: 'codex', model: 'gpt-6.1-terra'),
+        comment(1),
+      ],
+    );
+    expect(
+      title(tester, 1),
+      'Rodada 1 · Revisor automático · Codex gpt-6.1-terra · pediu correções '
+      '· 1 comentário · 9f3c2a1',
+    );
+    expect(find.byKey(const ValueKey('review-retry-other-1')), findsNothing);
+  });
+
   test('prontidão do merge mostra quem revisou (R9)', () {
     final r = evaluateReadiness(
       const ReadinessInputs(

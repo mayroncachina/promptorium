@@ -759,7 +759,16 @@ class _RoundTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final head = comments.first;
+    bool isFailure(ReviewCommentRow c) =>
+        c.author == 'revisor' &&
+        c.verdict == null &&
+        c.body.startsWith(AutoReviewer.failurePrefix);
+    // A failed round retried "desta vez" (R2) keeps its number: the verdict
+    // line, when there is one, heads the round.
+    final head = comments.firstWhere(
+      (c) => c.verdict != null,
+      orElse: () => comments.first,
+    );
     final who = head.author == 'humano' ? 'Você' : 'Revisor automático';
     final verdict = switch (head.verdict) {
       'aprovar' => ' · aprovou',
@@ -773,15 +782,15 @@ class _RoundTile extends StatelessWidget {
     final author = head.author == 'revisor' && head.verdict != null
         ? reviewerAuthorLabel(head.provider, head.model, executedBy: executedBy)
         : null;
-    final count = comments.length - 1;
+    final count = comments
+        .where((c) => c != head && c.verdict == null && !isFailure(c))
+        .length;
     final countLabel = author != null && count > 0
         ? ' · $count ${count == 1 ? 'comentário' : 'comentários'}'
         : '';
-    final failed =
-        head.author == 'revisor' &&
-        head.verdict == null &&
-        head.provider != null &&
-        head.body.startsWith(AutoReviewer.failurePrefix);
+    // The last thing of the round is a failure on a known provider.
+    final last = comments.reduce((a, b) => a.id > b.id ? a : b);
+    final failed = isFailure(last) && last.provider != null;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Column(
@@ -813,8 +822,8 @@ class _RoundTile extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4, left: 8),
               child: SmallButton(
                 key: ValueKey('review-retry-other-$round'),
-                label: reviewOnceLabel(head.provider!),
-                onTap: () => onRetry!(otherReviewerProvider(head.provider!)),
+                label: reviewOnceLabel(last.provider!),
+                onTap: () => onRetry!(otherReviewerProvider(last.provider!)),
               ),
             ),
           for (final c in comments)

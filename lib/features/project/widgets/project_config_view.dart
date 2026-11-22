@@ -975,7 +975,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           children: [
             _captioned(
               'Modelo no Claude Code',
-              150,
+              130,
               _field(
                 const ValueKey('config-reviewer-model'),
                 _reviewerModel,
@@ -985,7 +985,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             // SPEC-102 R4: optional; empty = the local preference.
             _captioned(
               'Modelo no Codex (opcional)',
-              170,
+              160,
               _field(
                 const ValueKey('config-reviewer-codex-model'),
                 _reviewerCodexModel,
@@ -995,7 +995,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             // SPEC-102 R6: the budget limits the Claude Code only.
             _captioned(
               reviewerBudgetHint,
-              190,
+              180,
               _field(
                 const ValueKey('config-reviewer-budget'),
                 _reviewerBudget,
@@ -1004,7 +1004,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
             _captioned(
               'Rodadas',
-              100,
+              70,
               _field(
                 const ValueKey('config-reviewer-rounds'),
                 _reviewerRounds,
