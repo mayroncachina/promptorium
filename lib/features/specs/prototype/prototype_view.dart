@@ -1,4 +1,8 @@
 import 'dart:async';
+
+import '../../../core/providers/structured_run.dart';
+import '../../../ui/widgets/only_provider_tag.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -755,6 +759,24 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
                       ),
                     ),
                   ),
+                  // SPEC-100 R8, R10: the kind is on another provider,
+                  // the screens still run on the Claude Code.
+                  if (!isClaudeCode(
+                    providerForKind(
+                      ref.watch(appSettingsProvider),
+                      ProviderKind.planner,
+                      workspaceId: ws.id,
+                      flows: ref.watch(providerFlowsProvider),
+                    ),
+                  ))
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: OnlyProviderTag(
+                        key: ValueKey('proto-claude-only'),
+                        provider: 'Claude Code',
+                        reason: prototypeClaudeOnlyReason,
+                      ),
+                    ),
                   ProtoButton(
                     key: const ValueKey('proto-zoom-out'),
                     label: '−',

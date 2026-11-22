@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -6,9 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
-import '../../core/providers/claude_code_provider.dart';
+import '../../core/providers/structured_run.dart';
 import '../../core/text/line_diff.dart';
 import '../../data/providers.dart';
 import '../specs/spec_answers.dart';
@@ -294,28 +291,25 @@ class StepDecisionCompiler {
     final key = '$before\n$prompt';
     if (_done[key] case final done?) return done;
     final worktree = spec.worktreePath;
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       _ref,
-      workspaceId: ws.id,
-      cancelled: cancelled,
-      specId: spec.id,
-      usageSource: UsageSource.orquestrador,
-      cwd: worktree != null && await Directory(worktree).exists()
-          ? worktree
-          : ws.path,
-      options: ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: stepDecisionCompilePrompt,
-        jsonSchema: jsonEncode(stepDecisionCompileSchema),
-        maxBudgetUsd: budgetUsd,
-        includePartialMessages: false,
+      StructuredIntent(
+        workspaceId: ws.id,
+        cancelled: cancelled,
+        specId: spec.id,
+        usageSource: UsageSource.orquestrador,
+        cwd: worktree != null && await Directory(worktree).exists()
+            ? worktree
+            : ws.path,
+        instructions: stepDecisionCompilePrompt,
+        schema: stepDecisionCompileSchema,
+        claude: const ClaudeStructuredExtras(maxBudgetUsd: budgetUsd),
+        prompt: prompt,
       ),
-      prompt: prompt,
     );
     return _done[key] = parseStepCompilation(
       before,
-      structuredOutput(r),
+      r.data,
       step: step,
       choices: choices,
     );

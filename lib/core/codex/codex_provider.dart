@@ -389,11 +389,14 @@ class CodexRun implements ManagedAgentRun {
     });
   }
 
+  /// Model of the thread (null = not reported).
+  String? get model => _model;
+
   /// The selected model takes images (the `image` modality); else the
   /// app sends pictures as files (SPEC-051 R8).
   bool get supportsImages =>
       _models
-          .where((m) => m.id == options.model)
+          .where((m) => m.id == (_model ?? options.model))
           .firstOrNull
           ?.modalities
           .contains('image') ??
@@ -431,7 +434,8 @@ class CodexRun implements ManagedAgentRun {
   @override
   Future<void> send(String text, {List<ImagePart> images = const []}) async {
     if (images.isNotEmpty) {
-      final model = options.model;
+      // The thread's model (the CLI default when `inherit`, SPEC-100 R6).
+      final model = _model ?? options.model;
       final selected = _models.where((m) => m.id == model).firstOrNull;
       if (selected == null || !selected.modalities.contains('image')) {
         throw const AgentUnavailable(

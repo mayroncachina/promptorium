@@ -1,9 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/providers/agent_registry.dart'
-    show providerFlowsProvider, ProviderFlows, AppFlow;
-import 'package:promptorium/core/claude/claude_args.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
@@ -14,13 +11,16 @@ import '../features/sessions/session_test_utils.dart' show settle;
 
 final run = Provider(
   (ref) =>
-      (ClaudeOptions options) => runReadOnlyClaude(
+      ({String? sessionId, String? resumeId}) async => (await runStructured(
         ref,
-        cwd: '/work',
-        workspaceId: 12,
-        options: options,
-        prompt: 'Leia e responda',
-      ),
+        StructuredIntent(
+          cwd: '/work',
+          workspaceId: 12,
+          sessionId: sessionId,
+          resumeId: resumeId,
+          prompt: 'Leia e responda',
+        ),
+      )).raw,
 );
 
 void main() {
@@ -49,7 +49,7 @@ void main() {
     await c
         .read(appSettingsProvider.notifier)
         .set(providerPreferenceKey(12), 'codex');
-    var response = c.read(run)(const ClaudeOptions(sessionId: 'planner-local'));
+    var response = c.read(run)(sessionId: 'planner-local');
     await settle();
     expect(
       servers.single.writtenJson.any((r) => r['method'] == 'turn/start'),
@@ -61,7 +61,7 @@ void main() {
     await c
         .read(appSettingsProvider.notifier)
         .set(providerPreferenceKey(12), 'claude');
-    response = c.read(run)(const ClaudeOptions(resumeId: 'planner-local'));
+    response = c.read(run)(resumeId: 'planner-local');
     await settle();
     final resume = servers.last.writtenJson.singleWhere(
       (r) => r['method'] == 'thread/resume',
