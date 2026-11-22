@@ -252,15 +252,20 @@ class ProviderFlows {
     AppFlow.autoReview,
   };
 
-  /// Codex runs in Prompt and Sessões (SPEC-096 R1); the other flows wait
-  /// for their specs (SPEC-100, 101, 102, 108).
+  /// Codex runs in Prompt, Sessões (SPEC-096 R1) and the structured runs
+  /// (SPEC-100 R8); the other flows wait for their specs (101, 102, 108).
   static const defaults = ProviderFlows({
     'claude': {...AppFlow.values},
     'codex': codexFlows,
   });
 
-  /// Flows released for the Codex in this version (SPEC-096 R1).
-  static const codexFlows = {AppFlow.prompt, AppFlow.sessions};
+  /// Flows released for the Codex in this version (SPEC-096 R1, SPEC-100
+  /// R8).
+  static const codexFlows = {
+    AppFlow.prompt,
+    AppFlow.sessions,
+    AppFlow.structured,
+  };
 
   bool allows(String provider, AppFlow flow) =>
       (enabled[provider] ?? others).contains(flow);
@@ -297,7 +302,6 @@ const codexKillSwitchKey = 'codex.desligado';
 const codexFlowSpecs = {
   AppFlow.runSpec: 'SPEC-101',
   AppFlow.autoReview: 'SPEC-102',
-  AppFlow.structured: 'SPEC-100',
   AppFlow.compare: 'SPEC-108',
 };
 

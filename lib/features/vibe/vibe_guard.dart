@@ -1,13 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
+import '../../core/providers/structured_run.dart';
 import '../../core/git/git_service.dart';
-import '../../core/providers/agent_registry.dart' show ClaudeCodeProvider;
 import '../../data/providers.dart';
 import '../project/project_config.dart';
 
@@ -151,7 +148,8 @@ class UnrelatedVerdict {
   bool get ask => unrelated && confidence >= askAt;
 }
 
-const _unrelatedSchema = {
+/// Answer of the VIBE check (public for the schema test, SPEC-100 R3).
+const unrelatedSchema = {
   'type': 'object',
   'required': ['outro_assunto', 'confianca'],
   'properties': {
@@ -198,30 +196,27 @@ final unrelatedRequestProvider = Provider<UnrelatedCheck>(
         required accepted,
         required request,
       }) async {
-        final r = await runReadOnlyClaude(
+        final r = await runStructured(
           ref,
-          cwd: vibe.worktreePath ?? Directory.systemTemp.path,
-          workspaceId: vibe.workspaceId,
-          providerId: 'claude',
-          timeout: const Duration(seconds: 60),
-          options: ClaudeOptions(
-            model: 'haiku',
-            effort: 'low',
-            permissionMode: ClaudePermissionMode.defaultMode,
-            disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-            jsonSchema: jsonEncode(_unrelatedSchema),
-            maxBudgetUsd: 0.05,
-            includePartialMessages: false,
+          StructuredIntent(
+            cwd: vibe.worktreePath ?? Directory.systemTemp.path,
+            workspaceId: vibe.workspaceId,
+            providerId: 'claude',
+            timeout: const Duration(seconds: 60),
+            // R4: a profile, never a model name; each provider resolves it.
+            profile: StructuredProfile.fast,
+            schema: unrelatedSchema,
+            claude: const ClaudeStructuredExtras(maxBudgetUsd: 0.05),
+            prompt: unrelatedPrompt(
+              title: vibe.title,
+              changed: changed,
+              accepted: accepted,
+              request: request,
+            ),
+            denyMessage: 'A checagem de outro assunto é somente leitura.',
           ),
-          prompt: unrelatedPrompt(
-            title: vibe.title,
-            changed: changed,
-            accepted: accepted,
-            request: request,
-          ),
-          denyMessage: 'A checagem de outro assunto é somente leitura.',
         );
-        final data = structuredOutput(r);
+        final data = r.data;
         if (data is! Map) {
           return const UnrelatedVerdict(unrelated: false, confidence: 0);
         }
