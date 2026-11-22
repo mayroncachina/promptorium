@@ -128,17 +128,19 @@ class ProviderKindCard extends ConsumerWidget {
         runSpacing: 4,
         children: [
           for (final (id, label) in choices)
-            ToggleBox(
-              key: ValueKey('kind-${kind.name}-${id ?? 'follow'}'),
-              on: saved == id,
-              height: 28,
-              onTap: () => onChoose(id),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: saved == id ? AppColors.amber : AppColors.text,
+            IntrinsicWidth(
+              child: ToggleBox(
+                key: ValueKey('kind-${kind.name}-${id ?? 'follow'}'),
+                on: saved == id,
+                height: 28,
+                onTap: () => onChoose(id),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: saved == id ? AppColors.amber : AppColors.text,
+                  ),
                 ),
               ),
             ),

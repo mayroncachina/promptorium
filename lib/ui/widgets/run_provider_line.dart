@@ -68,7 +68,7 @@ class RunProviderLine extends ConsumerWidget {
                 child: Text(
                   runProviderSummary(info).split(' · ').skip(1).join(' · '),
                   key: const ValueKey('run-provider-summary'),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: AppFonts.mono,
@@ -238,7 +238,7 @@ class _Choice extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: primary ? AppColors.background : AppColors.text,
+            color: primary ? AppColors.onAmber : AppColors.text,
           ),
         ),
       ),
