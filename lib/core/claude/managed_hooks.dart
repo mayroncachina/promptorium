@@ -146,9 +146,15 @@ class HookActivity {
     this.secrets,
     this.waived = const [],
     this.timedOut = false,
+    this.provider = 'claude',
   });
 
   final ManagedHook hook;
+
+  /// Who ran the hook (SPEC-103 R6): `claude` or `codex` — the `provedor`
+  /// of the log line (absent in logs of older scripts = `claude`), or the
+  /// Codex for its `hook/*` notifications and the app's post-turn checks.
+  final String provider;
 
   /// A commit, push or PR of the agent blocked by the Vigia de segredos
   /// (SPEC-085 R1, R7): the log line as it came (findings already masked).
@@ -175,11 +181,15 @@ class HookActivity {
     }
     if (j is! Map) return null;
     final at = DateTime.tryParse('${j['em'] ?? ''}') ?? DateTime.now();
+    final provider = j['provedor'] is String
+        ? j['provedor'] as String
+        : 'claude';
     return switch (j['evento']) {
       'bloqueio' => HookActivity(
         hook: ManagedHook.block,
         text: 'Hook bloqueou `${j['comando']}` (${j['regra']})',
         at: at,
+        provider: provider,
         error: true,
       ),
       'formatado' => HookActivity(
@@ -188,12 +198,14 @@ class HookActivity {
             ? 'Formatado: ${j['arquivo']}'
             : 'Falha ao formatar ${j['arquivo']}: ${j['saida'] ?? ''}'.trim(),
         at: at,
+        provider: provider,
         error: j['ok'] != true,
       ),
       'fim' => HookActivity(
         hook: ManagedHook.end,
         text: 'Sessão encerrada (${j['motivo'] ?? '?'})',
         at: at,
+        provider: provider,
       ),
       'segredo' => HookActivity(
         hook: ManagedHook.secrets,
@@ -202,6 +214,7 @@ class HookActivity {
           (j['achados'] is List) ? (j['achados'] as List).length : 0,
         ),
         at: at,
+        provider: provider,
         error: true,
         secrets: j.cast<String, Object?>(),
       ),
@@ -209,6 +222,7 @@ class HookActivity {
         hook: ManagedHook.secrets,
         text: 'Vigia de segredos: commit liberado por justificativa',
         at: at,
+        provider: provider,
         waived: [
           if (j['ignorados'] case final List l)
             for (final e in l)
@@ -219,6 +233,7 @@ class HookActivity {
         hook: ManagedHook.secrets,
         text: 'Vigia de segredos: tempo esgotado, commit não conferido',
         at: at,
+        provider: provider,
         error: true,
         timedOut: true,
       ),
@@ -243,6 +258,10 @@ const hookScript = r'''
 import datetime, hashlib, json, math, os, re, shlex, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# SPEC-103 R1: the same script for both providers; the Codex adapter calls
+# it with `--provedor codex` (the Claude command is unchanged).
+PROVIDER = sys.argv[sys.argv.index("--provedor") + 1] \
+    if "--provedor" in sys.argv[:-1] else "claude"
 
 
 def main():
@@ -252,6 +271,7 @@ def main():
 
     def log(obj):
         obj["em"] = datetime.datetime.now().isoformat()
+        obj["provedor"] = PROVIDER
         with open(cfg["log"], "a", encoding="utf-8") as f:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
@@ -754,6 +774,50 @@ else:
         pass
 ''';
 
+/// What the app's hooks of one session do, whatever the provider
+/// (SPEC-103 R1). Each adapter translates it: the Claude Code gets a
+/// `settings.json` ([ManagedHooks.prepareClaude]), the Codex session config
+/// overrides (`codex_hooks.dart`). The script and its config are the same.
+@immutable
+class ManagedHookPlan {
+  const ManagedHookPlan({
+    required this.sessionId,
+    required this.dir,
+    required this.enabled,
+    required this.rules,
+    this.formatCommand,
+    this.secrets,
+  });
+
+  final String sessionId;
+
+  /// `~/.promptorium/run/<session>/`.
+  final String dir;
+
+  /// The hooks that apply (on in Automações and with what they need).
+  final Set<ManagedHook> enabled;
+  final List<BlockRule> rules;
+  final String? formatCommand;
+  final Map<String, Object?>? secrets;
+
+  bool get isEmpty => enabled.isEmpty;
+  String get log => '$dir/hooks.log';
+  String get script => '$dir/promptorium_hook.py';
+  String get config => '$dir/hooks-config.json';
+  String get secretsPath => '$dir/secrets.json';
+
+  /// `hooks-config.json`, read by the script on every event.
+  Map<String, Object?> configJson() => {
+    'log': log,
+    'bloquear': [
+      if (enabled.contains(ManagedHook.block))
+        for (final r in rules) r.toJson(),
+    ],
+    'formatar': enabled.contains(ManagedHook.format) ? formatCommand : null,
+    if (enabled.contains(ManagedHook.secrets)) 'segredos': secretsPath,
+  };
+}
+
 /// Writes and removes the per-session hook files under [runBase]
 /// (`~/.promptorium/run/<session>/`).
 class ManagedHooks {
@@ -809,8 +873,56 @@ class ManagedHooks {
     };
   }
 
-  /// Writes the session's files; returns the `--settings` path, or null
-  /// when no hook applies.
+  /// The provider-neutral plan of [sessionId] (SPEC-103 R1): the hooks
+  /// that apply (formatting needs a `formatar:`, the Vigia its rules), the
+  /// block rules, the format command, the Vigia's rules and the folder.
+  ManagedHookPlan plan(
+    String sessionId, {
+    required Set<ManagedHook> enabled,
+    required List<BlockRule> rules,
+    String? formatCommand,
+    Map<String, Object?>? secrets,
+  }) => ManagedHookPlan(
+    sessionId: sessionId,
+    dir: dirOf(sessionId),
+    enabled: {
+      for (final h in enabled)
+        if ((h != ManagedHook.format || formatCommand != null) &&
+            (h != ManagedHook.secrets || secrets != null))
+          h,
+    },
+    rules: rules,
+    formatCommand: formatCommand,
+    secrets: secrets,
+  );
+
+  /// Writes the plan's folder: the script, its config and the Vigia's
+  /// rules, after removing the log of an earlier process. Shared by both
+  /// adapters.
+  Future<void> writePlan(ManagedHookPlan plan) async {
+    final dir = Directory(plan.dir);
+    await dir.create(recursive: true);
+    // A new process reads the log from the start: a log left by a process
+    // that ended without its cleanup (the app was killed) would show its
+    // blocks again (SPEC-085: a resolved block coming back).
+    final oldLog = File(plan.log);
+    if (await oldLog.exists()) await oldLog.delete();
+    if (plan.isEmpty) return;
+    await File(plan.script).writeAsString(hookScript);
+    await File(plan.config).writeAsString(jsonEncode(plan.configJson()));
+    if (plan.enabled.contains(ManagedHook.secrets)) {
+      await writeSecrets(plan.sessionId, plan.secrets!);
+    }
+  }
+
+  /// The script's command line for [provider]; the Claude one stays as it
+  /// was before SPEC-103 (`python3 '<script>'`).
+  String commandOf(ManagedHookPlan plan, {String provider = 'claude'}) =>
+      '$python ${_quote(plan.script)}'
+      '${provider == 'claude' ? '' : ' --provedor $provider'}';
+
+  /// Claude adapter (SPEC-103 R1): writes the session's files; returns the
+  /// `--settings` path, or null when no hook applies.
   /// [extra] goes into the same `settings.json` (the plugins and MCP
   /// servers turned off, SPEC-017 R2).
   Future<String?> prepare(
@@ -821,47 +933,30 @@ class ManagedHooks {
     Map<String, Object?>? secrets,
     Map<String, Object?> extra = const {},
   }) async {
-    final on = {
-      for (final h in enabled)
-        if ((h != ManagedHook.format || formatCommand != null) &&
-            (h != ManagedHook.secrets || secrets != null))
-          h,
-    };
-    if (on.isEmpty && extra.isEmpty) return null;
-    final dir = Directory(dirOf(sessionId));
-    await dir.create(recursive: true);
-    // A new process reads the log from the start: a log left by a process
-    // that ended without its cleanup (the app was killed) would show its
-    // blocks again (SPEC-085: a resolved block coming back).
-    final oldLog = File(logOf(sessionId));
-    if (await oldLog.exists()) await oldLog.delete();
-    if (on.isEmpty) {
-      final settings = File('${dir.path}/settings.json');
-      await settings.writeAsString(jsonEncode(extra));
-      return settings.path;
-    }
-    final script = File('${dir.path}/promptorium_hook.py');
-    await script.writeAsString(hookScript);
-    await File('${dir.path}/hooks-config.json').writeAsString(
-      jsonEncode({
-        'log': logOf(sessionId),
-        'bloquear': [
-          if (on.contains(ManagedHook.block))
-            for (final r in rules) r.toJson(),
-        ],
-        'formatar': on.contains(ManagedHook.format) ? formatCommand : null,
-        if (on.contains(ManagedHook.secrets)) 'segredos': secretsOf(sessionId),
-      }),
+    final p = plan(
+      sessionId,
+      enabled: enabled,
+      rules: rules,
+      formatCommand: formatCommand,
+      secrets: secrets,
     );
-    if (on.contains(ManagedHook.secrets)) {
-      await writeSecrets(sessionId, secrets!);
-    }
-    final settings = File('${dir.path}/settings.json');
+    return prepareClaude(p, extra: extra);
+  }
+
+  /// `settings.json` of [plan] for the Claude Code (`--settings`).
+  Future<String?> prepareClaude(
+    ManagedHookPlan plan, {
+    Map<String, Object?> extra = const {},
+  }) async {
+    if (plan.isEmpty && extra.isEmpty) return null;
+    await writePlan(plan);
+    final settings = File('${plan.dir}/settings.json');
     await settings.writeAsString(
-      jsonEncode({
-        ...settingsJson('$python ${_quote(script.path)}', on),
-        ...extra,
-      }),
+      jsonEncode(
+        plan.isEmpty
+            ? extra
+            : {...settingsJson(commandOf(plan), plan.enabled), ...extra},
+      ),
     );
     return settings.path;
   }
