@@ -111,7 +111,7 @@ void main() {
     test('the notice names them', () {
       expect(
         codexSubagentsNotice(['tester', 'docs']),
-        'Esta spec define 2 subagentes (`tester`, `docs`). No Codex eles não '
+        'Esta spec define 2 subagentes (tester, docs). No Codex eles não '
         'rodam: a sessão principal faz o trabalho deles.',
       );
     });

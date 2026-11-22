@@ -216,7 +216,7 @@ void main() {
         'Agente spec-implementer não encontrado em .claude/agents: a sessão '
             'segue sem ele.',
         // SPEC-106 R9: only the subagents stay with the Claude Code.
-        'Esta spec define 1 subagente (`spec-reviewer`). No Codex ele não '
+        'Esta spec define 1 subagente (spec-reviewer). No Codex ele não '
             'roda: a sessão principal faz o trabalho dele.',
       ]),
     );

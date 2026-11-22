@@ -118,7 +118,7 @@ class CodexSubagentsDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  codexSubagentsNotice(subagents, code: false),
+                  codexSubagentsNotice(subagents),
                   key: const ValueKey('codex-subagents-notice'),
                   style: const TextStyle(
                     fontSize: 12,

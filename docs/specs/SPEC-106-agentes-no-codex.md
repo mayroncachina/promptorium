@@ -1,6 +1,6 @@
 ---
 id: SPEC-106
-status: em implementação
+status: concluida
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -95,16 +95,31 @@ Não há. O registro vai no evento `promptorium_run`, e a tabela fica em `app_se
 
 ## Critérios de aceite
 
-- [ ] O corpo do agente chega em `developerInstructions` antes das instruções do app, e as do projeto continuam carregadas [R1] verificar: payload do `thread/start` no teste do adaptador.
-- [ ] Um alias sem equivalente usa o modelo do tipo de execução; um id fora do `model/list` nunca é enviado [R2] verificar: testes do `codex_agent_mapping`.
-- [ ] O esforço enviado sempre está na lista do modelo [R3] verificar: testes com modelos de esforços diferentes.
-- [ ] Agente só de leitura roda em `read-only` mesmo em Editar, e nenhum agente sobe o sandbox acima do modo [R4] verificar: testes de tabela do mapeamento.
-- [ ] `maxTurns`, `mcpServers`, `hooks` e subagentes aparecem como "ignorado no Codex" ou aplicados pelo app, sem bloquear [R5] verificar: testes do mapeamento e de widget.
-- [ ] A tabela de equivalentes lista os modelos e os esforços do `model/list`, começa sem nome fixo no código e guarda em `app_settings` [R6] verificar: teste de widget com `model/list` gravado.
-- [ ] O quadro "No Codex" mostra aplicado, adaptado e ignorado e acompanha a edição, sem alterar o `.md` [R7] verificar: teste de widget do editor.
-- [ ] Nova sessão e Executar spec mostram o agente com o resumo; spec com subagentes avisa antes de começar e respeita a escolha [R8, R9] verificar: testes de widget dos diálogos.
-- [ ] Atividades, sessão e Replay mostram o agente e a tradução gravados na execução [R11] verificar: teste com evento gravado e `.md` alterado depois.
-- [ ] Nada é gravado em `~/.codex` e nenhum perfil é criado [R12] verificar: sondagem com `HOME` temporário e argumentos do `app-server`.
+- [x] O corpo do agente chega em `developerInstructions` antes das instruções do app, e as do projeto continuam carregadas [R1] verificar: payload do `thread/start` no teste do adaptador.
+- [x] Um alias sem equivalente usa o modelo do tipo de execução; um id fora do `model/list` nunca é enviado [R2] verificar: testes do `codex_agent_mapping`.
+- [x] O esforço enviado sempre está na lista do modelo [R3] verificar: testes com modelos de esforços diferentes.
+- [x] Agente só de leitura roda em `read-only` mesmo em Editar, e nenhum agente sobe o sandbox acima do modo [R4] verificar: testes de tabela do mapeamento.
+- [x] `maxTurns`, `mcpServers`, `hooks` e subagentes aparecem como "ignorado no Codex" ou aplicados pelo app, sem bloquear [R5] verificar: testes do mapeamento e de widget.
+- [x] A tabela de equivalentes lista os modelos e os esforços do `model/list`, começa sem nome fixo no código e guarda em `app_settings` [R6] verificar: teste de widget com `model/list` gravado.
+- [x] O quadro "No Codex" mostra aplicado, adaptado e ignorado e acompanha a edição, sem alterar o `.md` [R7] verificar: teste de widget do editor.
+- [x] Nova sessão e Executar spec mostram o agente com o resumo; spec com subagentes avisa antes de começar e respeita a escolha [R8, R9] verificar: testes de widget dos diálogos.
+- [x] Atividades, sessão e Replay mostram o agente e a tradução gravados na execução [R11] verificar: teste com evento gravado e `.md` alterado depois.
+- [x] Nada é gravado em `~/.codex` e nenhum perfil é criado [R12] verificar: sondagem com `HOME` temporário e argumentos do `app-server`.
+
+## Notas da implementação
+
+- **`maxTurns` fica "ignorado no Codex".** A SPEC-094 não entregou limite de turnos do lado do app (a capacidade `maxTurns` do Codex segue não suportada), então vale o "se não" da R5. O mock mostrava "pelo app".
+- **Sem o sandbox do sistema (decisão 15),** o só leitura de um agente não é imposto: o Codex só roda em YOLO. O campo `tools` aparece como "ignorado no Codex", com aviso, e a execução segue (R5).
+- **`permissionMode` diferente de `plan`** aparece como "ignorado: vale o modo da execução"; ferramentas `mcp__…` e `Task`/`Agent` em `tools` ganham linhas próprias de ignorado.
+- **Registro (R11):** além do evento `promptorium_run` (campo `agent`), a tradução vai no `runConfig` da sessão, de onde o cabeçalho da sessão (também no Replay) e as Atividades leem "agente · adaptado" sem reler o `.md`.
+- **Revisor (R10):** a SPEC-102 usa execução estruturada (o `review/start` nativo não foi testado), então o `spec-reviewer` passa pela tradução: o corpo do agente vem antes das instruções embutidas do revisor, e modelo e esforço saem da tabela (`effortOverride` novo no `StructuredIntent`).
+- **Agente que não existe** em `.claude/agents` gera uma nota na timeline, e a sessão segue sem ele.
+- **O quadro "No Codex"** do editor mostra a tradução no modo Editar.
+- **O aviso dos subagentes** aparece no "Executar" do cartão, antes da primeira execução no Codex. Execuções sem o diálogo (Autopilot, "Executar tudo") registram o mesmo texto na timeline, uma vez por execução.
+
+## No app
+
+E2E no app compilado, com dados, `HOME`, `CODEX_HOME` e `CLAUDE_CONFIG_DIR` isolados e um Codex falso (sem turno pago). Prints em `docs/mockups/spec-106/app/`.
 
 ## Telas
 
