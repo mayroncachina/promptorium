@@ -96,7 +96,10 @@ void main() {
       find.textContaining('gpt-5.9-sol salvo antes: indisponível nesta versão'),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('codex-model-missing-session')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('codex-model-missing-session')),
+      findsNothing,
+    );
     // R11: flows not released yet carry the tag, and the capabilities card
     // says what the Codex does here.
     expect(
