@@ -320,7 +320,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> compactNow(int id, {String? focus}) async {
     final conv = await _repo.getById(id);
     if (conv == null) throw ConversationException('Conversa $id não existe.');
-    if (!isClaudeCode(conv.provider)) {
+    // SPEC-107 R8: decided by the capability, not by the provider name.
+    if (!capabilitiesFor(conv.provider)
+        .supports(ProviderCapability.compactNow)) {
       throw const ConversationException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -337,6 +339,22 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       ..compacting = true
       ..busySince = DateTime.now();
     _publish();
+    final agent = run.run;
+    if (agent is CodexRun) {
+      // SPEC-107 R8, R9: `thread/compact/start`, once, without focus.
+      await _note(id, 'Compactação pedida pelo app (thread/compact/start).');
+      try {
+        await agent.compactNow();
+      } catch (_) {
+        run
+          ..busy = false
+          ..compacting = false
+          ..busySince = null;
+        _publish();
+        rethrow;
+      }
+      return;
+    }
     await _note(id, 'Compactação pedida pelo app (/compact).');
     await run.run.send(compactCommand(focus));
   }
@@ -655,6 +673,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
                   ? await runSettingsFile(ref)
                   : null,
             ),
+            // SPEC-107 R6, P1: the Codex threshold preference.
+            codex: CodexExtras(compactLimit: prefs.codexAutocompact),
           ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
@@ -678,7 +698,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     _runs[conv.id] = r;
     // SPEC-087 R7: what this execution received (effective threshold).
     final runJson = ContextEventTypes.runEvent(
-      autocompact: isClaudeCode(conv.provider) ? prefs.autocompact : null,
+      autocompact: prefs.autocompactOf(conv.provider),
       model: conv.model,
       provider: conv.provider,
     );

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/managed_hooks.dart' show secretBlockTitle;
+import '../../core/providers/context_events.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/secrets/secret_scanner.dart';
 import '../context/context_tracker.dart';
@@ -723,6 +724,16 @@ class Timeline {
   /// Notice of a `system/compact_boundary` (SPEC-082 R2).
   static const compactionNotice = 'Contexto compactado';
 
+  /// "Modelo trocado: a → b · redirecionado pelo serviço" (SPEC-107 R12).
+  static String modelChangeNotice(Map<String, dynamic> j) {
+    final from = j['from'] as String?;
+    final to = '${j['to'] ?? '?'}';
+    final how = j['reason'] == ContextAppEvents.rerouted
+        ? ' · redirecionado pelo serviço'
+        : '';
+    return 'Modelo trocado: ${from == null ? to : '$from → $to'}$how';
+  }
+
   void _recordContext(AssistantMessage e) {
     if (e.parentToolUseId != null) return;
     if (e.json['message'] case {'usage': final Map<String, dynamic> u}) {
@@ -770,6 +781,15 @@ class Timeline {
         );
       case AppEventTypes.handoff:
         items.add(HandoffItem(j, handoffNotice(j, at), at: at));
+      // SPEC-107 R12: the Codex changed the model of the thread.
+      case ContextAppEvents.modelChange:
+        items.add(
+          NoticeItem(
+            modelChangeNotice(j),
+            provider: j['provider'] as String?,
+            at: at,
+          ),
+        );
       case AppEventTypes.limit:
         items.add(
           LimitItem(

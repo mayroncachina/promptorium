@@ -144,7 +144,7 @@ void main() {
       containsAll([
         'base.txt:edited',
         'nota.txt:edited',
-        'nao-existe.txt:read',
+        'nao-existe.txt:commandRead',
       ]),
     );
   });

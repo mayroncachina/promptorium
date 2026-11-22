@@ -109,6 +109,10 @@ Map<String, dynamic> codexCommand(Map<String, dynamic> item) {
     output: _str(item['aggregatedOutput']),
     durationMs: _int(item['durationMs']),
     reads: reads,
+    actions: [
+      for (final a in item['commandActions'] as List? ?? const [])
+        ?CommandAction.fromJson(a),
+    ],
   );
 }
 
@@ -120,6 +124,11 @@ Map<String, dynamic> codexCommand(Map<String, dynamic> item) {
 /// `tokenUsage.modelContextWindow`. `total` is accumulated across the
 /// thread: it goes to the ledger, never to the context. Null without
 /// `last`.
+///
+/// SPEC-107 R3: `last.totalTokens` = `inputTokens + outputTokens`, and
+/// `inputTokens` includes `cachedInputTokens`; the parts are new input,
+/// cache read, cache write and the call's output. When they do not add up
+/// to the total (overlap), the panel says "Detalhamento indisponível".
 Map<String, dynamic>? codexContextUsage(
   Map<String, dynamic> params, {
   String? model,
@@ -138,8 +147,10 @@ Map<String, dynamic>? codexContextUsage(
     input: (input - cached).clamp(0, 1 << 62),
     cacheRead: cached,
     cacheWrite: _int(last['cacheWriteInputTokens']) ?? 0,
+    output: _int(last['outputTokens']) ?? 0,
     window: _int(usage['modelContextWindow']),
     model: model,
+    turnId: _str(params['turnId']),
     source: ContextUsageEvent.codexTokenUsage,
   );
 }

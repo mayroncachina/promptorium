@@ -298,14 +298,18 @@ class ContextPanelHost extends ConsumerWidget {
     );
   }
 
-  /// "Ajustar compactação automática": the same global choice as
-  /// Configurações (R7).
+  /// "Ajustar compactação automática": the same choice as Configurações
+  /// (R7), of the history's agent (SPEC-107 P1: the Codex has its own).
   Future<void> _pickAutocompact(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(runPrefsProvider).autocompact;
+    final codex = provider == 'codex';
+    final prefs = ref.read(runPrefsProvider);
+    final current = codex ? prefs.codexAutocompact : prefs.autocompact;
     final v = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Compactação automática'),
+        title: Text(
+          codex ? 'Compactação automática do Codex' : 'Compactação automática',
+        ),
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
@@ -329,7 +333,7 @@ class ContextPanelHost extends ConsumerWidget {
     if (v != null) {
       await ref
           .read(appSettingsProvider.notifier)
-          .set(AppSettingKeys.autocompact, v);
+          .set(RunPrefs.autocompactKey(provider), v);
     }
   }
 }

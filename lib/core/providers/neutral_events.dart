@@ -244,6 +244,7 @@ class CommandEvent extends AgentEvent {
     String? output,
     int? durationMs,
     List<String> reads = const [],
+    List<CommandAction> actions = const [],
   }) {
     String? stored = output;
     var cutLines = 0;
@@ -262,6 +263,7 @@ class CommandEvent extends AgentEvent {
       if (cutLines > 0) 'output_cut': cutLines,
       'duration_ms': ?durationMs,
       if (reads.isNotEmpty) 'reads': reads,
+      if (actions.isNotEmpty) 'actions': [for (final a in actions) a.toJson()],
       'status': status.name,
     };
   }
@@ -280,6 +282,13 @@ class CommandEvent extends AgentEvent {
 
   /// Files the command reads (Codex `commandActions` of type `read`).
   List<String> get reads => _strings(json['reads']);
+
+  /// What the agent says the command does (Codex `commandActions` of a
+  /// known type: `read`, `search`, `listFiles`; SPEC-107 R11, P4).
+  List<CommandAction> get actions => [
+    for (final a in json['actions'] as List? ?? const [])
+      ?CommandAction.fromJson(a),
+  ];
 
   bool get done => status != CommandStatus.running;
 
@@ -320,9 +329,43 @@ class CommandEvent extends AgentEvent {
         output: output,
         durationMs: durationMs,
         reads: reads,
+        actions: actions,
       ),
     );
   }
+}
+
+/// One classified action of a command (Codex `commandActions`, SPEC-107
+/// R11): only the known types; `unknown` never becomes one (P4).
+class CommandAction {
+  const CommandAction({required this.type, this.path, this.query});
+
+  static const read = 'read';
+  static const search = 'search';
+  static const listFiles = 'listFiles';
+  static const known = {read, search, listFiles};
+
+  /// `read`, `search` or `listFiles`.
+  final String type;
+  final String? path;
+
+  /// The searched text (`search`).
+  final String? query;
+
+  static CommandAction? fromJson(Object? j) {
+    if (j is! Map) return null;
+    final type = _str(j['type']);
+    if (type == null || !known.contains(type)) return null;
+    final path = _str(j['path']);
+    if (type == read && (path == null || path.isEmpty)) return null;
+    return CommandAction(type: type, path: path, query: _str(j['query']));
+  }
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'path': ?path,
+    'query': ?query,
+  };
 }
 
 /// The context of one top-level model call, as the agent measured it (R3).
@@ -340,9 +383,11 @@ class ContextUsageEvent extends AgentEvent {
     int input = 0,
     int cacheWrite = 0,
     int cacheRead = 0,
+    int output = 0,
     int? window,
     String? model,
     String? messageId,
+    String? turnId,
     DateTime? at,
   }) => {
     ..._neutral(NeutralEventTypes.contextUsage, provider),
@@ -350,6 +395,8 @@ class ContextUsageEvent extends AgentEvent {
     'input': input,
     'cache_write': cacheWrite,
     'cache_read': cacheRead,
+    if (output > 0) 'output': output,
+    'turn_id': ?turnId,
     'window': ?window,
     'model': ?model,
     'message_id': ?messageId,
@@ -361,6 +408,13 @@ class ContextUsageEvent extends AgentEvent {
   int get input => _int(json['input']) ?? 0;
   int get cacheWrite => _int(json['cache_write']) ?? 0;
   int get cacheRead => _int(json['cache_read']) ?? 0;
+
+  /// Output of the call, part of the Codex `last.totalTokens` (SPEC-107
+  /// R3): the context the next call reads back. Claude: 0.
+  int get output => _int(json['output']) ?? 0;
+
+  /// The agent's turn id (Codex `turnId`, SPEC-107 R4).
+  String? get turnId => _str(json['turn_id']);
 
   /// Capacity of the model's window (Codex `modelContextWindow`).
   int? get window => _int(json['window']);

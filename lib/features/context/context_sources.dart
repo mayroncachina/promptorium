@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/claude/claude_event.dart';
+import '../../core/providers/context_events.dart';
 import 'context_snapshot.dart';
 
 /// Groups of the Fontes tab (SPEC-087 R4), in display order.
@@ -9,7 +10,10 @@ enum ContextSourceGroup {
   app('Spec e mensagens do app'),
   files('Arquivos lidos ou citados'),
   attachments('Anexos'),
-  tools('Ferramentas e MCP');
+  tools('Ferramentas e MCP'),
+
+  /// Subagents of the Codex (SPEC-107 R12): separate contexts.
+  subagents('Subagentes');
 
   const ContextSourceGroup(this.label);
 
@@ -30,6 +34,20 @@ enum ContextEvidence {
 
   /// The agent itself reported it (`system/init`, `get_context_usage`).
   agent,
+
+  /// The agent says it loaded the file (Codex `instructionSources`,
+  /// SPEC-107 R10).
+  loaded,
+
+  /// A command the agent classified as a read, search or listing (Codex
+  /// `commandActions`, SPEC-107 R11).
+  commandRead,
+
+  /// A call of an MCP tool (Codex `mcpToolCall`, R11).
+  mcpCall,
+
+  /// A subagent with its own window (R12): never part of the measurement.
+  separate,
 }
 
 /// One observed source. [ref] is a workspace path (opens the file) or null;
@@ -109,6 +127,10 @@ class ContextSource {
       ContextEvidence.read => 'leitura observada · t$turn',
       ContextEvidence.edited => 'edição observada · t$turn',
       ContextEvidence.agent => 'informado pelo agente',
+      ContextEvidence.loaded => 'carregamento informado pelo agente',
+      ContextEvidence.commandRead => 'leitura observada (comando) · t$turn',
+      ContextEvidence.mcpCall => 'chamada MCP · t$turn',
+      ContextEvidence.separate => 'contexto separado · medição indisponível',
     };
   }
 
@@ -171,6 +193,11 @@ class ContextSources {
     switch (e) {
       case SystemInit():
         _mcp(e, itemIndex);
+      case AssistantMessage(parentToolUseId: null)
+          when e.json['provider'] == 'codex':
+        for (final b in e.blocks) {
+          if (b is ToolUseBlock) _codexTool(b, turn, itemIndex);
+        }
       case AssistantMessage(parentToolUseId: null):
         for (final b in e.blocks) {
           if (b is! ToolUseBlock) continue;
@@ -198,6 +225,12 @@ class ContextSources {
       // files its commands read).
       case FileChangeEvent(:final path) when path.isNotEmpty:
         _edited(path, turn, itemIndex);
+      // SPEC-107 R11: the actions the Codex classified (P4: only known
+      // types; the command text is never parsed).
+      case CommandEvent(:final actions) when actions.isNotEmpty:
+        for (final a in actions) {
+          _commandAction(a, e.cwd, turn, itemIndex);
+        }
       case CommandEvent(:final reads) when reads.isNotEmpty:
         for (final path in reads) {
           _put(
@@ -212,6 +245,9 @@ class ContextSources {
             ),
           );
         }
+      case UnknownEvent(:final json)
+          when json['type'] == ContextAppEvents.instructions:
+        _instructions(json, itemIndex);
       case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
         _turn = turn;
         _message('${json['text'] ?? ''}', turn, itemIndex);
@@ -219,6 +255,89 @@ class ContextSources {
         _turn = turn;
       default:
         break;
+    }
+  }
+
+  /// Instruction files the Codex says it loaded (R10): proof of loading,
+  /// with no weight.
+  void _instructions(Map<String, dynamic> j, int itemIndex) {
+    for (final path in j['sources'] as List? ?? const []) {
+      if (path is! String || path.isEmpty) continue;
+      _put(
+        'instr:$path',
+        ContextSource(
+          group: ContextSourceGroup.instructions,
+          label: path,
+          ref: path,
+          evidence: ContextEvidence.loaded,
+          turn: _turn,
+          itemIndex: itemIndex,
+          detail: 'instructionSources',
+        ),
+      );
+    }
+  }
+
+  void _commandAction(CommandAction a, String? cwd, int turn, int itemIndex) {
+    final path = a.path ?? cwd ?? '.';
+    final (key, label) = switch (a.type) {
+      CommandAction.read => ('file:$path', path),
+      CommandAction.search => (
+        'search:$path:${a.query ?? ''}',
+        a.query == null || a.query!.isEmpty ? path : '$path · "${a.query}"',
+      ),
+      _ => ('ls:$path', path),
+    };
+    _put(
+      key,
+      ContextSource(
+        group: ContextSourceGroup.files,
+        label: label,
+        ref: a.path,
+        evidence: ContextEvidence.commandRead,
+        turn: turn,
+        itemIndex: itemIndex,
+        detail: a.type,
+      ),
+    );
+  }
+
+  /// MCP calls and subagents of the Codex (R11, R12): evidence of a call
+  /// or of a separate context, never a weight.
+  void _codexTool(ToolUseBlock b, int turn, int itemIndex) {
+    if (b.name.startsWith('mcp__')) {
+      final parts = b.name.split('__');
+      final label = parts.length >= 3
+          ? '${parts[1]} · ${parts.sublist(2).join('__')}'
+          : b.name;
+      _put(
+        'mcpcall:${b.name}',
+        ContextSource(
+          group: ContextSourceGroup.tools,
+          label: label,
+          evidence: ContextEvidence.mcpCall,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
+    } else if (b.name == 'Agent') {
+      final threads = [
+        for (final t in b.input['threads'] as List? ?? const [])
+          if (t is String && t.isNotEmpty) t,
+      ];
+      final thread = threads.firstOrNull;
+      _put(
+        'agent:${b.id}',
+        ContextSource(
+          group: ContextSourceGroup.subagents,
+          label: thread == null
+              ? 'subagente'
+              : 'subagente (thread ${thread.length > 4 ? '${thread.substring(0, 4)}…' : thread})',
+          evidence: ContextEvidence.separate,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
     }
   }
 
@@ -388,7 +507,11 @@ class ContextSources {
   void compacted({int? turn}) {
     for (final k in _byKey.keys.toList()) {
       final s = _byKey[k]!;
-      if (s.evidence == ContextEvidence.agent) continue;
+      if (s.evidence == ContextEvidence.agent ||
+          s.evidence == ContextEvidence.loaded ||
+          s.evidence == ContextEvidence.separate) {
+        continue;
+      }
       if (turn != null &&
           s.evidence == ContextEvidence.sent &&
           s.turn >= turn &&

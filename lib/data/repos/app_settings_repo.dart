@@ -98,6 +98,10 @@ abstract final class AppSettingKeys {
   /// `--autocompact` of every run (`auto` or `100k`–`1M`).
   static const autocompact = 'claude.autocompact';
 
+  /// `model_auto_compact_token_limit` of every Codex run (`auto` = the
+  /// agent's default, or `100k`–`1M`; SPEC-107 P1): separate from Claude's.
+  static const codexAutocompact = 'codex.autocompact';
+
   /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
   static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';
 

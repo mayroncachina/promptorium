@@ -21,6 +21,7 @@ import '../sessions/widgets/session_style.dart';
 import 'app_mcp_card.dart';
 import 'automations_view.dart';
 import 'provider_kind_card.dart';
+import 'codex_autocompact_card.dart';
 import 'codex_consumption.dart';
 import 'backups_view.dart';
 import 'notifications_view.dart';
@@ -415,6 +416,8 @@ class _ConsumptionSectionState extends ConsumerState<_ConsumptionSection> {
           _tabs(),
           const ProviderKindCard(),
           const CodexConsumptionTab(),
+          // SPEC-107 P1: the Codex threshold, separate from Claude's.
+          const CodexAutocompactCard(),
           const CodexCapabilitiesCard(),
         ],
       );

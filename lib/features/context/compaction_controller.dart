@@ -30,15 +30,17 @@ class CompactAvailability {
   bool get ok => reason == null;
 }
 
-/// Only Claude has a native command proven in the app's mode; it needs a
-/// history and an idle agent, and never runs over a running compaction.
+/// The agent needs the `compactNow` capability (SPEC-094; Claude `/compact`,
+/// Codex `thread/compact/start`, SPEC-107 R8), a history and an idle
+/// agent, and never runs over a running compaction.
 CompactAvailability compactAvailability({
   required String provider,
   required bool busy,
   required ContextSnapshot snapshot,
+  ProviderCapabilities? capabilities,
 }) {
-  // Codex has `compactNow` (SPEC-093) but its app path is SPEC-107's.
-  if (!isClaudeCode(provider)) {
+  final caps = capabilities ?? capabilitiesFor(provider);
+  if (!caps.supports(ProviderCapability.compactNow)) {
     return const CompactAvailability._(
       'Indisponível: este agente não confirmou um comando nativo de '
       'compactação no modo usado pelo app. A compactação automática segue a '
