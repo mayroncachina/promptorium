@@ -305,6 +305,27 @@ class AiMemoryCli {
     }
   }
 
+  /// `ai-memory finalize-session --agent <kind> --session-id <id>` in
+  /// [cwd] (SPEC-099 P8): ends that session and writes its handoff through
+  /// the server when the end of the process did not. Never throws.
+  Future<bool> finalizeSession({
+    required String agent,
+    required String sessionId,
+    required String cwd,
+  }) async {
+    try {
+      final r = await _exec(
+        ['finalize-session', '--agent', agent, '--session-id', sessionId],
+        label: 'finalize-session',
+        cwd: cwd,
+        timeout: const Duration(seconds: 10),
+      );
+      return r.exitCode == 0;
+    } on AiMemoryException {
+      return false;
+    }
+  }
+
   /// Runs one installer command the person confirmed (R4), returning the
   /// exit code and the output with credentials hidden.
   Future<({int exitCode, String output})> runConfirmed(
