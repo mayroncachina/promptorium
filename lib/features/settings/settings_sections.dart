@@ -30,6 +30,10 @@ enum SettingsSection {
     'sonnet',
     'haiku',
     'custo',
+    'provedor',
+    'codex',
+    'planner',
+    'tipo de execução',
   ]),
   orchestrator('Orquestrador', SettingsGroup.app, [
     'orquestrador',
@@ -116,12 +120,22 @@ enum SettingsSection {
     'comandos',
     'sessionend',
   ]),
-  providers('Provedores (ACP)', SettingsGroup.app, [
+  providers('Provedores', SettingsGroup.app, [
     'acp',
     'gemini',
     'codex',
     'agente',
     'prompt',
+  ]),
+  aiMemory('Memória (ai-memory)', SettingsGroup.app, [
+    'ai-memory',
+    'memória',
+    'passagem',
+    'handoff',
+    'wiki',
+    'hooks',
+    'mcp',
+    'codex',
   ]),
   backups('Banco e backups', SettingsGroup.app, [
     'banco',
@@ -237,6 +251,7 @@ bool sectionChanged(
     ),
     SettingsSection.providers =>
       (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,
+    SettingsSection.aiMemory => false,
     SettingsSection.backups => false,
     SettingsSection.updates => settings[UpdateChecker.enabledKey] == '0',
     SettingsSection.project => config != null && !config.isDefault,

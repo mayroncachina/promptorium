@@ -15,7 +15,8 @@ const _mono = TextStyle(
   height: 1.4,
 );
 
-/// "Diff" tab: `git diff HEAD` of the worktree (simple; Review is Fase 9).
+/// "Diff" tab: what the session changed (SPEC-111: from the merge-base with
+/// its base branch, or `git diff HEAD`; simple, Review is Fase 9).
 class SessionDiffView extends ConsumerWidget {
   const SessionDiffView({super.key, required this.sessionId});
 
@@ -84,7 +85,7 @@ class SessionDiffView extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    '${c.count} arquivo(s) alterado(s) · git diff HEAD',
+                    '${c.count} arquivo(s) alterado(s) · ${c.baseLabel}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,

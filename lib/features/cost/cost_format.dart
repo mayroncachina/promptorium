@@ -73,3 +73,27 @@ String spokenTokens(int n) {
   final m = n / 1e6;
   return '${_comma(m, 1)} ${m >= 1.95 ? 'milhões' : 'milhão'} de tokens';
 }
+
+/// What a turn without a cost in US$ shows (SPEC-097 R9): never "US$ 0,00".
+const costUnavailable = 'custo indisponível';
+
+/// The same in a narrow cell of a table.
+const costUnavailableShort = 'indisp.';
+
+/// "1,2 mi", "820 mil", "640" (the words of SPEC-097 R9).
+String formatTokenWords(int n) {
+  if (n < 1000) return '$n';
+  if (n < 999500) return '${(n / 1000).round()} mil';
+  final m = n / 1e6;
+  return m >= 9.95 ? '${m.round()} mi' : '${_comma(m, 1)} mi';
+}
+
+/// The total of a spec with turns in both providers (SPEC-097 R9):
+/// "US$ 4,20 (Claude Code) + 1,2 mi tokens (Codex)"; only tokens:
+/// "custo indisponível · 1,2 mi tokens (Codex)".
+String formatMixedCost(double usd, int unpricedTokens, {bool priced = true}) {
+  final tokens = '${formatTokenWords(unpricedTokens)} tokens (Codex)';
+  return priced
+      ? '${formatUsd(usd)} (Claude Code) + $tokens'
+      : '$costUnavailable · $tokens';
+}

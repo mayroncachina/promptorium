@@ -200,7 +200,9 @@ class RestoreSessionsStep extends StartupStep {
     final repo = ctx.ref.read(sessionsRepoProvider);
     final ended = killOrphans(await repo.pids());
     if (ended.isNotEmpty) {
-      debugPrint('${ended.length} processo(s) claude órfão(s) encerrado(s)');
+      debugPrint(
+        '${ended.length} processo(s) órfão(s) (claude ou codex app-server) encerrado(s)',
+      );
     }
     await repo.clearPids();
     final n = await repo.markLiveAsInterrupted();

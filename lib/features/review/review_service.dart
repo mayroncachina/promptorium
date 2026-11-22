@@ -38,6 +38,7 @@ import 'merge_options.dart';
 import 'review_host.dart';
 import '../project/project_config.dart';
 import 'auto_reviewer.dart' show AutoReviewer, ReviewPhase;
+import 'reviewer_provider.dart' show executionProviderOf, reviewerAuthorLabel;
 import '../board/board_rules.dart';
 import 'widgets/spec_review_panel.dart';
 
@@ -436,12 +437,26 @@ class ReviewService {
         latestOfSpec[id] = s;
       }
     }
+    // SPEC-099 P7: sessions that share a worktree (a continuation in the
+    // other agent) are one item, the newest of the chain.
+    final latestOfWorktree = <String, Session>{};
+    for (final s in sessions) {
+      if (s.specId != null || s.duelId != null || s.worktreePath == ws.path) {
+        continue;
+      }
+      final cur = latestOfWorktree[s.worktreePath];
+      if (cur == null || s.startedAt.isAfter(cur.startedAt)) {
+        latestOfWorktree[s.worktreePath] = s;
+      }
+    }
     final items = <ReviewItem>[];
     for (final s in sessions) {
       // Best-of-N attempts are compared on the card, not reviewed.
       if (s.duelId != null) continue;
       final spec = s.specId == null ? null : specById[s.specId];
       if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
+      final newest = s.specId == null ? latestOfWorktree[s.worktreePath] : null;
+      if (newest != null && newest.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];
       final wt = hasWorktree(s, ws);
       // SPEC-050 R5: a PR brought into the app leaves the queue once it is
@@ -2772,6 +2787,7 @@ class ReviewService {
     List<String> pending = [], failed = [];
     var open = 0, uncommitted = 0;
     var reviewerFailed = false;
+    String? reviewerAuthor;
     String? root, stacked, worktree, pr;
     final spec = c.spec;
     if (spec != null) {
@@ -2790,6 +2806,24 @@ class ReviewService {
             last != null &&
             !last.resolved &&
             last.body.startsWith(AutoReviewer.failurePrefix);
+        // SPEC-102 R9: who reviewed the last round.
+        final verdict = rows
+            .where((r) => r.author == 'revisor' && r.verdict != null)
+            .lastOrNull;
+        if (!reviewerFailed && verdict != null) {
+          final sessions = await _ref
+              .read(sessionsRepoProvider)
+              .bySpec(spec.id);
+          final who = reviewerAuthorLabel(
+            verdict.provider,
+            null,
+            executedBy: executionProviderOf(sessions.map((s) => s.provider)),
+          );
+          if (who != null) {
+            reviewerAuthor =
+                '$who · ${verdict.verdict == 'aprovar' ? 'aprovou' : 'pediu correções'}';
+          }
+        }
       } catch (e) {
         unknown['comentarios'] = '$e';
       }
@@ -2893,6 +2927,7 @@ class ReviewService {
           spec?.reviewPhase == ReviewPhase.auto &&
           spec?.stage == SpecStage.review,
       reviewerFailed: reviewerFailed,
+      reviewerAuthor: reviewerAuthor,
       pendingCriteria: pending,
       failedGates: failed,
       openComments: open,

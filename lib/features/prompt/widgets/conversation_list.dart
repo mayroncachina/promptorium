@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../conversation_actions.dart';
@@ -35,13 +36,18 @@ List<(String, List<Conversation>)> groupConversations(
   ];
 }
 
+/// "gpt-6.2-sol · 3 mensagens" beside the provider chip (SPEC-096 R3):
+/// Codex model ids are shown as they are, Claude aliases as names.
 String conversationMeta(Conversation c, {DateTime? now}) {
+  final who = c.provider == 'claude' || c.model.isEmpty || c.model == 'inherit'
+      ? modelLabel(c.model)
+      : c.model;
   final at = c.archivedAt;
   if (at != null) {
-    return '${modelLabel(c.model)} · arquivada ${archivedWhen(at, now: now)}';
+    return '$who · arquivada ${archivedWhen(at, now: now)}';
   }
   final n = c.messageCount;
-  return '${modelLabel(c.model)} · ${n == 1 ? '1 mensagem' : '$n mensagens'}';
+  return '$who · ${n == 1 ? '1 mensagem' : '$n mensagens'}';
 }
 
 /// Left column of the Prompt screen: conversation history, with the tabs
@@ -508,14 +514,26 @@ class _ConversationTileState extends ConsumerState<ConversationTile> {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          conversationMeta(c),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
+                        Row(
+                          children: [
+                            // SPEC-096 R3: who answers this conversation.
+                            if (hasProviderIdentity(c.provider)) ...[
+                              ProviderChip(c.provider, dense: true),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                conversationMeta(c),
+                                key: ValueKey('conversation-meta-${c.id}'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
