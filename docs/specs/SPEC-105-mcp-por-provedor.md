@@ -1,6 +1,6 @@
 ---
 id: SPEC-105
-status: rascunho
+status: em implementação
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -58,11 +58,25 @@ A decisão 8 do épico #332 define o desenho: **configuração por provedor e um
 
 ## Decisões em aberto
 
-- P1 · **Segredos ao copiar.** (a) Nunca copiar valores, só os nomes; (b) não copiar por padrão, com opção explícita de copiar; (c) copiar sempre. **Recomendação: (b).** Copiar os valores grava segredos em texto num segundo arquivo global, então a pessoa precisa escolher isso. Para http, sugerir `--bearer-token-env-var`.
-- P2 · **Escopo de projeto no Codex.** (a) Só global, até a SPEC-093 provar `.codex/config.toml` por projeto; (b) gravar no projeto e marcar o projeto como confiável. **Recomendação: (a).** O app nunca grava *trust* no `config.toml`, que é um princípio do plano técnico.
-- P3 · **Nome repetido.** (a) Bloquear; (b) mostrar a diferença e substituir só com confirmação; (c) criar com sufixo (`github-2`). **Recomendação: (b).**
-- P4 · **Direção da cópia.** (a) Só Claude → Codex, como na decisão 8; (b) os dois sentidos. **Recomendação: (a) nesta spec.** "Copiar para o Claude Code" pode virar uma spec pequena se o uso pedir.
-- P5 · **Regras por ferramenta no Codex.** (a) Mapear só Bloqueado (`disabled_tools`) e etiquetar o resto; (b) esperar a SPEC-093 e mapear tudo o que existir. **Recomendação: (a) como mínimo garantido, ampliando para (b) com o que a sondagem provar.**
+- P1 · **Segredos ao copiar.** **Decidido:** (b) não copiar por padrão, com a opção explícita de copiar os valores; para http, `--bearer-token-env-var`.
+  Contexto: (a) Nunca copiar valores, só os nomes; (b) não copiar por padrão, com opção explícita de copiar; (c) copiar sempre. **Recomendação: (b).** Copiar os valores grava segredos em texto num segundo arquivo global, então a pessoa precisa escolher isso. Para http, sugerir `--bearer-token-env-var`.
+- P2 · **Escopo de projeto no Codex.** **Decidido:** (a) só global; o app nunca grava *trust*.
+  Contexto: (a) Só global, até a SPEC-093 provar `.codex/config.toml` por projeto; (b) gravar no projeto e marcar o projeto como confiável. **Recomendação: (a).** O app nunca grava *trust* no `config.toml`, que é um princípio do plano técnico.
+- P3 · **Nome repetido.** **Decidido:** (b) mostrar a diferença e substituir só com confirmação.
+  Contexto: (a) Bloquear; (b) mostrar a diferença e substituir só com confirmação; (c) criar com sufixo (`github-2`). **Recomendação: (b).**
+- P4 · **Direção da cópia.** **Decidido:** (a) só Claude → Codex nesta spec.
+  Contexto: (a) Só Claude → Codex, como na decisão 8; (b) os dois sentidos. **Recomendação: (a) nesta spec.** "Copiar para o Claude Code" pode virar uma spec pequena se o uso pedir.
+- P5 · **Regras por ferramenta no Codex.** **Decidido:** (a) mapear Bloqueado para `disabled_tools` e etiquetar o resto com "Só Claude Code", ampliando com o que a sondagem provar.
+  Contexto: (a) Mapear só Bloqueado (`disabled_tools`) e etiquetar o resto; (b) esperar a SPEC-093 e mapear tudo o que existir. **Recomendação: (a) como mínimo garantido, ampliando para (b) com o que a sondagem provar.**
+
+## Sondagem desta spec (22/11, sem custo)
+
+Feita com `codex-cli 0.170.0`, `HOME` e `CODEX_HOME` num diretório temporário, sem login e sem turno:
+
+- `codex mcp list --json` devolve `name`, `enabled`, `disabled_reason`, `transport` (`stdio` com `command`, `args`, `env`, `env_vars`, `cwd`; `streamable_http` com `url`, `bearer_token_env_var`, `http_headers`, `env_http_headers`) e `auth_status` (`unsupported`, `bearer_token`, `not_logged_in`, `o_auth`). **Os valores de `env` vêm em texto**: o app descarta os valores na leitura e guarda só os nomes. `codex mcp get --json` acrescenta `enabled_tools` e `disabled_tools`. `codex mcp add` só grava no global ("Added global MCP server") e não tem escopo de projeto.
+- `codex mcp add <nome> --url <url>` sem `--bearer-token-env-var` grava o servidor e **abre o OAuth na mesma hora**, esperando o navegador. O app trata isso: espera pouco, confere pelo `codex mcp get` que o servidor foi gravado e deixa o login para o botão "Entrar".
+- Por `-c`, `mcp_servers.<nome>.enabled=false`, `mcp_servers.<nome>.disabled_tools=[…]` e um servidor novo inteiro (`mcp_servers.promptorium.url=…`, `bearer_token_env_var=…`, `enabled_tools=[…]`) aparecem no `codex mcp list/get --json`, e o `config.toml` fica intacto (mesmo hash). Um override num servidor que não existe (`mcp_servers.nada.enabled=false`) quebra a configuração ("invalid transport"): o app só manda override para servidores que o `codex mcp list --json` mostrou.
+- Aprovação por ferramenta MCP no Codex não foi comprovada sem turno pago. Por isso, nas execuções Codex, o servidor do Promptorium só expõe as ferramentas de leitura (`enabled_tools`), e as de escrita ficam de fora (R7).
 
 ## Design
 
