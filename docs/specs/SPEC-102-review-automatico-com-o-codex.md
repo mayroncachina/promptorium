@@ -1,6 +1,6 @@
 ---
 id: SPEC-102
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: funcionalidade
 epico: 332
@@ -102,16 +102,16 @@ Depois desta spec, o projeto tem `revisor: provedor: execucao`. A SPEC-031, exec
 
 ## Critérios de aceite
 
-- [ ] `provedor:` é lido e gravado no config, e a ausência dele mantém o comportamento atual [R1] verificar: testes do `ProjectConfig` e de um config antigo.
-- [ ] Cada valor de `provedor:` resolve o provedor certo para spec e PR sem spec, e o provedor indisponível falha sem aprovar e sem trocar em silêncio [R2] verificar: testes da resolução e da falha.
-- [ ] Em Automático, a regra do plano vale, salvo `provedor:` explícito no config [R3] verificar: teste do `AutoReviewer` com plano.
-- [ ] Nenhum alias do Claude, `agent` ou `maxBudgetUsd` chega ao Codex [R4, R6, R7] verificar: teste das opções enviadas.
-- [ ] A rodada no Codex usa o schema atual e grava veredito, critérios e comentários como no Claude [R5] verificar: testes com o `fake_codex`.
-- [ ] O projeto com `spec-reviewer.md` revisado no Codex usa o revisor embutido e mostra o aviso uma vez [R7] verificar: teste do `AutoReviewer` e de widget.
-- [ ] Caminho absoluto, arquivo fora do diff, linha fora do trecho, severidade inválida e duplicatas são normalizados [R8] verificar: testes unitários do normalizador.
-- [ ] Cada rodada nova mostra provedor e modelo, e as rodadas antigas continuam legíveis [R9] verificar: teste da migração e testes de widget.
-- [ ] O `REVn` de uma segunda opinião roda no provedor da execução [R11] verificar: teste do `spec_runner` com revisor e execução em provedores diferentes.
-- [ ] No app isolado, uma spec é revisada pelo Codex com comentários ancorados no diff, e outra recebe a segunda opinião do outro provedor [R1–R11] verificar: capturas reais 1366×768 e relatório.
+- [x] `provedor:` é lido e gravado no config, e a ausência dele mantém o comportamento atual [R1] verificar: testes do `ProjectConfig` e de um config antigo.
+- [x] Cada valor de `provedor:` resolve o provedor certo para spec e PR sem spec, e o provedor indisponível falha sem aprovar e sem trocar em silêncio [R2] verificar: testes da resolução e da falha.
+- [x] Em Automático, a regra do plano vale, salvo `provedor:` explícito no config [R3] verificar: teste do `AutoReviewer` com plano.
+- [x] Nenhum alias do Claude, `agent` ou `maxBudgetUsd` chega ao Codex [R4, R6, R7] verificar: teste das opções enviadas.
+- [x] A rodada no Codex usa o schema atual e grava veredito, critérios e comentários como no Claude [R5] verificar: testes com o `fake_codex`.
+- [x] O projeto com `spec-reviewer.md` revisado no Codex usa o revisor embutido e mostra o aviso uma vez [R7] verificar: teste do `AutoReviewer` e de widget.
+- [x] Caminho absoluto, arquivo fora do diff, linha fora do trecho, severidade inválida e duplicatas são normalizados [R8] verificar: testes unitários do normalizador.
+- [x] Cada rodada nova mostra provedor e modelo, e as rodadas antigas continuam legíveis [R9] verificar: teste da migração e testes de widget.
+- [x] O `REVn` de uma segunda opinião roda no provedor da execução [R11] verificar: teste do `spec_runner` com revisor e execução em provedores diferentes.
+- [x] No app isolado, uma spec é revisada pelo Codex com comentários ancorados no diff, e outra recebe a segunda opinião do outro provedor [R1–R11] verificar: capturas reais 1366×768 e relatório.
 
 ## Telas
 
@@ -123,3 +123,17 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/PQFynop9PbwkFTnZNky
 | `1-config-revisor.png` | Configuração do projeto, grupo Revisor automático: Provedor (Mesmo da execução, O outro provedor, Claude Code, Codex), `modelo-codex` e "US$ por rodada (só Claude Code)" | R1, R4, R6 |
 | `2-review-codex.png` | Review da SPEC-031 com a rodada do Codex: autoria no título, comentários ancorados no diff, critérios marcados e o aviso do revisor do projeto Só Claude Code | R5, R7–R9 |
 | `3-segunda-opiniao.png` | Executar com a linha Revisão "Claude Code · segunda opinião (do config do projeto)", a rodada no Review e o `REVn` no provedor da execução | R2, R3, R9, R11 |
+
+## Implementação
+
+- E2E: [`docs/pesquisa/spec-102-e2e.md`](../pesquisa/spec-102-e2e.md), com o Codex e o Claude Code falsos (sem turno pago) e os prints em `docs/mockups/spec-102/app/`.
+- Migração: schema v36 (`review_comments.provider` e `review_comments.model`, anuláveis).
+- Decisões além da spec:
+  1. Sem a SPEC-101, "Mesmo da execução" usa o provedor da última sessão da spec (`executionProviderOf`). A 101 pode trocar essa leitura pelo provedor gravado da execução.
+  2. A resolução fica num arquivo puro, `lib/features/review/reviewer_provider.dart`, usado pelo revisor, pelo Executar e pelo cartão Provedor por tipo.
+  3. `StructuredIntent` ganhou `modelOverride`, o modelo de um provedor que não é o Claude Code. É por ele que o `modelo-codex` chega ao Codex. Um alias do Claude ou um modelo fora do catálogo em cache é pulado.
+  4. Sem `modelo-codex` nem `codex.model.reviewer`, vale o modelo Codex do tipo Planner (o app não tem um tipo Revisor separado nas preferências de modelo).
+  5. "Revisar com o … desta vez" aparece na rodada que falhou (Review da spec) e ao lado de "Rodar revisor" (PR sem spec). A falha grava o provedor que falhou, e a rodada repetida mantém o número da falha, com o veredito no título.
+  6. O aviso do revisor do projeto (R7) aparece uma vez na seção Rodadas, quando alguma rodada rodou fora do Claude Code num projeto com `.claude/agents/spec-reviewer.md`.
+  7. No Codex, a resposta é validada contra o schema antes do normalizador. Por isso uma severidade fora do enum derruba a rodada como "fora do schema"; a regra do R8 vale para o que passa pela validação.
+
