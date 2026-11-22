@@ -400,6 +400,7 @@ List<PaletteCommand> paletteCommands(
       AppSection.activities,
       AppSection.skills,
       AppSection.mcp,
+      AppSection.instructions,
       AppSection.settings,
     ])
       PaletteCommand(
