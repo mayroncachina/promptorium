@@ -16,6 +16,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
+import '../handoff/continue_link.dart';
 import '../session_manager.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../edit_diff.dart';
@@ -717,9 +718,14 @@ class _DetailsState extends ConsumerState<_Details> {
     final parent = s.parentSessionId == null
         ? null
         : all.where((x) => x.id == s.parentSessionId).firstOrNull;
+    // SPEC-099 P5: a continuation is the same link with its own record.
+    final links =
+        ref.watch(continuationLinksProvider(s.workspaceId)).value ??
+        const ContinuationLinks();
+    final continuation = links.of(s.id);
     final forks = [
       for (final x in all)
-        if (x.parentSessionId == s.id) x,
+        if (x.parentSessionId == s.id && !links.isContinuation(x.id)) x,
     ];
     final thread = s.externalId;
     return Column(
@@ -750,7 +756,7 @@ class _DetailsState extends ConsumerState<_Details> {
           ),
         if (s.parentSessionId != null)
           row(
-            'Bifurcada de',
+            continuation != null ? 'Continuada de' : 'Bifurcada de',
             InkWell(
               key: const ValueKey('session-parent'),
               onTap: parent == null
@@ -761,6 +767,18 @@ class _DetailsState extends ConsumerState<_Details> {
               child: Text(
                 parent == null ? 'sessão removida' : sessionTitle(parent),
                 style: value.copyWith(color: AppColors.amber),
+              ),
+            ),
+          ),
+        if (continuation?.handoff case final h?)
+          row(
+            'Passagem',
+            Tooltip(
+              message: h.id,
+              child: Text(
+                h.shortId,
+                key: const ValueKey('session-handoff-id'),
+                style: mono,
               ),
             ),
           ),
@@ -896,7 +914,14 @@ class _ChangedFiles extends ConsumerWidget {
         const SizedBox(height: 10),
         InkWell(
           onTap: () {
-            ref.read(selectedReviewProvider.notifier).select(sessionId);
+            // SPEC-099 P7: the Review follows the newest of the chain.
+            final ws = ref.read(activeWorkspaceProvider);
+            final links = ws == null
+                ? null
+                : ref.read(continuationLinksProvider(ws.id)).value;
+            ref
+                .read(selectedReviewProvider.notifier)
+                .select(links?.newestOfChain(sessionId) ?? sessionId);
             ref.read(navigationProvider.notifier).go(AppSection.review);
           },
           child: const Text(

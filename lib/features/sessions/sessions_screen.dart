@@ -11,6 +11,7 @@ import '../../ui/widgets/app_toast.dart';
 import '../context/context_panel_state.dart';
 import '../context/widgets/context_hosts.dart';
 import '../project/project_config.dart' show projectConfigProvider;
+import 'handoff/continue_widgets.dart';
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'preview_reload.dart';
@@ -665,6 +666,8 @@ class _Header extends ConsumerWidget {
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
                 ),
+                // SPEC-099 R9: "continuada de …" / "Continuada no … →".
+                ContinueLinkLine(session: s),
               ],
             ),
           ),
@@ -719,6 +722,8 @@ class _Header extends ConsumerWidget {
                     label: 'Fork',
                     onTap: () => showForkDialog(context, s),
                   ),
+                  // SPEC-099 R1: beside Fork.
+                  ContinueButton(session: s),
                   if (previewPort != null)
                     SmallButton(
                       key: ValueKey('session-preview-${s.id}'),
