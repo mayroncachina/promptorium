@@ -1,6 +1,6 @@
 ---
 id: SPEC-098
-status: rascunho
+status: em implementação
 versao: 0.24.0
 tipo: integracao
 epico: 332
@@ -67,16 +67,16 @@ Hoje há também um problema que existe **mesmo sem esta spec**: quem instalou o
 - Outros agentes da matriz de suporte do ai-memory além do Claude Code e do Codex.
 - Servidores remotos com login por OIDC: o app usa o que a CLI já tem configurado e mostra o erro dela quando não consegue.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde fica o painel.** (a) Seletor dentro da aba Memória (Fatos do projeto | ai-memory); (b) uma aba nova "ai-memory" no projeto. **Recomendação:** (a). O pedido é "painel Memória no projeto", e a aba já existe com esse nome. Deixar as duas memórias lado a lado também ajuda a explicar a diferença entre elas.
-- P2 · **Como o app lê o ai-memory.** (a) `ai-memory call <ferramenta> '<json>'` com o diretório do workspace como `cwd`: a CLI resolve o projeto e o token sozinha; (b) a API HTTP `/api/v1/.../handoffs`, com o app lendo o token. **Recomendação:** (a), e HTTP só para o `/healthz`, que não pede token. Assim o app não toca em credenciais nem reimplementa a resolução de projeto (marcador `.ai-memory.toml`, remote do git, worktrees).
-- P3 · **Passagem automática nas sessões de etapa.** **Recomendação:** desligada (`AI_MEMORY_AUTO_HANDOFF=off`), com captura ligada. O Quadro já leva a memória e o contexto de uma etapa para a outra. Uma passagem por etapa empilharia batons que a próxima etapa consumiria no lugar da sessão livre da pessoa.
-- P4 · **Como calar as auxiliares.** `AI_MEMORY_CAPTURE_OWNER` foi feito para um produtor externo de captura. Com ele, os hooks deixam de capturar e passam a entregar a passagem em modo oferta (`claim=0`), sem consumir. É o efeito que o app quer, mas por um caminho que não é o principal. **Recomendação:** usar `AI_MEMORY_CAPTURE_OWNER=promptorium` mais `AI_MEMORY_AUTO_HANDOFF=off` e confirmar na sondagem. Se não funcionar, a alternativa é passar `--setting-sources project,local` nas auxiliares do Claude, que também tira os outros hooks da pessoa.
-- P5 · **Desligar por agente.** A documentação mostra `ai-memory uninstall --apply`, que remove tudo o que o ai-memory instalou, de todos os agentes. **Recomendação:** "Desligar" só roda o comando se a sondagem achar a forma por agente. Senão, o app mostra o comando completo com o aviso "remove de todos os agentes" e deixa a pessoa rodar.
-- P6 · **Descartar pelo painel.** **Recomendação:** permitir, com confirmação, só nas passagens abertas do próprio dono. É o caso "criei uma passagem por engano" que o ai-memory documenta.
-- P7 · **Versão mínima.** **Recomendação:** 3.1.0, a primeira com o histórico local da sessão anterior no `ai-memory run`, que a SPEC-099 usa. Abaixo dela, o estado é "versão antiga" e a ligação continua possível, com aviso.
-- P8 · **Onde fica em Configurações.** **Recomendação:** uma seção nova, "Memória (ai-memory)", no grupo do app, perto de "Provedores (ACP)" e de "Automações (hooks)".
+- P1 · **Onde fica o painel.** (a) Seletor dentro da aba Memória (Fatos do projeto | ai-memory); (b) uma aba nova "ai-memory" no projeto. **Decidido:** (a). O pedido é "painel Memória no projeto", e a aba já existe com esse nome. Deixar as duas memórias lado a lado também ajuda a explicar a diferença entre elas.
+- P2 · **Como o app lê o ai-memory.** (a) `ai-memory call <ferramenta> '<json>'` com o diretório do workspace como `cwd`: a CLI resolve o projeto e o token sozinha; (b) a API HTTP `/api/v1/.../handoffs`, com o app lendo o token. **Decidido:** (a), e HTTP só para o `/healthz`, que não pede token. Assim o app não toca em credenciais nem reimplementa a resolução de projeto (marcador `.ai-memory.toml`, remote do git, worktrees).
+- P3 · **Passagem automática nas sessões de etapa.** **Decidido:** desligada (`AI_MEMORY_AUTO_HANDOFF=off`), com captura ligada. O Quadro já leva a memória e o contexto de uma etapa para a outra. Uma passagem por etapa empilharia batons que a próxima etapa consumiria no lugar da sessão livre da pessoa.
+- P4 · **Como calar as auxiliares.** `AI_MEMORY_CAPTURE_OWNER` foi feito para um produtor externo de captura. Com ele, os hooks deixam de capturar e passam a entregar a passagem em modo oferta (`claim=0`), sem consumir. É o efeito que o app quer, mas por um caminho que não é o principal. **Decidido:** usar `AI_MEMORY_CAPTURE_OWNER=promptorium` mais `AI_MEMORY_AUTO_HANDOFF=off` e confirmar na sondagem. Se não funcionar, a alternativa é passar `--setting-sources project,local` nas auxiliares do Claude, que também tira os outros hooks da pessoa.
+- P5 · **Desligar por agente.** A documentação mostra `ai-memory uninstall --apply`, que remove tudo o que o ai-memory instalou, de todos os agentes. **Decidido:** "Desligar" só roda o comando se a sondagem achar a forma por agente. Senão, o app mostra o comando completo com o aviso "remove de todos os agentes" e deixa a pessoa rodar.
+- P6 · **Descartar pelo painel.** **Decidido:** permitir, com confirmação, só nas passagens abertas do próprio dono. É o caso "criei uma passagem por engano" que o ai-memory documenta.
+- P7 · **Versão mínima.** **Decidido:** 3.1.0, a primeira com o histórico local da sessão anterior no `ai-memory run`, que a SPEC-099 usa. Abaixo dela, o estado é "versão antiga" e a ligação continua possível, com aviso.
+- P8 · **Onde fica em Configurações.** **Decidido:** uma seção nova, "Memória (ai-memory)", no grupo do app, perto de "Provedores (ACP)" e de "Automações (hooks)".
 
 ## Design
 
