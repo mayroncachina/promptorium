@@ -212,6 +212,29 @@ class ContextSources {
             ),
           );
         }
+      // SPEC-104 R2: the instruction files the agent itself reported
+      // loading (Codex `instructionSources`). The rest of the Codex
+      // sources is SPEC-107's.
+      case UnknownEvent(:final json)
+          when json['type'] == 'promptorium_run' &&
+              json['instructionSources'] is List:
+        for (final s in json['instructionSources'] as List) {
+          final path = '$s';
+          if (path.isEmpty) continue;
+          _put(
+            'instr:$path',
+            ContextSource(
+              group: ContextSourceGroup.instructions,
+              label: path,
+              ref: path,
+              evidence: ContextEvidence.agent,
+              turn: turn,
+              itemIndex: itemIndex,
+              detail:
+                  'carregado pelo ${json['provider'] == 'codex' ? 'Codex' : 'agente'}',
+            ),
+          );
+        }
       case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
         _turn = turn;
         _message('${json['text'] ?? ''}', turn, itemIndex);

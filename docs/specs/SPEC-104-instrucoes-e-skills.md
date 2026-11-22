@@ -1,6 +1,6 @@
 ---
 id: SPEC-104
-status: rascunho
+status: em implementação
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -61,13 +61,13 @@ A decisão 6 do épico #332 já definiu o caminho: **o `CLAUDE.md` é a fonte**.
 - Importar a configuração do Claude para o Codex com `externalAgentConfig/import`. Ela grava no `~/.codex`, o que contraria o princípio de não tocar nos arquivos globais.
 - Memória (`CLAUDE.md` do usuário, auto memory, ai-memory): SPEC-098.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde fica a tela de instruções.** (a) Aba "Instruções" em Ferramentas; (b) seção em Configurações → Provedores; (c) só um aviso no rodapé. **Recomendação: (a).** É onde estão Agentes, Skills e MCP, que são os outros recursos do projeto que o agente lê.
-- P2 · **Formato do `AGENTS.md` gerado (plano B).** (a) Cópia integral com cabeçalho e marcador; (b) arquivo curto que manda o agente ler o `CLAUDE.md`. **Recomendação: (a).** O Codex não tem `@import`, e uma instrução do tipo "leia o outro arquivo" depende de o modelo obedecer.
-- P3 · **Subpastas.** (a) Listar os arquivos aninhados só para leitura; (b) também gerar `AGENTS.md` por subpasta no plano B. **Recomendação: (a).** No plano B, gerar só o da raiz e mostrar os aninhados com "Só Claude Code".
-- P4 · **Plano B das skills.** (a) Só a etiqueta "Só Claude Code"; (b) etiqueta mais "Disponibilizar no Codex" por skill (link simbólico no repositório, com confirmação); (c) copiar a pasta. **Recomendação: (b).** A cópia (c) desencontra com o tempo. O link aparece no `git status`, então a confirmação diz isso.
-- P5 · **Ordem quando os dois arquivos existem e o `AGENTS.md` é da pessoa.** (a) Respeitar a ordem do Codex e só avisar; (b) forçar o `CLAUDE.md` primeiro. **Recomendação: (a).** O arquivo foi escrito para o Codex, e o app não decide por cima dele.
+- P1 · **Onde fica a tela de instruções.** (a) Aba "Instruções" em Ferramentas; (b) seção em Configurações → Provedores; (c) só um aviso no rodapé. **Decidido:** (a). É onde estão Agentes, Skills e MCP, que são os outros recursos do projeto que o agente lê.
+- P2 · **Formato do `AGENTS.md` gerado (plano B).** (a) Cópia integral com cabeçalho e marcador; (b) arquivo curto que manda o agente ler o `CLAUDE.md`. **Decidido:** (a). O Codex não tem `@import`, e uma instrução do tipo "leia o outro arquivo" depende de o modelo obedecer.
+- P3 · **Subpastas.** (a) Listar os arquivos aninhados só para leitura; (b) também gerar `AGENTS.md` por subpasta no plano B. **Decidido:** (a). No plano B, gerar só o da raiz e mostrar os aninhados com "Só Claude Code".
+- P4 · **Plano B das skills.** (a) Só a etiqueta "Só Claude Code"; (b) etiqueta mais "Disponibilizar no Codex" por skill (link simbólico no repositório, com confirmação); (c) copiar a pasta. **Decidido:** (b). A cópia (c) desencontra com o tempo. O link aparece no `git status`, então a confirmação diz isso.
+- P5 · **Ordem quando os dois arquivos existem e o `AGENTS.md` é da pessoa.** (a) Respeitar a ordem do Codex e só avisar; (b) forçar o `CLAUDE.md` primeiro. **Decidido:** (a). O arquivo foi escrito para o Codex, e o app não decide por cima dele.
 
 ## Design
 

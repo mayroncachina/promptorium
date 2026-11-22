@@ -79,7 +79,7 @@ void main() {
       final run =
           await CodexProvider(
             starter: (exe, args, {workingDirectory, environment}) async {
-              expect(args, ['app-server']);
+              expect(args, ['app-server', '-c', codexInstructionsOverride]);
               return fake;
             },
           ).start(
