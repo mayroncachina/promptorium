@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../ui/widgets/run_provider_line.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -985,6 +988,15 @@ class _MiniPlanning extends ConsumerWidget {
                   busy: busy,
                   failed: !busy && data.unanswered.isNotEmpty,
                   onSuggestion: (s) => planner.send(workspace, s),
+                  onRetry: () => planner.retry(workspace),
+                ),
+              ),
+              // SPEC-100 R10, R6, R11: provider, model and use of the turn;
+              // a failure brings its choices for this turn only.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: RunProviderLine(
+                  slot: specPlannerSlot(workspace.id),
                   onRetry: () => planner.retry(workspace),
                 ),
               ),

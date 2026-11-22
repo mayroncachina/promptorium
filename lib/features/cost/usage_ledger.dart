@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/agent_event.dart' show Result, Usage;
+import '../../core/providers/capabilities.dart';
 import '../../data/providers.dart';
 import 'quota_ruler.dart';
 
@@ -20,6 +21,22 @@ double turnCost(double total, {double? lastSeen, double stored = 0}) {
   if (total <= 0) return 0;
   if (lastSeen != null) return total >= lastSeen ? total - lastSeen : total;
   return stored > 0 && total >= stored ? total - stored : total;
+}
+
+/// Whether [provider] tells the cost of a turn in US\$ (SPEC-097 R8): the
+/// Codex does not, and its turns have "custo indisponível", never 0.
+bool providerHasCost(String provider) =>
+    capabilitiesFor(provider).supports(ProviderCapability.costUsd);
+
+/// Whether the cost of [e] was measured (SPEC-097 R9).
+bool entryHasCost(UsageEntry e) => providerHasCost(e.provider);
+
+/// Reasoning output tokens of a `result` (the Codex adapter's
+/// `reasoning_output_tokens`; part of the output, SPEC-097 R8).
+int reasoningTokensOf(Result e) {
+  final u = e.json['usage'];
+  final v = u is Map ? u['reasoning_output_tokens'] : null;
+  return v is num ? v.toInt() : 0;
 }
 
 /// Model of a `result` (the one that cost the most in `modelUsage`), else
@@ -135,9 +152,14 @@ class UsageLedger {
     String? model,
     required Usage usage,
     required double costUsd,
+    String provider = 'claude',
+    int reasoningTokens = 0,
     DateTime? at,
   }) async {
     if (usage.total <= 0) return;
+    // SPEC-097 R8, R10: without a cost there is no weight either.
+    final priced = providerHasCost(provider);
+    if (!priced) costUsd = 0;
     try {
       if (specId == null && specCode != null) {
         if (workspaceId != null) {
@@ -151,8 +173,8 @@ class UsageLedger {
         if (specId == null) source = UsageSource.livre;
       }
       final ruler = _ref.read(quotaRulerProvider);
-      final w = ruler.weigh(costUsd);
-      _ref.read(quotaRulerProvider.notifier).addCost(costUsd);
+      final w = priced ? ruler.weigh(costUsd) : (fiveHour: null, week: null);
+      if (priced) _ref.read(quotaRulerProvider.notifier).addCost(costUsd);
       await _ref
           .read(usageEntriesRepoProvider)
           .add(
@@ -172,6 +194,8 @@ class UsageLedger {
               costUsd: Value(costUsd),
               fiveHourPct: Value(w.fiveHour),
               weekPct: Value(w.week),
+              provider: Value(provider),
+              tokensReasoning: Value(reasoningTokens),
             ),
           );
     } catch (e) {
@@ -201,6 +225,8 @@ class UsageLedger {
         model: resultModel(e, s.model),
         usage: e.usage,
         costUsd: costUsd,
+        provider: s.provider,
+        reasoningTokens: reasoningTokensOf(e),
       );
     } catch (err) {
       debugPrint('custo por spec: turno da sessão não gravado — $err');
@@ -239,6 +265,8 @@ class UsageLedger {
         model: resultModel(e, model ?? c.model),
         usage: e.usage,
         costUsd: costUsd,
+        provider: c.provider,
+        reasoningTokens: reasoningTokensOf(e),
       );
     } catch (err) {
       debugPrint('custo por spec: turno da conversa não gravado — $err');
@@ -253,6 +281,8 @@ class UsageLedger {
       if (!ruler.ready) return;
       final repo = _ref.read(usageEntriesRepoProvider);
       for (final e in await repo.pendingWeights()) {
+        // SPEC-097 R10: a turn without cost has no weight to receive.
+        if (!entryHasCost(e)) continue;
         final w = ruler.weigh(e.costUsd);
         if (w.fiveHour == null && w.week == null) continue;
         await repo.setWeights(e.id, fiveHour: w.fiveHour, week: w.week);

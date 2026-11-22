@@ -43,14 +43,26 @@ Future<ProcessResult> runKillingOnTimeout(
   List<String> args, {
   required Duration timeout,
   Duration killGrace = const Duration(seconds: 2),
+  String? workingDirectory,
+  Map<String, String>? environment,
 }) async {
   Process p;
   var group = true;
   try {
-    p = await Process.start('setsid', [executable, ...args]);
+    p = await Process.start(
+      'setsid',
+      [executable, ...args],
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
   } on ProcessException {
     group = false;
-    p = await Process.start(executable, args);
+    p = await Process.start(
+      executable,
+      args,
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
   }
   final out = p.stdout.transform(lenientUtf8.decoder).join();
   final err = p.stderr.transform(lenientUtf8.decoder).join();

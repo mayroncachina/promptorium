@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../ui/widgets/run_provider_line.dart';
+
 import 'dart:io' show File, FileSystemException;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -1680,6 +1683,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                 ? AgentOriginBanner(spec: spec!)
                 : const SizedBox.shrink(),
           ),
+          // SPEC-100 R10, R11: who plans the spec (Design, Perguntas e
+          // respostas), with the model and the use; a failure brings its
+          // choices.
+          if (spec != null &&
+              (strip || failure != null) &&
+              action?.kind != SpecActionKind.screens &&
+              failure?.kind != SpecActionKind.screens)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: RunProviderLine(
+                slot: specDesignSlot(ws.id),
+                onRetry: failure == null
+                    ? null
+                    : () {
+                        setState(() => _failure = null);
+                        _retry(ws, spec, failure.kind);
+                      },
+              ),
+            ),
           Expanded(
             child: FocusTraversalOrder(
               order: const NumericFocusOrder(2),

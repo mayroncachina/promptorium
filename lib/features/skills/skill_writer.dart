@@ -3,14 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
-import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../agents/agent_file.dart';
 import '../sessions/timeline.dart' show AppEventTypes;
-import '../../core/claude/readonly_run.dart'
-    show PlannerException, runReadOnlyClaude, structuredOutput;
+import '../../core/providers/structured_run.dart';
 import 'skill_repository.dart';
 
 /// "Nova skill" with the Claude: a short, read-only `claude -p` with
@@ -181,28 +178,27 @@ class SkillWriter {
     } else if (request == null || request.trim().isEmpty) {
       throw const PlannerException('Descreva o que a skill deve fazer.');
     }
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       _ref,
-      workspaceId: workspace?.id,
-      cwd:
-          workspace?.path ??
-          _ref.read(skillRepositoryProvider(null)).home ??
-          '/',
-      options: ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: skillWriterSystemPrompt,
-        jsonSchema: jsonEncode(skillDraftSchema),
-        maxBudgetUsd: 0.5,
-        includePartialMessages: false,
-      ),
-      prompt: skillWriterPrompt(
-        request: request,
-        transcript: transcript,
-        name: name,
+      StructuredIntent(
+        workspaceId: workspace?.id,
+        cwd:
+            workspace?.path ??
+            _ref.read(skillRepositoryProvider(null)).home ??
+            '/',
+        instructions: skillWriterSystemPrompt,
+        schema: skillDraftSchema,
+        claude: const ClaudeStructuredExtras(maxBudgetUsd: 0.5),
+        slot: skillWriterSlot,
+        label: 'a Nova skill',
+        prompt: skillWriterPrompt(
+          request: request,
+          transcript: transcript,
+          name: name,
+        ),
       ),
     );
-    var file = parseSkillDraft(r, name: name);
+    var file = parseSkillDraft(r.raw, name: name);
     final repo = _ref.read(skillRepositoryProvider(workspace?.path));
     final base = file.name!;
     var n = 1;
@@ -221,5 +217,8 @@ class SkillWriter {
     }
   }
 }
+
+/// Slot of the Nova skill's provider line (SPEC-100 R10).
+const skillWriterSlot = 'skill-writer';
 
 final skillWriterProvider = Provider(SkillWriter.new);

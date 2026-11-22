@@ -135,7 +135,13 @@ class _Stats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = metrics.length;
-    final cost = metrics.fold(0.0, (a, m) => a + m.cost) / n;
+    // SPEC-101 R16 (SPEC-097 R9): the average counts only the specs with
+    // a cost in US\$; a spec only on the Codex is out, never a \$0.
+    final priced = metrics.where((m) => m.hasCost).toList();
+    final unpriced = n - priced.length;
+    final cost = priced.isEmpty
+        ? null
+        : priced.fold(0.0, (a, m) => a + m.cost) / priced.length;
     final reviewer = metrics.fold(0, (a, m) => a + m.reviewerRounds) / n;
     final human = metrics.fold(0, (a, m) => a + m.humanRounds) / n;
     final steps = metrics.fold(0, (a, m) => a + m.stepTime.length);
@@ -150,7 +156,14 @@ class _Stats extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _stat('Custo médio por spec', formatCost(cost), 'em $n specs'),
+        _stat(
+          'Custo médio por spec',
+          cost == null ? 'indisponível' : formatCost(cost),
+          [
+            if (priced.isNotEmpty) 'em ${priced.length} specs',
+            if (unpriced > 0) '$unpriced só Codex, fora da média',
+          ].join(' · '),
+        ),
         _stat(
           'Rodadas de correção',
           f1(reviewer + human),
@@ -295,7 +308,16 @@ class _GateTable extends StatelessWidget {
                       ),
                     ),
                   ),
-                  DataCell(Text(formatCost(m.cost), style: cell)),
+                  DataCell(
+                    Text(
+                      !m.hasCost
+                          ? 'custo indisponível'
+                          : m.pricedSessions < m.sessions
+                          ? '${formatCost(m.cost)} +'
+                          : formatCost(m.cost),
+                      style: cell,
+                    ),
+                  ),
                 ],
               ),
           ],

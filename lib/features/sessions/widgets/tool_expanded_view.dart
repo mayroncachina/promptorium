@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/claude/claude_event.dart' show FileChangeKind;
 import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/motion.dart';
@@ -453,8 +454,8 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
       content: _TextContent(_prettyInput(t.input), wrap: true) as _Content,
     );
     switch (t.name) {
-      case 'Bash':
-        final cmd = t.input['command'];
+      case 'Bash' || NeutralToolNames.command:
+        final cmd = t.commandEvent?.command ?? t.input['command'];
         return [
           (id: 'output', label: 'Saída', content: output(wrap: false)),
           (
@@ -536,12 +537,14 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
   /// "Abrir no Código" of [t] (R6, R7): the file of an edit, a Write or a
   /// Read, at the first changed line (or the first line read).
   VoidCallback? _openInCode(ToolItem t, EditDiff? diff, bool showsDiff) {
-    final path = editFilePath(t.input);
+    final path = t.change?.path ?? editFilePath(t.input);
     final root = widget.root;
     if (path == null || root == null) return null;
     int? line;
     String? find;
     switch (t.name) {
+      case NeutralToolNames.file:
+        line = showsDiff ? (firstChangedLine(diff!.rows) ?? 1) : 1;
       case 'Read':
         line = _int(t.input['offset']) ?? 1;
       case 'Write':
@@ -602,10 +605,9 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
     final t = i < 0 ? findTool(snap.items, widget.toolId) : tools[i];
     final hasPrevious = i > 0;
     final hasNext = i >= 0 && i < tools.length - 1;
-    final diff = t == null || !isEditTool(t.name)
+    final diff = t == null || !isFileTool(t)
         ? null
-        : (sessionEditDiffs(snap, widget.root)[t.id] ??
-              editDiffOf(t.name, t.input));
+        : (sessionEditDiffs(snap, widget.root)[t.id] ?? editDiffOfTool(t));
     final showsDiff = diff != null && t != null && (t.denied || !t.isError);
 
     final tabs = t == null ? const <_Tab>[] : _tabsOf(t, diff, showsDiff);
@@ -883,9 +885,13 @@ class _Header extends StatelessWidget {
             style: const TextStyle(fontSize: 12, color: AppColors.red),
           ),
         ],
-        if (t.name == 'Write' && d.unknownBefore) ...[
+        if ((t.name == 'Write' && d.unknownBefore) ||
+            t.change?.kind == FileChangeKind.add) ...[
           const SizedBox(width: 6),
           const Text('arquivo novo', style: meta),
+        ] else if (t.change?.cutLabel case final cut?) ...[
+          const SizedBox(width: 10),
+          Text(cut, style: meta),
         ] else if (!compact && t.name != 'Write') ...[
           const SizedBox(width: 10),
           Text(switch (diffHunks(d.rows)) {

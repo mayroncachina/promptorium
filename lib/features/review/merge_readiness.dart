@@ -61,6 +61,7 @@ class ReadinessInputs {
     this.hasSpec = false,
     this.reviewing = false,
     this.reviewerFailed = false,
+    this.reviewerAuthor,
     this.pendingCriteria = const [],
     this.failedGates = const [],
     this.prProblem,
@@ -101,6 +102,10 @@ class ReadinessInputs {
 
   /// The automatic reviewer failed and handed the spec to the user.
   final bool reviewerFailed;
+
+  /// Who reviewed the last round and what it said (SPEC-102 R9): "Codex ·
+  /// segunda opinião · pediu correções"; null for rounds of before.
+  final String? reviewerAuthor;
   final List<String> pendingCriteria, failedGates;
   final String? prProblem, stackedOn, rootProblem, worktreeProblem;
   final int openComments, uncommitted;
@@ -132,7 +137,7 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
     action: action,
     targets: targets,
   );
-  final reviewer = item(
+  final reviewing = item(
     'revisor',
     'Revisor automático',
     f.reviewing ? 'O revisor automático ainda está revisando' : null,
@@ -140,6 +145,18 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
     origin: ReadinessOrigin.tela,
     action: 'Pular revisor',
   );
+  final reviewer =
+      reviewing.level == ReadinessLevel.ok && f.reviewerAuthor != null
+      ? ReadinessItem(
+          reviewing.id,
+          reviewing.label,
+          reviewing.level,
+          f.reviewerAuthor!,
+          blocking: reviewing.blocking,
+          origin: reviewing.origin,
+          action: reviewing.action,
+        )
+      : reviewing;
   if (f.imported) {
     return MergeReadiness([
       item(

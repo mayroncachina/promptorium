@@ -150,6 +150,8 @@ void main() {
       fiveHourPct: five,
       weekPct: week,
       estimated: false,
+      provider: 'claude',
+      tokensReasoning: 0,
     );
     final cost = specCostOf([
       e(UsageSource.etapa, step: 'R2', sid: 'a', week: 0.02, five: 0.4),

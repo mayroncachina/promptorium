@@ -406,7 +406,6 @@ class _NowPanel extends ConsumerWidget {
     final now = DateTime.now();
     final day = DateTime(now.year, now.month, now.day);
     final today = sessions.where((s) => !s.startedAt.isBefore(day)).toList();
-    final cost = today.fold<double>(0, (a, s) => a + s.costUsd);
     final merges = sessions
         .where(
           (s) =>
@@ -419,9 +418,8 @@ class _NowPanel extends ConsumerWidget {
     final config = ref.watch(projectConfigProvider(ws.path)).value;
     final parallel = config?.autopilot.parallel;
     final budget = config?.autopilot.dailyBudgetUsd;
-    final spent = today
-        .where((s) => s.specId != null)
-        .fold<double>(0, (a, s) => a + s.costUsd);
+    // SPEC-101 R14 (SPEC-097 R9): the Codex runs never add as \$0.00.
+    final spent = formatRunsCost(today.where((s) => s.specId != null));
     final schedule = AutopilotSchedule.decode(
       ref.watch(
         appSettingsProvider.select((m) => m[AutopilotSchedule.key(ws.id)]),
@@ -473,7 +471,11 @@ class _NowPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        formatCost(s.costUsd),
+                        formatRunCost(
+                          s.provider,
+                          s.costUsd,
+                          unavailable: 'indisp.',
+                        ),
                         style: const TextStyle(
                           fontFamily: AppFonts.mono,
                           fontSize: 11,
@@ -540,9 +542,7 @@ class _NowPanel extends ConsumerWidget {
               ),
               _kv(
                 'Orçamento do dia',
-                budget == null
-                    ? formatCost(spent)
-                    : '${formatCost(spent)} / ${formatCost(budget)}',
+                budget == null ? spent : '$spent / ${formatCost(budget)}',
               ),
               _kv('Agendado', schedule?.label ?? '—'),
             ],
@@ -552,7 +552,8 @@ class _NowPanel extends ConsumerWidget {
         _title('Hoje', ''),
         Row(
           children: [
-            _stat('Custo', formatCost(cost)),
+            // SPEC-097 decision 5: a Codex run never adds as "\$0.00".
+            _stat('Custo', formatRunsCost(today)),
             const SizedBox(width: 8),
             _stat('Sessões', '${today.length}'),
             const SizedBox(width: 8),
