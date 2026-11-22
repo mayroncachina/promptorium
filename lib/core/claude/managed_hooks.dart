@@ -267,7 +267,8 @@ PROVIDER = sys.argv[sys.argv.index("--provedor") + 1] \
 def main():
     cfg = json.load(open(os.path.join(HERE, "hooks-config.json"), encoding="utf-8"))
     ev = json.load(sys.stdin)
-    name = ev.get("hook_event_name")
+    # SPEC-103 R2: the Codex names its events in camelCase.
+    name = EVENTS.get(ev.get("hook_event_name"), ev.get("hook_event_name"))
 
     def log(obj):
         obj["em"] = datetime.datetime.now().isoformat()
@@ -276,43 +277,116 @@ def main():
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
     tool_input = ev.get("tool_input") or {}
-    if name == "PreToolUse" and ev.get("tool_name") == "Bash":
-        cmd = tool_input.get("command") or ""
+    if not isinstance(tool_input, dict):
+        tool_input = {"command": tool_input}
+    tool = ev.get("tool_name")
+    cwd = ev.get("cwd") or None
+    if name == "PreToolUse" and tool in SHELL_TOOLS:
+        cmd = shell_command(tool_input)
         for rule in cfg.get("bloquear", []):
             if re.search(rule["re"], cmd):
                 log({"evento": "bloqueio", "comando": cmd, "regra": rule["nome"]})
-                print(json.dumps({"hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason":
-                        "Promptorium: comando bloqueado (%s). Não tente contornar; "
-                        "se for necessário, peça ao usuário." % rule["nome"],
-                }}))
+                deny("Promptorium: comando bloqueado (%s). Não tente contornar; "
+                     "se for necessário, peça ao usuário." % rule["nome"])
                 return
-        reason = check_secrets(cfg, cmd, ev.get("cwd") or os.getcwd(), log)
+        reason = check_secrets(cfg, cmd, cwd or os.getcwd(), log)
         if reason:
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }}, ensure_ascii=False))
+            deny(reason)
             return
-    elif name == "PostToolUse" and cfg.get("formatar") and \
-            ev.get("tool_name") in ("Edit", "Write", "MultiEdit"):
-        path = tool_input.get("file_path")
-        if not path:
+    elif name == "PostToolUse" and cfg.get("formatar"):
+        if tool in ("Edit", "Write", "MultiEdit"):
+            paths = [tool_input.get("file_path")]
+        elif tool in PATCH_TOOLS:
+            paths = patch_paths(patch_text(tool_input))
+        else:
             return
-        cmd = cfg["formatar"].replace("{arquivo}", shlex.quote(path))
-        try:
-            r = subprocess.run(cmd, shell=True, cwd=ev.get("cwd") or None,
-                               capture_output=True, text=True, timeout=60)
-            ok, out = r.returncode == 0, (r.stdout + r.stderr)[-2000:]
-        except subprocess.TimeoutExpired:
-            ok, out = False, "tempo esgotado (60 s)"
-        rel = os.path.relpath(path, ev.get("cwd") or HERE)
-        log({"evento": "formatado", "arquivo": rel, "ok": ok, "saida": out.strip()})
+        for path in paths:
+            if path:
+                format_file(cfg, path, cwd, log)
     elif name == "SessionEnd":
         log({"evento": "fim", "motivo": ev.get("reason")})
+
+
+# --- Both providers (SPEC-103 R2) --------------------------------------------
+
+EVENTS = {"preToolUse": "PreToolUse", "postToolUse": "PostToolUse",
+          "sessionEnd": "SessionEnd"}
+# Claude: Bash. Codex: its shell tools (`shell`, `exec_command`, ...).
+SHELL_TOOLS = ("Bash", "shell", "local_shell", "exec_command", "unified_exec",
+               "container.exec", "shell_command")
+PATCH_TOOLS = ("apply_patch", "ApplyPatch")
+PATCH_FILE = re.compile(r"^\*\*\* (Add File|Update File|Delete File|Move to): (.+?)\s*$",
+                        re.M)
+
+
+def shell_command(ti):
+    """The command line of a shell call: a string (Claude, Codex `cmd`) or
+    an argv (Codex `shell`), where `bash -lc <script>` is the script."""
+    c = ti.get("command")
+    if c is None:
+        c = ti.get("cmd")
+    if isinstance(c, list):
+        args = [str(a) for a in c]
+        if len(args) >= 3 and os.path.basename(args[0]) in ("bash", "sh", "zsh") \
+                and args[1] in ("-c", "-lc"):
+            return args[2]
+        return shlex.join(args)
+    return c or ""
+
+
+def patch_text(ti):
+    for k in ("patch", "input", "command"):
+        v = ti.get(k)
+        if isinstance(v, list):
+            v = "\n".join(str(a) for a in v)
+        if isinstance(v, str) and "*** " in v:
+            return v
+    return ""
+
+
+def patch_paths(patch):
+    """Files an `apply_patch` left in place: added and updated, the new
+    name of a moved one; a deleted file is not formatted."""
+    out = []
+    for kind, path in PATCH_FILE.findall(patch):
+        if kind == "Delete File":
+            if path in out:
+                out.remove(path)
+            continue
+        if kind == "Move to" and out:
+            out[-1] = path
+            continue
+        if path not in out:
+            out.append(path)
+    return out
+
+
+def format_file(cfg, path, cwd, log):
+    full = path if os.path.isabs(path) or not cwd else os.path.join(cwd, path)
+    cmd = cfg["formatar"].replace("{arquivo}", shlex.quote(full))
+    try:
+        r = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True,
+                           text=True, timeout=60)
+        ok, out = r.returncode == 0, (r.stdout + r.stderr)[-2000:]
+    except subprocess.TimeoutExpired:
+        ok, out = False, "tempo esgotado (60 s)"
+    rel = os.path.relpath(full, cwd or HERE)
+    log({"evento": "formatado", "arquivo": rel, "ok": ok, "saida": out.strip()})
+
+
+def deny(reason):
+    """Refuses the tool call in the provider's format. Claude: the
+    `permissionDecision: deny` JSON. Codex: exit code 2 with the reason on
+    stderr, which its hooks pass to the model."""
+    if PROVIDER == "codex":
+        sys.stderr.write(reason + "\n")
+        sys.stderr.flush()
+        sys.exit(2)
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}, ensure_ascii=False))
 
 
 # --- Vigia de segredos (SPEC-085) -------------------------------------------
