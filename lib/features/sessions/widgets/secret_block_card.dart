@@ -8,6 +8,7 @@ import '../../../ui/widgets/app_toast.dart';
 import '../../../ui/widgets/secret_findings_dialog.dart';
 import '../../secrets/secret_actions.dart';
 import '../timeline.dart';
+import 'session_style.dart' show ProviderTag;
 
 /// The amber card of a commit, push or PR blocked by the Vigia de segredos
 /// (SPEC-085 R7, R9, R10): the masked findings and their three actions.
@@ -142,6 +143,11 @@ class _SecretBlockCardState extends ConsumerState<SecretBlockCard> {
                       style: const TextStyle(fontSize: 13.5),
                     ),
                   ),
+                  // SPEC-103 P4: the badge only in Codex sessions.
+                  if (item.provider == 'codex') ...[
+                    const ProviderTag(key: ValueKey('secret-provider-codex')),
+                    const SizedBox(width: 6),
+                  ],
                   if (open.length > 1)
                     SecretActionButton(
                       key: ValueKey('secret-remove-all-${item.block}'),

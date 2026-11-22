@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/claude/claude_event.dart' show FileChangeKind;
 import '../../../core/text/line_diff.dart';
+import '../../../core/text/unified_diff.dart';
 import '../edit_diff.dart';
 import 'replay_step.dart';
 
@@ -8,6 +10,9 @@ import 'replay_step.dart';
 enum FileBaseSource {
   transcript('jsonl do Claude Code'),
   startSha('início da etapa'),
+
+  /// The file as it is now with the Codex diffs undone (SPEC-095 P4).
+  reverseDiff('reconstruído pelo diff'),
   baseBranch('branch base');
 
   const FileBaseSource(this.label);
@@ -104,7 +109,15 @@ FileAtStep fileAtStep({
       }
       continue;
     }
-    if (!known && t.name != 'Write') {
+    if (!known && !createsFile(t)) {
+      if (t.change != null) {
+        return FileAtStep.failed(
+          'Conteúdo anterior indisponível: o diff do Codex não se aplica ao '
+          'contrário sobre o arquivo do passo seguinte, e a sessão não tem '
+          'commit de início nem branch base com o arquivo.',
+          base: base,
+        );
+      }
       return FileAtStep.failed(
         'Não há conteúdo anterior: o Claude Code não tem mais a transcrição '
         'desta sessão e ela não tem commit de início nem branch base com o '
@@ -112,7 +125,7 @@ FileAtStep fileAtStep({
         base: base,
       );
     }
-    if (known && text == null && t.name != 'Write') {
+    if (known && text == null && !createsFile(t)) {
       return FileAtStep.failed(
         'O arquivo não existe na base (${base?.label ?? ''}) e o passo '
         '${s.index + 1} o edita.',
@@ -120,7 +133,7 @@ FileAtStep fileAtStep({
       );
     }
     before = text;
-    final after = applyEditTo(t.name, t.input, text);
+    final after = applyToolEdit(t, text);
     if (after == null) {
       return FileAtStep.failed(
         'A edição do passo ${_stepLabel(s)} não se aplica: o trecho antigo '
@@ -160,6 +173,15 @@ Iterable<String> _newLines(ReplayStep s) sync* {
   final input = s.tool?.input ?? const {};
   Iterable<String> split(Object? v) =>
       v is String ? v.split('\n') : const <String>[];
+  final diff = s.tool?.change?.unifiedDiff;
+  if (diff != null) {
+    for (final h in parseHunks(diff)) {
+      for (final l in h.lines) {
+        if (l.op == DiffOp.add) yield l.text;
+      }
+    }
+    return;
+  }
   switch (s.toolName) {
     case 'Edit':
       yield* split(input['new_string']);
@@ -242,7 +264,12 @@ class FileBaseResolver {
     this.baseRef,
     this.baseBranch,
     this.root,
+    this.readFile,
   });
+
+  /// The file as it is now (absolute path; null when missing), for the
+  /// Codex diffs undone (P4).
+  final Future<String?> Function(String path)? readFile;
 
   /// `tool_use_id` → `originalFile` from the transcript (loaded on demand;
   /// empty when there is none).
@@ -290,6 +317,10 @@ class FileBaseResolver {
         );
       }
     }
+    // 2. Codex (SPEC-095 P4): the file now with the diffs from the last
+    // edit back to the target undone.
+    final reversed = await _reverse(path, edits, stop);
+    if (reversed != null) return reversed;
     final rel = relativePath(absolutePath(path, root), root);
     if (rel.startsWith('/')) return null;
     // 2. The commit where the step started.
@@ -312,6 +343,45 @@ class FileBaseResolver {
       );
     }
     return null;
+  }
+}
+
+extension on FileBaseResolver {
+  /// The text before edit [stop] rebuilt from the current file, when every
+  /// edit of the file from it on is a Codex diff that undoes cleanly.
+  Future<FileBase?> _reverse(
+    String path,
+    List<ReplayStep> edits,
+    int stop,
+  ) async {
+    final read = readFile;
+    if (read == null) return null;
+    final later = edits.sublist(stop);
+    if (later.any((s) => s.tool?.change == null)) return null;
+    String? text;
+    try {
+      text = await read(absolutePath(path, root));
+    } catch (_) {
+      return null;
+    }
+    for (final s in later.reversed) {
+      final t = s.tool!;
+      if (!editApplied(t)) continue;
+      final c = t.change!;
+      if (c.kind == FileChangeKind.add) {
+        text = null; // the file did not exist before it
+        continue;
+      }
+      final diff = c.unifiedDiff;
+      if (text == null || diff == null || c.isCut) return null;
+      text = reverseUnifiedDiff(text, diff);
+      if (text == null) return null;
+    }
+    return FileBase(
+      text: text,
+      source: FileBaseSource.reverseDiff,
+      fromStep: stop,
+    );
   }
 }
 

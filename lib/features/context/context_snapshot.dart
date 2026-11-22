@@ -24,6 +24,7 @@ class ContextReading {
     this.messageId,
     this.live = true,
     this.turnEnd = false,
+    this.source = ContextReadingSource.claudeUsage,
   });
 
   /// `input + cacheWrite + cacheRead` of the call (output is not context
@@ -49,6 +50,10 @@ class ContextReading {
   /// The `result` of its turn arrived ("medido no fim do turno N").
   final bool turnEnd;
 
+  /// Where the agent reported it (SPEC-095 R3): `claude-usage` (the
+  /// `usage` of a Claude call) or `codex-tokenUsage` (`tokenUsage.last`).
+  final String source;
+
   /// The three parts are measured in the same call and do not overlap.
   bool get hasComposition => input + cacheWrite + cacheRead == tokens;
 
@@ -64,7 +69,14 @@ class ContextReading {
     messageId: messageId,
     live: live ?? this.live,
     turnEnd: turnEnd ?? this.turnEnd,
+    source: source,
   );
+}
+
+/// Values of [ContextReading.source] (SPEC-095 R3).
+abstract final class ContextReadingSource {
+  static const claudeUsage = 'claude-usage';
+  static const codexTokenUsage = 'codex-tokenUsage';
 }
 
 enum ContextMarkerKind { compaction, modelChange }

@@ -104,6 +104,9 @@ class FakeAgentProvider implements AgentProvider {
   List<String> get models => const ['inherit', 'haiku'];
 
   @override
+  ProviderCapabilities get capabilities => ProviderCapabilities.claude;
+
+  @override
   Future<AgentRun> start(AgentStartOptions options) async {
     final r = FakeRun(options);
     runs.add(r);

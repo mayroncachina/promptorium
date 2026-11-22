@@ -68,8 +68,10 @@ void main() {
       AgentStartOptions o(PromptMode m) => AgentStartOptions(
         workingDirectory: '/ws',
         mode: m,
-        mcpAllowedTools: a.allowed,
-        mcpDisallowedTools: a.disallowed,
+        extras: ClaudeExtras(
+          mcpAllowedTools: a.allowed,
+          mcpDisallowedTools: a.disallowed,
+        ),
       );
       final ask = ClaudeCodeProvider.optionsFor(o(PromptMode.ask)).toArgs();
       expect(ask, isNot(contains('--allowedTools')));

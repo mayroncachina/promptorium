@@ -14,11 +14,21 @@ String? readProcCmdline(int pid) {
   }
 }
 
-/// Whether [cmdline] is the `claude` of session [sessionId] (the PID may
-/// have been reused by something else after a reboot).
+/// Whether [cmdline] is the `claude` of session [sessionId] or a
+/// `codex app-server` (SPEC-096 R15) — the PID may have been reused by
+/// something else after a reboot. The App Server has no session id in its
+/// command line; its PID is the one stored for the session.
 bool isSessionProcess(String cmdline, String sessionId) {
   final args = cmdline.split('\x00');
+  if (isCodexAppServer(cmdline)) return true;
   return args.any((a) => a.endsWith('claude')) && args.contains(sessionId);
+}
+
+/// `codex app-server …` (directly or through `setsid`).
+bool isCodexAppServer(String cmdline) {
+  final args = cmdline.split('\x00');
+  return args.any((a) => a == 'codex' || a.endsWith('/codex')) &&
+      args.contains('app-server');
 }
 
 /// Ends (SIGTERM) the `claude` processes of [sessions] (id → pid) that are
@@ -33,10 +43,19 @@ List<String> killOrphans(
     final cmd = read(pid);
     if (cmd == null || !isSessionProcess(cmd, id)) continue;
     try {
-      if ((kill ?? (p) => Process.killPid(p))(pid)) ended.add(id);
+      if ((kill ?? _killWithGroup)(pid)) ended.add(id);
     } catch (e) {
       debugPrint('processo órfão $pid não encerrado — $e');
     }
   }
   return ended;
+}
+
+/// SIGTERM to the process and, when it led a group (the `codex
+/// app-server`, SPEC-096 R15), to what it started.
+bool _killWithGroup(int pid) {
+  try {
+    Process.runSync('kill', ['-s', 'TERM', '--', '-$pid']);
+  } catch (_) {}
+  return Process.killPid(pid);
 }

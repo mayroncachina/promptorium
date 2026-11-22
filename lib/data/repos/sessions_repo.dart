@@ -50,6 +50,7 @@ class SessionsRepo {
     double costUsd = 0,
     SessionStatus status = SessionStatus.running,
     int? duelId,
+    String? parentSessionId,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -73,8 +74,16 @@ class SessionsRepo {
           costUsd: Value(costUsd),
           status: Value(status),
           duelId: Value(duelId),
+          parentSessionId: Value(parentSessionId),
         ),
       );
+
+  /// Sessions forked from [id] (SPEC-096 R16), oldest first.
+  Future<List<Session>> forksOf(String id) =>
+      (_db.select(_t)
+            ..where((s) => s.parentSessionId.equals(id))
+            ..orderBy([(s) => OrderingTerm.asc(s.startedAt)]))
+          .get();
 
   Future<int> setExternalId(String id, String externalId) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
@@ -85,6 +94,13 @@ class SessionsRepo {
   Future<int> setSteps(String id, String steps, String title) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(steps: Value(steps), title: Value(title)),
+      );
+
+  /// The model the provider reported for a session started with its
+  /// default (`inherit`): the Codex thread's model (SPEC-101 R11).
+  Future<int> setModel(String id, String model) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(model: Value(model)),
       );
 
   Future<int> setRunConfig(String id, String config) =>
@@ -277,4 +293,28 @@ class SessionsRepo {
       ..limit(limit);
     return [for (final r in await q.get()) (r.readTable(_e), r.readTable(s))];
   }
+
+  /// The "continuação" links of a workspace (SPEC-099 P5): the session that
+  /// was continued → the JSON of its `promptorium_handoff` event, by the id
+  /// of the new session. A fork never writes that event.
+  Stream<Map<String, String>> watchEventsOfType(int workspaceId, String type) {
+    final s = _db.sessions;
+    final q = _db.select(_e).join([innerJoin(s, s.id.equalsExp(_e.sessionId))])
+      ..where(s.workspaceId.equals(workspaceId) & _e.type.equals(type))
+      ..orderBy([OrderingTerm.asc(_e.id)]);
+    return q.watch().map(
+      (rows) => {
+        for (final r in rows) r.readTable(_e).sessionId: r.readTable(_e).json,
+      },
+    );
+  }
+
+  /// Whether [sessionId] has an event of [type] (a message of the user:
+  /// the CLI already knows the session and `--resume` works).
+  Future<bool> hasEventOfType(String sessionId, String type) async =>
+      (await (_db.select(_e)
+                ..where((e) => e.sessionId.equals(sessionId) & e.type.equals(type))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
 }

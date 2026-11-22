@@ -1,14 +1,18 @@
 import 'dart:io';
 
+import '../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/claude_args.dart' show ClaudePermissionMode;
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../context/context_panel_state.dart';
 import '../context/widgets/context_hosts.dart';
 import '../project/project_config.dart' show projectConfigProvider;
+import 'handoff/continue_widgets.dart';
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'preview_reload.dart';
@@ -17,11 +21,13 @@ import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
 import 'tool_expanded.dart';
+import 'widgets/codex_hooks_chip.dart';
 import 'widgets/composer.dart';
 import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
 import 'widgets/point_button.dart';
 import 'widgets/preview_tab.dart';
+import 'widgets/quota_switch_banner.dart';
 import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
@@ -433,8 +439,15 @@ class _SessionMain extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: TimelineView(sessionId: s.id, root: s.worktreePath),
+            child: TimelineView(
+              sessionId: s.id,
+              root: s.worktreePath,
+              // SPEC-096 R3: the Codex speaks as the Codex.
+              assistantName: providerBrandName(s.provider),
+            ),
           ),
+          // SPEC-099 R2: the quota ran out; the other agent has some.
+          QuotaSwitchBanner(session: s),
           // SPEC-087 R2: the context meter (one per pane, its own window).
           ContextBar(target: SessionTarget(s.id)),
           SessionComposer(
@@ -583,7 +596,14 @@ class _Header extends ConsumerWidget {
     );
     final look = SessionLook.of(s.status, alive: alive);
     final manager = ref.read(sessionManagerProvider.notifier);
-    final canResume = !alive;
+    final busy = ref.watch(
+      sessionManagerProvider.select((m) => m.live[s.id]?.busy ?? false),
+    );
+    final codex = s.provider == 'codex';
+    // SPEC-096 R12: an interrupted Codex turn keeps its process; "Retomar"
+    // continues it.
+    final canResume =
+        !alive || (codex && !busy && s.status == SessionStatus.interrupted);
 
     final agentModel = [
       s.agentName ?? 'sem agente',
@@ -627,7 +647,7 @@ class _Header extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        look.label,
+                        sessionStatusLabel(s, look),
                         key: const ValueKey('session-header-status'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -645,10 +665,22 @@ class _Header extends ConsumerWidget {
                       InfoTag('SPEC${s.steps == null ? '' : ' ${s.steps}'}')
                     else if (s.taskId != null)
                       InfoTag('TASK #${s.taskId}'),
+                    if (hasProviderIdentity(s.provider))
+                      ProviderChip(s.provider, dense: true),
+                    // SPEC-103 R9: what hooks/list said, while it runs.
+                    if (codex && alive)
+                      CodexHooksChip(
+                        sessionId: s.id,
+                        yolo:
+                            s.permissionMode ==
+                            ClaudePermissionMode.skipPermissions.cliValue,
+                      ),
                     InfoTag(agentModel),
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],
                 ),
+                // SPEC-099 R9: "continuada de …" / "Continuada no … →".
+                ContinueLinkLine(session: s),
               ],
             ),
           ),
@@ -703,6 +735,8 @@ class _Header extends ConsumerWidget {
                     label: 'Fork',
                     onTap: () => showForkDialog(context, s),
                   ),
+                  // SPEC-099 R1: beside Fork.
+                  ContinueButton(session: s),
                   if (previewPort != null)
                     SmallButton(
                       key: ValueKey('session-preview-${s.id}'),
@@ -715,6 +749,14 @@ class _Header extends ConsumerWidget {
                       label: '×',
                       onTap: () =>
                           ref.read(splitSessionProvider.notifier).set(null),
+                    ),
+                  // SPEC-096 R12: the Codex turn is interrupted, not killed.
+                  if (codex && alive && busy)
+                    SmallButton(
+                      key: const ValueKey('session-interrupt'),
+                      label: 'Interromper',
+                      color: AppColors.amber,
+                      onTap: () => manager.interrupt(s.id),
                     ),
                   if (canResume)
                     _ResumeButton(

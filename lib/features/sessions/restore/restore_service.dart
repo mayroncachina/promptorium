@@ -304,20 +304,43 @@ class RestoreService {
 
   /// End of the turn (R1): the `result`, or the process died. Errors only
   /// log.
-  Future<void> end({String? sessionId, int? conversationId}) async {
+  ///
+  /// [beforeEnd] runs in the restore queue of the worktree right before the
+  /// end is captured (and alone when there is no open point): the commit the
+  /// app makes at the end of a Codex turn (SPEC-096 R10) must land before
+  /// the capture, or the point reads the old HEAD with a clean tree and says
+  /// "nada mudou" while the undo leaves the turn's files behind.
+  Future<void> end({
+    String? sessionId,
+    int? conversationId,
+    Future<void> Function()? beforeEnd,
+  }) async {
     final points = await _repo.list(
       sessionId: sessionId,
       conversationId: conversationId,
     );
     final p = points.firstOrNull;
-    if (p == null || p.endedAt != null) return;
+    if (p == null || p.endedAt != null) {
+      await _runBeforeEnd(beforeEnd);
+      return;
+    }
     try {
       await _serial(p.worktreePath, () async {
+        await _runBeforeEnd(beforeEnd);
         final cur = await _repo.byId(p.id);
         if (cur != null && cur.endedAt == null) await _end(cur);
       }).timeout(_ref.read(restoreTimeoutProvider) * 2);
     } catch (e) {
       debugPrint('ponto de restauração (fim do turno ${p.turn}): $e');
+    }
+  }
+
+  Future<void> _runBeforeEnd(Future<void> Function()? job) async {
+    if (job == null) return;
+    try {
+      await job();
+    } catch (e) {
+      debugPrint('ponto de restauração (antes do fim do turno): $e');
     }
   }
 

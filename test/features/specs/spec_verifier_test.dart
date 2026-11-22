@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:promptorium/core/providers/agent_registry.dart'
-    show codexEnabledProvider;
+    show providerFlowsProvider, ProviderFlows, AppFlow;
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
 
@@ -75,7 +75,9 @@ void main() {
     agent = (ws, prompt, provider, token) async => answer();
     c = ProviderContainer(
       overrides: [
-        codexEnabledProvider.overrideWithValue(true),
+        providerFlowsProvider.overrideWithValue(
+          ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+        ),
         appDatabaseProvider.overrideWithValue(db),
         activeWorkspaceProvider.overrideWithValue(ws),
         verificationAgentProvider.overrideWithValue(
@@ -253,7 +255,9 @@ void main() {
     final servers = <FakeCodex>[];
     final runner = ProviderContainer(
       overrides: [
-        codexEnabledProvider.overrideWithValue(true),
+        providerFlowsProvider.overrideWithValue(
+          ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+        ),
         appDatabaseProvider.overrideWithValue(db),
         codexProcessStarterProvider.overrideWithValue((
           exe,
@@ -360,7 +364,9 @@ void main() {
       late final ProviderContainer switching;
       switching = ProviderContainer(
         overrides: [
-          codexEnabledProvider.overrideWithValue(true),
+          providerFlowsProvider.overrideWithValue(
+            ProviderFlows.defaults.copyWith('codex', {...AppFlow.values}),
+          ),
           appDatabaseProvider.overrideWithValue(db),
           activeWorkspaceProvider.overrideWith((ref) => ref.watch(active)),
           verificationAgentProvider.overrideWithValue((

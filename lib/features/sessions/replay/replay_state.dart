@@ -118,7 +118,7 @@ ReplayState replayStateAt(
       final e = edited[path];
       if (e == null) {
         // A Write of a new file needs no read.
-        final blind = !read.containsKey(path) && s.toolName != 'Write';
+        final blind = !read.containsKey(path) && !createsFile(s.tool!);
         edited[path] = ReplayFileStat(
           path: path,
           edits: 1,

@@ -1,3 +1,4 @@
+import '../../core/providers/capabilities.dart';
 import '../../core/secrets/secret_guard.dart';
 
 import 'dart:async';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
 import '../../core/providers/permission_policy.dart';
+import '../../core/providers/provider_availability.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
@@ -30,6 +32,7 @@ import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'spec_run_provider.dart';
 import 'orchestrator/escalation.dart';
 import 'orchestrator/orchestrator_rules.dart';
 import 'orchestrator/step_classifier.dart';
@@ -882,17 +885,37 @@ class SpecRunner {
     }
     final prefs = _ref.read(runPrefsProvider);
     final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final last = sessions.isEmpty ? null : sessions.last;
+    final settingsMap = _ref.read(appSettingsProvider);
+    // SPEC-101 R2: the provider chosen at the first Executar stays for the
+    // whole run, whatever the footer or the kind say later.
+    // A plan stored by Automático (the dialog's choice) runs on the Claude
+    // Code, unless the run already has its provider (D5).
+    final chosen =
+        recordedSpecProvider(settingsMap, specId) == null && runsInAuto(rows)
+        ? ProviderCapabilities.claude.providerId
+        : specRunProviderFor(
+            settingsMap,
+            specId,
+            last: last,
+            requested: provider,
+            workspaceId: ws.id,
+            flows: _ref.read(providerFlowsProvider),
+          );
+    // The Orquestrador only uses the Claude Code (D5, SPEC-101 R5): on
+    // another provider the steps run in Manual.
+    final claudeRun = isClaudeCode(chosen);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
-      plans: _plans(steps, rows, orchestrator),
+      plans: claudeRun ? _plans(steps, rows, orchestrator) : const {},
     );
     if (todo.isEmpty) {
       throw SpecRunException(
         'Todas as etapas de ${spec.code} já estão feitas.',
       );
     }
-    final plan = stepRunPlan(todo.first, rows, orchestrator);
+    final plan = claudeRun ? stepRunPlan(todo.first, rows, orchestrator) : null;
     if (plan != null) await _freezePlan(specId, todo, rows, orchestrator);
 
     if (agent != null) {
@@ -917,20 +940,44 @@ class SpecRunner {
     await _markStart(spec, wt.path, todo);
     // "Plano anterior" lasts until the spec starts (SPEC-037 R13).
     _ref.read(specAutoPlannerProvider.notifier).clearFailure(specId);
-    final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
-    // The Orquestrador only uses the Claude Code (D5).
-    final String runProvider = plan != null
-        ? 'claude'
-        : last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id));
+    final String runProvider = plan != null ? 'claude' : chosen;
+    // Recorded once a session of the run exists (a failed start records
+    // nothing, so the dialog can still pick another provider).
+    Future<void> record() async {
+      if (recordedSpecProvider(_ref.read(appSettingsProvider), specId) ==
+          null) {
+        await settings.set(specProviderKey(specId), runProvider);
+      }
+    }
+
+    // Same provider as the last session: its model and effort go on.
+    final sameLast = last?.provider == runProvider ? last : null;
     String runModel;
     String? runEffort;
-    if (plan == null) {
+    if (!isClaudeCode(runProvider)) {
+      // SPEC-101 R3: a model of the Codex catalog, never `inherit` nor a
+      // Claude alias.
+      runModel = codexRunModel(
+        settingsMap,
+        requested: model ?? sameLast?.model,
+      );
+      runEffort = codexRunEffort(
+        settingsMap,
+        runModel,
+        requested: effort ?? sameLast?.effort,
+      );
+    } else if (plan == null) {
       runModel =
           model ??
-          last?.model ??
-          (runProvider != 'claude' ? 'inherit' : prefs.model(RunKind.session));
-      runEffort = effort ?? last?.effort;
+          sameLast?.model ??
+          providerModelFrom(
+            prefs,
+            _ref.read(appSettingsProvider),
+            runProvider,
+            RunKind.session,
+          );
+      runEffort = effort ?? sameLast?.effort;
     } else if (keepModel && model != null) {
       runModel = model;
       runEffort = effort;
@@ -938,13 +985,49 @@ class SpecRunner {
       // R20: the model the step used last, else its plan.
       final own = rows.where((r) => r.step == todo.first).firstOrNull;
       final used = sessions
-          .where((x) => x.id == own?.sessionId && x.provider == 'claude')
+          .where((x) => x.id == own?.sessionId && isClaudeCode(x.provider))
           .firstOrNull;
       runModel = used?.model ?? plan.rule.model;
       runEffort = used == null ? plan.rule.effort : used.effort;
     } else {
       runModel = plan.rule.model;
       runEffort = plan.rule.effort;
+    }
+    // SPEC-101 R6: agents and subagents are only of the Claude Code.
+    final caps = capabilitiesFor(runProvider);
+    final specSubagents = mergeSubagents(
+      SpecDocument.parse(text).subagents,
+      config.subagents,
+    );
+    final runAgent = caps.supports(ProviderCapability.agentFiles)
+        ? spec.agentName ?? config.agent
+        : null;
+    final ClaudePermissionMode runMode;
+    if (isClaudeCode(runProvider)) {
+      runMode =
+          mode ??
+          ClaudePermissionMode.fromCli(last?.permissionMode) ??
+          ClaudePermissionMode.fromCli(
+            settings.get(permissionModePreferenceKey(runProvider)),
+          ) ??
+          ClaudePermissionMode.defaultMode;
+    } else {
+      // R4: Editar or YOLO (the worktree is the spec's); without the OS
+      // sandbox only YOLO runs (decision 15).
+      final sandbox =
+          _ref
+              .read(providerAvailabilityProvider(runProvider))
+              .value
+              ?.sandboxWarning ==
+          null;
+      runMode = codexRunMode(
+        mode ??
+            ClaudePermissionMode.fromCli(sameLast?.permissionMode) ??
+            ClaudePermissionMode.fromCli(
+              settings.get(permissionModePreferenceKey(runProvider)),
+            ),
+        sandbox: sandbox,
+      );
     }
     NewSessionRequest request({
       required String path,
@@ -961,26 +1044,19 @@ class SpecRunner {
         specText: text,
         steps: steps,
         todo: todo,
-        subagents: mergeSubagents(
-          SpecDocument.parse(text).subagents,
-          config.subagents,
-        ),
+        subagents: caps.supports(ProviderCapability.subagents)
+            ? specSubagents
+            : const [],
         testCommand: config.testCommand,
         previousAttempt: previousAttempt,
         previousAttemptHeading: previousAttemptHeading,
         context: context,
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
-      agent: spec.agentName ?? config.agent,
+      agent: runAgent,
       model: runModel,
       effort: runEffort,
-      permissionMode:
-          mode ??
-          ClaudePermissionMode.fromCli(last?.permissionMode) ??
-          ClaudePermissionMode.fromCli(
-            settings.get(permissionModePreferenceKey(runProvider)),
-          ) ??
-          ClaudePermissionMode.defaultMode,
+      permissionMode: runMode,
       specId: specId,
       steps: todo.join(','),
       worktreePath: path,
@@ -990,9 +1066,20 @@ class SpecRunner {
       duelId: duelId,
     );
     if (!duel) {
-      return _manager.create(request(path: wt.path, branch: wt.branch));
+      final id = await _manager.create(
+        request(path: wt.path, branch: wt.branch),
+      );
+      await record();
+      await _claudeOnlyNote(
+        id,
+        spec,
+        caps,
+        agent: spec.agentName ?? config.agent,
+        subagents: specSubagents.isNotEmpty,
+      );
+      return id;
     }
-    return _startDuel(
+    final id = await _startDuel(
       spec,
       ws,
       config,
@@ -1000,6 +1087,44 @@ class SpecRunner {
       todo: todo,
       request: request,
     );
+    await record();
+    return id;
+  }
+
+  /// SPEC-101 R6: once per run, the timeline says that the spec's agent
+  /// and subagents stay with the Claude Code.
+  Future<void> _claudeOnlyNote(
+    String sessionId,
+    Spec spec,
+    ProviderCapabilities caps, {
+    String? agent,
+    required bool subagents,
+  }) async {
+    final hasAgent = agent != null && agent.isNotEmpty;
+    final dropsAgent =
+        hasAgent && !caps.supports(ProviderCapability.agentFiles);
+    final dropsSubs = subagents && !caps.supports(ProviderCapability.subagents);
+    if (!dropsAgent && !dropsSubs) return;
+    final settings = _ref.read(appSettingsProvider.notifier);
+    final key = specClaudeOnlyNoteKey(spec.id);
+    if (settings.get(key) == '1') return;
+    await settings.set(key, '1');
+    await _manager.note(
+      sessionId,
+      claudeOnlyAgentsNote(
+        agent: dropsAgent ? agent : null,
+        subagents: dropsSubs,
+        provider: caps.displayName,
+      ),
+    );
+  }
+
+  /// The run's provider ends with it (P1): at Review or on a rewind.
+  Future<void> _clearRunProvider(int specId) async {
+    final settings = _ref.read(appSettingsProvider.notifier);
+    await settings.remove(specProviderKey(specId));
+    await settings.remove(specClaudeOnlyNoteKey(specId));
+    await settings.remove('spec.$specId.autoManualNote');
   }
 
   /// Executar waits while the agent writes the plan (SPEC-037 R10, R13).
@@ -1061,6 +1186,31 @@ class SpecRunner {
         : null;
     if (spec == null) {
       return _runNext(specId, reviewUnblocks: reviewUnblocks);
+    }
+    // SPEC-101 R5, R14: a spec on the Codex (recorded, or new with the
+    // kind "Executar spec" there) runs in Manual; the timeline says why
+    // once.
+    final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
+    final provider = specRunProviderFor(
+      _ref.read(appSettingsProvider),
+      specId,
+      last: sessions.lastOrNull,
+      workspaceId: spec.workspaceId,
+      flows: _ref.read(providerFlowsProvider),
+    );
+    if (!isClaudeCode(provider)) {
+      final id = await _runNext(
+        specId,
+        reviewUnblocks: reviewUnblocks,
+        provider: provider,
+      );
+      final settings = _ref.read(appSettingsProvider.notifier);
+      final key = 'spec.$specId.autoManualNote';
+      if (settings.get(key) != '1') {
+        await settings.set(key, '1');
+        await _manager.note(id, autoOnlyClaudeNote);
+      }
+      return id;
     }
     _checkPlanLock(spec);
     final repo = _ref.read(specStepsRepoProvider);
@@ -1618,6 +1768,8 @@ class SpecRunner {
     if (spec.stage == SpecStage.review) {
       await _ref.read(specsRepoProvider).setStage(specId, SpecStage.running);
     }
+    // P1: the next Executar starts from the last session's provider.
+    await _clearRunProvider(specId);
   }
 
   /// "Refazer etapa": [rewind], then a new session for the step with the
@@ -1631,14 +1783,16 @@ class SpecRunner {
         sessions.where((s) => s.id == row?.sessionId).firstOrNull ??
         sessions.lastOrNull;
     await rewind(specId, step);
+    // SPEC-101 R7: the same provider and, on the Codex, the step's model.
     return runNext(
       specId,
+      provider: last?.provider,
       mode: ClaudePermissionMode.fromCli(last?.permissionMode),
       model: last?.model,
       effort: last?.effort,
       ignoreBlockers: true,
       previousAttempt: previous,
-      keepModel: last?.provider == 'claude',
+      keepModel: last != null && isClaudeCode(last.provider),
     );
   }
 
@@ -1795,6 +1949,11 @@ class SpecRunner {
         );
       }
     }
+    if (!isClaudeCode(s.provider) &&
+        config != null &&
+        config.git.markAgentCommits) {
+      await _trailerCheck(s, [for (final m in mine) ?rows[m]]);
+    }
     final toVerify = <String>[];
     final passed = <String>[];
     for (final step in mine) {
@@ -1824,6 +1983,35 @@ class SpecRunner {
     await _closeRequirements(specId, mine, sessionId: sessionId);
     await _continue(s);
   });
+
+  /// Sessions already warned of commits without the trailer (R11).
+  final Set<String> _trailerNoted = {};
+
+  /// SPEC-101 R11: a commit of the step without `Promptorium-Agente` (the
+  /// sandbox did not pass the variable to `git`) is reported once in the
+  /// timeline; the app never writes the trailer afterwards.
+  Future<void> _trailerCheck(Session s, List<SpecStep> rows) async {
+    if (_trailerNoted.contains(s.id)) return;
+    final starts = [for (final r in rows) ?r.startSha];
+    if (starts.isEmpty) return;
+    try {
+      final log = await _ref
+          .read(gitServiceFactoryProvider)(s.worktreePath)
+          .commitOrigins('${starts.first}..HEAD');
+      if (log.commits.every((c) => c.trailer != null)) return;
+    } on GitException catch (e) {
+      debugPrint('sessão ${s.id}: trailers não conferidos — $e');
+      return;
+    }
+    _trailerNoted.add(s.id);
+    await _manager.note(
+      s.id,
+      'Commits desta etapa sem o trailer do agente: o sandbox do '
+      '${capabilitiesFor(s.provider).displayName} não repassou '
+      'PROMPTORIUM_AGENTE ao git.',
+      error: true,
+    );
+  }
 
   /// A sub-step with others still open concludes without the gate: the
   /// requirement is verified as a whole, with the last one (SPEC-033 R16).
@@ -1866,6 +2054,9 @@ class SpecRunner {
     final steps = stepsOf(spec, await repo.bySpec(specId));
     if (steps.isNotEmpty && steps.every((x) => x.isDone)) {
       await _ref.read(specsRepoProvider).setStage(specId, SpecStage.review);
+      // P1: the run ends at Review; `REVn` and Corrigir CI go on in the
+      // spec's sessions, which keep their provider.
+      await _clearRunProvider(specId);
       final config = await _config(spec.workspaceId);
       if (config != null && config.reviewer.enabled) {
         // The automatic reviewer goes first (F5); the user's Review after.
@@ -1915,19 +2106,33 @@ class SpecRunner {
     final prefs = _ref.read(runPrefsProvider);
     final orchestrator = _ref.read(orchestratorPrefsProvider);
     final stored = await _ref.read(specStepsRepoProvider).bySpec(spec.id);
+    // The Orquestrador's plan is only of the Claude Code (SPEC-101 R5).
+    final claude = isClaudeCode(s.provider);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
-      plans: _plans(steps, stored, orchestrator),
+      plans: claude ? _plans(steps, stored, orchestrator) : const {},
     );
     if (todo.isEmpty) return false;
     final ids = todo.join(', ');
-    final limit = prefs.continueContextTokens;
+    // SPEC-101 R10, P2: the limit of Execução de specs, and on the Codex
+    // at most 70% of the window its model reports.
+    final configured = prefs.continueContextTokens;
+    final window = isClaudeCode(s.provider)
+        ? null
+        : _manager.contextWindow(s.id);
+    final limit = effectiveContinueLimit(
+      configured,
+      provider: s.provider,
+      window: window,
+    );
     final context = _manager.contextTokens(s.id);
     final rows = {for (final x in stored) x.step: x};
     // SPEC-035 R8 / R13: another model or effort is another session (an
     // escalated session goes back to the plan too).
-    final plan = stepRunPlan(todo.first, stored, orchestrator)?.rule;
+    final plan = claude
+        ? stepRunPlan(todo.first, stored, orchestrator)?.rule
+        : null;
     final current = StepRule(s.model, s.effort ?? '');
     String k(int tokens) => '${(tokens / 1000).round()} mil';
     final why = [...todo, ...parseSessionSteps(s.steps)].any(isSubStep)
@@ -1936,8 +2141,6 @@ class SpecRunner {
         ? 'o plano muda de ${current.label} para ${plan.label}'
         : limit <= 0
         ? 'continuar na mesma sessão está desligado'
-        : s.provider != 'claude'
-        ? 'só sessões do Claude continuam'
         : !_manager.isAlive(s.id)
         ? 'a sessão foi encerrada'
         : parseSessionSteps(s.steps)
@@ -1964,7 +2167,11 @@ class SpecRunner {
     if (ws == null || text == null) return false;
     await _manager.note(
       s.id,
-      '$ids continua nesta sessão (contexto ${k(context!)} de ${k(limit)}).',
+      window == null
+          ? '$ids continua nesta sessão (contexto ${k(context!)} de '
+                '${k(limit)}).'
+          : '$ids continua nesta sessão (contexto ${k(context!)} de '
+                '${k(window)}, limite efetivo ${k(limit)}).',
     );
     await _markStart(spec, s.worktreePath, todo);
     final all = [...parseSessionSteps(s.steps), ...todo];

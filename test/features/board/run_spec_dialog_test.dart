@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/codex/codex_probe.dart';
+import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
+import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
@@ -210,6 +213,9 @@ void main() {
       bool knownAvailability = false,
       Future<ProviderAvailability>? checking,
       Workspace? workspace,
+      ProviderFlows? flows,
+      ProviderAvailability? codex,
+      Session? previous,
     }) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1;
@@ -228,8 +234,11 @@ void main() {
           ),
           agentListProvider.overrideWith((ref, path) async => const []),
           providerAvailabilityProvider.overrideWith(
-            (ref, id) => checking ?? Future.value(claude),
+            (ref, id) => id == 'codex' && codex != null
+                ? Future.value(codex)
+                : checking ?? Future.value(claude),
           ),
+          if (flows != null) providerFlowsProvider.overrideWithValue(flows),
           if (workspace != null)
             activeWorkspaceProvider.overrideWithValue(workspace),
         ],
@@ -251,7 +260,8 @@ void main() {
                   onPressed: () async {
                     result = await showAppDialog<RunSpecOptions>(
                       context: context,
-                      builder: (_) => const RunSpecDialog(spec: _spec),
+                      builder: (_) =>
+                          RunSpecDialog(spec: _spec, previous: previous),
                     );
                     closed = true;
                   },
@@ -283,6 +293,178 @@ void main() {
       answers.last.complete(_kinds(kinds));
       await pump(tester);
     }
+
+    testWidgets('SPEC-094 R11, R12: Codex · Só Claude Code por enquanto; '
+        'nothing switches by itself', (tester) async {
+      // A version where "Executar spec" is still locked for the Codex.
+      await open(
+        tester,
+        settings: const {'agent.provider.default': 'codex'},
+        flows: ProviderFlows.defaults.copyWith('codex', {
+          AppFlow.prompt,
+          AppFlow.sessions,
+          AppFlow.structured,
+        }),
+      );
+      // The saved Codex stays selected and the screen says why before the
+      // click; the agent field shows the tag instead of disappearing.
+      expect(key('run-spec-flow-locked'), findsOneWidget);
+      expect(find.textContaining('ainda não roda com o Codex'), findsOneWidget);
+      expect(key('run-spec-agent-only'), findsOneWidget);
+      expect(key('run-spec-agent'), findsNothing);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isFalse);
+      await tester.tap(key('run-spec-provider'));
+      await pump(tester);
+      expect(find.text('Codex · Só Claude Code por enquanto'), findsWidgets);
+      await tester.tapAt(const Offset(5, 5));
+      await pump(tester);
+      // The explicit option to run with the other provider.
+      await tester.tap(key('run-spec-use-claude'));
+      await pump(tester);
+      expect(key('run-spec-flow-locked'), findsNothing);
+      expect(key('run-spec-agent'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isTrue);
+      expect(result?.provider, 'claude');
+    });
+
+    final codexCache = CodexModelsCache(
+      version: '0.170.0',
+      readAt: DateTime(2026, 11, 20),
+      models: const [
+        CodexModelInfo('gpt-6.1-terra', ['low', 'medium', 'high'], ['text']),
+        CodexModelInfo('gpt-5.6-luna', ['low'], ['text']),
+      ],
+    ).encode();
+
+    testWidgets('SPEC-101 R1, R3–R6: the Codex of the kind "Executar spec": '
+        'catalog model, Editar, YOLO, Automático and Agente Só Claude Code', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        settings: {
+          'agent.provider.default': 'claude',
+          'agent.provider.kind.runSpec': 'codex',
+          codexModelsCacheKey: codexCache,
+          'codex.model.session': 'gpt-6.1-terra',
+          'codex.effort.session': 'medium',
+          // A Claude choice saved for Sessões never reaches the Codex.
+          'claude.model.session': 'opus',
+        },
+        codex: const ProviderAvailability(ProviderStatus.ready, 'ok'),
+      );
+      expect(find.text('Codex'), findsWidgets);
+      expect(find.text('Modelo · catálogo do Codex'), findsOneWidget);
+      expect(find.text('gpt-6.1-terra'), findsWidgets);
+      expect(find.text('opus'), findsNothing);
+      expect(find.text('inherit (padrão)'), findsNothing);
+      // R5: Automático off with the tag and the hint.
+      expect(key('run-spec-auto-only'), findsOneWidget);
+      expect(key('run-spec-auto-only-hint'), findsOneWidget);
+      // R6: the agent is shown disabled with the tag.
+      expect(key('run-spec-agent-only'), findsOneWidget);
+      expect(key('run-spec-agent'), findsNothing);
+      // R2: the provider stays until Review.
+      expect(key('run-spec-fixed-provider'), findsOneWidget);
+      // R4: Editar and YOLO (the spec has its worktree), never Perguntar
+      // nor Planejar.
+      await tester.tap(key('run-spec-mode'));
+      await pump(tester);
+      expect(find.textContaining('Editar ·'), findsWidgets);
+      expect(find.textContaining('YOLO ·'), findsWidgets);
+      expect(find.textContaining('Perguntar'), findsNothing);
+      expect(find.textContaining('Planejar'), findsNothing);
+      await tester.tapAt(const Offset(5, 5));
+      await pump(tester);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isTrue);
+      expect(result!.provider, 'codex');
+      expect(result!.model, 'gpt-6.1-terra');
+      expect(result!.effort, 'medium');
+      expect(result!.mode, ClaudePermissionMode.acceptEdits);
+      expect(result!.agent, isNull);
+      expect(result!.auto, isFalse);
+    });
+
+    testWidgets('SPEC-101 R5: "Abrir Executar em Automático" with the Codex '
+        'opens in Manual, without classifying', (tester) async {
+      await open(
+        tester,
+        settings: {
+          AppSettingKeys.orchestratorAutoByDefault: '1',
+          'agent.provider.default': 'codex',
+          codexModelsCacheKey: codexCache,
+        },
+        codex: const ProviderAvailability(ProviderStatus.ready, 'ok'),
+      );
+      expect(key('run-spec-auto-only'), findsOneWidget);
+      expect(key('run-spec-model'), findsOneWidget);
+      expect(key('step-plan-skeleton'), findsNothing);
+      expect(classifier.calls, 0);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.provider, 'codex');
+      // No `model` saved for the Codex: the first of the catalog.
+      expect(result!.model, 'gpt-6.1-terra');
+    });
+
+    testWidgets('SPEC-101 R4, decision 15: without the sandbox only YOLO '
+        'runs, and the dialog says why', (tester) async {
+      await open(
+        tester,
+        settings: {
+          'agent.provider.default': 'codex',
+          codexModelsCacheKey: codexCache,
+        },
+        codex: const ProviderAvailability(
+          ProviderStatus.ready,
+          'ok',
+          sandboxWarning: 'bwrap',
+        ),
+      );
+      expect(key('run-spec-no-sandbox'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.mode, ClaudePermissionMode.skipPermissions);
+    });
+
+    testWidgets('SPEC-101 P4: a spec begun on the Claude Code stays there '
+        'when the kind goes to the Codex', (tester) async {
+      await open(
+        tester,
+        settings: {'agent.provider.kind.runSpec': 'codex'},
+        previous: Session(
+          id: 's1',
+          workspaceId: 1,
+          worktreePath: '/x',
+          branch: 'b',
+          model: 'sonnet',
+          provider: 'claude',
+          title: 'SPEC-012 · R1',
+          status: SessionStatus.completed,
+          costUsd: 0,
+          tokensIn: 0,
+          tokensOut: 0,
+          startedAt: DateTime(2026),
+          permissionMode: 'acceptEdits',
+        ),
+      );
+      expect(key('run-spec-provider-fixed'), findsOneWidget);
+      expect(find.text('Provedor: Claude Code'), findsOneWidget);
+      expect(key('run-spec-running-on'), findsOneWidget);
+      expect(
+        find.textContaining('Esta spec está rodando no Claude Code'),
+        findsOneWidget,
+      );
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.provider, 'claude');
+    });
 
     testWidgets('R1: opens in Manual with the fields of today', (tester) async {
       await open(tester);
@@ -502,6 +684,64 @@ void main() {
       await pump(tester);
       expect(result!.plan.map((e) => e.step), ['R1', 'R2', 'R3', 'R4']);
       expect(result!.review, const StepRule('sonnet', 'medium'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SPEC-102 R3: provedor: explícito no config vence a regra do '
+        'plano e a linha Revisão diz quem revisa', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('promptorium-run-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File('${tmp.path}/${ProjectConfig.filePath}')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          'revisor:\n  ligado: true\n  provedor: outro\n'
+          '  modelo-codex: gpt-6.1-terra\n',
+        );
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+        workspace: Workspace(
+          id: 1,
+          path: tmp.path,
+          name: 'w',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await answer(tester, {'R1': 'mecanica'});
+      // The plan's selector leaves; the line of the config takes its place.
+      expect(key('step-plan-review'), findsNothing);
+      expect(key('run-spec-reviewer-line'), findsOneWidget);
+      expect(
+        tester.widget<Text>(key('run-spec-reviewer-why')).data,
+        'segunda opinião · do config do projeto · provedor: outro',
+      );
+      expect(
+        tester.widget<Text>(key('run-spec-reviewer-model')).data,
+        'gpt-6.1-terra',
+      );
+      expect(find.text('Codex'), findsWidgets);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SPEC-102 R3: em Manual, a linha Revisão segue o provedor da '
+        'execução', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('promptorium-run-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File('${tmp.path}/${ProjectConfig.filePath}')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('revisor:\n  ligado: true\n  modelo: haiku\n');
+      await open(
+        tester,
+        workspace: Workspace(
+          id: 1,
+          path: tmp.path,
+          name: 'w',
+          createdAt: DateTime(2026),
+        ),
+      );
+      expect(key('run-spec-reviewer-line'), findsOneWidget);
+      expect(key('run-spec-reviewer-why'), findsNothing);
+      expect(tester.widget<Text>(key('run-spec-reviewer-model')).data, 'haiku');
       await tester.pumpAndSettle();
     });
 

@@ -12,6 +12,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../auto_reviewer.dart';
 import '../pr_import.dart';
 import '../review_service.dart';
+import '../reviewer_provider.dart';
 import 'review_dialogs.dart' show ReviewDialogFrame;
 import '../comment_anchor.dart' show isOpenReviewComment;
 
@@ -25,6 +26,12 @@ final sessionReviewCommentsProvider =
 
 /// Commits the author published and local ones not published yet, of a PR
 /// brought into the app (SPEC-050 R7).
+/// The provider of a PR's session (SPEC-102 R2, R9).
+final _sessionProviderOf = FutureProvider.family<String?, String>(
+  (ref, sessionId) async =>
+      (await ref.read(sessionsRepoProvider).getById(sessionId))?.provider,
+);
+
 final importedAheadProvider =
     FutureProvider.family<({int author, int local}), String>(
       (ref, sessionId) =>
@@ -118,12 +125,16 @@ class _ImportedPrPanelState extends ConsumerState<ImportedPrPanel> {
     }
   }
 
-  Future<void> _runReviewer(ImportedPr pr) async {
+  Future<void> _runReviewer(ImportedPr pr, {String? provider}) async {
     setState(() => _reviewing = true);
     try {
       await ref
           .read(autoReviewerProvider)
-          .reviewSession(widget.sessionId, title: pr.title);
+          .reviewSession(
+            widget.sessionId,
+            title: pr.title,
+            providerOnce: provider,
+          );
     } finally {
       if (mounted) setState(() => _reviewing = false);
     }
@@ -235,13 +246,27 @@ class _ImportedPrPanelState extends ConsumerState<ImportedPrPanel> {
               r.body.startsWith(AutoReviewer.failurePrefix),
         )
         .lastOrNull;
+    final lastFailed =
+        failed != null && (verdict == null || failed.id > verdict.id);
+    // SPEC-102 R9: who reviewed; a PR's session is its "execution".
+    final executedBy = ref.watch(_sessionProviderOf(widget.sessionId)).value;
+    final author = verdict == null
+        ? null
+        : reviewerAuthorLabel(
+            verdict.provider,
+            verdict.model,
+            executedBy: executedBy,
+          );
     final reviewer = _reviewing
         ? 'Revisor automático revisando…'
-        : failed != null && (verdict == null || failed.id > verdict.id)
+        : lastFailed
         ? failed.body
         : verdict != null
-        ? 'Revisor (rodada ${verdict.round}): ${verdict.body}'
+        ? 'Revisor (rodada ${verdict.round}${author == null ? '' : ' · $author'}): ${verdict.body}'
         : 'Revisor automático desligado';
+    final retryWith = !_reviewing && lastFailed && failed.provider != null
+        ? failed.provider!
+        : null;
     const muted = TextStyle(fontSize: 12, color: AppColors.textSecondary);
     final local = ahead?.local ?? 0;
     final busy = _busy != null;
@@ -361,6 +386,20 @@ class _ImportedPrPanelState extends ConsumerState<ImportedPrPanel> {
                       ? null
                       : () => unawaited(_runReviewer(pr)),
                 ),
+                // SPEC-102 R2: the other provider, this time only.
+                if (retryWith != null)
+                  SmallButton(
+                    key: const ValueKey('imported-pr-reviewer-other'),
+                    label: reviewOnceLabel(retryWith),
+                    onTap: busy
+                        ? null
+                        : () => unawaited(
+                            _runReviewer(
+                              pr,
+                              provider: otherReviewerProvider(retryWith),
+                            ),
+                          ),
+                  ),
                 if (!pr.canPush || local > 0)
                   SmallButton(
                     key: const ValueKey('imported-pr-patch'),

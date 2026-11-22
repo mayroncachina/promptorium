@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/specs/prototype/prototype_files.dart';
 import 'package:promptorium/features/specs/prototype/prototype_service.dart';
@@ -25,7 +24,7 @@ import 'prototype_files_test.dart' show spec;
 class AgentCall {
   AgentCall(this.cwd, this.options, this.prompt, [this.cancelled]);
   final String cwd;
-  final ClaudeOptions options;
+  final PrototypeRun options;
   final String prompt;
   final Future<void>? cancelled;
 }
@@ -116,14 +115,11 @@ void main() {
     expect(call.prompt, contains('`docs/mockups/spec-022/`'));
     expect(call.prompt, contains('- R1 · Lista'));
     expect(call.prompt, contains('R<n>-<slug>.html'));
-    final args = call.options.toArgs();
     // Only the folder may be written; no shell.
     expect(call.options.allowedTools, ['Edit(docs/mockups/spec-022/**)']);
     expect(call.options.tools, isNot(contains('Bash')));
     expect(call.options.tools, containsAll(['Write', 'Read']));
     expect(call.options.disallowedTools, contains('Bash'));
-    expect(call.options.permissionMode, ClaudePermissionMode.defaultMode);
-    expect(args, isNot(contains('--dangerously-skip-permissions')));
     expect(call.options.appendSystemPrompt, contains('SOMENTE dentro de'));
     // The Promptorium look comes from tokens.dart.
     expect(call.options.appendSystemPrompt, contains('#0E1014'));
