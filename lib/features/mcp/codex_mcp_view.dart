@@ -794,8 +794,8 @@ class _CodexDetailState extends ConsumerState<_CodexDetail> {
               InfoTag(row.fromPlugin ? 'Codex · plugin' : 'Codex · Global'),
             ],
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          Wrap(
+            runSpacing: 8,
             children: [
               SmallButton(
                 key: const ValueKey('mcp-test'),
