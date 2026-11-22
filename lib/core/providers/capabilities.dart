@@ -167,8 +167,10 @@ class ProviderCapabilities {
       ProviderCapability.managedHooks: CapabilityValue.unsupported(
         'O Codex não roda hooks do app sem confiança no global.',
       ),
-      ProviderCapability.agentFiles: CapabilityValue.unsupported(
-        'O Codex não lê .claude/agents.',
+      // SPEC-106: the app translates the agent (instructions, model,
+      // effort and sandbox); the rest is said as ignored.
+      ProviderCapability.agentFiles: CapabilityValue.partial(
+        'traduzido pelo app: instruções, modelo, esforço e sandbox',
       ),
       ProviderCapability.subagents: CapabilityValue.unsupported(
         'Subagentes do Codex não foram testados.',
