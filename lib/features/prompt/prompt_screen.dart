@@ -36,6 +36,9 @@ import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/spec_batch_dialog.dart';
+import '../../core/claude/run_prefs.dart';
+import '../../core/providers/provider_preferences.dart';
+import '../../ui/providers/provider_logos.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
 import 'widgets/prompt_welcome.dart';
@@ -308,6 +311,22 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     }
   }
 
+  /// SPEC-096 R4: another provider never continues this conversation — a
+  /// new one opens, with the notice.
+  void _switchProvider(
+    Conversation conv,
+    AgentProvider p,
+    String model,
+    PromptMode mode,
+  ) {
+    final from = ref.read(agentProviderByIdProvider(conv.provider));
+    ref.read(selectedConversationProvider.notifier).select(null);
+    ref
+        .read(promptDraftProvider.notifier)
+        .set(PromptDraft(providerId: p.id, model: model, mode: mode));
+    _snack(providerSwitchNotice(p.displayName, from.displayName));
+  }
+
   /// Attachments of the next message, as paths (SPEC-087 R5).
   List<String> _pendingPaths(Workspace? ws) => [
     ..._files,
@@ -407,7 +426,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     final compare = conv == null ? null : ref.watch(compareProvider(conv.id));
     final canCompare =
         ws != null &&
-        providerId == 'claude' &&
+        ref.watch(providerFlowsProvider).allows(providerId, AppFlow.compare) &&
         conv?.specId == null &&
         compare == null;
     final comparing = _compareOn && canCompare;
@@ -564,12 +583,21 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                             mode: mode,
                             onProvider: (p) {
                               if (!p.enabled) return;
+                              // R8 of SPEC-094: each provider's own model.
+                              final m = providerModelFrom(
+                                ref.read(runPrefsProvider),
+                                ref.read(appSettingsProvider),
+                                p.id,
+                                RunKind.conversation,
+                              );
+                              if (conv != null && p.id != conv.provider) {
+                                // SPEC-096 R4: never switches in the middle.
+                                _switchProvider(conv, p, m, mode);
+                                return;
+                              }
                               if (conv == null) {
                                 draftCtl.set(
-                                  draft.copyWith(
-                                    providerId: p.id,
-                                    model: p.models.first,
-                                  ),
+                                  draft.copyWith(providerId: p.id, model: m),
                                 );
                               }
                             },
@@ -580,6 +608,24 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                 ? draftCtl.set(draft.copyWith(mode: m))
                                 : manager.setMode(conv.id, m),
                             busy: busy,
+                            // SPEC-096 R7: the Codex turn is interrupted
+                            // and a message during it directs it.
+                            canSteer:
+                                conv != null &&
+                                !_sending &&
+                                live.isBusy(conv.id) &&
+                                providerId == 'codex',
+                            stopLabel: providerId == 'codex'
+                                ? 'Interromper'
+                                : 'Parar',
+                            effort: isClaudeCode(providerId)
+                                ? null
+                                : providerEffortFrom(
+                                    ref.watch(runPrefsProvider),
+                                    ref.watch(appSettingsProvider),
+                                    providerId,
+                                    RunKind.conversation,
+                                  ),
                             // SPEC-071 R5: no request while the VIBE's gate
                             // runs.
                             blockedReason: compare != null
@@ -625,7 +671,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                   },
                             onSend: () => _send(ws, conv),
                             onStop: () {
-                              if (conv != null) manager.stop(conv.id);
+                              if (conv != null) manager.interrupt(conv.id);
                             },
                           ),
                         ),
@@ -1081,6 +1127,24 @@ class _Conversation extends ConsumerWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
+                    // SPEC-096 R5: no ExitPlanMode in the Codex; the plan
+                    // goes as a new turn in Editar.
+                    if (PromptMode.fromName(c.mode) == PromptMode.plan &&
+                        !capabilitiesFor(c.provider)
+                            .supports(ProviderCapability.planMode))
+                      SmallButton(
+                        key: const ValueKey('prompt-run-plan'),
+                        label: 'Executar plano',
+                        height: 28,
+                        color: AppColors.amber,
+                        onTap: () async {
+                          try {
+                            await manager.executePlan(c.id, answer);
+                          } catch (e) {
+                            if (context.mounted) _snack(context, '$e');
+                          }
+                        },
+                      ),
                     SmallButton(
                       key: const ValueKey('answer-copy'),
                       label: 'Copiar',
@@ -1126,7 +1190,10 @@ class _Conversation extends ConsumerWidget {
         waitingTools: {for (final a in approvals) ?a.request.toolUseId},
         footer: footer,
         maxWidth: 760,
-        assistantName: 'Claude Code · ${modelLabel(c.model)}',
+        // SPEC-096 R3: the Codex speaks as the Codex.
+        assistantName: c.provider == 'claude'
+            ? 'Claude Code · ${modelLabel(c.model)}'
+            : providerModelLabel(c.provider, c.model),
         emptyText: 'Sem mensagens ainda.',
         editInfo: progress == null ? null : (t) => progress.edits[t.id],
         customItem: (i) => switch (i) {
@@ -1238,3 +1305,8 @@ class _SuggestionCardState extends State<_SuggestionCard> {
     ),
   );
 }
+
+/// "O Codex não continua uma conversa do Claude Code" (SPEC-096 R4).
+String providerSwitchNotice(String to, String from) =>
+    'O $to não continua uma conversa do $from: abri uma conversa nova com o '
+    '$to.';

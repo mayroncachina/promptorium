@@ -4,26 +4,26 @@ import '../../data/providers.dart';
 import '../claude/claude_cli.dart';
 import '../codex/codex_cli.dart';
 import '../codex/codex_provider.dart';
+import '../update/update_check.dart' show appVersionProvider;
 import '../claude/claude_process.dart' show ProcessStarter;
-import '../../ui/widgets/app_icon.dart';
 import 'acp_provider.dart';
 import 'agent_provider.dart';
+import 'capabilities.dart';
 import 'claude_code_provider.dart';
 
 export 'acp_provider.dart';
+export 'capabilities.dart';
 export 'agent_provider.dart';
 export 'claude_code_provider.dart';
 
 /// Starter of the ACP agents (tests inject a fake process).
 final acpStarterProvider = Provider<ProcessStarter?>((ref) => null);
 
-/// Codex integration switch. Off for now: Codex is listed as "em breve" and
-/// never started; saved Codex sessions fail with an explicit message. Tests of
-/// the adapter override it to true.
-final codexEnabledProvider = Provider<bool>((ref) => false);
-
 /// Every provider shown in the Prompt menu, in order: Claude Code, the ACP
 /// agents of Configurações → Provedores (F18; default Gemini CLI) and Codex.
+///
+/// Codex is always registered (its version and sandbox are inspected, R10);
+/// where it may run is decided by [providerFlowsProvider] (SPEC-094 R3).
 final agentProvidersProvider = Provider<List<AgentProvider>>((ref) {
   final acp =
       ref.watch(
@@ -42,19 +42,26 @@ final agentProvidersProvider = Provider<List<AgentProvider>>((ref) {
         command: a.command,
         starter: ref.watch(acpStarterProvider),
       ),
-    if (ref.watch(codexEnabledProvider))
-      CodexProvider(
-        executable: ref.watch(codexExecutableProvider),
-        starter: ref.watch(codexProcessStarterProvider),
-      )
-    else
-      ComingSoonProvider(
-        id: 'codex',
-        displayName: 'Codex',
-        icon: AppIcons.code,
-      ),
+    CodexProvider(
+      // Read on use: the registry never starts the CLI detection itself.
+      resolveExecutable: () => ref.read(codexExecutableProvider),
+      starter: ref.watch(codexProcessStarterProvider),
+      // SPEC-093 D13: the app's version in `clientInfo`.
+      clientVersion: () => ref.read(appVersionProvider).value,
+    ),
   ];
 });
+
+/// Provider [id] for [flow]: fails with the reason when the provider is not
+/// released there (R12) — never falls back to another provider.
+AgentProvider agentProviderForFlow(Ref ref, String id, AppFlow flow) {
+  final provider = ref.read(agentProviderByIdProvider(id));
+  final flows = ref.read(providerFlowsProvider);
+  if (!flows.allows(id, flow)) {
+    throw AgentUnavailable(flows.refusal(id, provider.displayName, flow));
+  }
+  return provider;
+}
 
 /// Provider by id; unknown ids fail rather than switching providers.
 final agentProviderByIdProvider = Provider.family<AgentProvider, String>((

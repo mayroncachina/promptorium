@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../../../core/providers/capabilities.dart';
+import '../../../data/db/app_database.dart' show Session;
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
@@ -33,7 +37,61 @@ enum SessionLook {
   };
 }
 
+/// "Interrompida por você" (SPEC-096 P3): the session stopped by
+/// "Interromper", not because the app closed. Kept in `runConfig` until
+/// the session starts again.
+bool interruptedByUser(Session s) {
+  if (s.status != SessionStatus.interrupted || s.runConfig == null) {
+    return false;
+  }
+  try {
+    return (jsonDecode(s.runConfig!) as Map)['interrupted'] == 'user';
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Status label of [s]: "Interrompida por você" or the [look]'s.
+String sessionStatusLabel(Session s, SessionLook look) =>
+    look == SessionLook.interrupted && interruptedByUser(s)
+    ? 'Interrompida por você'
+    : look.label;
+
 String formatCost(double v) => '\$${v.toStringAsFixed(2)}';
+
+/// The cost of a run of [provider] (SPEC-097 R9): a provider without cost
+/// in US\$ (the Codex) shows [unavailable], never "\$0.00".
+String formatRunCost(
+  String provider,
+  double v, {
+  String unavailable = 'custo indisponível',
+}) => capabilitiesFor(provider).supports(ProviderCapability.costUsd)
+    ? formatCost(v)
+    : unavailable;
+
+/// The cost of several runs together, as the Início "Hoje" card shows it
+/// (SPEC-097 R9, decision 5): only the providers with cost in US\$ add up,
+/// and the runs of the others (the Codex) never count as "\$0.00". With no
+/// priced run the total is [unavailable]; with some unpriced runs the sum
+/// gets a " +", as in the cost ranking.
+String formatRunsCost(
+  Iterable<Session> runs, {
+  String unavailable = 'indisponível',
+}) {
+  var sum = 0.0;
+  var priced = 0;
+  var unpriced = 0;
+  for (final s in runs) {
+    if (capabilitiesFor(s.provider).supports(ProviderCapability.costUsd)) {
+      priced++;
+      sum += s.costUsd;
+    } else {
+      unpriced++;
+    }
+  }
+  if (priced == 0 && unpriced > 0) return unavailable;
+  return unpriced > 0 ? '${formatCost(sum)} +' : formatCost(sum);
+}
 
 /// `12m 40s`, `1h 05m`, `45s`.
 String formatDuration(Duration d) {

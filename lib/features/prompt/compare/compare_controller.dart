@@ -254,9 +254,15 @@ class CompareController extends Notifier<Map<int, CompareView>> {
           '${provider.displayName} ainda não está disponível.',
         );
       }
+      final flows = ref.read(providerFlowsProvider);
+      if (!flows.allows(conv.provider, AppFlow.compare)) {
+        throw AgentUnavailable(
+          flows.refusal(conv.provider, provider.displayName, AppFlow.compare),
+        );
+      }
       final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
       final prefs = ref.read(runPrefsProvider);
-      final claude = conv.provider == 'claude';
+      final caps = provider.capabilities;
       run = await provider.start(
         AgentStartOptions(
           workingDirectory: ws.path,
@@ -270,10 +276,17 @@ class CompareController extends Notifier<Map<int, CompareView>> {
           effort: effortArg(
             providerEffort(ref, conv.provider, RunKind.conversation),
           ),
-          autocompact: claude ? prefs.autocompact : null,
-          mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: mcp.disallowed,
-          settingsFile: claude ? await runSettingsFile(ref) : null,
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: prefs.autocompact,
+              mcpAllowedTools: mcp.allowed,
+              mcpDisallowedTools: mcp.disallowed,
+              settingsFile: caps.supports(ProviderCapability.managedHooks)
+                  ? await runSettingsFile(ref)
+                  : null,
+            ),
+          ),
         ),
       );
     } catch (e) {
@@ -305,7 +318,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     );
     // SPEC-087 R7, R11: each side records what its own execution received.
     final runJson = ContextEventTypes.runEvent(
-      autocompact: conv.provider == 'claude'
+      autocompact: isClaudeCode(conv.provider)
           ? ref.read(runPrefsProvider).autocompact
           : null,
       model: side.model,
@@ -347,7 +360,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     final s = live?.sides[letter];
     if (live == null || s == null || !identical(s.run, run)) return;
     var side = live.run.side(letter);
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       side = side.copyWith(events: [...side.events, eventJson(e)]);
     }
     var finished = false;
@@ -451,7 +464,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       unawaited(run.stop());
       await _save(id);
       unawaited(_measure(id));
-    } else if (e is! StreamDelta && e is! StreamOther) {
+    } else if (isStoredEvent(e)) {
       _scheduleSave(id);
     }
   }

@@ -6,7 +6,7 @@ depende-de: [SPEC-003]
 
 # Seleção de provedor pelo indicador de conexão do rodapé
 
-> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). A parte Codex desta spec fica inativa enquanto `codexEnabledProvider` estiver desligado; o comportamento com Claude Code e agentes ACP continua valendo.
+> **Revalidada na [SPEC-096](SPEC-096-codex-prompt-e-sessoes.md) (21/11/2026).** Com o Codex ligado em Prompt e Sessões, o seletor do rodapé volta a oferecer o Codex, mostra o estado (não encontrado, incompatível, login pendente com "rode codex login no terminal", conectado) e um padrão `codex` salvo continua `codex`. O interruptor "Desligar o Codex" (Configurações → Provedores) tira o Codex do seletor. Testes: `test/ui/provider_footer_test.dart` e `test/features/settings/codex_religar_test.dart`.
 
 ## Objetivo
 

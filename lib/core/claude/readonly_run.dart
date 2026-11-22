@@ -79,6 +79,7 @@ Future<Result> runReadOnlyClaude(
   String? specCode,
   UsageSource? usageSource,
   String? usageStep,
+  AppFlow flow = AppFlow.structured,
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -98,23 +99,30 @@ Future<Result> runReadOnlyClaude(
   }
   try {
     if (chosen != 'claude') {
-      process = await ref
-          .read(agentProviderByIdProvider(chosen))
-          .start(
-            AgentStartOptions(
-              workingDirectory: cwd,
-              mode: PromptMode.ask,
-              model:
-                  options.model ?? providerModel(ref, chosen, RunKind.planner),
-              effort:
-                  options.effort ??
-                  effortArg(providerEffort(ref, chosen, RunKind.planner)),
-              resumeId: sourceId == null
-                  ? null
-                  : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
-              forkSession: options.forkSession,
-              appendSystemPrompt: options.appendSystemPrompt,
-              jsonSchema: options.jsonSchema,
+      final provider = agentProviderForFlow(ref, chosen, flow);
+      final caps = provider.capabilities;
+      // R5: only what the provider supports is built (no budget without
+      // `budgetUsd`, no agent without `agentFiles`, no schema without
+      // `structuredOutput`); the 16 callers stay as they are (SPEC-100).
+      process = await provider.start(
+        AgentStartOptions(
+          workingDirectory: cwd,
+          mode: PromptMode.ask,
+          model: options.model ?? providerModel(ref, chosen, RunKind.planner),
+          effort:
+              options.effort ??
+              effortArg(providerEffort(ref, chosen, RunKind.planner)),
+          resumeId: sourceId == null
+              ? null
+              : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
+          forkSession: options.forkSession,
+          appendSystemPrompt: options.appendSystemPrompt,
+          jsonSchema: caps.supports(ProviderCapability.structuredOutput)
+              ? options.jsonSchema
+              : null,
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
               maxBudgetUsd: options.maxBudgetUsd,
               maxTurns: options.maxTurns,
               agent: options.agent,
@@ -127,7 +135,9 @@ Future<Result> runReadOnlyClaude(
                   )
                   .toList(),
             ),
-          );
+          ),
+        ),
+      );
     } else {
       process = ClaudeRun(
         await ClaudeProcess.start(
@@ -222,6 +232,8 @@ Future<Result> runReadOnlyClaude(
           model: resultModel(result, options.model),
           usage: result.usage,
           costUsd: result.totalCostUsd,
+          provider: chosen,
+          reasoningTokens: reasoningTokensOf(result),
         );
     return result;
   } finally {
