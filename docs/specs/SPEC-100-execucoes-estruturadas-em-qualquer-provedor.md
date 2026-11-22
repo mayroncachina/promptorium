@@ -1,6 +1,6 @@
 ---
 id: SPEC-100
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: melhoria
 epico: 332
@@ -115,17 +115,25 @@ Depois desta spec, a mesma Nova spec roda no Codex com `gpt-6.1-terra` (o modelo
 
 ## Critérios de aceite
 
-- [ ] Nenhum serviço de feature monta `ClaudeOptions` para execução estruturada, e `runReadOnlyClaude` não existe mais [R1] verificar: `grep` em `lib/features` e revisão do diff.
-- [ ] Uma rodada estruturada no Codex nunca escreve no repositório e nega qualquer aprovação [R2] verificar: teste com o `fake_codex` pedindo `fileChange` e `commandExecution`, mais o sandbox enviado no `thread/start`.
-- [ ] O Codex recebe o schema, e uma resposta fora dele vira erro claro, sem quebrar o serviço [R3] verificar: testes de resposta válida, inválida e com campo nulo.
-- [ ] Nenhum alias do Claude chega ao Codex, e nenhum `maxBudgetUsd`, `maxTurns` ou `agent` chega a um provedor sem a capacidade [R1, R4, R5] verificar: teste das opções enviadas por adaptador.
-- [ ] Tempo-limite e cancelamento interrompem o turno do Codex, e o cancelamento não conta como falha [R5] verificar: testes com o `fake_codex`.
-- [ ] Prints vão como imagem quando o modelo aceita, e há aviso com escolha quando não aceita [R6] verificar: teste de widget da Nova spec e teste do adaptador.
-- [ ] Refinar um plano continua no provedor e na thread originais [R7] verificar: teste do planner com o tipo trocado entre as rodadas.
-- [ ] Cada fluxo do R8 roda no provedor do tipo, e os fluxos Só Claude Code mostram a etiqueta e o motivo [R8, R10] verificar: testes por chamador e de widget.
-- [ ] O cartão Provedor por tipo grava a escolha e respeita a ordem de resolução, e o Codex indisponível não troca o provedor sozinho [R9, R11] verificar: testes de preferências e de widget.
-- [ ] O ledger guarda tokens do Codex com custo nulo, e a cota do Codex não vai para o rastreador do Claude [R12] verificar: teste do ledger e do roteamento de `RateLimit`.
-- [ ] No app isolado, Projeto, Nova spec com print e Verificar spec rodam no Codex com o provedor e o uso visíveis [R1–R12] verificar: capturas reais 1366×768 e relatório.
+- [x] Nenhum serviço de feature monta `ClaudeOptions` para execução estruturada, e `runReadOnlyClaude` não existe mais [R1] verificar: `grep` em `lib/features` e revisão do diff.
+- [x] Uma rodada estruturada no Codex nunca escreve no repositório e nega qualquer aprovação [R2] verificar: teste com o `fake_codex` pedindo `fileChange` e `commandExecution`, mais o sandbox enviado no `thread/start`.
+- [x] O Codex recebe o schema, e uma resposta fora dele vira erro claro, sem quebrar o serviço [R3] verificar: testes de resposta válida, inválida e com campo nulo.
+- [x] Nenhum alias do Claude chega ao Codex, e nenhum `maxBudgetUsd`, `maxTurns` ou `agent` chega a um provedor sem a capacidade [R1, R4, R5] verificar: teste das opções enviadas por adaptador.
+- [x] Tempo-limite e cancelamento interrompem o turno do Codex, e o cancelamento não conta como falha [R5] verificar: testes com o `fake_codex`.
+- [x] Prints vão como imagem quando o modelo aceita, e há aviso com escolha quando não aceita [R6] verificar: teste de widget da Nova spec e teste do adaptador.
+- [x] Refinar um plano continua no provedor e na thread originais [R7] verificar: teste do planner com o tipo trocado entre as rodadas.
+- [x] Cada fluxo do R8 roda no provedor do tipo, e os fluxos Só Claude Code mostram a etiqueta e o motivo [R8, R10] verificar: testes por chamador e de widget.
+- [x] O cartão Provedor por tipo grava a escolha e respeita a ordem de resolução, e o Codex indisponível não troca o provedor sozinho [R9, R11] verificar: testes de preferências e de widget.
+- [x] O ledger guarda tokens do Codex com custo nulo, e a cota do Codex não vai para o rastreador do Claude [R12] verificar: teste do ledger e do roteamento de `RateLimit`.
+- [x] No app isolado, Projeto, Nova spec com print e Verificar spec rodam no Codex com o provedor e o uso visíveis [R1–R12] verificar: capturas reais 1366×768 e relatório.
+
+## Implementação
+
+- `lib/core/providers/structured_run.dart`: `runStructured`, `StructuredIntent`, `StructuredResult`, `ClaudeStructuredExtras`, `StructuredProfile`, `ProviderKind`, `providerForKind`, `structuredRunsProvider` (linha do provedor, falhas e escolha "desta vez") e os erros `StructuredCancelled`, `StructuredProviderFailure`, `StructuredImagesUnsupported`.
+- `lib/core/providers/structured_schema.dart`: variante estrita do schema para o `outputSchema`, `schemaMismatch` e `stripAddedNulls`.
+- `lib/core/claude/readonly_run.dart`: só o adaptador Claude (`claudeStructuredOptions`); `runReadOnlyClaude` saiu.
+- Decisões além da spec: (1) sem o sandbox do Codex (decisão 15), a execução estruturada no Codex é recusada com a mensagem do Prompt e a oferta do Claude Code desta vez; (2) a resposta do Codex é validada no app contra o schema original depois de tirar os nulos da variante (a do Claude já vem validada pela CLI); (3) a linha "Revisor automático" e "Executar spec" resolvem para o Claude Code enquanto o fluxo não roda no Codex; "Planner e assistentes" nunca troca sozinho; (4) o perfil rápido só manda `low` quando o catálogo em cache confirma esse esforço.
+- E2E: `docs/pesquisa/spec-100-e2e.md`, com o Codex falso (sem turno pago) e os prints em `docs/mockups/spec-100/app/`.
 
 ## Telas
 
