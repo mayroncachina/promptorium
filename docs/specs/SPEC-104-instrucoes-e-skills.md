@@ -1,6 +1,6 @@
 ---
 id: SPEC-104
-status: em implementação
+status: concluida
 versao: 0.25.0
 tipo: melhoria
 epico: 332
@@ -102,15 +102,22 @@ Não há migração de banco. Os `instructionSources` vão num evento do app (`p
 
 ## Critérios de aceite
 
-- [ ] Uma sessão Codex num projeto só com `CLAUDE.md` carrega o arquivo, sem criar nem alterar arquivos no repositório ou em `~/.codex` [R1] verificar: `instructionSources` gravado no evento da execução e `git status` limpo, num repositório temporário.
-- [ ] "Carregado pelo Codex" só aparece com `instructionSources` da execução; sem execução, a tela diz "previsto" [R2] verificar: teste de widget da aba Instruções com e sem o evento.
-- [ ] Com a capacidade `instructionsFallback` falsa, Criar oferece o `AGENTS.md` marcado, e o arquivo gerado tem o cabeçalho e o marcador [R3] verificar: teste do `project_service` e teste de widget do passo Criar.
-- [ ] Um `AGENTS.md` sem o marcador nunca é sobrescrito; o gerado e desatualizado mostra o diff antes de gravar [R4] verificar: testes de unidade do `workspace_assets` com os três casos.
-- [ ] A aba Instruções mostra a fonte, uma linha por provedor e os arquivos aninhados; com o Codex indisponível, a linha diz o motivo [R5] verificar: teste de widget.
-- [ ] Uma skill de `.claude/skills` aparece no `skills/list` da execução Codex sem cópia nem link [R6] verificar: teste com o `fake_codex` e sondagem real registrada.
-- [ ] Selos por provedor, grupo "Do Codex", erros do `skills/list` e "ignorado no Codex" aparecem nas skills certas [R7–R9] verificar: teste de widget com resposta gravada do `skills/list`.
-- [ ] Sem `extraRoots`, a skill fica "Só Claude Code", e "Disponibilizar no Codex" só cria o link depois da confirmação, e só no repositório [R10] verificar: teste de unidade e teste manual.
-- [ ] A aba Skills não abre um App Server por tecla nem manda prompt ao modelo [R12] verificar: contagem de processos e de pedidos no `fake_codex`.
+- [x] Uma sessão Codex num projeto só com `CLAUDE.md` carrega o arquivo, sem criar nem alterar arquivos no repositório ou em `~/.codex` [R1] verificar: `instructionSources` gravado no evento da execução e `git status` limpo, num repositório temporário.
+- [x] "Carregado pelo Codex" só aparece com `instructionSources` da execução; sem execução, a tela diz "previsto" [R2] verificar: teste de widget da aba Instruções com e sem o evento.
+- [x] Com a capacidade `instructionsFallback` falsa, Criar oferece o `AGENTS.md` marcado, e o arquivo gerado tem o cabeçalho e o marcador [R3] verificar: teste do `project_service` e teste de widget do passo Criar.
+- [x] Um `AGENTS.md` sem o marcador nunca é sobrescrito; o gerado e desatualizado mostra o diff antes de gravar [R4] verificar: testes de unidade do `workspace_assets` com os três casos.
+- [x] A aba Instruções mostra a fonte, uma linha por provedor e os arquivos aninhados; com o Codex indisponível, a linha diz o motivo [R5] verificar: teste de widget.
+- [x] Uma skill de `.claude/skills` aparece no `skills/list` da execução Codex sem cópia nem link [R6] verificar: teste com o `fake_codex` e sondagem real registrada.
+- [x] Selos por provedor, grupo "Do Codex", erros do `skills/list` e "ignorado no Codex" aparecem nas skills certas [R7–R9] verificar: teste de widget com resposta gravada do `skills/list`.
+- [x] Sem `extraRoots`, a skill fica "Só Claude Code", e "Disponibilizar no Codex" só cria o link depois da confirmação, e só no repositório [R10] verificar: teste de unidade e teste manual.
+- [x] A aba Skills não abre um App Server por tecla nem manda prompt ao modelo [R12] verificar: contagem de processos e de pedidos no `fake_codex`.
+
+## Implementação
+
+- A sondagem real das skills (sem turno, `HOME` e `CODEX_HOME` isolados) está em `docs/pesquisa/codex-0170.md` e em `test/fixtures/codex/0.170/skills.jsonl`. O `skills/extraRoots/set` funciona: as skills de `.claude/skills` voltam com `scope: user` e nada é gravado no `config.toml`. A pasta de skills de repositório do Codex é `.agents/skills`, que o plano B usa.
+- As duas capacidades (`instructionsFallback`, `skillsExtraRoots`) ficam comprovadas no Codex 0.170. Os planos B (R3, R10) ficam prontos atrás delas, e os testes os cobrem trocando a capacidade.
+- Os `instructionSources` também vão no `system/init` (`instruction_sources`) e viram uma fonte "informada pelo agente" no painel Contexto.
+- A consulta da aba Skills espera a lista de workspaces carregar, para não abrir um App Server a mais com o workspace ainda nulo.
 
 ## Telas
 

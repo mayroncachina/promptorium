@@ -327,7 +327,6 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
           const SizedBox(height: 8),
           Container(
             key: const ValueKey('instructions-diff'),
-            constraints: const BoxConstraints(maxHeight: 320),
             decoration: BoxDecoration(
               color: SessionColors.terminalPanel,
               borderRadius: BorderRadius.circular(8),
@@ -336,7 +335,6 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
             child: DiffView(
               rows: _diffRows(current, inv.claudeText ?? ''),
               collapseSame: 3,
-              scrollable: true,
             ),
           ),
           const SizedBox(height: 10),
