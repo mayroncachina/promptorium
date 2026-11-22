@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/codex/codex_command.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
@@ -24,32 +24,23 @@ void main() {
     );
 
     test('o Codex não recebe extras do Claude', () {
-      expect(
-        extrasFor(ProviderCapabilities.codex, claude: claudeOnly),
-        isNull,
-      );
+      expect(extrasFor(ProviderCapabilities.codex, claude: claudeOnly), isNull);
       const codex = CodexExtras(compactLimit: '200k');
       expect(
-        extrasFor(
-          ProviderCapabilities.codex,
-          claude: claudeOnly,
-          codex: codex,
-        ),
+        extrasFor(ProviderCapabilities.codex, claude: claudeOnly, codex: codex),
         same(codex),
       );
     });
 
     test('o Claude recebe só o que suporta', () {
-      final e =
-          extrasFor(ProviderCapabilities.claude, claude: claudeOnly)
-              as ClaudeExtras;
+      final e = extrasFor(
+        ProviderCapabilities.claude,
+        claude: claudeOnly,
+      ) as ClaudeExtras;
       expect(e.maxBudgetUsd, 2);
       expect(e.agent, 'revisor');
       expect(
-        extrasFor(
-          ProviderCapabilities.acp('g', 'G'),
-          claude: claudeOnly,
-        ),
+        extrasFor(ProviderCapabilities.acp('g', 'G'), claude: claudeOnly),
         isNull,
       );
     });
@@ -194,38 +185,40 @@ void main() {
         .read(appSettingsProvider.notifier)
         .set(providerPreferenceKey(12), 'codex');
     final review = Provider(
-      (ref) => () => runReadOnlyClaude(
-        ref,
-        cwd: '/work',
-        workspaceId: 12,
-        flow: AppFlow.autoReview,
-        // What the reviewer builds (DT-56).
-        options: const ClaudeOptions(
-          maxBudgetUsd: 2,
-          agent: 'revisor',
-          jsonSchema: '{"type":"object"}',
-        ),
-        prompt: 'Revise',
-      ),
+      (ref) =>
+          () => runStructured(
+            ref,
+            StructuredIntent(
+              cwd: '/work',
+              workspaceId: 12,
+              flow: AppFlow.autoReview,
+              // What the reviewer builds (DT-56).
+              claude: const ClaudeStructuredExtras(
+                maxBudgetUsd: 2,
+                agent: 'revisor',
+              ),
+              schema: _okSchema,
+              prompt: 'Revise',
+            ),
+          ),
     );
     final response = c.read(review)();
     await settle();
     final turn = servers.single.writtenJson.singleWhere(
       (r) => r['method'] == 'turn/start',
     );
-    expect(turn['params']['outputSchema'], {'type': 'object'});
+    expect(turn['params']['outputSchema'], _okSchema);
+    servers.single.answer('{"ok":true}');
     servers.single.completeTurn();
     expect((await response).isSuccess, isTrue);
 
     // Same run in a flow Codex is not released in: refused with the reason.
     final other = Provider(
-      (ref) => () => runReadOnlyClaude(
-        ref,
-        cwd: '/work',
-        workspaceId: 12,
-        options: const ClaudeOptions(),
-        prompt: 'x',
-      ),
+      (ref) =>
+          () => runStructured(
+            ref,
+            StructuredIntent(cwd: '/work', workspaceId: 12, prompt: 'x'),
+          ),
     );
     await expectLater(
       c.read(other)(),
@@ -240,3 +233,13 @@ void main() {
     expect(servers, hasLength(1));
   });
 }
+
+/// A schema already in the strict form the Codex takes (SPEC-100 R3).
+const _okSchema = <String, Object?>{
+  'type': 'object',
+  'properties': {
+    'ok': {'type': 'boolean'},
+  },
+  'required': ['ok'],
+  'additionalProperties': false,
+};

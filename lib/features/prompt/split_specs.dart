@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
-import '../../core/providers/agent_registry.dart' show ClaudeCodeProvider;
+import '../../core/providers/structured_run.dart';
 import '../../data/db/app_database.dart';
 import 'prompt_actions.dart';
 
@@ -80,27 +78,29 @@ typedef SplitSpecsRunner = Future<String> Function(
   Future<void>? cancelled,
 });
 
+/// Slot of the run's provider line in the dialog (SPEC-100 R10).
+String splitSpecsSlot(int workspaceId) => 'split:$workspaceId';
+
 final splitSpecsRunnerProvider = Provider<SplitSpecsRunner>(
   (ref) => (ws, prompt, {cancelled}) async {
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       ref,
-      workspaceId: ws.id,
-      cwd: ws.path,
-      options: const ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        includePartialMessages: false,
+      StructuredIntent(
+        workspaceId: ws.id,
+        cwd: ws.path,
+        prompt: prompt,
+        cancelled: cancelled,
+        denyMessage: '"Dividir em specs" é somente leitura.',
+        slot: splitSpecsSlot(ws.id),
+        label: 'Dividir em specs',
       ),
-      prompt: prompt,
-      cancelled: cancelled,
-      denyMessage: '"Dividir em specs" é somente leitura.',
     );
     if (!r.isSuccess) {
       throw PlannerException(
-        'O Claude terminou com erro '
-        '(${r.subtype.isEmpty ? 'erro' : r.subtype}).',
+        'O ${providerDisplayName(r.provider)} terminou com erro '
+        '(${r.raw.subtype.isEmpty ? 'erro' : r.raw.subtype}).',
       );
     }
-    return r.result ?? '';
+    return r.text ?? '';
   },
 );

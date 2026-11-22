@@ -1,15 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
-import '../../core/claude/readonly_run.dart';
+import '../../core/providers/structured_run.dart';
 import '../../core/git/git_root.dart' show expandHome;
-import '../../core/providers/claude_code_provider.dart';
 import 'project_planner.dart';
 import 'project_templates.dart';
 
@@ -26,6 +23,9 @@ typedef CustomStackRun = Future<Result> Function({
   Future<void>? cancelled,
 });
 
+/// Slot of the Stack própria's provider line (SPEC-100 R10).
+const customStackSlot = 'custom-stack';
+
 final customStackRunProvider = Provider<CustomStackRun>(
   (ref) =>
       ({
@@ -34,23 +34,24 @@ final customStackRunProvider = Provider<CustomStackRun>(
         String? sessionId,
         String? resumeId,
         Future<void>? cancelled,
-      }) => runReadOnlyClaude(
+      }) async => (await runStructured(
         ref,
-        cwd: cwd,
-        providerId: 'claude',
-        cancelled: cancelled,
-        prompt: prompt,
-        options: ClaudeOptions(
+        StructuredIntent(
+          cwd: cwd,
+          providerId: 'claude',
+          cancelled: cancelled,
+          prompt: prompt,
           sessionId: sessionId,
           resumeId: resumeId,
-          permissionMode: ClaudePermissionMode.defaultMode,
-          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-          appendSystemPrompt: customStackSystemPrompt,
-          jsonSchema: jsonEncode(customStackSchema),
-          maxBudgetUsd: ProjectPlanner.budgetUsd,
-          includePartialMessages: false,
+          instructions: customStackSystemPrompt,
+          schema: customStackSchema,
+          claude: const ClaudeStructuredExtras(
+            maxBudgetUsd: ProjectPlanner.budgetUsd,
+          ),
+          slot: customStackSlot,
+          label: 'a Stack própria',
         ),
-      ),
+      )).raw,
 );
 
 /// One message of the modal's conversation (what the person asked).

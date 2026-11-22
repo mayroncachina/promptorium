@@ -88,17 +88,21 @@ void main() {
   });
 
   group('providerFlows (R3)', () {
-    test('SPEC-096 R1: o Codex roda só em Prompt e Sessões', () {
+    test('SPEC-096 R1, SPEC-100 R8: o Codex roda em Prompt, Sessões e '
+        'execuções estruturadas', () {
       for (final f in AppFlow.values) {
         expect(
           ProviderFlows.defaults.allows('codex', f),
-          f == AppFlow.prompt || f == AppFlow.sessions,
+          f == AppFlow.prompt ||
+              f == AppFlow.sessions ||
+              f == AppFlow.structured,
           reason: f.name,
         );
         expect(ProviderFlows.defaults.allows('claude', f), isTrue);
       }
       // Each flow still locked names the spec that releases it (mock 4).
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.prompt)));
+      expect(codexFlowSpecs.keys, isNot(contains(AppFlow.structured)));
       expect(codexFlowSpecs[AppFlow.runSpec], 'SPEC-101');
       expect(flowLockedLabel('Codex'), 'Codex · Só Claude Code por enquanto');
     });
