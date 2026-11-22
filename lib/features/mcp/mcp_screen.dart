@@ -21,6 +21,7 @@ import 'mcp_cli.dart';
 import 'mcp_config.dart';
 import 'mcp_rules.dart';
 import 'mcp_state.dart';
+import 'widgets/copy_to_codex_dialog.dart';
 
 part 'codex_mcp_view.dart';
 
@@ -757,8 +758,8 @@ class _ServerDetailState extends ConsumerState<_ServerDetail> {
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          Wrap(
+            runSpacing: 8,
             children: [
               SmallButton(
                 key: const ValueKey('mcp-test'),
@@ -768,6 +769,23 @@ class _ServerDetailState extends ConsumerState<_ServerDetail> {
                     ? null
                     : _test,
               ),
+              // SPEC-105 R6: a one-time copy to the Codex.
+              if (c != null) ...[
+                const SizedBox(width: 8),
+                SmallButton(
+                  key: const ValueKey('mcp-copy-codex'),
+                  label: 'Copiar para o Codex',
+                  height: 32,
+                  color: AppColors.teal,
+                  onTap: () => showCopyToCodexDialog(
+                    context,
+                    config: c,
+                    cwd: widget.cwd,
+                    workspacePath: widget.registryKey,
+                    workspaceName: ref.read(activeWorkspaceProvider)?.name,
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
               SmallButton(
                 key: const ValueKey('mcp-restart'),
