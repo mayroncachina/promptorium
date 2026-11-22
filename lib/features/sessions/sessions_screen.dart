@@ -25,6 +25,7 @@ import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
 import 'widgets/point_button.dart';
 import 'widgets/preview_tab.dart';
+import 'widgets/quota_switch_banner.dart';
 import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
@@ -443,6 +444,8 @@ class _SessionMain extends ConsumerWidget {
               assistantName: providerBrandName(s.provider),
             ),
           ),
+          // SPEC-099 R2: the quota ran out; the other agent has some.
+          QuotaSwitchBanner(session: s),
           // SPEC-087 R2: the context meter (one per pane, its own window).
           ContextBar(target: SessionTarget(s.id)),
           SessionComposer(

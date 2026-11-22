@@ -126,6 +126,7 @@ class _ContinueDialogState extends ConsumerState<ContinueDialog> {
       path: _path,
       handoff: _source.handoff,
       summary: _path == ContinuePath.summary ? _summary() : null,
+      cut: _source.status == HandoffSourceStatus.cut,
     );
     _generated = text;
     _message.text = text;
@@ -726,7 +727,12 @@ class _ContinueDialogState extends ConsumerState<ContinueDialog> {
                       background: AppColors.amber,
                       border: AppColors.amber,
                       fontWeight: FontWeight.w600,
-                      onTap: _busy || mode == null || !_source.ready
+                      // Waiting for the handoff only holds its own path.
+                      onTap:
+                          _busy ||
+                              mode == null ||
+                              (_path == ContinuePath.aiMemory &&
+                                  !_source.ready)
                           ? null
                           : _go,
                     ),

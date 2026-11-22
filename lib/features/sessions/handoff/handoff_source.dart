@@ -12,7 +12,9 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../project/widgets/ai_memory_view.dart' show aiMemoryWhen;
+import '../../../ui/shell/navigation.dart';
 import '../session_manager.dart';
+import '../sessions_screen.dart' show SessionTab, sessionTabProvider;
 import '../timeline_provider.dart';
 import '../widgets/session_style.dart';
 import '../widgets/session_terminal.dart';
@@ -112,7 +114,9 @@ class HandoffSourceState {
       ),
     if (installed)
       PathOption(
-        title: 'Terminal com ai-memory run ${targetName.toLowerCase()}',
+        title:
+            'Terminal com ai-memory run '
+            '${targetName.startsWith('Codex') ? 'codex' : 'claude'}',
         text: 'Mais opções · experimental · fora da timeline.',
         path: ContinuePath.terminal,
         reason: terminalReason,
@@ -353,6 +357,8 @@ class _HandoffSourceState extends ConsumerState<HandoffSource> {
               s.worktreePath != ws.path,
         );
     ref.read(selectedSessionProvider.notifier).select(s.id);
+    ref.read(sessionTabProvider(s.id).notifier).set(SessionTab.terminal);
+    ref.read(navigationProvider.notifier).go(AppSection.sessions);
   }
 
   String? _polishReason() {

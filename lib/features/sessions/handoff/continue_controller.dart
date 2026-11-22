@@ -9,6 +9,7 @@ import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/run_intent.dart';
 import '../../../data/providers.dart';
 import '../../resume/activity_journal.dart';
+import '../../../ui/shell/navigation.dart';
 import '../session_manager.dart';
 import 'continue_link.dart';
 import 'session_summary.dart' show providerWords;
@@ -169,6 +170,7 @@ String continueMessage({
   required ContinuePath path,
   Handoff? handoff,
   String? summary,
+  bool cut = true,
 }) {
   final from = '"$originTitle" (${providerWords(originProvider)})';
   switch (path) {
@@ -179,6 +181,12 @@ String continueMessage({
             'não estiver no seu contexto, aceite-a com memory_handoff_accept '
             'passando handoff_id "${handoff.id}". Confira o git status e '
             'siga pelos próximos passos.';
+      }
+      if (!cut) {
+        return 'Continue o trabalho da sessão $from neste worktree. A '
+            'passagem do ai-memory é entregue no início; se não estiver no '
+            'seu contexto, leia-a com memory_handoff_list. Confira o git '
+            'status e siga pelos próximos passos.';
       }
       return 'Continue o trabalho da sessão $from neste worktree. A sessão '
           'foi cortada sem passagem: leia o que o ai-memory capturou dela '
@@ -320,6 +328,7 @@ class ContinueController {
       ),
     );
     ref.read(selectedSessionProvider.notifier).select(id);
+    ref.read(navigationProvider.notifier).go(AppSection.sessions);
     return id;
   }
 }

@@ -33,6 +33,9 @@ class SessionTerminal {
   /// Session id (Sessões) or worktree path (Código).
   final String sessionId;
   final terminal = Terminal(maxLines: 10000);
+
+  /// What runs, for the header (null = the agent's resume command).
+  String? title;
   final controller = TerminalController();
   Pty? pty;
   bool running = false;
@@ -199,7 +202,10 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
       throw const AgentUnavailable('O ai-memory não foi encontrado.');
     }
     if (!ref.mounted) return;
-    final t = SessionTerminal(s.id);
+    final t = SessionTerminal(s.id)
+      ..title =
+          'ai-memory ${aiMemoryRunArgs(target, yolo: yolo).join(' ')} · fora '
+          'da timeline';
     t.terminal.write(
       '[ai-memory run ${aiMemoryRunArgs(target, yolo: yolo).skip(1).join(' ')}'
       ' · fora da timeline]\r\n',
@@ -370,7 +376,7 @@ class SessionTerminalView extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${session.provider == 'codex' ? 'codex resume ${session.externalId}' : 'claude --resume ${session.id}'} · ${session.worktreePath}',
+                  '${ref.watch(sessionTerminalsProvider)[session.id]?.title ?? (session.provider == 'codex' ? 'codex resume ${session.externalId}' : 'claude --resume ${session.id}')} · ${session.worktreePath}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
