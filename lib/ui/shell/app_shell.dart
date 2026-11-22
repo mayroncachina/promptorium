@@ -35,6 +35,7 @@ import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
 import '../../features/activities/activities_screen.dart';
 import '../../features/resume/widgets/resume_host.dart';
+import '../../core/memory/ai_memory_state.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/glass.dart';
@@ -360,6 +361,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     final section = ref.watch(navigationProvider);
     // Watches the workspace's specs / agents / skills / config (F11).
     ref.watch(workspaceWatcherProvider);
+    // SPEC-098 R1: ai-memory is detected when the app opens (only the disk,
+    // `--version` and /healthz; nothing at all without the binary) and the
+    // result stays cached until "Verificar de novo".
+    ref.listen(aiMemoryDetectionProvider, (_, _) {});
     // SPEC-086 R7: the request of a notification was already answered.
     ref.listen(alertNoticeProvider, (_, notice) {
       if (notice == null) return;

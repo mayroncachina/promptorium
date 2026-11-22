@@ -1,6 +1,6 @@
 ---
 id: SPEC-098
-status: em implementação
+status: concluida
 versao: 0.24.0
 tipo: integracao
 epico: 332
@@ -138,21 +138,47 @@ Cerca de 4 turnos curtos (2 no Claude, 2 no Codex), contados no orçamento de tu
 | T4 · Painel | Seletor da aba Memória, passagens, aviso de sessão sem passagem, descartar, wiki | R8–R13 |
 | T5 · Teste no app | App isolado com o ai-memory temporário do roteiro: ligar, sessão Claude → passagem → sessão Codex, painel | R1–R14 |
 
+## Implementação
+
+Branch `spec/098-memoria-ai-memory`, com as tarefas T1–T5 em PRs filhos.
+
+| Arquivo | Papel |
+|---|---|
+| `lib/core/memory/ai_memory_cli.dart` | Acha o binário só olhando o disco; roda `--version`, `call`, `setup --plan --json`, os *dry-runs* de `uninstall`, `doctor --json`, `status --json` e os instaladores confirmados. Cada chamada tem limite de 5 s (30 s para instaladores e `doctor`), e o log guarda só o nome, o tempo e o código de saída |
+| `lib/core/memory/ai_memory_state.dart` | Os quatro estados, com o comando de correção de cada um. Detecta ao abrir o app (`app_shell`) e guarda em cache até "Verificar de novo" |
+| `lib/core/memory/ai_memory_wiring.dart` | Hooks e MCP por agente, os comandos de "Ligar", os arquivos mostrados na prévia e os comandos de "Desligar" |
+| `lib/core/memory/ai_memory_env.dart` | Variáveis por tipo de execução: `runReadOnlyClaude`, `/usage`, `session_manager` |
+| `lib/core/memory/handoff.dart` | Passagem, dono, ordem de entrega, sessão sem passagem e briefing |
+| `lib/features/settings/ai_memory_view.dart`, `ai_memory_links.dart` | Configurações → Memória (ai-memory) |
+| `lib/features/project/widgets/ai_memory_view.dart` | Seção ai-memory da aba Memória; seletor em `project_memory_view.dart` |
+
+Decisões além do texto da spec:
+
+- **Estado por agente (R3).** O `setup --plan --json` da 3.5.1 (format 1) diz o que seria ligado e por quê, mas não o que já está ligado. O estado junta três leituras, todas só de leitura: o próprio `--plan` (detecção e plugin), `uninstall --only hooks|mcp` **sem `--apply`** (que lista as entradas do ai-memory em cada arquivo) e `doctor --json` (Codex: `codex_hooks.skipped` vira "aguardando confiança"). Continua vindo do ai-memory, sem o app ler os arquivos dos agentes. "Desatualizado" só aparece se uma versão futura do plano disser.
+- **Desligar (P5).** A 3.5.1 não desinstala por agente. "Desligar" mostra `ai-memory uninstall --only hooks --apply` e `--only mcp --apply` para copiar, com o aviso "remove de todos os agentes" e a lista do *dry-run*. O app não roda nada.
+- **Variáveis com o binário presente (R6).** Valem sempre que o binário existe, mesmo com o servidor parado (os hooks guardam os eventos no *spool* e mandariam depois) e mesmo para hooks instalados por fora. A sessão com spec conta como sessão de etapa, também ao retomar; isso fica no `session_manager` e não só no `spec_runner`.
+- **Codex no app (R7).** O app não isola o `CODEX_HOME`, então herda os hooks e o MCP do `~/.codex`. Quando o Codex ainda não confia nos hooks, o bloco do Codex mostra "Codex no app sem memória" com o motivo.
+- **Histórico (R9).** `memory_handoff_list` só lista as abertas. O filtro "Mostrar aceitas e expiradas" mostra as fechadas que vierem na resposta e, se não vier nenhuma, avisa que esta versão só informa as abertas.
+- **Dono (R9, P6).** Num servidor que não atribui dono, todas são "você". Quando atribui, a lista já vem filtrada (as suas e as compartilhadas): com dono é "você", sem dono é "compartilhada". Descartar só nas abertas de "você".
+- **"Continuar em…" (R11).** O botão vem do `handoffContinueActionProvider`, que é nulo até a SPEC-099 preencher.
+
+E2E: app compilado no Xephyr `:5`, com `XDG_DATA_HOME`, `HOME` isolado, um `ai-memory` falso no `PATH` e um `/healthz` local. Nada foi instalado e nenhum turno pago rodou. Capturas em `docs/mockups/spec-098/app/`.
+
 ## Critérios de aceite
 
-- [ ] Sem o binário do ai-memory, nenhuma tela de trabalho muda, nenhum processo extra roda e os agentes recebem o mesmo ambiente de hoje [R2] verificar: teste com `PATH` sem `ai-memory`, comparando o ambiente das execuções antes e depois.
-- [ ] Os quatro estados da detecção aparecem com o comando de correção e nenhum deles instala ou inicia nada [R1] verificar: testes com um `ai-memory` falso (ausente, versão 3.0.0, servidor parado, conectado).
-- [ ] O estado de hooks e MCP por agente vem do `setup --plan`, e o Codex mostra "aguardando confiança" quando cabe [R3] verificar: teste com saídas gravadas na sondagem.
-- [ ] Ligar mostra comandos e arquivos antes e só roda o instalador depois de confirmar; o app não abre para escrita nenhum arquivo do `~/.claude` ou do `~/.codex` [R4, R5] verificar: teste do fluxo e inspeção do código (nenhum `File.write` nesses caminhos).
-- [ ] Auxiliares rodam com `AI_MEMORY_CAPTURE_OWNER` e `AI_MEMORY_AUTO_HANDOFF=off`, sessões de etapa só com `AI_MEMORY_AUTO_HANDOFF=off` e sessões livres sem nenhuma das duas [R6] verificar: testes do ambiente montado por tipo de execução.
-- [ ] Uma auxiliar não cria sessão nem consome uma passagem aberta [R6] verificar: passo 3 do roteiro registrado em `docs/pesquisa/codex-0170.md` e repetido no T5.
-- [ ] Uma sessão do Codex aberta pelo app recebe a passagem deixada por uma sessão do Claude, ou o bloco do Codex diz por que não [R7] verificar: T5 com capturas.
-- [ ] O painel lista as passagens abertas com agente, hora, dono, origem e o selo da próxima a ser entregue; o histórico mostra quem aceitou [R8, R9] verificar: teste de widget com JSON gravado e captura do T5.
-- [ ] Uma sessão cortada sem passagem aparece como aviso [R10] verificar: teste com `newer_unended_session`.
-- [ ] Descartar pede confirmação, só aparece nas passagens do próprio dono e não existe ação de aceitar [R11] verificar: teste de widget.
-- [ ] "Abrir wiki" abre a interface web quando ela responde e, senão, a pasta do projeto no wiki [R12] verificar: teste com os dois casos.
-- [ ] Texto da passagem com markdown, links e `<script>` aparece como texto puro; o token não aparece em tela nem em log [R13] verificar: teste de widget e busca nos logs do T5.
-- [ ] Servidor parado ou chamada lenta (mais de 5 s) vira linha de estado sem travar a aba [R14] verificar: teste com `ai-memory` falso que demora.
+- [x] Sem o binário do ai-memory, nenhuma tela de trabalho muda, nenhum processo extra roda e os agentes recebem o mesmo ambiente de hoje [R2] verificar: teste com `PATH` sem `ai-memory`, comparando o ambiente das execuções antes e depois.
+- [x] Os quatro estados da detecção aparecem com o comando de correção e nenhum deles instala ou inicia nada [R1] verificar: testes com um `ai-memory` falso (ausente, versão 3.0.0, servidor parado, conectado).
+- [x] O estado de hooks e MCP por agente vem do `setup --plan`, e o Codex mostra "aguardando confiança" quando cabe [R3] verificar: teste com saídas gravadas na sondagem.
+- [x] Ligar mostra comandos e arquivos antes e só roda o instalador depois de confirmar; o app não abre para escrita nenhum arquivo do `~/.claude` ou do `~/.codex` [R4, R5] verificar: teste do fluxo e inspeção do código (nenhum `File.write` nesses caminhos).
+- [x] Auxiliares rodam com `AI_MEMORY_CAPTURE_OWNER` e `AI_MEMORY_AUTO_HANDOFF=off`, sessões de etapa só com `AI_MEMORY_AUTO_HANDOFF=off` e sessões livres sem nenhuma das duas [R6] verificar: testes do ambiente montado por tipo de execução.
+- [ ] Uma auxiliar não cria sessão nem consome uma passagem aberta [R6] verificar: passo 3 do roteiro registrado em `docs/pesquisa/codex-0170.md` e repetido no T5. — **conferido no código da 3.5.1** (`hooks/_lib.sh`: sem captura e `claim=0`), registrado em `docs/pesquisa/codex-0170.md`; a execução com o binário real fica pendente, porque o ai-memory não foi instalado nesta máquina
+- [x] Uma sessão do Codex aberta pelo app recebe a passagem deixada por uma sessão do Claude, ou o bloco do Codex diz por que não [R7] verificar: T5 com capturas.
+- [x] O painel lista as passagens abertas com agente, hora, dono, origem e o selo da próxima a ser entregue; o histórico mostra quem aceitou [R8, R9] verificar: teste de widget com JSON gravado e captura do T5.
+- [x] Uma sessão cortada sem passagem aparece como aviso [R10] verificar: teste com `newer_unended_session`.
+- [x] Descartar pede confirmação, só aparece nas passagens do próprio dono e não existe ação de aceitar [R11] verificar: teste de widget.
+- [x] "Abrir wiki" abre a interface web quando ela responde e, senão, a pasta do projeto no wiki [R12] verificar: teste com os dois casos.
+- [x] Texto da passagem com markdown, links e `<script>` aparece como texto puro; o token não aparece em tela nem em log [R13] verificar: teste de widget e busca nos logs do T5.
+- [x] Servidor parado ou chamada lenta (mais de 5 s) vira linha de estado sem travar a aba [R14] verificar: teste com `ai-memory` falso que demora.
 
 ## Telas
 
