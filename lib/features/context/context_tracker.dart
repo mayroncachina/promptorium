@@ -112,7 +112,16 @@ class ContextTracker {
         for (final b in e.blocks) {
           if (b is ToolUseBlock && _subagentTools.contains(b.name)) {
             final type = '${b.input['subagent_type'] ?? ''}';
-            _subagents[b.id] = type.isEmpty ? 'subagente' : type;
+            // SPEC-107 R12: a Codex subagent is named by its thread.
+            final threads = b.input['threads'];
+            final thread = threads is List && threads.isNotEmpty
+                ? '${threads.first}'
+                : '';
+            _subagents[b.id] = type.isNotEmpty
+                ? type
+                : thread.isNotEmpty
+                ? 'thread ${thread.length > 4 ? '${thread.substring(0, 4)}…' : thread}'
+                : 'subagente';
           }
         }
       // A `/compact` alone ends with `num_turns: 0`: not a turn.

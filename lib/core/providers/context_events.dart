@@ -26,12 +26,14 @@ abstract final class ContextAppEvents {
   static Map<String, dynamic> instructionsEvent({
     required String provider,
     required List<String> sources,
+    String? cwd,
     DateTime? at,
   }) => {
     'type': instructions,
     'v': 1,
     'provider': provider,
     'sources': sources,
+    'cwd': ?cwd,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 

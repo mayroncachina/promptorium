@@ -404,7 +404,7 @@ void main() {
       final s = t.snapshot;
       expect(s.current!.tokens, 100000);
       expect(s.readings, hasLength(1));
-      expect(s.subagents, ['subagente']);
+      expect(s.subagents, ['thread 7f2e…']);
       final row = t.sources.grouped[ContextSourceGroup.subagents]!.single;
       expect(row.label, 'subagente (thread 7f2e…)');
       expect(row.stateLabel(1), 'contexto separado · medição indisponível');
@@ -448,6 +448,7 @@ void main() {
           ContextAppEvents.instructionsEvent(
             provider: 'codex',
             sources: ['/w/AGENTS.md', '/w/packages/api/CLAUDE.md'],
+            cwd: '/w',
           ),
         ),
         AgentEvent.fromJson(
@@ -492,8 +493,8 @@ void main() {
       final g = t.sources.grouped;
       final instructions = g[ContextSourceGroup.instructions]!;
       expect(instructions.map((s) => s.label), [
-        '/w/packages/api/CLAUDE.md',
-        '/w/AGENTS.md',
+        'packages/api/CLAUDE.md',
+        'AGENTS.md',
       ]);
       expect(
         instructions.first.stateLabel(1),
@@ -501,9 +502,9 @@ void main() {
       );
       final files = g[ContextSourceGroup.files]!;
       expect(files.map((s) => (s.label, s.detail)), [
-        ('/w', 'listFiles'),
+        ('.', 'listFiles'),
         ('lib/ · "expiresAt"', 'search'),
-        ('/w/lib/cache.dart', 'read'),
+        ('lib/cache.dart', 'read'),
       ]);
       expect(files.last.stateLabel(1), 'leitura observada (comando) · t1');
       final mcp = g[ContextSourceGroup.tools]!.single;

@@ -261,13 +261,14 @@ class ContextSources {
   /// Instruction files the Codex says it loaded (R10): proof of loading,
   /// with no weight.
   void _instructions(Map<String, dynamic> j, int itemIndex) {
+    final cwd = j['cwd'] as String?;
     for (final path in j['sources'] as List? ?? const []) {
       if (path is! String || path.isEmpty) continue;
       _put(
         'instr:$path',
         ContextSource(
           group: ContextSourceGroup.instructions,
-          label: path,
+          label: _relative(path, cwd),
           ref: path,
           evidence: ContextEvidence.loaded,
           turn: _turn,
@@ -280,13 +281,14 @@ class ContextSources {
 
   void _commandAction(CommandAction a, String? cwd, int turn, int itemIndex) {
     final path = a.path ?? cwd ?? '.';
+    final shown = _relative(path, cwd);
     final (key, label) = switch (a.type) {
-      CommandAction.read => ('file:$path', path),
+      CommandAction.read => ('file:$path', shown),
       CommandAction.search => (
         'search:$path:${a.query ?? ''}',
-        a.query == null || a.query!.isEmpty ? path : '$path · "${a.query}"',
+        a.query == null || a.query!.isEmpty ? shown : '$shown · "${a.query}"',
       ),
-      _ => ('ls:$path', path),
+      _ => ('ls:$path', shown),
     };
     _put(
       key,
@@ -300,6 +302,14 @@ class ContextSources {
         detail: a.type,
       ),
     );
+  }
+
+  /// [path] relative to [cwd] when inside it (the row stays readable).
+  static String _relative(String path, String? cwd) {
+    if (cwd == null || cwd.isEmpty) return path;
+    final base = cwd.endsWith('/') ? cwd : '$cwd/';
+    if (path == cwd) return '.';
+    return path.startsWith(base) ? path.substring(base.length) : path;
   }
 
   /// MCP calls and subagents of the Codex (R11, R12): evidence of a call

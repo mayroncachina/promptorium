@@ -415,6 +415,7 @@ class CodexRun implements ManagedAgentRun {
           ContextAppEvents.instructionsEvent(
             provider: 'codex',
             sources: instructionSources,
+            cwd: options.workingDirectory,
           ),
         );
       }
