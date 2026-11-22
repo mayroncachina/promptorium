@@ -1,3 +1,5 @@
+import '../../core/memory/ai_memory_state.dart';
+import 'conversation_continue.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -343,7 +345,13 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
 
   /// "Nova conversa" of the Contexto panel (R9): a new draft, empty or with
   /// the summary the person reviewed (sent only when they send it).
+  /// SPEC-099 R12: the provider chosen for the next new conversation.
+  String? _nextProvider;
+
   void _newConversation(String? summary) {
+    final next = _nextProvider;
+    _nextProvider = null;
+    if (next != null) startConversationIn(ref, next, null);
     ref.read(selectedConversationProvider.notifier).select(null);
     ref.read(contextPanelOpenProvider(ContextPlace.prompt).notifier).set(false);
     setState(() {
@@ -371,6 +379,13 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
         : ref.watch(conversationListsProvider(ws.id));
     final selectedId = ref.watch(selectedConversationProvider);
     final conv = lists.byId(selectedId);
+    // SPEC-099 R12: "Continuar no Codex" leaves its message in the field.
+    ref.listen<String?>(promptTextDraftProvider, (_, text) {
+      if (text == null) return;
+      ref.read(promptTextDraftProvider.notifier).take();
+      _text.text = text;
+      _focus.requestFocus();
+    });
     // SPEC-056 R2: another conversation opened; the title being edited in
     // the header was of the previous one.
     ref.listen<int?>(selectedConversationProvider, (_, _) {
@@ -690,6 +705,20 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                         onRemoveAttachment: (path) => _removePending(ws, path),
                         onNewConversation: _newConversation,
                         summary: () => conversationSummary(conv, items, files),
+                        // SPEC-099 R12: the provider of the new conversation
+                        // and the ai-memory handoff.
+                        providers: [
+                          'claude',
+                          if (promptRunsIn(ref, 'codex')) 'codex',
+                        ],
+                        onProvider: (p) => _nextProvider = p,
+                        handoff: ref.watch(
+                                  aiMemoryDetectionProvider.select(
+                                    (d) => d.value?.serverUp ?? false,
+                                  ),
+                                )
+                            ? () => nextHandoffMessage(ref, ws!.path)
+                            : null,
                       ),
                     )
                   else

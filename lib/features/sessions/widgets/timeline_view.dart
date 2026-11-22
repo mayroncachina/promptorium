@@ -21,6 +21,7 @@ import '../../snippets/snippet_scope.dart';
 import '../edit_diff.dart';
 import '../restore/restore_service.dart';
 import '../session_manager.dart';
+import '../handoff/handoff_card.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
 import '../tool_expanded.dart';
@@ -545,6 +546,11 @@ class TimelineItemView extends StatelessWidget {
         editInfo: editInfo,
       ),
       ThinkingItem() => ThinkingCard(item: it),
+      // SPEC-099 R8: where the session came from and what came with it.
+      HandoffItem() => HandoffCard(
+        item: it,
+        sessionId: SecretSessionScope.of(context),
+      ),
       SecretBlockItem() => switch (SecretSessionScope.of(context)) {
         final String id => SecretBlockCard(item: it, sessionId: id),
         null => _Notice(it),

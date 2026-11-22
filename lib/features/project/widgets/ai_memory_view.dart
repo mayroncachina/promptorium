@@ -9,6 +9,8 @@ import '../../../data/providers.dart';
 import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
+import '../../sessions/handoff/handoff_from_memory.dart'
+    show handoffContinueAction;
 import '../../sessions/widgets/session_style.dart';
 import '../../settings/ai_memory_view.dart';
 
@@ -53,9 +55,8 @@ final aiMemoryPanelProvider = FutureProvider.autoDispose
       }
     });
 
-/// "Continuar em…" of a handoff belongs to SPEC-099; without it the button
-/// does not appear. SPEC-099 overrides this provider (or sets its value)
-/// with the label and the action.
+/// "Continuar em…" of a handoff (SPEC-099 R13): opens "Continuar no …" with
+/// that handoff chosen. Null hides the button.
 @immutable
 class HandoffContinueAction {
   const HandoffContinueAction({required this.label, required this.run});
@@ -66,7 +67,7 @@ class HandoffContinueAction {
 }
 
 final handoffContinueActionProvider = Provider<HandoffContinueAction?>(
-  (ref) => null,
+  (ref) => handoffContinueAction,
 );
 
 /// "hoje 11:41", "ontem 09:15", "18/11 10:00".

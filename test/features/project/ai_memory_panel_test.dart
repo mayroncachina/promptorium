@@ -77,8 +77,8 @@ void main() {
           (url, timeout) async => webStatus,
         ),
         aiMemoryOpenerProvider.overrideWithValue((t) async => opened.add(t)),
-        if (continueAction != null)
-          handoffContinueActionProvider.overrideWithValue(continueAction),
+        // SPEC-099 fills the action; these tests set theirs (or none).
+        handoffContinueActionProvider.overrideWithValue(continueAction),
       ],
     );
     addTearDown(c.dispose);
@@ -164,7 +164,7 @@ void main() {
     );
     expect(find.text('lib/core/spec_parser.dart'), findsOneWidget);
     expect(find.text('Copiar id 01JDX4…'), findsOneWidget);
-    // R11: the panel never accepts; "Continuar em…" only with SPEC-099.
+    // R11: the panel never accepts; "Continuar em…" only with an action.
     expect(find.textContaining('Aceitar'), findsNothing);
     expect(find.textContaining('Continuar'), findsNothing);
     // Read without claiming (memory_handoff_list), in the workspace.
