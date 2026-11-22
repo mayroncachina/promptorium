@@ -603,6 +603,31 @@ class CodexRun implements ManagedAgentRun {
           if (turn['error'] != null) 'error': turn['error'],
         });
         _turn = null;
+      case 'hook/started':
+      case 'hook/completed':
+        // SPEC-103 R6: which hook ran and how it ended; the details of the
+        // app's hooks come from its hooks.log.
+        final run = p['run'] as Map? ?? const {};
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook',
+          'method': method,
+          'hook': {
+            for (final k in [
+              'id',
+              'eventName',
+              'status',
+              'source',
+              'sourcePath',
+              'statusMessage',
+            ])
+              if (run[k] != null) k: run[k],
+            'entries': [
+              for (final e in run['entries'] as List? ?? const [])
+                if (e is Map) {'kind': e['kind'], 'text': e['text']},
+            ],
+          },
+        });
       case 'error':
         if (p['willRetry'] != true) {
           _emit({'type': 'system', 'subtype': 'error', 'error': p['error']});
@@ -909,6 +934,11 @@ class CodexRun implements ManagedAgentRun {
     });
     _cancel(requestId);
   }
+
+  /// `hooks/list` of this thread (SPEC-103 R5): the hooks the App Server
+  /// will really run, with their origin and trust.
+  Future<Map<String, dynamic>> hooksList() =>
+      rpc.request('hooks/list', {'threadId': _thread});
 
   @override
   Future<void> interrupt() async {

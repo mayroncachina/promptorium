@@ -10,6 +10,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
 import '../../core/git/worktree_roots.dart';
 import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
@@ -1635,6 +1636,7 @@ class SessionManager extends Notifier<SessionManagerState> {
                     'do Claude Code.',
                   ));
         final compact = saved['autocompact'] as String?;
+        final codexHooks = await _prepareCodexHooks(id, cwd: cwd, root: root);
         final effective = AgentStartOptions.forAccess(
           access,
           workingDirectory: cwd,
@@ -1662,11 +1664,20 @@ class SessionManager extends Notifier<SessionManagerState> {
               writableRoots: root != null && root != cwd
                   ? worktreeWritableRoots(cwd)
                   : const [],
+              configOverrides: codexHooks.overrides,
             ),
           ),
         );
         final run = await provider.start(effective);
         process = run as ManagedAgentRun;
+        if (run is CodexRun) {
+          await _confirmCodexHooks(
+            id,
+            run,
+            plan: codexHooks.plan,
+            command: codexHooks.command,
+          );
+        }
         await _repo.setRunConfig(
           id,
           jsonEncode({
@@ -1834,11 +1845,33 @@ class SessionManager extends Notifier<SessionManagerState> {
     Future<String?> plain() =>
         writeRunSettings(ref.read(runSettingsDirProvider), extra);
     if (hooks == null) return plain();
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (plan == null) return plain();
+    try {
+      final path = await hooks.prepareClaude(plan, extra: extra);
+      if (plan.enabled.contains(ManagedHook.secrets)) _secretHooks.add(id);
+      return path;
+    } catch (e) {
+      debugPrint('sessão $id: hooks do app não preparados — $e');
+      return null;
+    }
+  }
+
+  /// The neutral plan of the session's hooks (SPEC-103 R1); null = no
+  /// hooks of the app (tests, no `python3`, an error).
+  Future<ManagedHookPlan?> _hookPlan(
+    String id, {
+    required String cwd,
+    String? root,
+  }) async {
+    final hooks = ref.read(managedHooksProvider);
+    _secretHooks.remove(id);
+    if (hooks == null) return null;
     await _hookCleanups[id];
     try {
       if (!await pythonAvailable()) {
         _noPython.add(id);
-        return await plain();
+        return null;
       }
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
@@ -1861,12 +1894,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           debugPrint('sessão $id: regras do vigia não preparadas — $e');
         }
       }
-      if (secrets != null) {
-        _secretHooks.add(id);
-      } else {
-        _secretHooks.remove(id);
-      }
-      return await hooks.prepare(
+      return hooks.plan(
         id,
         enabled: enabled,
         rules: blockRules(
@@ -1877,12 +1905,89 @@ class SessionManager extends Notifier<SessionManagerState> {
         ),
         formatCommand: config?.formatCommand,
         secrets: secrets,
-        extra: extra,
       );
     } catch (e) {
-      _secretHooks.remove(id);
       debugPrint('sessão $id: hooks do app não preparados — $e');
       return null;
+    }
+  }
+
+  /// SPEC-103 R3: the Codex adapter — the plan's files in the session
+  /// folder and its `-c` overrides. Never `--trust`, never `~/.codex`.
+  Future<
+    ({ManagedHookPlan? plan, String? command, Map<String, String> overrides})
+  >
+  _prepareCodexHooks(String id, {required String cwd, String? root}) async {
+    final hooks = ref.read(managedHooksProvider);
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (hooks == null || plan == null) {
+      return (plan: plan, command: null, overrides: const <String, String>{});
+    }
+    try {
+      await hooks.writePlan(plan);
+      final command = hooks.commandOf(plan, provider: 'codex');
+      return (
+        plan: plan,
+        command: command,
+        overrides: codexHookOverrides(plan, command),
+      );
+    } catch (e) {
+      debugPrint('sessão $id: hooks do Codex não preparados — $e');
+      return (plan: null, command: null, overrides: const <String, String>{});
+    }
+  }
+
+  /// SPEC-103 R5: what `hooks/list` says the App Server will run; never
+  /// what was sent. Sets the session state (chip, R9) and the Vigia's hook.
+  Future<void> _confirmCodexHooks(
+    String id,
+    CodexRun run, {
+    required ManagedHookPlan? plan,
+    required String? command,
+  }) async {
+    if (ref.read(managedHooksProvider) == null) return;
+    CodexHookStatus status;
+    if (plan == null || command == null) {
+      status = CodexHookStatus(
+        mode: CodexHookMode.postTurn,
+        planned: {
+          for (final h in ManagedHook.values)
+            if (ref.read(appSettingsProvider.notifier).get(h.settingKey) != '0')
+              h,
+        },
+        reason: _noPython.contains(id)
+            ? 'python3 não encontrado: os hooks do app ficam desligados.'
+            : 'Os hooks do app não foram preparados.',
+        at: DateTime.now(),
+      );
+    } else if (plan.isEmpty) {
+      status = codexHookStatus(plan, command: command, at: DateTime.now());
+    } else {
+      Map<String, dynamic>? result;
+      Object? error;
+      try {
+        result = await run.hooksList();
+      } catch (e) {
+        error = e;
+      }
+      status = codexHookStatus(
+        plan,
+        command: command,
+        result: result,
+        error: error,
+        at: DateTime.now(),
+      );
+    }
+    for (final p in status.problems) {
+      debugPrint('codex[$id] hooks/list: $p');
+    }
+    if (status.active.contains(ManagedHook.secrets)) {
+      _secretHooks.add(id);
+    } else {
+      _secretHooks.remove(id);
+    }
+    if (ref.mounted) {
+      ref.read(codexHookStatusProvider.notifier).set(id, status);
     }
   }
 
