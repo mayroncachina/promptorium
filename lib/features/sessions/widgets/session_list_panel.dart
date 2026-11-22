@@ -9,6 +9,7 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../board/widgets/card_extras.dart' show LiveToolLine;
+import '../handoff/continue_link.dart';
 import '../session_manager.dart';
 import '../replay/open_replay.dart';
 import '../replay/replay_view.dart' show replayAvailable;
@@ -194,6 +195,12 @@ class _SessionTile extends ConsumerWidget {
     final busy = ref.watch(
       sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
     );
+    // SPEC-099 R9: the origin of a continuation says where it went.
+    final continued = ref.watch(
+      continuationLinksProvider(session.workspaceId).select(
+        (l) => l.value?.continuedInto(session.id) != null,
+      ),
+    );
     final radius = BorderRadius.circular(8);
     final end = session.endedAt ?? DateTime.now();
     return AppPressable(
@@ -351,6 +358,12 @@ class _SessionTile extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (continued)
+                          Text(
+                            ' · continuada →',
+                            key: ValueKey('session-continued-${session.id}'),
+                            style: const TextStyle(color: AppColors.teal),
+                          ),
                         const Spacer(),
                         Text(
                           formatRunCost(

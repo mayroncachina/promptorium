@@ -84,6 +84,34 @@ abstract final class AppEventTypes {
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 
+  /// The work passed from another session (SPEC-099 R8, P5): written once
+  /// at the start of the new session. `{"type":"promptorium_handoff",
+  /// "from":…,"from_title":…,"from_provider":…,"to_provider":…,
+  /// "path":"ai-memory|resumo","handoff":{…}?,"text":…?,"at":…}`. With the
+  /// session's `parentSessionId` it is the "continuação" link (a fork never
+  /// writes it).
+  static const handoff = 'promptorium_handoff';
+
+  /// The agent stopped at its usage limit (SPEC-099 R2):
+  /// `{"type":"promptorium_limit","provider":…,"minutes":300?,
+  /// "resets_at":…?,"kind":…?,"at":…}`.
+  static const limit = 'promptorium_limit';
+
+  static Map<String, dynamic> limitEvent({
+    required String provider,
+    int? minutes,
+    DateTime? resetsAt,
+    String? kind,
+    DateTime? at,
+  }) => {
+    'type': limit,
+    'provider': provider,
+    'minutes': ?minutes,
+    'resets_at': ?resetsAt?.toUtc().toIso8601String(),
+    'kind': ?kind,
+    'at': (at ?? DateTime.now()).toIso8601String(),
+  };
+
   /// Stdout line that was not a JSON object: `{"type":"invalid_line","raw":…}`.
   static const invalidLine = 'invalid_line';
 
@@ -334,6 +362,74 @@ class SecretBlockItem extends NoticeItem {
   ];
 
   bool get done => open.isEmpty;
+}
+
+/// The note "Continuada de …" at the top of a continued session and the
+/// card of what came with it (SPEC-099 R8). A [NoticeItem] for every view
+/// that does not know it: its text is the note.
+class HandoffItem extends NoticeItem {
+  HandoffItem(this.data, super.text, {super.at});
+
+  /// The stored event ([AppEventTypes.handoff]).
+  final Map<String, dynamic> data;
+}
+
+/// "Limite de uso atingido · cota de 5h do Claude Code · reinicia às 13:23"
+/// (SPEC-099 R2): what triggers the quota banner.
+class LimitItem extends NoticeItem {
+  LimitItem({
+    required this.provider,
+    this.minutes,
+    this.resetsAt,
+    super.at,
+  }) : super(limitNotice(provider, minutes, resetsAt), level: NoticeLevel.error);
+
+  final String provider;
+  final int? minutes;
+  final DateTime? resetsAt;
+}
+
+/// "cota de 5h", "cota semanal", "cota".
+String quotaWindowWords(int? minutes) => switch (minutes) {
+  null => 'cota',
+  10080 => 'cota semanal',
+  final m when m % 60 == 0 => 'cota de ${m ~/ 60}h',
+  final m => 'cota de $m min',
+};
+
+String _providerWords(String provider) => switch (provider) {
+  'codex' => 'Codex',
+  'claude' => 'Claude Code',
+  final p => p,
+};
+
+/// The text of a [LimitItem].
+String limitNotice(String provider, int? minutes, DateTime? resetsAt) {
+  final b = StringBuffer(
+    'Limite de uso atingido · ${quotaWindowWords(minutes)} do '
+    '${_providerWords(provider)}',
+  );
+  if (resetsAt != null) {
+    final l = resetsAt.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    b.write(' · reinicia às ${two(l.hour)}:${two(l.minute)}');
+  }
+  return b.toString();
+}
+
+/// The note of a [HandoffItem]: `Continuada de "Parser" · Claude Code ·
+/// 11:41 · mesmo worktree`.
+String handoffNotice(Map<String, dynamic> j, DateTime at) {
+  final l = at.toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final title = '${j['from_title'] ?? ''}'.trim();
+  final who = _providerWords('${j['from_provider'] ?? 'claude'}');
+  final where = j['same_worktree'] == false ? '' : ' · mesmo worktree';
+  if (title.isEmpty && j['from'] == null) {
+    return 'Passagem do ai-memory · ${two(l.hour)}:${two(l.minute)}';
+  }
+  return 'Continuada de "$title" · $who · ${two(l.hour)}:${two(l.minute)}'
+      '$where';
 }
 
 // --- reducer -----------------------------------------------------------------
@@ -655,6 +751,17 @@ class Timeline {
           NoticeItem(
             '${j['text'] ?? ''}',
             level: j['level'] == 'error' ? NoticeLevel.error : NoticeLevel.info,
+            at: at,
+          ),
+        );
+      case AppEventTypes.handoff:
+        items.add(HandoffItem(j, handoffNotice(j, at), at: at));
+      case AppEventTypes.limit:
+        items.add(
+          LimitItem(
+            provider: '${j['provider'] ?? 'claude'}',
+            minutes: j['minutes'] is int ? j['minutes'] as int : null,
+            resetsAt: DateTime.tryParse('${j['resets_at']}'),
             at: at,
           ),
         );
