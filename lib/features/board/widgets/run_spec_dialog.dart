@@ -22,6 +22,8 @@ import '../../project/project_config.dart';
 import '../../review/widgets/reviewer_run_line.dart';
 import '../../review/auto_reviewer.dart' show reviewerApplies;
 import '../../settings/settings_sections.dart';
+import '../../agents/codex_agent.dart';
+import '../../agents/widgets/codex_agent_panel.dart' show CodexAgentSummary;
 import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/composer.dart' show uiPermissionModes;
@@ -40,6 +42,7 @@ import '../../../core/providers/structured_run.dart'
     show ProviderKind, providerForKind;
 import '../spec_run_provider.dart';
 import '../spec_runner.dart';
+import 'codex_subagents_dialog.dart';
 
 /// Options of a spec run chosen in [RunSpecDialog].
 ///
@@ -169,6 +172,32 @@ Future<void> runSpec(
     );
     if (o == null) return;
   }
+  // SPEC-106 R9: subagents do not run on the Codex — said before the run
+  // starts, with the choice for this run only (the provider of a begun run
+  // never changes, decision 4).
+  if (o != null &&
+      !isClaudeCode(o.provider) &&
+      recordedSpecProvider(ref.read(appSettingsProvider), data.spec.id) ==
+          null) {
+    final names = await specSubagentNames(ref, data.spec);
+    final agentLabel = names.isEmpty
+        ? null
+        : await codexAgentLabelFor(ref, data.spec, o);
+    if (!context.mounted) return;
+    if (names.isNotEmpty) {
+      final choice = await showAppDialog<CodexSubagentsChoice>(
+        context: context,
+        barrierColor: AppColors.scrim,
+        builder: (_) => CodexSubagentsDialog(
+          spec: data.spec,
+          subagents: names,
+          agentLabel: agentLabel,
+        ),
+      );
+      if (choice == null || !context.mounted) return;
+      if (choice == CodexSubagentsChoice.claude) o = claudeRunOptions(ref, o);
+    }
+  }
   try {
     if (o != null) {
       await storeRunPlan(ref.read(specStepsRepoProvider), data.spec.id, o);
@@ -220,6 +249,68 @@ Future<void> runSpec(
       ?..hideCurrentSnackBar()
       ..showAppToast(SnackBar(content: Text(e.message)));
   }
+}
+
+/// Names of the subagents a run of [spec] would hand to the Claude Code:
+/// the spec's own plus the project's defaults (SPEC-106 R9).
+Future<List<String>> specSubagentNames(WidgetRef ref, Spec spec) async {
+  try {
+    final ws = await ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    if (ws == null) return const [];
+    final text = await ref.read(specServiceProvider).read(ws, spec);
+    final merged = mergeSubagents(
+      text == null ? const [] : SpecDocument.parse(text).subagents,
+      ProjectConfig.loadSync(ws.path).subagents,
+    );
+    return {for (final a in merged) a.agent}.toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// "flutter-dev · adaptado" of the run's agent on the Codex (null = none).
+Future<String?> codexAgentLabelFor(
+  WidgetRef ref,
+  Spec spec,
+  RunSpecOptions o,
+) async {
+  final name = o.agent;
+  if (name == null || name.isEmpty) return null;
+  try {
+    final ws = await ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    final agents = await ref.read(agentListProvider(ws?.path).future);
+    final file = agents.where((a) => a.name == name).firstOrNull?.file;
+    if (file == null) return name;
+    return codexAgentPlanFrom(
+      ref.read(appSettingsProvider),
+      file,
+      name: name,
+      access: AgentAccess.fromClaudeMode(o.mode) ?? AgentAccess.edit,
+      runModel: o.model,
+      runEffort: effortArg(o.effort),
+    ).label;
+  } catch (_) {
+    return name;
+  }
+}
+
+/// [o] moved to the Claude Code for this run ("Executar com o Claude
+/// Code", R9): the Claude defaults of model and effort, the same agent and
+/// mode.
+RunSpecOptions claudeRunOptions(WidgetRef ref, RunSpecOptions o) {
+  final prefs = ref.read(runPrefsProvider);
+  final settings = ref.read(appSettingsProvider);
+  const claude = 'claude';
+  return (
+    provider: claude,
+    agent: o.agent,
+    model: providerModelFrom(prefs, settings, claude, RunKind.session),
+    effort: providerEffortFrom(prefs, settings, claude, RunKind.session),
+    mode: o.mode,
+    auto: false,
+    plan: const <StepPlanEntry>[],
+    review: null,
+  );
 }
 
 /// Agent, model, effort and permission mode of the step sessions of a spec.
@@ -300,7 +391,9 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     if (_isCodex) {
       _model = codexRunModel(_settings);
       _effort = codexRunEffort(_settings, _model);
-      _agent = null;
+      // SPEC-106 R8: the spec's agent goes, translated.
+      _agent =
+          widget.spec.agentName ?? ProjectConfig.loadSync(_projectPath).agent;
     } else {
       _model = providerModelFrom(prefs, _settings, v, RunKind.session);
       _effort = providerEffortFrom(prefs, _settings, v, RunKind.session);
@@ -361,10 +454,13 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     _agent = name;
     final a = agents.where((x) => x.name == name).firstOrNull;
     final prefs = ref.read(runPrefsProvider);
-    _model = a?.model != null ? 'inherit' : prefs.model(RunKind.session);
-    _effort = ClaudeOptions.effortLevels.contains(a?.effort)
-        ? a!.effort!
-        : prefs.effort(RunKind.session);
+    // SPEC-106: on the Codex the table translates model and effort.
+    if (!_isCodex) {
+      _model = a?.model != null ? 'inherit' : prefs.model(RunKind.session);
+      _effort = ClaudeOptions.effortLevels.contains(a?.effort)
+          ? a!.effort!
+          : prefs.effort(RunKind.session);
+    }
     final mode = ClaudePermissionMode.fromCli(a?.permissionMode);
     if (mode != null &&
         mode != ClaudePermissionMode.skipPermissions &&
@@ -614,15 +710,36 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
             ],
           ),
         ),
-      if (caps.supports(ProviderCapability.agentFiles))
-        field<String?>('Agente (--agent)', 'run-spec-agent', _agent, [
-          (null, 'nenhum'),
-          for (final a in agents)
-            (a.name, a.project ? '${a.name} · projeto' : a.name),
-          if (_agent != null && !agents.any((a) => a.name == _agent))
-            (_agent, _agent!),
-        ], (v) => _pick(v, agents))
-      else
+      if (caps.supports(ProviderCapability.agentFiles)) ...[
+        field<String?>(
+          _isCodex ? 'Agente' : 'Agente (--agent)',
+          'run-spec-agent',
+          _agent,
+          [
+            (null, 'nenhum'),
+            for (final a in agents)
+              (a.name, a.project ? '${a.name} · projeto' : a.name),
+            if (_agent != null && !agents.any((a) => a.name == _agent))
+              (_agent, _agent!),
+          ],
+          (v) => _pick(v, agents),
+        ),
+        // SPEC-106 R8: the same translation as the session's.
+        if (_isCodex)
+          if (agents.where((a) => a.name == _agent).firstOrNull?.file
+              case final file?)
+            CodexAgentSummary(
+              codexAgentPlanFrom(
+                settingsNow,
+                file,
+                name: _agent!,
+                access: AgentAccess.fromClaudeMode(_mode) ?? AgentAccess.edit,
+                runModel: _model,
+                runEffort: effortArg(_effort),
+                sandboxAvailable: !noSandbox,
+              ),
+            ),
+      ] else
         Padding(
           padding: const EdgeInsets.only(top: 12),
           child: Row(
@@ -744,8 +861,8 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
         ? null
         : Navigator.of(context).pop((
             provider: _provider,
-            // R6: the Codex keeps the spec's agent untouched.
-            agent: _isCodex ? null : _agent ?? '',
+            // SPEC-106 R8: the agent goes to the Codex too, translated.
+            agent: _agent ?? '',
             model: _model,
             effort: _effort,
             mode: _mode,

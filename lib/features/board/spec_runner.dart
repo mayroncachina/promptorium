@@ -993,7 +993,8 @@ class SpecRunner {
       runModel = plan.rule.model;
       runEffort = plan.rule.effort;
     }
-    // SPEC-101 R6: agents and subagents are only of the Claude Code.
+    // SPEC-101 R6: subagents are only of the Claude Code; the agent goes
+    // translated where the provider takes it (SPEC-106 R8).
     final caps = capabilitiesFor(runProvider);
     final specSubagents = mergeSubagents(
       SpecDocument.parse(text).subagents,
@@ -1075,7 +1076,7 @@ class SpecRunner {
         spec,
         caps,
         agent: spec.agentName ?? config.agent,
-        subagents: specSubagents.isNotEmpty,
+        subagents: {for (final a in specSubagents) a.agent}.toList(),
       );
       return id;
     }
@@ -1092,18 +1093,20 @@ class SpecRunner {
   }
 
   /// SPEC-101 R6: once per run, the timeline says that the spec's agent
-  /// and subagents stay with the Claude Code.
+  /// and subagents stay with the Claude Code. SPEC-106: the agent goes
+  /// translated to the Codex; only the subagents stay (R9).
   Future<void> _claudeOnlyNote(
     String sessionId,
     Spec spec,
     ProviderCapabilities caps, {
     String? agent,
-    required bool subagents,
+    required List<String> subagents,
   }) async {
     final hasAgent = agent != null && agent.isNotEmpty;
     final dropsAgent =
         hasAgent && !caps.supports(ProviderCapability.agentFiles);
-    final dropsSubs = subagents && !caps.supports(ProviderCapability.subagents);
+    final dropsSubs =
+        subagents.isNotEmpty && !caps.supports(ProviderCapability.subagents);
     if (!dropsAgent && !dropsSubs) return;
     final settings = _ref.read(appSettingsProvider.notifier);
     final key = specClaudeOnlyNoteKey(spec.id);
@@ -1111,11 +1114,13 @@ class SpecRunner {
     await settings.set(key, '1');
     await _manager.note(
       sessionId,
-      claudeOnlyAgentsNote(
-        agent: dropsAgent ? agent : null,
-        subagents: dropsSubs,
-        provider: caps.displayName,
-      ),
+      dropsAgent
+          ? claudeOnlyAgentsNote(
+              agent: agent,
+              subagents: dropsSubs,
+              provider: caps.displayName,
+            )
+          : codexSubagentsNotice(subagents),
     );
   }
 

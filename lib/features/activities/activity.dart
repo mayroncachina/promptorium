@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/dev/dev_server.dart' show DevServerStatus;
 import '../../data/providers.dart';
+import '../agents/codex_agent.dart' show sessionAgentLabel;
 import '../sessions/widgets/session_style.dart' show interruptedByUser;
 import '../board/board_rules.dart';
 import '../home/home_inbox.dart' show approvalVerb, stepRef;
@@ -483,7 +484,7 @@ List<Activity> _ofWorkspace(
           provider: s.provider,
           mode: s.permissionMode,
           branch: s.branch,
-          agentName: s.agentName,
+          agentName: sessionAgentLabel(s),
           tasks: tasks(spec),
           recent: _recent(l.recent, root),
           lastText: l.lastText,
@@ -526,7 +527,7 @@ List<Activity> _ofWorkspace(
         provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
-        agentName: s.agentName,
+        agentName: sessionAgentLabel(s),
         tasks: tasks(spec),
         recent: _recent(l.recent, root),
         lastText: l.lastText,
@@ -570,7 +571,7 @@ List<Activity> _ofWorkspace(
         provider: s?.provider,
         mode: s?.permissionMode,
         branch: s?.branch,
-        agentName: s?.agentName,
+        agentName: s == null ? null : sessionAgentLabel(s),
         tasks: tasks(spec),
       ),
     );
@@ -742,7 +743,7 @@ List<Activity> _ofWorkspace(
         provider: s.provider,
         mode: s.permissionMode,
         branch: s.branch,
-        agentName: s.agentName,
+        agentName: sessionAgentLabel(s),
         tasks: tasks(spec),
         weight: live.weights[s.id],
       ),

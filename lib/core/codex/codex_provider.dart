@@ -10,6 +10,7 @@ import '../providers/agent_provider.dart';
 import '../providers/capabilities.dart';
 import '../providers/context_events.dart';
 import '../providers/permission_policy.dart';
+import 'codex_mcp_overrides.dart';
 import 'codex_neutral.dart';
 import 'codex_quota.dart' show codexRateLimitUpdates;
 import 'codex_rpc.dart';
@@ -27,7 +28,13 @@ class CodexProvider implements AgentProvider {
     String Function()? resolveExecutable,
     this.starter,
     this.clientVersion,
-  }) : _resolve = resolveExecutable ?? (() => executable);
+    CodexMcpLister? mcpLister,
+  }) : _resolve = resolveExecutable ?? (() => executable),
+       _mcpLister = mcpLister ?? defaultCodexMcpLister;
+
+  /// `codex mcp list --json` names (SPEC-105): which servers a run may
+  /// override.
+  final CodexMcpLister _mcpLister;
 
   /// Resolved only when used: listing the provider never runs the CLI.
   final String Function() _resolve;
@@ -55,12 +62,20 @@ class CodexProvider implements AgentProvider {
   Future<AgentRun> start(AgentStartOptions options) async {
     validateOptions(options);
     final args = ['app-server'];
-    if (options.access.readOnly) {
-      args.addAll(['-c', 'mcp_servers={}']);
-    }
+    final mcp = await _mcpArgs(options);
+    args.addAll(mcp.args);
     for (final MapEntry(:key, :value)
         in options.codex.configOverrides.entries) {
       args.addAll(['-c', '$key=$value']);
+    }
+    // SPEC-104 R1: the project's CLAUDE.md reaches the Codex by an override
+    // of this run (proved by SPEC-093 R10); nothing goes to ~/.codex nor to
+    // the repository. An `AGENTS.md` still comes first (Codex order, P5).
+    if (capabilities.supports(ProviderCapability.instructionsFallback) &&
+        !options.codex.configOverrides.containsKey(
+          codexInstructionsOverrideKey,
+        )) {
+      args.addAll(['-c', codexInstructionsOverride]);
     }
     final Process process;
     // SPEC-096 R15: the real App Server leads its own process group.
@@ -70,7 +85,9 @@ class CodexProvider implements AgentProvider {
         executable,
         args,
         workingDirectory: options.workingDirectory,
-        environment: options.environment,
+        environment: mcp.token == null
+            ? options.environment
+            : {...?options.environment, codexAppMcpTokenVar: mcp.token!},
       );
     } on ProcessException {
       throw const AgentUnavailable(
@@ -82,6 +99,13 @@ class CodexProvider implements AgentProvider {
       options,
       args: args,
       clientVersion: clientVersion?.call(),
+      skillRoots: capabilities.supports(ProviderCapability.skillsExtraRoots)
+          ? codexSkillRoots(
+              options.workingDirectory,
+              home:
+                  options.environment?['HOME'] ?? Platform.environment['HOME'],
+            )
+          : const [],
     );
     try {
       await run.open();
@@ -92,17 +116,50 @@ class CodexProvider implements AgentProvider {
     }
   }
 
+  /// SPEC-105 R7–R9: the MCP of the run by `-c` overrides. Read-only
+  /// runs turn every configured server off (fails closed when they cannot
+  /// be listed); "Bloqueado" rules become `disabled_tools`; the app's
+  /// server comes from its `--mcp-config` file, with its token in the
+  /// environment.
+  Future<({List<String> args, String? token})> _mcpArgs(
+    AgentStartOptions o,
+  ) async {
+    final readOnly = o.access.readOnly;
+    final disallowed = o.codex.mcpDisallowedTools;
+    var servers = const <String>[];
+    if (readOnly || disallowed.isNotEmpty) {
+      try {
+        servers = await _mcpLister(executable, o.workingDirectory);
+      } catch (e) {
+        if (readOnly) {
+          throw AgentUnavailable(
+            'Codex: não deu para listar os servidores MCP (codex mcp list) '
+            'para desligá-los neste modo de leitura. $e',
+          );
+        }
+      }
+    }
+    CodexAppMcp? app;
+    for (final path in o.appMcpConfigs) {
+      app ??= readAppMcpConfig(path);
+    }
+    return (
+      args: codexMcpOverrides(
+        servers: servers,
+        readOnly: readOnly,
+        disallowed: disallowed,
+        app: app,
+      ),
+      token: app?.token,
+    );
+  }
+
   /// Fail closed rather than send Claude flags or silently drop a control.
-  /// Extras of another provider and app MCP are programming errors: the
-  /// services consult [capabilities] and never build them (SPEC-094 R5, R6).
+  /// Extras of another provider are programming errors: the services
+  /// consult [capabilities] and never build them (SPEC-094 R5, R6). The
+  /// app's MCP server goes by override (SPEC-105 R7).
   static void validateOptions(AgentStartOptions o) {
     checkExtras('codex', o.extras);
-    if (o.appMcpConfigs.isNotEmpty || o.appAllowedTools.isNotEmpty) {
-      throw ArgumentError(
-        'MCP do app entregue ao Codex sem a capacidade appMcpServer '
-        '(SPEC-094 R6).',
-      );
-    }
     if (o.forkSession && o.resumeId == null) {
       throw const AgentUnavailable('Codex: fork exige a thread de origem.');
     }
@@ -150,9 +207,42 @@ class CodexProvider implements AgentProvider {
   );
 }
 
+/// `-c` key of the instructions override (SPEC-104 R1).
+const codexInstructionsOverrideKey = 'project_doc_fallback_filenames';
+
+/// The override itself: the Codex reads `CLAUDE.md` where there is no
+/// `AGENTS.md` (SPEC-093 R10).
+const codexInstructionsOverride = '$codexInstructionsOverrideKey=["CLAUDE.md"]';
+
+/// `<cwd>/.claude/skills` and `~/.claude/skills`, the ones that exist
+/// (SPEC-104 R6).
+List<String> codexSkillRoots(String? cwd, {String? home}) => [
+  for (final base in [cwd, home])
+    if (base != null &&
+        base.isNotEmpty &&
+        Directory('$base/.claude/skills').existsSync())
+      '$base/.claude/skills',
+];
+
+/// [sources] relative to [cwd] when inside it (`CLAUDE.md`,
+/// `packages/api/AGENTS.md`); others stay absolute.
+List<String> relativeInstructionSources(List<String> sources, String? cwd) {
+  if (cwd == null || cwd.isEmpty) return sources;
+  final base = cwd.endsWith('/') ? cwd : '$cwd/';
+  return [
+    for (final s in sources) s.startsWith(base) ? s.substring(base.length) : s,
+  ];
+}
+
 /// The App Server persists threads; local ids are never passed as Codex ids.
 class CodexRun implements ManagedAgentRun {
-  CodexRun(this.rpc, this.options, {required this.args, this.clientVersion}) {
+  CodexRun(
+    this.rpc,
+    this.options, {
+    required this.args,
+    this.clientVersion,
+    this.skillRoots = const [],
+  }) {
     _sub = rpc.messages.stream.listen(
       _message,
       onDone: () {
@@ -165,6 +255,19 @@ class CodexRun implements ManagedAgentRun {
 
   /// Version of the app in `clientInfo` (null in tests = `0.0.0`).
   final String? clientVersion;
+
+  /// Skill folders of the Claude handed to this App Server by
+  /// `skills/extraRoots/set` before the first turn (SPEC-104 R6).
+  final List<String> skillRoots;
+
+  /// Instruction files the App Server loaded, as `thread/start` /
+  /// `thread/resume` reported (`instructionSources`, SPEC-104 R2): the
+  /// proof, relative to the working directory when inside it. Null = the
+  /// server did not report it.
+  List<String>? instructionSources;
+
+  /// Whether `skills/extraRoots/set` was accepted by this App Server.
+  bool skillRootsApplied = false;
   @override
   final List<String> args;
   late final StreamSubscription<Map<String, dynamic>> _sub;
@@ -215,9 +318,6 @@ class CodexRun implements ManagedAgentRun {
   /// two never mark the same turn twice.
   final _itemCompactedTurns = <String>{};
   final _notifiedCompactedTurns = <String>{};
-
-  /// Instruction files the App Server loaded (`instructionSources`, R10).
-  List<String> instructionSources = const [];
 
   @override
   Stream<ClaudeEvent> get events => _events.stream;
@@ -333,6 +433,16 @@ class CodexRun implements ManagedAgentRun {
         'Modelo Codex indisponível: $requested. Escolha o padrão do CLI ou atualize o catálogo.',
       );
     }
+    // SPEC-104 R6: the Claude's skills, without copy nor link; the roots
+    // live only in this App Server. A refusal never blocks the run.
+    if (skillRoots.isNotEmpty) {
+      try {
+        await rpc.request('skills/extraRoots/set', {'extraRoots': skillRoots});
+        skillRootsApplied = true;
+      } catch (_) {
+        skillRootsApplied = false;
+      }
+    }
     final config = <String, dynamic>{};
     if (_sentCompactLimit case final limit?) {
       config['model_auto_compact_token_limit'] = limit;
@@ -370,6 +480,12 @@ class CodexRun implements ManagedAgentRun {
         'Codex não devolveu o identificador da thread.',
       );
     }
+    final sources = result['instructionSources'];
+    instructionSources = sources is List
+        ? relativeInstructionSources([
+            for (final s in sources) '$s',
+          ], options.workingDirectory)
+        : null;
     final model = '${result['model'] ?? requested ?? 'inherit'}';
     _model = model == 'inherit' ? null : model;
     final effort = options.effort;
@@ -397,6 +513,7 @@ class CodexRun implements ManagedAgentRun {
           options.codex.writableRoots.isNotEmpty)
         'writableRoots': options.codex.writableRoots,
       'codex_version': init['userAgent'],
+      'instruction_sources': ?instructionSources,
       'models': [
         for (final m in _models)
           {'id': m.id, 'efforts': m.efforts, 'modalities': m.modalities},
@@ -404,17 +521,18 @@ class CodexRun implements ManagedAgentRun {
     });
     // SPEC-107 R10: what the App Server says it loaded (AGENTS.md, the
     // CLAUDE.md fallback of SPEC-104), as proof of loading.
-    final sources = result['instructionSources'];
+    // [instructionSources] (SPEC-104) keeps them relative; the event keeps
+    // what the server sent, with the cwd to show them.
     if (sources is List) {
-      instructionSources = [
+      final loaded = [
         for (final s in sources)
           if (s is String && s.isNotEmpty) s,
       ];
-      if (instructionSources.isNotEmpty) {
+      if (loaded.isNotEmpty) {
         _emit(
           ContextAppEvents.instructionsEvent(
             provider: 'codex',
-            sources: instructionSources,
+            sources: loaded,
             cwd: options.workingDirectory,
           ),
         );
@@ -645,6 +763,9 @@ class CodexRun implements ManagedAgentRun {
                         (_baselineUsage[k] as num? ?? 0))
                     .clamp(0, 1 << 62),
         };
+      case 'mcpServer/startupStatus/updated':
+        // SPEC-105 R11: the footer counts the Codex servers.
+        codexMcpStartupUpdates.add(p);
       case 'account/rateLimits/updated':
         // R5, P5: passed on, never stored (the session drops it); the quota
         // store merges it into the last reading (SPEC-097 R2).

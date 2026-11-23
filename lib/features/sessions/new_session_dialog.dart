@@ -20,6 +20,8 @@ import '../../ui/widgets/quota_limit_notice.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import 'agent_names.dart';
+import '../agents/codex_agent.dart';
+import '../agents/widgets/codex_agent_panel.dart' show CodexAgentSummary;
 import 'session_manager.dart';
 import 'widgets/composer.dart' show uiPermissionModes;
 import 'widgets/session_style.dart';
@@ -134,10 +136,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     _agent = name;
     final ref = agents.where((a) => a.name == name).firstOrNull;
     final prefs = this.ref.read(runPrefsProvider);
-    _model = ref?.model != null ? 'inherit' : prefs.model(RunKind.session);
-    _effort = ClaudeOptions.effortLevels.contains(ref?.effort)
-        ? ref!.effort!
-        : prefs.effort(RunKind.session);
+    // SPEC-106: on the Codex the model and effort of the agent come from
+    // the table at the start; the fields keep the run kind's.
+    if (isClaudeCode(_provider)) {
+      _model = ref?.model != null ? 'inherit' : prefs.model(RunKind.session);
+      _effort = ClaudeOptions.effortLevels.contains(ref?.effort)
+          ? ref!.effort!
+          : prefs.effort(RunKind.session);
+    }
     final mode = ClaudePermissionMode.fromCli(ref?.permissionMode);
     // Never preselected: skipping permissions is only the user's choice.
     if (mode != null &&
@@ -250,6 +256,21 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final quotaBlocks = quotaLimit != null && !_quotaAck;
     final codexCache = caps.providerId == 'codex'
         ? codexModelsCache(ref.watch(appSettingsProvider))
+        : null;
+    // SPEC-106 R8: the translation of the chosen agent for the Codex.
+    final agentFile = agents.where((a) => a.name == _agent).firstOrNull?.file;
+    final codexAgentPlan =
+        caps.providerId == ProviderCapabilities.codex.providerId &&
+            agentFile != null
+        ? codexAgentPlanFrom(
+            ref.watch(appSettingsProvider),
+            agentFile,
+            name: _agent!,
+            access: AgentAccess.fromClaudeMode(_mode) ?? AgentAccess.edit,
+            runModel: _model,
+            runEffort: effortArg(_effort),
+            sandboxAvailable: availability?.sandboxWarning == null,
+          )
         : null;
     // A preselected agent that is not in the list (yet) stays selectable.
     final agentItems = [
@@ -386,7 +407,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                             if (caps.supports(
                               ProviderCapability.agentFiles,
                             )) ...[
-                              label('Agente (--agent)'),
+                              label(
+                                isClaudeCode(_provider)
+                                    ? 'Agente (--agent)'
+                                    : 'Agente',
+                              ),
                               dropdown<String?>(
                                 key: const ValueKey('new-session-agent'),
                                 value: _agent,
@@ -532,6 +557,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       ),
                     ],
                   ),
+                  // SPEC-106 R8: what the Codex gets of the agent.
+                  if (codexAgentPlan case final plan?) CodexAgentSummary(plan),
                   const Padding(
                     padding: EdgeInsets.only(top: 6),
                     child: Text(

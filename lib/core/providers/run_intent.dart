@@ -123,6 +123,7 @@ class CodexExtras extends ProviderExtras {
     this.writableRoots = const [],
     this.configOverrides = const {},
     this.compactLimit,
+    this.mcpDisallowedTools = const [],
   });
 
   @override
@@ -140,6 +141,10 @@ class CodexExtras extends ProviderExtras {
 
   /// `model_auto_compact_token_limit` (`200k`, `1m`, raw number).
   final String? compactLimit;
+
+  /// "Bloqueado" MCP rules (`mcp__srv__tool`): `disabled_tools` of each
+  /// server by override of the run (SPEC-105 R9).
+  final List<String> mcpDisallowedTools;
 }
 
 /// The extras of the provider [caps] describes, built only with what it

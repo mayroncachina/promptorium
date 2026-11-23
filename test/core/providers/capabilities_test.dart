@@ -35,11 +35,13 @@ void main() {
         ProviderCapability.planMode: no,
         ProviderCapability.readOnlyEnforced: partial,
         ProviderCapability.managedHooks: no,
-        ProviderCapability.agentFiles: no,
+        // SPEC-106: traduzido pelo app.
+        ProviderCapability.agentFiles: partial,
         // "não testada" = não suportada (R2).
         ProviderCapability.subagents: no,
         ProviderCapability.mcpConfig: partial,
-        ProviderCapability.appMcpServer: no,
+        // SPEC-105 R7: only the read tools, by override.
+        ProviderCapability.appMcpServer: partial,
         ProviderCapability.compactNow: supported,
         ProviderCapability.steerMidTurn: partial,
         ProviderCapability.liveApprovalChange: supported,

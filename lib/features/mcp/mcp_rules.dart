@@ -92,3 +92,8 @@ Future<McpRuleArgs> readMcpRuleArgs(
     return McpRuleArgs.empty;
   }
 }
+
+/// Whether a rule has an equivalent in the Codex (SPEC-105 R9, P5): only
+/// "Bloqueado", as `disabled_tools` of the server by override of the run.
+/// "Permitido" and "Pedir aprovação" are Claude Code only.
+bool codexRuleApplies(McpRule r) => r == McpRule.block;

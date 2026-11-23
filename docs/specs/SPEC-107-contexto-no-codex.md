@@ -118,7 +118,9 @@ Não há. As leituras e os marcadores são eventos gravados com a sessão ou a c
 - **Compactar agora (R8):** o `thread/compact/start` roda como turno. O `CodexRun` termina esse turno com um `result` de `num_turns: 0`, igual ao `/compact` do Claude. Ele não conta como turno de trabalho, e o marcador fica com o gatilho `manual`.
 - **Correção na SPEC-087:** no gráfico da Evolução, um marcador depois da última leitura (compactação aguardando medição) era desenhado no começo do eixo. Agora ele fica na borda direita. A correção vale para os dois provedores.
 - **E2E:** feito com o app compilado no Xephyr `:8`, com dados, `HOME`, `CODEX_HOME` e `CLAUDE_CONFIG_DIR` isolados no scratchpad, usando um Codex falso (`docs/pesquisa/spec-107-codex-falso.py`). Nenhum turno pago foi gasto. Os prints estão em `docs/mockups/spec-107/app/`.
-- **Pendências:** a linha "N skills disponíveis · configuração" da aba Fontes depende de o Codex informar as skills, que é trabalho da SPEC-104. O texto do medidor continua o da SPEC-087 ("medido no turno N" depois do fim do turno), o mesmo nos dois provedores (R13).
+- **Pendência resolvida (skills na aba Fontes, R10):** a linha "N skills disponíveis · configuração" foi ligada no merge com a SPEC-104. Ela usa o `codexSkillsProvider` da 104 (`skills/list` com as raízes extras de `.claude/skills`), a mesma consulta da aba Skills, e conta só as skills ligadas. Ela fica no grupo Instruções, sem peso, e não abre evento. Enquanto o Codex não responde, ou quando está indisponível, a linha não aparece.
+- **Instruções carregadas (R10 + SPEC-104 R2):** o evento `promptorium_instructions` (107) e o `instructionSources` do `promptorium_run` (104) dão a mesma prova. Os dois usam a mesma chave, o caminho relativo ao cwd, por isso cada arquivo aparece numa linha só, e a linha da 107 tem precedência. O `CodexRun.instructionSources` tem um campo só, o da 104: relativo, e nulo quando o servidor não informa.
+- **Medidor:** o texto continua o da SPEC-087 ("medido no turno N" depois do fim do turno), o mesmo nos dois provedores (R13).
 
 ## Telas
 

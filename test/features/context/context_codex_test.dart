@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/run_prefs.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/core/providers/context_events.dart';
+import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/context/compaction_controller.dart';
 import 'package:promptorium/features/context/context_snapshot.dart';
@@ -727,6 +728,68 @@ void main() {
       expect(composition, contains('leitura de cache 233 mil'));
       expect(composition, contains('saída da chamada 1,8 mil'));
       expect(composition, contains('detalhamento indisponível no Codex'));
+    });
+
+    testWidgets('R10: Fontes shows "N skills disponíveis · configuração", '
+        'without weight and without opening an event', (tester) async {
+      final t = feed([run(), reading(241000)]);
+      final opened = <ContextSource>[];
+      await pump(
+        tester,
+        SizedBox(
+          height: 900,
+          child: ContextPanel(
+            snapshot: t.snapshot,
+            sources: t.sources,
+            place: 'Sessão',
+            tab: ContextTab.sources,
+            onTab: (_) {},
+            onClose: () {},
+            onOpenSource: opened.add,
+            codexSkills: 3,
+          ),
+        ),
+      );
+      final row = find.byKey(
+        const ValueKey('context-source-3 skills disponíveis'),
+      );
+      expect(row, findsOne);
+      expect(
+        find.descendant(of: row, matching: find.text('configuração')),
+        findsOne,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('peso indisponível')),
+        findsOne,
+      );
+      await tester.tap(row);
+      expect(opened, isEmpty);
+    });
+
+    test('R10: the count is the skills on in skills/list; unknown = none', () {
+      CodexSkill skill(String name, {bool enabled = true}) => CodexSkill(
+        name: name,
+        description: '',
+        path: '/s/$name/SKILL.md',
+        scope: 'repo',
+        enabled: enabled,
+      );
+      final ready = CodexSkillsReady(
+        CodexSkillsInventory(
+          skills: [skill('a'), skill('b'), skill('c', enabled: false)],
+          errors: const [],
+          extraRoots: const ['/w/.claude/skills'],
+          at: t0,
+        ),
+      );
+      expect(codexSkillsAvailable(ready), 2);
+      expect(
+        codexSkillsAvailable(
+          const CodexSkillsUnavailable('Codex indisponível'),
+        ),
+        isNull,
+      );
+      expect(codexSkillsAvailable(null), isNull);
     });
   });
 }

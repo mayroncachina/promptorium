@@ -211,6 +211,19 @@ O Codex protege o `.git` *dentro* de cada raiz gravável, mas não protege uma r
 
 **Decisão 6:** o app passa o override e confere `instructionSources` no `thread/start`, sem turno. O `AGENTS.md` só precisa existir se a pessoa quiser usar o Codex fora do app.
 
+### Skills (SPEC-104) · sem turno · `skills.jsonl`
+
+Sondagem de 22/11 com `HOME` e `CODEX_HOME` isolados no scratchpad, sem login e sem turno. O repositório tinha `.claude/skills/{gerar-release,Migrar_Banco,sem-front}`, `.agents/skills/nativa-agents` e `.codex/skills/nativa-codex`. O `HOME` tinha `~/.claude/skills/commit-pt`.
+
+| Pedido | Resultado |
+|---|---|
+| `skills/list` sem raízes extras | `.agents/skills` e `.codex/skills` com `scope: repo`, as 5 de sistema (`scope: system`, em `~/.codex/skills/.system`). Nada do `.claude/skills` |
+| `skills/extraRoots/set` com `<repo>/.claude/skills` e `~/.claude/skills` | `{}` e a notificação `skills/changed`. Nada gravado no `config.toml` (o `CODEX_HOME` continuou sem ele) |
+| `skills/list` com `forceReload` | as skills do `.claude/skills` e do `~/.claude/skills` aparecem com `scope: user`. `Migrar_Banco` é aceita (o Codex não valida o nome). `sem-front` vai para `errors`: "missing YAML frontmatter delimited by ---" |
+| `thread/start` com `-c project_doc_fallback_filenames=["CLAUDE.md"]` | `instructionSources: ["<repo>/CLAUDE.md"]` |
+
+`git status` do repositório ficou limpo, e nada foi criado no `HOME`. **Conclusão:** o caminho principal da R6 funciona (`skillsExtraRoots` comprovada). A pasta de skills de repositório do Codex, usada pelo plano B (R10), é `.agents/skills`.
+
 ### Imagem (R11) · 1 turno · `imagem.jsonl`
 
 Um turno com `{"type":"image","url":"data:image/png;base64,…"}` (vermelho) e `{"type":"localImage","path":"<repo>/b.png"}` (azul). A resposta foi "(1) Vermelho; (2) Azul.": **os dois formatos funcionam** com `gpt-5.6-luna`. Todos os modelos do `model/list` anunciam `image`. O adaptador só manda *data URL*, o que já funciona. `localImage` evita o base64 no JSON-RPC.

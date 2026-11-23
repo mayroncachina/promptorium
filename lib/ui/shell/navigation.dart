@@ -31,6 +31,9 @@ enum AppSection {
   code('Código', null),
   mcp('Servidores MCP', 'Adicionar servidor'),
 
+  /// What each provider reads of the project (SPEC-104 R5).
+  instructions('Instruções', null),
+
   /// Reached through the gear at the bottom of the sidebar.
   settings('Configurações', null);
 
@@ -45,7 +48,7 @@ enum AppSection {
   /// Main sidebar items, in the order of the work (plano F10, UX v2,
   /// SPEC-055 R1): Início · Projeto · Prompt · Specs · Quadro · Sessões ·
   /// Review · Repositório · Código · Ferramentas. [agents] stands for
-  /// "Ferramentas" (Agentes / Skills / MCP as tabs).
+  /// "Ferramentas" (Agentes / Skills / MCP / Instruções as tabs).
   static const navItems = [
     home,
     activities,
@@ -64,7 +67,7 @@ enum AppSection {
   bool get featured => this == prompt;
 
   /// Screens shown as tabs of "Ferramentas".
-  static const toolTabs = [agents, skills, mcp];
+  static const toolTabs = [agents, skills, mcp, instructions];
 
   bool get isTool => toolTabs.contains(this);
 
@@ -122,6 +125,7 @@ enum AppSection {
     repository => AppIcons.repository,
     code => AppIcons.code,
     mcp => AppIcons.mcp,
+    instructions => AppIcons.specs,
     settings => AppIcons.settings,
   };
 

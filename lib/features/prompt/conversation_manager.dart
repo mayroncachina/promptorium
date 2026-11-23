@@ -673,8 +673,12 @@ class ConversationManager extends Notifier<ConversationManagerState> {
                   ? await runSettingsFile(ref)
                   : null,
             ),
-            // SPEC-107 R6, P1: the Codex threshold preference.
-            codex: CodexExtras(compactLimit: prefs.codexAutocompact),
+            // SPEC-107 R6, P1: the Codex threshold preference; SPEC-105 R9:
+            // "Bloqueado" becomes `disabled_tools`.
+            codex: CodexExtras(
+              compactLimit: prefs.codexAutocompact,
+              mcpDisallowedTools: mcp.disallowed,
+            ),
           ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
@@ -701,6 +705,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       autocompact: prefs.autocompactOf(conv.provider),
       model: conv.model,
       provider: conv.provider,
+      instructionSources: run is CodexRun ? run.instructionSources : null,
     );
     final runRow = await _repo.appendEvent(
       conv.id,

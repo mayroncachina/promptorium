@@ -101,15 +101,20 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
           style: _mono,
         ),
       ]),
-      _group([
-        const Text('MCP'),
-        Text(ratio(s.mcpConnected, s.mcpTotal), style: _mono),
-        if ((s.mcpFailed ?? 0) > 0)
-          Text(
-            '· ${s.mcpFailed} falhou',
-            style: const TextStyle(color: AppColors.red),
-          ),
-      ]),
+      // SPEC-105 R11: the servers of the provider in focus.
+      Tooltip(
+        key: const ValueKey('footer-mcp'),
+        message: s.mcpHint ?? 'Servidores MCP do ${s.providerName}',
+        child: _group([
+          const Text('MCP'),
+          Text(ratio(s.mcpConnected, s.mcpTotal), style: _mono),
+          if ((s.mcpFailed ?? 0) > 0)
+            Text(
+              '· ${s.mcpFailed} falhou',
+              style: const TextStyle(color: AppColors.red),
+            ),
+        ]),
+      ),
     ];
 
     final codex = s.providerId == 'codex';

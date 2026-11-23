@@ -48,6 +48,10 @@ enum ContextEvidence {
 
   /// A subagent with its own window (R12): never part of the measurement.
   separate,
+
+  /// Available by configuration, not loaded (R10: the Codex skills of
+  /// `skills/list`, SPEC-104).
+  config,
 }
 
 /// One observed source. [ref] is a workspace path (opens the file) or null;
@@ -131,6 +135,7 @@ class ContextSource {
       ContextEvidence.commandRead => 'leitura observada (comando) · t$turn',
       ContextEvidence.mcpCall => 'chamada MCP · t$turn',
       ContextEvidence.separate => 'contexto separado · medição indisponível',
+      ContextEvidence.config => 'configuração',
     };
   }
 
@@ -248,6 +253,33 @@ class ContextSources {
       case UnknownEvent(:final json)
           when json['type'] == ContextAppEvents.instructions:
         _instructions(json, itemIndex);
+      // SPEC-104 R2: the instruction files the agent itself reported
+      // loading (Codex `instructionSources`, relative to the cwd). The
+      // SPEC-107 event above, when present, is the same proof: same key,
+      // and its row wins.
+      case UnknownEvent(:final json)
+          when json['type'] == 'promptorium_run' &&
+              json['instructionSources'] is List:
+        for (final s in json['instructionSources'] as List) {
+          final path = '$s';
+          if (path.isEmpty) continue;
+          if (_byKey['instr:$path']?.evidence == ContextEvidence.loaded) {
+            continue;
+          }
+          _put(
+            'instr:$path',
+            ContextSource(
+              group: ContextSourceGroup.instructions,
+              label: path,
+              ref: path,
+              evidence: ContextEvidence.agent,
+              turn: turn,
+              itemIndex: itemIndex,
+              detail:
+                  'carregado pelo ${json['provider'] == 'codex' ? 'Codex' : 'agente'}',
+            ),
+          );
+        }
       case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
         _turn = turn;
         _message('${json['text'] ?? ''}', turn, itemIndex);
@@ -264,8 +296,9 @@ class ContextSources {
     final cwd = j['cwd'] as String?;
     for (final path in j['sources'] as List? ?? const []) {
       if (path is! String || path.isEmpty) continue;
+      // Same key as the SPEC-104 row (relative to the cwd): one file, one row.
       _put(
-        'instr:$path',
+        'instr:${_relative(path, cwd)}',
         ContextSource(
           group: ContextSourceGroup.instructions,
           label: _relative(path, cwd),

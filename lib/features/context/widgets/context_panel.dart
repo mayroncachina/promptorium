@@ -29,11 +29,16 @@ class ContextPanel extends StatefulWidget {
     this.initialTab = ContextTab.usage,
     this.tab,
     this.onTab,
+    this.codexSkills,
   });
 
   final ContextSnapshot snapshot;
   final ContextSources sources;
   final VoidCallback onClose;
+
+  /// Skills the Codex has available (`skills/list`, SPEC-104); null = not
+  /// a Codex history or not known (R10).
+  final int? codexSkills;
 
   /// "Conversa" / "Sessão" (header, right side).
   final String place;
@@ -188,6 +193,7 @@ class _ContextPanelState extends State<ContextPanel> {
                           sources: widget.sources,
                           onOpen: widget.onOpenSource,
                           nextSend: widget.nextSend,
+                          codexSkills: widget.codexSkills,
                         ),
                 ),
               ],
@@ -830,6 +836,7 @@ class ContextSourcesView extends StatelessWidget {
     required this.sources,
     this.onOpen,
     this.nextSend,
+    this.codexSkills,
   });
 
   final ContextSnapshot snapshot;
@@ -837,9 +844,33 @@ class ContextSourcesView extends StatelessWidget {
   final ValueChanged<ContextSource>? onOpen;
   final Widget? nextSend;
 
+  /// See [ContextPanel.codexSkills].
+  final int? codexSkills;
+
   @override
   Widget build(BuildContext context) {
-    final groups = sources.grouped;
+    final observed = sources.grouped;
+    final skills = codexSkills;
+    // R10: "N skills disponíveis · configuração", available, not loaded.
+    final groups = skills == null
+        ? observed
+        : {
+            for (final g in ContextSourceGroup.values)
+              if (observed[g] != null || g == ContextSourceGroup.instructions)
+                g: [
+                  ...?observed[g],
+                  if (g == ContextSourceGroup.instructions)
+                    ContextSource(
+                      group: g,
+                      label: skills == 1
+                          ? '1 skill disponível'
+                          : '$skills skills disponíveis',
+                      evidence: ContextEvidence.config,
+                      turn: 0,
+                      itemIndex: 0,
+                    ),
+                ],
+          };
     final c = snapshot.current;
     final turn = sources.turn;
     final rows = <Widget>[
@@ -891,7 +922,14 @@ class ContextSourcesView extends StatelessWidget {
         ),
       );
       for (final s in list) {
-        rows.add(_SourceRow(source: s, turn: turn, onOpen: onOpen));
+        rows.add(
+          _SourceRow(
+            source: s,
+            turn: turn,
+            // A configuration row has no event to open.
+            onOpen: s.evidence == ContextEvidence.config ? null : onOpen,
+          ),
+        );
       }
     }
     if (nextSend != null) rows.addAll([const SizedBox(height: 10), nextSend!]);
@@ -926,7 +964,8 @@ class _SourceRow extends StatelessWidget {
             ContextEvidence.mcpCall => (AppColors.blue, false),
             ContextEvidence.agent ||
             ContextEvidence.loaded => (AppColors.lilac, false),
-            ContextEvidence.separate => (AppColors.textSecondary, true),
+            ContextEvidence.separate ||
+            ContextEvidence.config => (AppColors.textSecondary, true),
           };
     final label = s.detail == null
         ? _short(s.label)
