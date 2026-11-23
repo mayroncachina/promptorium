@@ -9,6 +9,8 @@ import '../../data/providers.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../core/providers/acp_provider.dart';
+import '../../features/mcp/codex_mcp_state.dart' show codexMcpBoardProvider;
+import '../../features/mcp/mcp_cli.dart' show McpConnState;
 import '../../features/mcp/mcp_state.dart';
 import '../../features/sessions/session_manager.dart';
 
@@ -32,6 +34,7 @@ class FooterStats {
     this.mcpConnected,
     this.mcpTotal,
     this.mcpFailed,
+    this.mcpHint,
     this.usage5h,
     this.usage5hResetsAt,
     this.usageWeek,
@@ -58,6 +61,9 @@ class FooterStats {
   final int? mcpConnected;
   final int? mcpTotal;
   final int? mcpFailed;
+
+  /// Tooltip of the MCP counter: whose servers they are (SPEC-105 R11).
+  final String? mcpHint;
 
   /// 0–1+ (`rate_limit_info.unifiedWindows.five_hour.utilization`; above 1
   /// when the limit was passed). Null = unknown. Stored values outlive the
@@ -106,6 +112,7 @@ class FooterStats {
     mcpConnected: mcpConnected,
     mcpTotal: mcpTotal,
     mcpFailed: mcpFailed,
+    mcpHint: mcpHint,
     usage5h: usage5h,
     usage5hResetsAt: usage5hResetsAt,
     usageWeek: usageWeek,
@@ -165,7 +172,11 @@ class FooterStatsController extends Notifier<FooterStats> {
     final codex = providerId == 'codex'
         ? ref.watch(quotaSnapshotProvider('codex'))
         : null;
-    final mcp = ref.watch(mcpStatusBoardProvider);
+    // SPEC-105 R11: the servers of the provider in focus.
+    final mcp = providerId == 'codex'
+        ? ref.watch(codexMcpBoardProvider)
+        : ref.watch(mcpStatusBoardProvider);
+    final mcpHint = mcpBoardHint(name, mcp);
 
     final active = _active(manager, sessions);
     if (codex != null) {
@@ -188,6 +199,7 @@ class FooterStatsController extends Notifier<FooterStats> {
         mcpConnected: mcp.isEmpty ? null : mcp.connected,
         mcpTotal: mcp.isEmpty ? null : mcp.total,
         mcpFailed: mcp.isEmpty ? null : mcp.failed,
+        mcpHint: mcpHint,
         usage5h: frac(five?.usedPercent),
         usage5hResetsAt: five?.resetsAt,
         usageWeek: frac(week?.usedPercent),
@@ -216,6 +228,7 @@ class FooterStatsController extends Notifier<FooterStats> {
       mcpConnected: mcp.isEmpty ? null : mcp.connected,
       mcpTotal: mcp.isEmpty ? null : mcp.total,
       mcpFailed: mcp.isEmpty ? null : mcp.failed,
+      mcpHint: mcpHint,
       usage5h: rate?.fiveHourUtilization,
       usage5hResetsAt: rate?.fiveHourResetsAt,
       usageWeek: rate?.sevenDayUtilization,
@@ -260,6 +273,23 @@ final footerDisplayStatsProvider = Provider<FooterStats>((ref) {
     ),
   );
 });
+
+/// "Servidores do Codex: github pronto, postgres-dev falhou" (R11).
+String mcpBoardHint(String providerName, McpStatusBoardState board) {
+  if (board.isEmpty) return 'Servidores do $providerName: ainda sem status.';
+  String word(McpConnState s) => switch (s) {
+    McpConnState.connected => 'pronto',
+    McpConnState.failed => 'falhou',
+    McpConnState.needsAuth => 'precisa entrar',
+    McpConnState.pending => 'aguardando aprovação',
+    McpConnState.disabled => 'desligado',
+    McpConnState.checking => 'iniciando',
+    McpConnState.unknown => 'sem status',
+  };
+  final names = board.byName.keys.toList()..sort();
+  return 'Servidores do $providerName: '
+      '${names.map((n) => '$n ${word(board.byName[n]!.state)}').join(', ')}';
+}
 
 /// Compact token count: 512k, 1.2M.
 String formatTokens(int? n) {

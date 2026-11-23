@@ -366,7 +366,11 @@ void main() {
         workingDirectory: '/w',
         mode: PromptMode.edit,
         appendSystemPrompt: 'APP',
-        extras: CodexExtras(writableRoots: ['/r'], compactLimit: '200k'),
+        extras: CodexExtras(
+          writableRoots: ['/r'],
+          compactLimit: '200k',
+          mcpDisallowedTools: ['mcp__github__delete_branch'],
+        ),
       ),
       p,
     );
@@ -376,5 +380,6 @@ void main() {
     expect(o.codex.sandbox, 'read-only');
     expect(o.codex.writableRoots, ['/r']);
     expect(o.codex.compactLimit, '200k');
+    expect(o.codex.mcpDisallowedTools, ['mcp__github__delete_branch']);
   });
 }

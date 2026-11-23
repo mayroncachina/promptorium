@@ -40,7 +40,8 @@ void main() {
         // "não testada" = não suportada (R2).
         ProviderCapability.subagents: no,
         ProviderCapability.mcpConfig: partial,
-        ProviderCapability.appMcpServer: no,
+        // SPEC-105 R7: only the read tools, by override.
+        ProviderCapability.appMcpServer: partial,
         ProviderCapability.compactNow: supported,
         ProviderCapability.steerMidTurn: partial,
         ProviderCapability.liveApprovalChange: supported,

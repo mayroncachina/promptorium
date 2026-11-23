@@ -411,6 +411,10 @@ Future<ProcessResult> _defaultRunner(
 
 final mcpRunnerProvider = Provider<McpRunner>((ref) => _defaultRunner);
 
+/// The real runner (refuses to run under `flutter test`), for other CLIs'
+/// runner providers.
+const McpRunner defaultMcpRunner = _defaultRunner;
+
 /// `claude mcp …` commands. Every command runs with cwd = workspace (the
 /// CLI resolves project / local scope from the cwd). Output of `get` is
 /// parsed and dropped (it prints env / header values).

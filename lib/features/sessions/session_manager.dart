@@ -1759,6 +1759,18 @@ class SessionManager extends Notifier<SessionManagerState> {
                   ));
         final compact = saved['autocompact'] as String?;
         final codexHooks = await _prepareCodexHooks(id, cwd: cwd, root: root);
+        // SPEC-105 R7: the app's MCP server, by override of the run.
+        if (caps.supports(ProviderCapability.appMcpServer)) {
+          mcpLink = await openMcpRun(
+            ref,
+            workspaceId: session.workspaceId,
+            sessionId: id,
+            access: access.readOnly ? McpAccess.read : McpAccess.write,
+            specId: session.specId,
+            steps: session.steps,
+            title: title,
+          );
+        }
         var effective = AgentStartOptions.forAccess(
           access,
           workingDirectory: cwd,
@@ -1767,6 +1779,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           model: options.model,
           effort: options.effort,
           environment: processEnv,
+          appMcpConfigs: [?mcpLink?.configPath],
           // R5: agent, budget and turns only where the provider has them.
           extras: extrasFor(
             caps,
@@ -1787,6 +1800,8 @@ class SessionManager extends Notifier<SessionManagerState> {
                   ? worktreeWritableRoots(cwd)
                   : const [],
               configOverrides: codexHooks.overrides,
+              // SPEC-105 R9: "Bloqueado" becomes `disabled_tools`.
+              mcpDisallowedTools: options.disallowedTools,
             ),
           ),
         );
@@ -1925,6 +1940,9 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: session.model,
         provider: session.provider,
         agent: agentPlan?.toRecord(),
+        instructionSources: process is CodexRun
+            ? process.instructionSources
+            : null,
       ),
     );
     if (agentPlan != null && options.resumeId == null) {

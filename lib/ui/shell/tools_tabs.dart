@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 import 'navigation.dart';
 
-/// Tabs of "Ferramentas" (Agentes · Skills · MCP) above the active one.
+/// Tabs of "Ferramentas" (Agentes · Skills · MCP · Instruções) above the
+/// active one.
 class ToolsTabs extends StatelessWidget {
   const ToolsTabs({
     super.key,

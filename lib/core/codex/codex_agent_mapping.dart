@@ -608,6 +608,8 @@ AgentStartOptions withCodexAgent(AgentStartOptions o, CodexAgentPlan plan) {
       writableRoots: c.writableRoots,
       configOverrides: c.configOverrides,
       compactLimit: c.compactLimit,
+      // SPEC-105 R9: the "Bloqueado" rules survive the agent translation.
+      mcpDisallowedTools: c.mcpDisallowedTools,
     ),
   );
 }

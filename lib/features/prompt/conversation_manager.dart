@@ -655,6 +655,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
                   ? await runSettingsFile(ref)
                   : null,
             ),
+            // SPEC-105 R9: "Bloqueado" becomes `disabled_tools`.
+            codex: CodexExtras(mcpDisallowedTools: mcp.disallowed),
           ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
@@ -681,6 +683,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       autocompact: isClaudeCode(conv.provider) ? prefs.autocompact : null,
       model: conv.model,
       provider: conv.provider,
+      instructionSources: run is CodexRun ? run.instructionSources : null,
     );
     final runRow = await _repo.appendEvent(
       conv.id,

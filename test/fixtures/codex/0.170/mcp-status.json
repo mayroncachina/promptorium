@@ -1,0 +1,53 @@
+{
+  "_origem": "Montada a partir do schema do 0.170 (ListMcpServerStatusResponse, McpServerOauthLoginCompletedNotification); sem turno.",
+  "data": [
+    {
+      "name": "github",
+      "authStatus": "oAuth",
+      "runtimeStatus": "connected",
+      "pluginId": null,
+      "serverInfo": {"name": "github-mcp", "version": "1.4.0"},
+      "tools": {
+        "search_issues": {"name": "search_issues", "description": "Busca issues e PRs", "inputSchema": {"type": "object"}},
+        "create_issue": {"name": "create_issue", "description": "Abre uma issue", "inputSchema": {"type": "object"}},
+        "delete_branch": {"name": "delete_branch", "description": "Apaga uma branch remota", "inputSchema": {"type": "object"}}
+      },
+      "toolsError": null,
+      "resources": [],
+      "resourceTemplates": []
+    },
+    {
+      "name": "postgres-dev",
+      "authStatus": "unsupported",
+      "runtimeStatus": "failed",
+      "pluginId": null,
+      "tools": {},
+      "toolsError": "MCP client for `postgres-dev` failed to start: program not found",
+      "resources": [],
+      "resourceTemplates": []
+    },
+    {
+      "name": "notion",
+      "authStatus": "notLoggedIn",
+      "runtimeStatus": "authenticationRequired",
+      "pluginId": null,
+      "tools": {},
+      "toolsError": null,
+      "resources": [],
+      "resourceTemplates": []
+    },
+    {
+      "name": "linear",
+      "authStatus": "oAuth",
+      "runtimeStatus": "connected",
+      "pluginId": "linear-tools",
+      "tools": {
+        "list_issues": {"name": "list_issues", "description": "Lista issues", "inputSchema": {"type": "object"}}
+      },
+      "toolsError": null,
+      "resources": [],
+      "resourceTemplates": []
+    }
+  ],
+  "nextCursor": null
+}
