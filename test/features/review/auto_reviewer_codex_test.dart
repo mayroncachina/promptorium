@@ -155,8 +155,8 @@ void main() {
       servers.last.writtenJson.lastWhere((m) => m['method'] == 'thread/start');
 
   test('spec executada no Codex é revisada pelo Codex com o schema atual: '
-      'sem alias do Claude, agente ou orçamento; achados normalizados e '
-      'autoria gravada (R2, R4–R9)', () async {
+      'sem alias do Claude nem orçamento, o agente traduzido (SPEC-106 '
+      'R10); achados normalizados e autoria gravada (R2, R4–R9)', () async {
     await setUpRepo(
       'revisor:\n  ligado: true\n  modelo: haiku\n  orcamento: 0.3\n'
       '  rodadas: 2\n  modelo-codex: gpt-6.1-terra\n',
@@ -170,15 +170,19 @@ void main() {
     expect(thread()['params']['approvalPolicy'], 'never');
     expect(turn['params']['outputSchema'], isNotNull);
     final sent = jsonEncode(servers.last.writtenJson);
-    // R4, R6, R7: no Claude alias, budget or agent reaches the Codex.
+    // R4, R6: no Claude alias nor budget reaches the Codex.
     expect(thread()['params']['model'], 'gpt-6.1-terra');
     expect(sent, isNot(contains('haiku')));
     expect(sent, isNot(contains('maxBudget')));
-    expect(sent, isNot(contains('spec-reviewer')));
-    // R7: the built-in reviewer instead of the project's agent.
+    expect(sent, isNot(contains('--agent')));
+    // SPEC-106 R10: the project's agent translated — its body first, then
+    // the built-in reviewer.
+    final instructions = thread()['params']['developerInstructions'] as String;
+    expect(instructions, startsWith('# Agente `spec-reviewer`'));
+    expect(instructions, contains('Revise.'));
     expect(
-      jsonEncode(thread()['params']),
-      contains('Você é o revisor automático do Promptorium'),
+      instructions.indexOf('Revise.'),
+      lessThan(instructions.indexOf('Você é o revisor automático')),
     );
     expect(jsonEncode(turn['params']), contains('Revise a implementação'));
     expect(cli.processes, isEmpty);

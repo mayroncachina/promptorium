@@ -21,6 +21,7 @@ import '../sessions/widgets/session_style.dart';
 import 'app_mcp_card.dart';
 import 'automations_view.dart';
 import 'provider_kind_card.dart';
+import 'codex_agent_models.dart';
 import 'codex_consumption.dart';
 import 'backups_view.dart';
 import 'notifications_view.dart';
@@ -212,7 +213,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   intro:
                       'O Claude Code e o Codex (Prompt e Sessões) e os agentes '
                       'que falam o Agent Client Protocol, no seletor do Prompt.',
-                  children: [CodexStatusCard(), AcpProvidersCard()],
+                  children: [
+                    CodexStatusCard(),
+                    CodexAgentModelsCard(),
+                    AcpProvidersCard(),
+                  ],
                 ),
                 SettingsSection.aiMemory => const _Page(
                   title: 'Memória (ai-memory)',

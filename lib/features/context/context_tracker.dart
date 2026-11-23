@@ -12,13 +12,15 @@ abstract final class ContextEventTypes {
   /// What the app sent to one execution: `{"type":"promptorium_run","v":1,
   /// "autocompact":"200k"|null,"model":…,"provider":…}`, plus the
   /// `instructionSources` the agent reported (SPEC-104 R2: the Codex's
-  /// `thread/start`), the proof that it loaded them.
+  /// `thread/start`), the proof that it loaded them. [agent] = the
+  /// translation of a `.claude/agents` agent in a Codex run (SPEC-106 R11).
   static const run = 'promptorium_run';
 
   static Map<String, dynamic> runEvent({
     String? autocompact,
     String? model,
     String? provider,
+    Map<String, dynamic>? agent,
     List<String>? instructionSources,
     DateTime? at,
   }) => {
@@ -27,6 +29,7 @@ abstract final class ContextEventTypes {
     'autocompact': autocompact,
     'model': ?model,
     'provider': ?provider,
+    'agent': ?agent,
     'instructionSources': ?instructionSources,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };

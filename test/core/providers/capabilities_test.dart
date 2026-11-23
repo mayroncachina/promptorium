@@ -35,7 +35,8 @@ void main() {
         ProviderCapability.planMode: no,
         ProviderCapability.readOnlyEnforced: partial,
         ProviderCapability.managedHooks: no,
-        ProviderCapability.agentFiles: no,
+        // SPEC-106: traduzido pelo app.
+        ProviderCapability.agentFiles: partial,
         // "não testada" = não suportada (R2).
         ProviderCapability.subagents: no,
         ProviderCapability.mcpConfig: partial,

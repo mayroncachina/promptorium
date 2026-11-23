@@ -39,6 +39,7 @@ import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../agents/codex_agent.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../prompt/conversation_manager.dart' show conversationManagerProvider;
@@ -1718,6 +1719,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     McpRunLink? mcpLink;
     ManagedHookPlan? hookPlan;
     CodexHookStatus? hookStatus;
+    CodexAgentPlan? agentPlan;
     try {
       if (!isClaudeCode(session.provider)) {
         final saved = session.runConfig == null
@@ -1769,7 +1771,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             title: title,
           );
         }
-        final effective = AgentStartOptions.forAccess(
+        var effective = AgentStartOptions.forAccess(
           access,
           workingDirectory: cwd,
           resumeId: externalId,
@@ -1803,6 +1805,28 @@ class SessionManager extends Notifier<SessionManagerState> {
             ),
           ),
         );
+        // SPEC-106: the agent translated for this run only (R1–R4, R12).
+        if (options.agent case final name?
+            when name.isNotEmpty &&
+                caps.providerId == ProviderCapabilities.codex.providerId) {
+          agentPlan = await resolveCodexAgentPlan(
+            ref,
+            agent: name,
+            workspacePath: root ?? cwd,
+            access: access,
+            runModel: options.model ?? 'inherit',
+            runEffort: options.effort,
+          );
+          if (agentPlan != null) {
+            effective = withCodexAgent(effective, agentPlan);
+          } else {
+            await _note(
+              id,
+              'Agente $name não encontrado em .claude/agents: a sessão segue '
+              'sem ele.',
+            );
+          }
+        }
         final run = await provider.start(effective);
         process = run as ManagedAgentRun;
         if (run is CodexRun) {
@@ -1832,6 +1856,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             'model': session.model,
             'effort': session.effort,
             'autocompact': ?compact,
+            'agent': ?agentPlan?.toRecord(),
           }),
         );
       } else if (isClaudeCode(session.provider)) {
@@ -1914,11 +1939,20 @@ class SessionManager extends Notifier<SessionManagerState> {
             : null,
         model: session.model,
         provider: session.provider,
+        agent: agentPlan?.toRecord(),
         instructionSources: process is CodexRun
             ? process.instructionSources
             : null,
       ),
     );
+    if (agentPlan != null && options.resumeId == null) {
+      await _note(
+        id,
+        'Agente ${agentPlan.agent} no Codex · ${agentPlan.summary}: '
+        '${agentPlan.detail}.'
+        '${agentPlan.warnings.isEmpty ? '' : ' ${agentPlan.warnings.join(' ')}'}',
+      );
+    }
     p.logSub = process.logs.listen(
       (l) => debugPrint('${session.provider}[$id] $l'),
       onError: (_) {},

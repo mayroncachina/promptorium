@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/codex/codex_agent_mapping.dart';
 import 'package:promptorium/core/codex/codex_probe.dart';
 import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/agents/agent_file.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
 import 'package:promptorium/features/board/orchestrator/step_classifier.dart';
@@ -216,6 +218,7 @@ void main() {
       ProviderFlows? flows,
       ProviderAvailability? codex,
       Session? previous,
+      List<AgentRef> agents = const [],
     }) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1;
@@ -232,7 +235,7 @@ void main() {
           specStepsProvider.overrideWith(
             (ref, ws) => Stream.value(const <SpecStep>[]),
           ),
-          agentListProvider.overrideWith((ref, path) async => const []),
+          agentListProvider.overrideWith((ref, path) async => agents),
           providerAvailabilityProvider.overrideWith(
             (ref, id) => id == 'codex' && codex != null
                 ? Future.value(codex)
@@ -307,11 +310,11 @@ void main() {
         }),
       );
       // The saved Codex stays selected and the screen says why before the
-      // click; the agent field shows the tag instead of disappearing.
+      // click; the agent goes translated (SPEC-106 R8).
       expect(key('run-spec-flow-locked'), findsOneWidget);
       expect(find.textContaining('ainda não roda com o Codex'), findsOneWidget);
-      expect(key('run-spec-agent-only'), findsOneWidget);
-      expect(key('run-spec-agent'), findsNothing);
+      expect(key('run-spec-agent-only'), findsNothing);
+      expect(key('run-spec-agent'), findsOneWidget);
       await tester.tap(key('run-spec-submit'));
       await pump(tester);
       expect(closed, isFalse);
@@ -341,7 +344,7 @@ void main() {
     ).encode();
 
     testWidgets('SPEC-101 R1, R3–R6: the Codex of the kind "Executar spec": '
-        'catalog model, Editar, YOLO, Automático and Agente Só Claude Code', (
+        'catalog model, Editar, YOLO, Automático and the agent (SPEC-106)', (
       tester,
     ) async {
       await open(
@@ -365,9 +368,9 @@ void main() {
       // R5: Automático off with the tag and the hint.
       expect(key('run-spec-auto-only'), findsOneWidget);
       expect(key('run-spec-auto-only-hint'), findsOneWidget);
-      // R6: the agent is shown disabled with the tag.
-      expect(key('run-spec-agent-only'), findsOneWidget);
-      expect(key('run-spec-agent'), findsNothing);
+      // SPEC-106 R8: the agent selector comes back with the Codex.
+      expect(key('run-spec-agent-only'), findsNothing);
+      expect(key('run-spec-agent'), findsOneWidget);
       // R2: the provider stays until Review.
       expect(key('run-spec-fixed-provider'), findsOneWidget);
       // R4: Editar and YOLO (the spec has its worktree), never Perguntar
@@ -387,8 +390,46 @@ void main() {
       expect(result!.model, 'gpt-6.1-terra');
       expect(result!.effort, 'medium');
       expect(result!.mode, ClaudePermissionMode.acceptEdits);
-      expect(result!.agent, isNull);
+      // SPEC-106 R8: the spec's agent goes ('' = none here).
+      expect(result!.agent, '');
       expect(result!.auto, isFalse);
+    });
+
+    testWidgets('SPEC-106 R8: the agent on the Codex shows its translation '
+        'and goes with the run', (tester) async {
+      final file = AgentFile.parse(
+        '---\nname: flutter-dev\ndescription: d\nmodel: sonnet\n'
+        'tools: Read, Edit, Bash\nmaxTurns: 40\ncolor: amber\n---\nOi.\n',
+      );
+      await open(
+        tester,
+        settings: {
+          'agent.provider.default': 'codex',
+          codexModelsCacheKey: codexCache,
+          'codex.model.session': 'gpt-5.6-luna',
+          codexAgentModelKey('sonnet'): 'gpt-6.1-terra',
+        },
+        codex: const ProviderAvailability(ProviderStatus.ready, 'ok'),
+        agents: [AgentRef(name: 'flutter-dev', project: true, file: file)],
+      );
+      expect(find.text('Agente'), findsOneWidget);
+      await tester.tap(key('run-spec-agent'));
+      await pump(tester);
+      await tester.tap(find.text('flutter-dev · projeto').last);
+      await pump(tester);
+      expect(key('codex-agent-summary'), findsOneWidget);
+      expect(find.text('2 campos ignorados'), findsOneWidget);
+      expect(
+        find.textContaining('sonnet → gpt-6.1-terra · workspace-write'),
+        findsOneWidget,
+      );
+      // The Codex fields keep the run kind's model (no Claude alias).
+      expect(find.text('opus'), findsNothing);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.provider, 'codex');
+      expect(result!.agent, 'flutter-dev');
+      expect(result!.model, 'gpt-5.6-luna');
     });
 
     testWidgets('SPEC-101 R5: "Abrir Executar em Automático" with the Codex '

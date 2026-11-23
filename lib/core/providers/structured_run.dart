@@ -177,6 +177,7 @@ class StructuredIntent {
     this.providerId,
     this.claude = const ClaudeStructuredExtras(),
     this.modelOverride,
+    this.effortOverride,
     this.slot,
     this.label,
   });
@@ -234,6 +235,11 @@ class StructuredIntent {
   /// kind's. A Claude alias never goes here.
   final String? modelOverride;
 
+  /// Effort on a provider other than the Claude Code, in place of the
+  /// kind's (SPEC-106 R10: the translated `spec-reviewer`). `default` = the
+  /// model's own. Null = the kind's.
+  final String? effortOverride;
+
   /// Where the dialog of the flow reads the run's provider line (R10).
   final String? slot;
 
@@ -264,6 +270,7 @@ class StructuredIntent {
         providerId: providerId ?? this.providerId,
         claude: claude,
         modelOverride: modelOverride,
+        effortOverride: effortOverride,
         slot: slot,
         label: label,
       );
@@ -734,7 +741,9 @@ Future<StructuredStart> startProviderStructured(
   final caps = provider.capabilities;
   final settings = ref.read(appSettingsProvider);
   final model = intent.modelOverride ?? providerModel(ref, id, intent.kind);
-  var effort = effortArg(providerEffort(ref, id, intent.kind));
+  var effort = effortArg(
+    intent.effortOverride ?? providerEffort(ref, id, intent.kind),
+  );
   if (intent.profile == StructuredProfile.fast) {
     // P2 (b): the kind's model with effort `low`, when it has one.
     final efforts = id == ProviderCapabilities.codex.providerId
