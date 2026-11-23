@@ -9,6 +9,7 @@ import '../claude/claude_process.dart' show ProcessStarter;
 import '../providers/agent_provider.dart';
 import '../providers/capabilities.dart';
 import '../providers/permission_policy.dart';
+import 'codex_mcp_overrides.dart';
 import 'codex_neutral.dart';
 import 'codex_quota.dart' show codexRateLimitUpdates;
 import 'codex_rpc.dart';
@@ -26,7 +27,13 @@ class CodexProvider implements AgentProvider {
     String Function()? resolveExecutable,
     this.starter,
     this.clientVersion,
-  }) : _resolve = resolveExecutable ?? (() => executable);
+    CodexMcpLister? mcpLister,
+  }) : _resolve = resolveExecutable ?? (() => executable),
+       _mcpLister = mcpLister ?? defaultCodexMcpLister;
+
+  /// `codex mcp list --json` names (SPEC-105): which servers a run may
+  /// override.
+  final CodexMcpLister _mcpLister;
 
   /// Resolved only when used: listing the provider never runs the CLI.
   final String Function() _resolve;
@@ -54,9 +61,8 @@ class CodexProvider implements AgentProvider {
   Future<AgentRun> start(AgentStartOptions options) async {
     validateOptions(options);
     final args = ['app-server'];
-    if (options.access.readOnly) {
-      args.addAll(['-c', 'mcp_servers={}']);
-    }
+    final mcp = await _mcpArgs(options);
+    args.addAll(mcp.args);
     for (final MapEntry(:key, :value)
         in options.codex.configOverrides.entries) {
       args.addAll(['-c', '$key=$value']);
@@ -78,7 +84,9 @@ class CodexProvider implements AgentProvider {
         executable,
         args,
         workingDirectory: options.workingDirectory,
-        environment: options.environment,
+        environment: mcp.token == null
+            ? options.environment
+            : {...?options.environment, codexAppMcpTokenVar: mcp.token!},
       );
     } on ProcessException {
       throw const AgentUnavailable(
@@ -107,17 +115,50 @@ class CodexProvider implements AgentProvider {
     }
   }
 
+  /// SPEC-105 R7–R9: the MCP of the run by `-c` overrides. Read-only
+  /// runs turn every configured server off (fails closed when they cannot
+  /// be listed); "Bloqueado" rules become `disabled_tools`; the app's
+  /// server comes from its `--mcp-config` file, with its token in the
+  /// environment.
+  Future<({List<String> args, String? token})> _mcpArgs(
+    AgentStartOptions o,
+  ) async {
+    final readOnly = o.access.readOnly;
+    final disallowed = o.codex.mcpDisallowedTools;
+    var servers = const <String>[];
+    if (readOnly || disallowed.isNotEmpty) {
+      try {
+        servers = await _mcpLister(executable, o.workingDirectory);
+      } catch (e) {
+        if (readOnly) {
+          throw AgentUnavailable(
+            'Codex: não deu para listar os servidores MCP (codex mcp list) '
+            'para desligá-los neste modo de leitura. $e',
+          );
+        }
+      }
+    }
+    CodexAppMcp? app;
+    for (final path in o.appMcpConfigs) {
+      app ??= readAppMcpConfig(path);
+    }
+    return (
+      args: codexMcpOverrides(
+        servers: servers,
+        readOnly: readOnly,
+        disallowed: disallowed,
+        app: app,
+      ),
+      token: app?.token,
+    );
+  }
+
   /// Fail closed rather than send Claude flags or silently drop a control.
-  /// Extras of another provider and app MCP are programming errors: the
-  /// services consult [capabilities] and never build them (SPEC-094 R5, R6).
+  /// Extras of another provider are programming errors: the services
+  /// consult [capabilities] and never build them (SPEC-094 R5, R6). The
+  /// app's MCP server goes by override (SPEC-105 R7).
   static void validateOptions(AgentStartOptions o) {
     checkExtras('codex', o.extras);
-    if (o.appMcpConfigs.isNotEmpty || o.appAllowedTools.isNotEmpty) {
-      throw ArgumentError(
-        'MCP do app entregue ao Codex sem a capacidade appMcpServer '
-        '(SPEC-094 R6).',
-      );
-    }
     if (o.forkSession && o.resumeId == null) {
       throw const AgentUnavailable('Codex: fork exige a thread de origem.');
     }
@@ -628,6 +669,9 @@ class CodexRun implements ManagedAgentRun {
                         (_baselineUsage[k] as num? ?? 0))
                     .clamp(0, 1 << 62),
         };
+      case 'mcpServer/startupStatus/updated':
+        // SPEC-105 R11: the footer counts the Codex servers.
+        codexMcpStartupUpdates.add(p);
       case 'account/rateLimits/updated':
         // R5, P5: passed on, never stored (the session drops it); the quota
         // store merges it into the last reading (SPEC-097 R2).

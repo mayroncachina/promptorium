@@ -132,6 +132,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('••••'), findsOneWidget); // TOKEN_Y masked
+      // SPEC-105 R6: a one-time copy to the Codex.
+      expect(find.byKey(const ValueKey('mcp-copy-codex')), findsOneWidget);
       expect(c.read(footerStatsProvider).mcpTotal, isNotNull);
     });
   }

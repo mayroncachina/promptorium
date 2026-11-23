@@ -77,6 +77,7 @@ class AgentStartOptions {
     String? jsonSchema,
     Map<String, String>? environment,
     ProviderExtras? extras,
+    List<String> appMcpConfigs = const [],
   }) => AgentStartOptions(
     workingDirectory: workingDirectory,
     mode: switch (access) {
@@ -94,6 +95,7 @@ class AgentStartOptions {
     jsonSchema: jsonSchema,
     environment: environment,
     extras: extras,
+    appMcpConfigs: appMcpConfigs,
   );
 
   final String workingDirectory;
