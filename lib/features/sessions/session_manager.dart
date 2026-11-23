@@ -1899,6 +1899,9 @@ class SessionManager extends Notifier<SessionManagerState> {
             : null,
         model: session.model,
         provider: session.provider,
+        instructionSources: process is CodexRun
+            ? process.instructionSources
+            : null,
       ),
     );
     p.logSub = process.logs.listen(

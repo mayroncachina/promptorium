@@ -27,6 +27,7 @@ import '../../features/sessions/session_manager.dart';
 import '../../features/sessions/sessions_screen.dart'
     show SessionsScreen, toggleSplit;
 import '../../features/settings/settings_screen.dart';
+import '../../features/instructions/instructions_view.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_view.dart';
@@ -353,6 +354,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.repository => const RepositoryScreen(),
     AppSection.code => const CodeScreen(),
     AppSection.mcp => const McpScreen(),
+    AppSection.instructions => const InstructionsView(),
     AppSection.settings => const SettingsScreen(),
   };
 

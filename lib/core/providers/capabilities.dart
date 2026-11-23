@@ -28,7 +28,17 @@ enum ProviderCapability {
   quota('Cota do plano'),
   costUsd('Custo em US\$'),
   nativeReview('Review nativo'),
-  revertConversation('Desfazer turnos da conversa');
+  revertConversation('Desfazer turnos da conversa'),
+
+  /// Reads the project's `CLAUDE.md` (SPEC-104 R1): natively in the Claude
+  /// Code, by `project_doc_fallback_filenames` in the Codex. False = plano
+  /// B, the app offers a generated `AGENTS.md` (R3).
+  instructionsFallback('Lê o CLAUDE.md do projeto'),
+
+  /// Sees the skills of `.claude/skills` and `~/.claude/skills` (SPEC-104
+  /// R6): natively in the Claude Code, by `skills/extraRoots/set` in the
+  /// Codex. False = plano B, "Disponibilizar no Codex" (R10).
+  skillsExtraRoots('Skills do .claude/skills');
 
   const ProviderCapability(this.label);
 
@@ -142,6 +152,10 @@ class ProviderCapabilities {
         'O Claude Code não tem review nativo pelo app.',
       ),
       ProviderCapability.revertConversation: CapabilityValue.supported(),
+      ProviderCapability.instructionsFallback: CapabilityValue.supported(
+        'nativo',
+      ),
+      ProviderCapability.skillsExtraRoots: CapabilityValue.supported('nativo'),
     },
     efforts: ['default', 'low', 'medium', 'high', 'xhigh', 'max'],
   );
@@ -197,6 +211,14 @@ class ProviderCapabilities {
       ),
       ProviderCapability.revertConversation: CapabilityValue.unsupported(
         'Desfazer turnos no Codex não foi testado.',
+      ),
+      // SPEC-093 R10 and the SPEC-104 probe (`skills.jsonl`): both work by
+      // override of the run, nothing written in ~/.codex.
+      ProviderCapability.instructionsFallback: CapabilityValue.supported(
+        'project_doc_fallback_filenames',
+      ),
+      ProviderCapability.skillsExtraRoots: CapabilityValue.supported(
+        'skills/extraRoots/set',
       ),
     },
   );
