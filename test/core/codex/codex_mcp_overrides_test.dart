@@ -193,17 +193,20 @@ void main() {
           'app-server',
           '-c',
           'mcp_servers.github.disabled_tools=["delete_branch"]',
+          // SPEC-104 R1: the instructions override rides on every run.
+          '-c',
+          codexInstructionsOverride,
         ]);
         expect(env, isNull);
       },
     );
 
-    test('Editar sem regras nem app: só app-server, sem listar', () async {
+    test('Editar sem regras nem app: só app-server (e o override de instruções), sem listar', () async {
       final (args, _) = await start(
         const AgentStartOptions(workingDirectory: '/w', mode: PromptMode.edit),
         failList: true,
       );
-      expect(args, ['app-server']);
+      expect(args, ['app-server', '-c', codexInstructionsOverride]);
     });
 
     test('leitura sem conseguir listar falha fechado [R8]', () async {
