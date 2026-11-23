@@ -2,6 +2,60 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.25.0] - 2026-11-23
+
+### Funcionalidades
+
+- **contexto:** Medidor e compactação do Codex pelo contrato da SPEC-087 (SPEC-107) (8a900d9)
+- **contexto:** Fontes do Codex com caminhos relativos e subagente pela thread (SPEC-107) (d6d7f04)
+- **codex:** Traduz o agente .claude/agents para a execução Codex (SPEC-106 T1) (e2151d4)
+- **codex:** Sessão Codex com agente traduzido e registro no promptorium_run (SPEC-106 T2) (d16d16a)
+- **agentes:** Modelos equivalentes do Codex e quadro "No Codex" no editor (SPEC-106 T3) (51d505a)
+- **codex:** Agente na Nova sessão, Executar spec e revisor; aviso dos subagentes (SPEC-106 T4) (48e998a)
+- **mcp:** Inventário do Codex por codex mcp e mcpServerStatus/list (SPEC-105 T1) (bfa4d39)
+- **mcp:** Aba Codex na tela MCP com grupos, status, Entrar/Sair e adicionar/remover (SPEC-105 T2) (09bec2f)
+- **mcp:** Copiar para o Codex com tradução, segredos, escopo e nome repetido (SPEC-105 T3) (64682c2)
+- **codex:** MCP do Promptorium, servidores desligados por nome nos modos de leitura, Bloqueado e rodapé por provedor (SPEC-105 T4) (2bd5ae2)
+- **codex:** CLAUDE.md e skills do Claude no Codex por override da execução (SPEC-104 T1, T2) (3782b8e)
+- **instrucoes:** Aba Instruções em Ferramentas e AGENTS.md do plano B na criação (SPEC-104 T3) (168f7f1)
+- **skills:** Selos Claude/Codex, grupo Do Codex, erros do skills/list e plano B (SPEC-104 T4) (7c079d3)
+
+### Correções
+
+- **codex:** Ajustes visuais do E2E da SPEC-106 (pílula à direita, nota do maior esforço, aviso sem crases) (cfe5baa)
+- **codex:** Razões curtas das capacidades MCP (SPEC-105 T4) (eae6868)
+- **skills:** A consulta do Codex espera o workspace ativo pela configuração, sem ouvir o stream dos workspaces (SPEC-104) (3d63789)
+
+### Documentação
+
+- **spec:** SPEC-107 contexto e compactação no Codex, com mocks (e2a5076)
+- **spec:** SPEC-107 aponta a issue #342 (b2b46e0)
+- **spec:** SPEC-107 vai para a 0.25.0 (c483fa2)
+- **spec:** SPEC-107 arquiva o canvas no repositório (5164dfd)
+- **spec:** SPEC-107 em implementação, decisões P1–P5 fechadas (390e753)
+- **spec:** SPEC-107 concluída, prints do app e Codex falso do E2E; corrige o marcador depois da última leitura (72c3b92)
+- **spec:** SPEC-106 agentes no Codex, com mocks (3e4c660)
+- **spec:** SPEC-106 aponta a issue #341 (721744b)
+- **spec:** SPEC-106 vai para a 0.25.0 (37dc11a)
+- **spec:** SPEC-106 arquiva o canvas no repositório (6a99cdc)
+- **spec:** SPEC-106 em implementação, decisões P fechadas (88ab2f3)
+- **spec:** SPEC-106 concluída, prints do app e aviso dos subagentes sem crases (a567ffe)
+- **spec:** SPEC-105 MCP por provedor, com mocks (380e164)
+- **spec:** SPEC-105 aponta a issue #340 (44351ed)
+- **spec:** SPEC-105 vai para a 0.25.0 (21ac13d)
+- **spec:** SPEC-105 arquiva o canvas no repositório (87f6591)
+- **spec:** SPEC-105 em implementação, decisões e sondagem sem custo (4f6a7f5)
+- **spec:** SPEC-105 concluída, prints do app e critérios (b99eb98)
+- **spec:** SPEC-104 instruções (AGENTS.md) e skills, com mocks (34c9a94)
+- **spec:** SPEC-104 aponta a issue #339 (3bc505d)
+- **spec:** SPEC-104 vai para a 0.25.0 (28103ed)
+- **spec:** SPEC-104 arquiva o canvas no repositório (c887b65)
+- **spec:** SPEC-104 concluída, com os prints do app e o diff sem rolagem própria (855fb5c)
+
+### Testes
+
+- **mcp:** Os args exatos do app-server incluem o override de instruções da SPEC-104 (SPEC-105) (1aaaff2)
+
 ## [0.24.0] - 2026-11-22
 
 ### Funcionalidades
