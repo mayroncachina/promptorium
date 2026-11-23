@@ -552,6 +552,14 @@ class CodexSkillsUnavailable extends CodexSkillsResult {
   final String reason;
 }
 
+/// How many skills of [result] the Codex has on (SPEC-107 R10: the
+/// "N skills disponíveis" row of Fontes); null while unknown.
+int? codexSkillsAvailable(CodexSkillsResult? result) => switch (result) {
+  CodexSkillsReady(:final inventory) =>
+    inventory.skills.where((s) => s.enabled).length,
+  _ => null,
+};
+
 /// `skills/list` through a short App Server (R12): `initialize`, the extra
 /// roots (when [roots] is not empty) and the list — never a thread, never a
 /// turn, never a prompt to the model.

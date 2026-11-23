@@ -90,6 +90,28 @@ class RunPrefs {
   String get autocompact =>
       _settings[AppSettingKeys.autocompact] ?? defaultAutocompact;
 
+  /// Codex threshold (SPEC-107 P1): its own preference, starting at the
+  /// agent's default; changing it never touches Claude's, and vice versa.
+  String get codexAutocompact =>
+      _settings[AppSettingKeys.codexAutocompact] ?? defaultCodexAutocompact;
+  static const defaultCodexAutocompact = 'auto';
+
+  /// The threshold preference of [provider] (null = it has none).
+  String? autocompactOf(String provider) => switch (provider) {
+    'claude' => autocompact,
+    'codex' => codexAutocompact,
+    _ => null,
+  };
+
+  /// `app_settings` key of [provider]'s threshold.
+  static String autocompactKey(String provider) => provider == 'codex'
+      ? AppSettingKeys.codexAutocompact
+      : AppSettingKeys.autocompact;
+
+  /// Default of [provider]'s threshold.
+  static String defaultAutocompactOf(String provider) =>
+      provider == 'codex' ? defaultCodexAutocompact : defaultAutocompact;
+
   /// Minutes without activity before an idle session's process is closed
   /// (0 = never).
   int get idleMinutes {

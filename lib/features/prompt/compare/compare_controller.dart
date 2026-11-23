@@ -286,6 +286,8 @@ class CompareController extends Notifier<Map<int, CompareView>> {
                   ? await runSettingsFile(ref)
                   : null,
             ),
+            // SPEC-107 R6, R13: each Codex side gets the Codex threshold.
+            codex: CodexExtras(compactLimit: prefs.codexAutocompact),
           ),
         ),
       );
@@ -318,9 +320,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     );
     // SPEC-087 R7, R11: each side records what its own execution received.
     final runJson = ContextEventTypes.runEvent(
-      autocompact: isClaudeCode(conv.provider)
-          ? ref.read(runPrefsProvider).autocompact
-          : null,
+      autocompact: ref.read(runPrefsProvider).autocompactOf(conv.provider),
       model: side.model,
       provider: conv.provider,
     );

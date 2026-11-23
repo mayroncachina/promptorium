@@ -8,6 +8,7 @@ import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ProcessStarter;
 import '../providers/agent_provider.dart';
 import '../providers/capabilities.dart';
+import '../providers/context_events.dart';
 import '../providers/permission_policy.dart';
 import 'codex_mcp_overrides.dart';
 import 'codex_neutral.dart';
@@ -307,6 +308,17 @@ class CodexRun implements ManagedAgentRun {
   String? _compacting;
   int? _compactedTokens;
 
+  /// "Compactar agora" (`thread/compact/start`, SPEC-107 R8) is running as
+  /// its own turn: its `turn/completed` ends it with a `result` that is not
+  /// a work turn (`num_turns: 0`, as the Claude `/compact`).
+  bool _compactTurn = false;
+
+  /// Turns whose compaction was already marked (R7), by the
+  /// `contextCompaction` item or by the deprecated `thread/compacted`: the
+  /// two never mark the same turn twice.
+  final _itemCompactedTurns = <String>{};
+  final _notifiedCompactedTurns = <String>{};
+
   @override
   Stream<ClaudeEvent> get events => _events.stream;
   @override
@@ -432,17 +444,12 @@ class CodexRun implements ManagedAgentRun {
       }
     }
     final config = <String, dynamic>{};
-    final compact = options.codex.compactLimit;
-    if (compact != null && compact != 'auto') {
-      final unit = compact.toLowerCase();
-      final mult = unit.endsWith('k')
-          ? 1000
-          : unit.endsWith('m')
-          ? 1000000
-          : 1;
-      config['model_auto_compact_token_limit'] =
-          int.parse(unit.replaceAll(RegExp('[km]'), '')) * mult;
+    if (_sentCompactLimit case final limit?) {
+      config['model_auto_compact_token_limit'] = limit;
     }
+    // Read before the thread, so `thread/start` stays the last request of
+    // the opening; emitted after the init.
+    final agentConfig = await _readConfig();
     final resume = options.resumeId;
     // SPEC-093 D1, SPEC-096 R10: the thread always opens `read-only` +
     // `never` — a writable sandbox on `thread/*` makes the App Server save
@@ -512,6 +519,93 @@ class CodexRun implements ManagedAgentRun {
           {'id': m.id, 'efforts': m.efforts, 'modalities': m.modalities},
       ],
     });
+    // SPEC-107 R10: what the App Server says it loaded (AGENTS.md, the
+    // CLAUDE.md fallback of SPEC-104), as proof of loading.
+    // [instructionSources] (SPEC-104) keeps them relative; the event keeps
+    // what the server sent, with the cwd to show them.
+    if (sources is List) {
+      final loaded = [
+        for (final s in sources)
+          if (s is String && s.isNotEmpty) s,
+      ];
+      if (loaded.isNotEmpty) {
+        _emit(
+          ContextAppEvents.instructionsEvent(
+            provider: 'codex',
+            sources: loaded,
+            cwd: options.workingDirectory,
+          ),
+        );
+      }
+    }
+    if (agentConfig != null) _emit(agentConfig);
+  }
+
+  /// SPEC-107 R6, P2: the compaction limit (and its scope) in effect for
+  /// this directory, from `config/read` (no model call). Best effort: a
+  /// missing answer leaves the value the app sent. The app's own limit
+  /// goes as a thread override, which the config layers do not see: then
+  /// the sent value is the effective one and only the scope is used.
+  Future<Map<String, dynamic>?> _readConfig() async {
+    try {
+      final r = await rpc
+          .request('config/read', {'cwd': options.workingDirectory})
+          .timeout(const Duration(seconds: 3));
+      final config = r['config'];
+      if (config is! Map) return null;
+      final limit = _sentCompactLimit == null
+          ? config['model_auto_compact_token_limit']
+          : null;
+      final scope = config['model_auto_compact_token_limit_scope'];
+      if (limit is! num && scope is! String) return null;
+      return ContextAppEvents.agentConfigEvent(
+        provider: 'codex',
+        autocompactLimit: limit is num ? limit.toInt() : null,
+        autocompactScope: scope is String ? scope : null,
+      );
+    } catch (_) {
+      // Older App Servers or a slow answer: the panel shows the sent value.
+      return null;
+    }
+  }
+
+  /// `model_auto_compact_token_limit` the app sends (null = the agent's
+  /// default).
+  int? get _sentCompactLimit {
+    final compact = options.codex.compactLimit;
+    if (compact == null || compact == 'auto') return null;
+    final unit = compact.toLowerCase();
+    final mult = unit.endsWith('k')
+        ? 1000
+        : unit.endsWith('m')
+        ? 1000000
+        : 1;
+    return int.parse(unit.replaceAll(RegExp('[km]'), '')) * mult;
+  }
+
+  /// "Compactar agora" (SPEC-107 R8): `thread/compact/start` once, with
+  /// the thread idle. The compaction runs as a turn (SPEC-093 R14) and
+  /// ends with a `result` of `num_turns: 0`. Never a "resuma" prompt, and
+  /// no focus: the App Server takes none (R9).
+  Future<void> compactNow() async {
+    if (_busy) {
+      throw const AgentUnavailable(
+        'Espere a resposta atual: compactar só com o agente ocioso.',
+      );
+    }
+    _busy = true;
+    _compactTurn = true;
+    _interruptAsked = false;
+    _answer = '';
+    _lastUsage = const {};
+    _baselineUsage = _totalUsage;
+    try {
+      await rpc.request('thread/compact/start', {'threadId': _thread});
+    } catch (_) {
+      _busy = false;
+      _compactTurn = false;
+      rethrow;
+    }
   }
 
   /// Model of the thread (null = not reported).
@@ -679,14 +773,38 @@ class CodexRun implements ManagedAgentRun {
         if (quota != null) _emit(quota);
         codexRateLimitUpdates.add(p);
       case 'thread/compacted':
-        // Deprecated in 0.170 (the `contextCompaction` item replaced it).
+        // Deprecated in 0.170 (the `contextCompaction` item replaced it):
+        // only a fallback, once per turn (SPEC-107 R7).
+        final turnId = '${p['turnId'] ?? _turn ?? ''}';
+        if (_compacting != null ||
+            _itemCompactedTurns.contains(turnId) ||
+            !_notifiedCompactedTurns.add(turnId)) {
+          return;
+        }
         _emit(
           CompactionEvent.toJson(
             provider: 'codex',
             phase: CompactionEventPhase.completed,
-            key: 'compacted:${p['turnId'] ?? _turn ?? ''}',
+            trigger: _compactTurn ? 'manual' : 'auto',
+            key: 'compacted:$turnId',
           ),
         );
+      case 'model/rerouted':
+        // SPEC-107 R12: the service chose another model for the turn.
+        final to = p['toModel'];
+        if (to is String && to.isNotEmpty) {
+          _modelChanged(
+            to,
+            ContextAppEvents.rerouted,
+            from: p['fromModel'] as String?,
+          );
+        }
+      case 'thread/settings/updated':
+        final settings = p['threadSettings'];
+        final to = settings is Map ? settings['model'] : null;
+        if (to is String && to.isNotEmpty && to != _model) {
+          _modelChanged(to, ContextAppEvents.settings);
+        }
       case 'serverRequest/resolved':
         _cancel('codex-${p['requestId']}');
       case 'turn/completed':
@@ -698,18 +816,23 @@ class CodexRun implements ManagedAgentRun {
         if (_compacting case final id?) {
           // The turn ended before the compaction item did.
           _finishedItems.add(id);
+          if (ok) _itemCompactedTurns.add(_turn ?? '');
           _emit(
             CompactionEvent.toJson(
               provider: 'codex',
               phase: ok
                   ? CompactionEventPhase.completed
                   : CompactionEventPhase.failed,
+              trigger: _compactTurn ? 'manual' : 'auto',
               postTokens: _compactedTokens,
               key: id,
+              error: ok ? null : _turnError(turn['error']),
             ),
           );
           _compacting = null;
         }
+        final compactTurn = _compactTurn;
+        _compactTurn = false;
         final cached = _lastUsage['cachedInputTokens'] as num? ?? 0;
         final input = _lastUsage['inputTokens'] as num? ?? 0;
         _emit({
@@ -724,7 +847,8 @@ class CodexRun implements ManagedAgentRun {
             'interrupt_reason': _interruptAsked ? 'user' : 'agent',
           'result': _answer,
           'cost_available': false,
-          'num_turns': 1,
+          // "Compactar agora" is not a work turn (SPEC-087 R9).
+          'num_turns': compactTurn ? 0 : 1,
           'usage': {
             'input_tokens': (input - cached).clamp(0, 1 << 62),
             'cache_read_input_tokens': cached,
@@ -838,6 +962,10 @@ class CodexRun implements ManagedAgentRun {
                 if (item['query'] != null) 'query': item['query'],
                 if (item['arguments'] != null) 'arguments': item['arguments'],
                 if (item['prompt'] != null) 'prompt': item['prompt'],
+                // SPEC-107 R12: the subagent's own threads (separate
+                // contexts, never measured in the main one).
+                if (item['receiverThreadIds'] is List)
+                  'threads': item['receiverThreadIds'],
               },
             },
           ],
@@ -900,16 +1028,25 @@ class CodexRun implements ManagedAgentRun {
         CompactionEvent.toJson(
           provider: 'codex',
           phase: CompactionEventPhase.started,
+          trigger: _compactTurn ? 'manual' : 'auto',
           key: id,
         ),
       );
       return;
     }
     if (!_finishedItems.add(id)) return;
+    // R7: the deprecated `thread/compacted` of this turn came first.
+    if (_notifiedCompactedTurns.contains(_turn)) {
+      _compacting = null;
+      _compactedTokens = null;
+      return;
+    }
+    _itemCompactedTurns.add(_turn ?? id);
     _emit(
       CompactionEvent.toJson(
         provider: 'codex',
         phase: CompactionEventPhase.completed,
+        trigger: _compactTurn ? 'manual' : 'auto',
         postTokens: _compactedTokens,
         key: id,
       ),
@@ -917,6 +1054,28 @@ class CodexRun implements ManagedAgentRun {
     _compacting = null;
     _compactedTokens = null;
   }
+
+  /// A model change of the thread (R12): the next readings carry the new
+  /// model, and the marker invalidates the capacity of the old one.
+  void _modelChanged(String to, String reason, {String? from}) {
+    final old = from ?? _model;
+    _model = to;
+    if (old == to) return;
+    _emit(
+      ContextAppEvents.modelChangeEvent(
+        provider: 'codex',
+        from: old,
+        to: to,
+        reason: reason,
+      ),
+    );
+  }
+
+  static String? _turnError(Object? error) => switch (error) {
+    {'message': final String m} => m,
+    final String m => m,
+    _ => null,
+  };
 
   void _request(Object id, String method, Map<String, dynamic> p) {
     final question = method == 'item/tool/requestUserInput';

@@ -29,11 +29,16 @@ class ContextPanel extends StatefulWidget {
     this.initialTab = ContextTab.usage,
     this.tab,
     this.onTab,
+    this.codexSkills,
   });
 
   final ContextSnapshot snapshot;
   final ContextSources sources;
   final VoidCallback onClose;
+
+  /// Skills the Codex has available (`skills/list`, SPEC-104); null = not
+  /// a Codex history or not known (R10).
+  final int? codexSkills;
 
   /// "Conversa" / "Sessão" (header, right side).
   final String place;
@@ -188,6 +193,7 @@ class _ContextPanelState extends State<ContextPanel> {
                           sources: widget.sources,
                           onOpen: widget.onOpenSource,
                           nextSend: widget.nextSend,
+                          codexSkills: widget.codexSkills,
                         ),
                 ),
               ],
@@ -334,8 +340,10 @@ class _UsageTab extends StatelessWidget {
                             : 'medido no turno ${c.turn} · ${contextTime(c.at)}',
                         style: _label,
                       ),
-                      const Text(
-                        'fonte: uso informado pelo agente',
+                      Text(
+                        c?.isCodex ?? s.isCodex
+                            ? 'fonte: thread/tokenUsage (last)'
+                            : 'fonte: uso informado pelo agente',
                         style: _label,
                       ),
                     ],
@@ -430,7 +438,8 @@ List<String> markerLines(ContextSnapshot s) {
     if (m.kind == ContextMarkerKind.modelChange) {
       out.add(
         'Turno ${m.turn}: ${shortModel(m.fromModel ?? '?')} → '
-        '${shortModel(m.toModel ?? '?')}, limites revalidados.',
+        '${shortModel(m.toModel ?? '?')}'
+        '${m.rerouted ? ', modelo redirecionado pelo serviço; capacidade informada de novo.' : ', limites revalidados.'}',
       );
       continue;
     }
@@ -672,12 +681,17 @@ class _Composition extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = snapshot.current;
     if (c == null) return const SizedBox.shrink();
+    // SPEC-107 R3: the Codex has no `get_context_usage`.
+    const codexNote =
+        'Categorias (ferramentas, skills): detalhamento indisponível no '
+        'Codex.';
     if (!c.hasComposition) {
-      return const _Notice(
+      return _Notice(
         title: 'Detalhamento indisponível',
         text:
             'O agente informou só o total. O ocupado fica numa cor só, sem '
-            'fatias inventadas. A aba Fontes continua com as evidências do app.',
+            'fatias inventadas. A aba Fontes continua com as evidências do app.'
+            '${c.isCodex ? ' $codexNote' : ''}',
       );
     }
     const mono = TextStyle(
@@ -685,6 +699,27 @@ class _Composition extends StatelessWidget {
       fontSize: 11.5,
       color: AppColors.text,
     );
+    if (c.isCodex) {
+      return Text.rich(
+        key: const ValueKey('context-composition-codex'),
+        TextSpan(
+          children: [
+            const TextSpan(text: 'Entrada nova '),
+            TextSpan(text: contextTokens(c.input), style: mono),
+            const TextSpan(text: ' · leitura de cache '),
+            TextSpan(text: contextTokens(c.cacheRead), style: mono),
+            const TextSpan(text: ' · escrita de cache '),
+            TextSpan(text: contextTokens(c.cacheWrite), style: mono),
+            if (c.output > 0) ...[
+              const TextSpan(text: ' · saída da chamada '),
+              TextSpan(text: contextTokens(c.output), style: mono),
+            ],
+            const TextSpan(text: ' · medidos na mesma chamada. $codexNote'),
+          ],
+        ),
+        style: _label,
+      );
+    }
     return Text.rich(
       TextSpan(
         children: [
@@ -754,6 +789,13 @@ class _AutocompactText extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = snapshot;
     final sent = s.configuredAutocompact;
+    if (s.isCodex) {
+      return Text(
+        codexAutocompactLine(s),
+        key: const ValueKey('context-autocompact-codex'),
+        style: _label,
+      );
+    }
     final text = sent == null
         ? 'Auto compactar: não informado para esta execução.'
         : 'Auto compactar: ${autocompactLabel(sent)} (--autocompact $sent)'
@@ -761,6 +803,30 @@ class _AutocompactText extends StatelessWidget {
     return Text(text, style: _label);
   }
 }
+
+/// "Auto compactar: em 300 mil (enviado ao Codex)" (SPEC-107 R6): the
+/// effective value of `config/read` wins over the sent one; nothing sent =
+/// "padrão do agente".
+String codexAutocompactLine(ContextSnapshot s) {
+  final t = s.threshold;
+  final scope = s.autocompactScope == null
+      ? ''
+      : ' · escopo: ${codexScopeLabel(s.autocompactScope!)}';
+  return switch (s.thresholdSource) {
+    ContextThresholdSource.config when t != null =>
+      'Auto compactar: em ${contextTokens(t)} (efetivo, lido do Codex)$scope',
+    ContextThresholdSource.sent when t != null =>
+      'Auto compactar: em ${contextTokens(t)} (enviado ao Codex)$scope',
+    _ => 'Auto compactar: padrão do agente$scope',
+  };
+}
+
+/// `total` / `body_after_prefix` of `model_auto_compact_token_limit_scope`.
+String codexScopeLabel(String scope) => switch (scope) {
+  'total' => 'contexto inteiro',
+  'body_after_prefix' => 'corpo depois do prefixo',
+  _ => scope,
+};
 
 /// The Fontes tab (R4, R5): grouped evidence, keyboard focusable rows.
 class ContextSourcesView extends StatelessWidget {
@@ -770,6 +836,7 @@ class ContextSourcesView extends StatelessWidget {
     required this.sources,
     this.onOpen,
     this.nextSend,
+    this.codexSkills,
   });
 
   final ContextSnapshot snapshot;
@@ -777,9 +844,33 @@ class ContextSourcesView extends StatelessWidget {
   final ValueChanged<ContextSource>? onOpen;
   final Widget? nextSend;
 
+  /// See [ContextPanel.codexSkills].
+  final int? codexSkills;
+
   @override
   Widget build(BuildContext context) {
-    final groups = sources.grouped;
+    final observed = sources.grouped;
+    final skills = codexSkills;
+    // R10: "N skills disponíveis · configuração", available, not loaded.
+    final groups = skills == null
+        ? observed
+        : {
+            for (final g in ContextSourceGroup.values)
+              if (observed[g] != null || g == ContextSourceGroup.instructions)
+                g: [
+                  ...?observed[g],
+                  if (g == ContextSourceGroup.instructions)
+                    ContextSource(
+                      group: g,
+                      label: skills == 1
+                          ? '1 skill disponível'
+                          : '$skills skills disponíveis',
+                      evidence: ContextEvidence.config,
+                      turn: 0,
+                      itemIndex: 0,
+                    ),
+                ],
+          };
     final c = snapshot.current;
     final turn = sources.turn;
     final rows = <Widget>[
@@ -831,7 +922,14 @@ class ContextSourcesView extends StatelessWidget {
         ),
       );
       for (final s in list) {
-        rows.add(_SourceRow(source: s, turn: turn, onOpen: onOpen));
+        rows.add(
+          _SourceRow(
+            source: s,
+            turn: turn,
+            // A configuration row has no event to open.
+            onOpen: s.evidence == ContextEvidence.config ? null : onOpen,
+          ),
+        );
       }
     }
     if (nextSend != null) rows.addAll([const SizedBox(height: 10), nextSend!]);
@@ -861,8 +959,13 @@ class _SourceRow extends StatelessWidget {
         : switch (s.evidence) {
             ContextEvidence.sent => (AppColors.teal, false),
             ContextEvidence.read ||
-            ContextEvidence.edited => (AppColors.blue, false),
-            ContextEvidence.agent => (AppColors.lilac, false),
+            ContextEvidence.edited ||
+            ContextEvidence.commandRead ||
+            ContextEvidence.mcpCall => (AppColors.blue, false),
+            ContextEvidence.agent ||
+            ContextEvidence.loaded => (AppColors.lilac, false),
+            ContextEvidence.separate ||
+            ContextEvidence.config => (AppColors.textSecondary, true),
           };
     final label = s.detail == null
         ? _short(s.label)
@@ -960,6 +1063,7 @@ class _SourceRow extends StatelessWidget {
     ContextSourceGroup.files => Icons.insert_drive_file_outlined,
     ContextSourceGroup.attachments => Icons.image_outlined,
     ContextSourceGroup.tools => Icons.power_outlined,
+    ContextSourceGroup.subagents => Icons.smart_toy_outlined,
   };
 
   /// `lib/features/x/y/z.dart` → `lib/…/z.dart`.

@@ -23,6 +23,7 @@ import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
+import '../../core/providers/context_events.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/git/agent_trailer.dart';
@@ -814,7 +815,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> compactNow(String id, {String? focus}) async {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não existe.');
-    if (!isClaudeCode(s.provider)) {
+    // SPEC-107 R8: decided by the capability, not by the provider name.
+    if (!capabilitiesFor(s.provider).supports(ProviderCapability.compactNow)) {
       throw const SessionException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -837,6 +839,22 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..busySince = DateTime.now()
       ..lastActivity = DateTime.now();
     _publish();
+    final run = proc.process;
+    if (run is CodexRun) {
+      // SPEC-107 R8, R9: `thread/compact/start`, once, without focus.
+      await _note(id, 'Compactação pedida pelo app (thread/compact/start).');
+      try {
+        await run.compactNow();
+      } catch (_) {
+        proc
+          ..busy = false
+          ..compacting = false
+          ..busySince = null;
+        _publish();
+        rethrow;
+      }
+      return;
+    }
     await _note(id, 'Compactação pedida pelo app (/compact).');
     await proc.process.send(compactCommand(focus));
   }
@@ -1757,7 +1775,10 @@ class SessionManager extends Notifier<SessionManagerState> {
                     '${provider.displayName}: o modo ${mode.cliValue} é só '
                     'do Claude Code.',
                   ));
-        final compact = saved['autocompact'] as String?;
+        // SPEC-107 R6, P1: the Codex threshold preference of this start.
+        final compact = isClaudeCode(session.provider)
+            ? saved['autocompact'] as String?
+            : ref.read(runPrefsProvider).autocompactOf(session.provider);
         final codexHooks = await _prepareCodexHooks(id, cwd: cwd, root: root);
         // SPEC-105 R7: the app's MCP server, by override of the run.
         if (caps.supports(ProviderCapability.appMcpServer)) {
@@ -1934,9 +1955,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _appEvent(
       id,
       ContextEventTypes.runEvent(
-        autocompact: isClaudeCode(session.provider)
-            ? ref.read(runPrefsProvider).autocompact
-            : null,
+        // SPEC-107 R6: what the Codex received too.
+        autocompact: ref.read(runPrefsProvider).autocompactOf(session.provider),
         model: session.model,
         provider: session.provider,
         agent: agentPlan?.toRecord(),
@@ -2600,6 +2620,13 @@ class SessionManager extends Notifier<SessionManagerState> {
       case ContextUsageEvent(:final tokens, :final window):
         if (tokens > 0) p.contextTokens = tokens;
         if (window != null && window > 0) p.contextWindow = window;
+      // SPEC-107 R7, R13: after a compaction the continuation waits for the
+      // next measurement; a model change drops the old window.
+      case CompactionEvent(phase: CompactionEventPhase.completed):
+        p.contextTokens = null;
+      case UnknownEvent(:final json)
+          when json['type'] == ContextAppEvents.modelChange:
+        p.contextWindow = null;
       default:
         break;
     }
