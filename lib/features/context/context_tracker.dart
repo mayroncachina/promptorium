@@ -10,13 +10,16 @@ abstract final class ContextEventTypes {
   static const usage = contextUsageType;
 
   /// What the app sent to one execution: `{"type":"promptorium_run","v":1,
-  /// "autocompact":"200k"|null,"model":…,"provider":…}`.
+  /// "autocompact":"200k"|null,"model":…,"provider":…}`, plus the
+  /// `instructionSources` the agent reported (SPEC-104 R2: the Codex's
+  /// `thread/start`), the proof that it loaded them.
   static const run = 'promptorium_run';
 
   static Map<String, dynamic> runEvent({
     String? autocompact,
     String? model,
     String? provider,
+    List<String>? instructionSources,
     DateTime? at,
   }) => {
     'type': run,
@@ -24,6 +27,7 @@ abstract final class ContextEventTypes {
     'autocompact': autocompact,
     'model': ?model,
     'provider': ?provider,
+    'instructionSources': ?instructionSources,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 }

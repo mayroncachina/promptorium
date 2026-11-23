@@ -52,6 +52,12 @@ class FakeCodex extends FakeProcess {
   final String threadId;
   final bool rejectYolo;
 
+  /// `instructionSources` of `thread/*` (SPEC-104 R2); null = not sent.
+  List<String>? instructionSources;
+
+  /// Answer to `skills/list` (SPEC-104 R7); null = empty result.
+  Map<String, dynamic>? skillsList;
+
   /// Answer to `hooks/list` (SPEC-103 R5); null = empty result.
   Map<String, dynamic>? hooksList;
 
@@ -188,6 +194,7 @@ class FakeCodex extends FakeProcess {
       }
       final result = switch (m['method']) {
         'hooks/list' => hooksList ?? <String, dynamic>{},
+        'skills/list' => skillsList ?? <String, dynamic>{'data': []},
         'initialize' => {'userAgent': 'codex-test'},
         'account/read' => {'requiresOpenaiAuth': false},
         'model/list' => {'data': models, 'nextCursor': null},
@@ -195,6 +202,7 @@ class FakeCodex extends FakeProcess {
           'thread': {'id': threadId},
           'model': p['model'] ?? models.first['id'],
           'approvalPolicy': p['approvalPolicy'],
+          'instructionSources': ?instructionSources,
           'sandbox': {
             'type': rejectYolo
                 ? 'workspaceWrite'

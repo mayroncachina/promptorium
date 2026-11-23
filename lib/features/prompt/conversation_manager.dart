@@ -683,6 +683,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       autocompact: isClaudeCode(conv.provider) ? prefs.autocompact : null,
       model: conv.model,
       provider: conv.provider,
+      instructionSources: run is CodexRun ? run.instructionSources : null,
     );
     final runRow = await _repo.appendEvent(
       conv.id,

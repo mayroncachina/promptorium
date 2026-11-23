@@ -67,6 +67,15 @@ class CodexProvider implements AgentProvider {
         in options.codex.configOverrides.entries) {
       args.addAll(['-c', '$key=$value']);
     }
+    // SPEC-104 R1: the project's CLAUDE.md reaches the Codex by an override
+    // of this run (proved by SPEC-093 R10); nothing goes to ~/.codex nor to
+    // the repository. An `AGENTS.md` still comes first (Codex order, P5).
+    if (capabilities.supports(ProviderCapability.instructionsFallback) &&
+        !options.codex.configOverrides.containsKey(
+          codexInstructionsOverrideKey,
+        )) {
+      args.addAll(['-c', codexInstructionsOverride]);
+    }
     final Process process;
     // SPEC-096 R15: the real App Server leads its own process group.
     final group = starter == null && _setsidAvailable();
@@ -89,6 +98,13 @@ class CodexProvider implements AgentProvider {
       options,
       args: args,
       clientVersion: clientVersion?.call(),
+      skillRoots: capabilities.supports(ProviderCapability.skillsExtraRoots)
+          ? codexSkillRoots(
+              options.workingDirectory,
+              home:
+                  options.environment?['HOME'] ?? Platform.environment['HOME'],
+            )
+          : const [],
     );
     try {
       await run.open();
@@ -190,9 +206,42 @@ class CodexProvider implements AgentProvider {
   );
 }
 
+/// `-c` key of the instructions override (SPEC-104 R1).
+const codexInstructionsOverrideKey = 'project_doc_fallback_filenames';
+
+/// The override itself: the Codex reads `CLAUDE.md` where there is no
+/// `AGENTS.md` (SPEC-093 R10).
+const codexInstructionsOverride = '$codexInstructionsOverrideKey=["CLAUDE.md"]';
+
+/// `<cwd>/.claude/skills` and `~/.claude/skills`, the ones that exist
+/// (SPEC-104 R6).
+List<String> codexSkillRoots(String? cwd, {String? home}) => [
+  for (final base in [cwd, home])
+    if (base != null &&
+        base.isNotEmpty &&
+        Directory('$base/.claude/skills').existsSync())
+      '$base/.claude/skills',
+];
+
+/// [sources] relative to [cwd] when inside it (`CLAUDE.md`,
+/// `packages/api/AGENTS.md`); others stay absolute.
+List<String> relativeInstructionSources(List<String> sources, String? cwd) {
+  if (cwd == null || cwd.isEmpty) return sources;
+  final base = cwd.endsWith('/') ? cwd : '$cwd/';
+  return [
+    for (final s in sources) s.startsWith(base) ? s.substring(base.length) : s,
+  ];
+}
+
 /// The App Server persists threads; local ids are never passed as Codex ids.
 class CodexRun implements ManagedAgentRun {
-  CodexRun(this.rpc, this.options, {required this.args, this.clientVersion}) {
+  CodexRun(
+    this.rpc,
+    this.options, {
+    required this.args,
+    this.clientVersion,
+    this.skillRoots = const [],
+  }) {
     _sub = rpc.messages.stream.listen(
       _message,
       onDone: () {
@@ -205,6 +254,19 @@ class CodexRun implements ManagedAgentRun {
 
   /// Version of the app in `clientInfo` (null in tests = `0.0.0`).
   final String? clientVersion;
+
+  /// Skill folders of the Claude handed to this App Server by
+  /// `skills/extraRoots/set` before the first turn (SPEC-104 R6).
+  final List<String> skillRoots;
+
+  /// Instruction files the App Server loaded, as `thread/start` /
+  /// `thread/resume` reported (`instructionSources`, SPEC-104 R2): the
+  /// proof, relative to the working directory when inside it. Null = the
+  /// server did not report it.
+  List<String>? instructionSources;
+
+  /// Whether `skills/extraRoots/set` was accepted by this App Server.
+  bool skillRootsApplied = false;
   @override
   final List<String> args;
   late final StreamSubscription<Map<String, dynamic>> _sub;
@@ -359,6 +421,16 @@ class CodexRun implements ManagedAgentRun {
         'Modelo Codex indisponível: $requested. Escolha o padrão do CLI ou atualize o catálogo.',
       );
     }
+    // SPEC-104 R6: the Claude's skills, without copy nor link; the roots
+    // live only in this App Server. A refusal never blocks the run.
+    if (skillRoots.isNotEmpty) {
+      try {
+        await rpc.request('skills/extraRoots/set', {'extraRoots': skillRoots});
+        skillRootsApplied = true;
+      } catch (_) {
+        skillRootsApplied = false;
+      }
+    }
     final config = <String, dynamic>{};
     final compact = options.codex.compactLimit;
     if (compact != null && compact != 'auto') {
@@ -401,6 +473,12 @@ class CodexRun implements ManagedAgentRun {
         'Codex não devolveu o identificador da thread.',
       );
     }
+    final sources = result['instructionSources'];
+    instructionSources = sources is List
+        ? relativeInstructionSources([
+            for (final s in sources) '$s',
+          ], options.workingDirectory)
+        : null;
     final model = '${result['model'] ?? requested ?? 'inherit'}';
     _model = model == 'inherit' ? null : model;
     final effort = options.effort;
@@ -428,6 +506,7 @@ class CodexRun implements ManagedAgentRun {
           options.codex.writableRoots.isNotEmpty)
         'writableRoots': options.codex.writableRoots,
       'codex_version': init['userAgent'],
+      'instruction_sources': ?instructionSources,
       'models': [
         for (final m in _models)
           {'id': m.id, 'efforts': m.efforts, 'modalities': m.modalities},
