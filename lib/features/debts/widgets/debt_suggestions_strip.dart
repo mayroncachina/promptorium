@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/mcp/app_mcp_tools.dart' show DebtSuggestionKeys;
 import '../../../data/providers.dart';
 import '../../../data/repos/debt_links_repo.dart';
 import '../../../ui/theme/tokens.dart';
@@ -12,6 +13,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../debt_actions.dart';
 import '../debt_board.dart';
 import '../debt_files.dart';
+import '../debt_interview.dart';
 import '../debt_service.dart';
 import '../debt_table.dart';
 import 'debt_form_dialog.dart';
@@ -80,6 +82,13 @@ class DebtSuggestionsStrip extends ConsumerWidget {
   }
 }
 
+/// Label of an MCP suggestion: "Codex · MCP", "Claude · MCP" (R11).
+String suggestionProviderLabel(String provider) => switch (provider) {
+  'codex' => 'Codex · MCP',
+  'claude' => 'Claude · MCP',
+  _ => 'MCP',
+};
+
 class _SuggestionRow extends ConsumerWidget {
   const _SuggestionRow({required this.link, this.originSpec});
 
@@ -91,8 +100,13 @@ class _SuggestionRow extends ConsumerWidget {
     kind: DebtKind.fromDb(link.kind),
   );
 
+  Map<String, Object?> get _body => DebtLinksRepo.suggestionOf(link);
+
+  /// "Codex · MCP" / "Claude · MCP" (R11): the provider the MCP saved.
   String get _source => switch (link.suggestionSource) {
-    DebtSuggestionSource.mcp => 'MCP',
+    DebtSuggestionSource.mcp => suggestionProviderLabel(
+      '${_body[DebtSuggestionKeys.provider] ?? ''}',
+    ),
     DebtSuggestionSource.draft => 'Rascunho',
     _ => 'Entrevista',
   };
@@ -123,7 +137,11 @@ class _SuggestionRow extends ConsumerWidget {
     }
     final DebtWritten w;
     try {
-      w = await service.accept(link.id, edited: edited, writeRoot: writeRoot);
+      // SPEC-112 R7: a suggestion of a question also writes "→ DT-NN" in
+      // its answer.
+      w = await ref
+          .read(debtInterviewProvider)
+          .accept(link.id, edited: edited, writeRoot: writeRoot);
     } catch (e) {
       messenger?.showAppToast(
         SnackBar(content: Text('Não deu para gravar: $e')),
@@ -160,10 +178,14 @@ class _SuggestionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final d = _draft;
     final where = d.where;
+    final session = '${_body[DebtSuggestionKeys.sessionTitle] ?? ''}'.trim();
     final origin = [
       if (originSpec != null)
         '${specLabel(originSpec!)}${link.originQuestion == null ? '' : ', ${link.originQuestion}'}',
-      if (link.originSessionId != null && originSpec == null) 'sessão',
+      if (session.isNotEmpty)
+        'sessão “$session”'
+      else if (link.originSessionId != null && originSpec == null)
+        'sessão',
       if (d.origin.isNotEmpty && originSpec == null) d.origin,
     ].join(' · ');
     return Padding(
