@@ -100,6 +100,53 @@ void main() {
     await run.stop(timeout: const Duration(milliseconds: 100));
   });
 
+  test('R8: depois do revert o total da thread encolhe, e o turno seguinte '
+      'conta só o dele', () async {
+    final f = FakeCodex();
+    final run =
+        await CodexProvider(
+              executable: 'codex',
+              starter: (_, _, {workingDirectory, environment}) async => f,
+            ).start(
+              AgentStartOptions.forAccess(
+                AgentAccess.edit,
+                workingDirectory: '/tmp',
+              ),
+            )
+            as CodexRun;
+    final results = <Result>[];
+    run.events.listen((e) {
+      if (e is Result) results.add(e);
+    });
+    void usage(int total, int last) => f.emit(
+      jsonEncode({
+        'method': 'thread/tokenUsage/updated',
+        'params': {
+          'threadId': f.threadId,
+          'tokenUsage': {
+            'total': {'inputTokens': total, 'totalTokens': total},
+            'last': {'inputTokens': last, 'totalTokens': last},
+          },
+        },
+      }),
+    );
+    Future<void> pump() =>
+        Future<void>.delayed(const Duration(milliseconds: 20));
+    await run.send('um');
+    usage(6000, 6000);
+    f.completeTurn();
+    await pump();
+    run.conversationReverted();
+    await run.send('dois');
+    // Os totais voltaram a 1000 com a conversa; esta chamada gastou 4000.
+    usage(5000, 4000);
+    usage(9500, 4500);
+    f.completeTurn();
+    await pump();
+    expect(results.map((r) => r.usage.inputTokens), [6000, 8500]);
+    await run.stop(timeout: const Duration(milliseconds: 100));
+  });
+
   test('o motivo da falha em palavras', () {
     String of(String m) => codexThreadFailure(
       AgentUnavailable('Codex: {code: -32600, message: $m}'),
