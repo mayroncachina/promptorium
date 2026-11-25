@@ -644,7 +644,7 @@ class RestoreService {
       agent: capabilitiesFor('codex').displayName,
       firstTurn: r.turn,
       lastTurn: r.lastTurn,
-      copyAt: r.copyId == null ? null : r.at,
+      copyAt: r.copyId == null ? null : r.copyAt,
       reason: r.copyId == null
           ? 'Não há cópia da conversa: só os arquivos voltam, e o agente '
                 'recebe o aviso.'
@@ -690,6 +690,7 @@ class RestoreService {
     required int files,
     required List<String> commits,
     String? copyId,
+    DateTime? copiedAt,
   }) async {
     final s = await _ref.read(sessionsRepoProvider).getById(p.sessionId ?? '');
     if (s == null) return null;
@@ -733,6 +734,7 @@ class RestoreService {
       at: DateTime.now(),
       fromSeq: p.eventSeq,
       copyId: copy,
+      copiedAt: copyId == null ? null : copiedAt,
       copyError: copyError,
       error: error,
       files: files,
@@ -863,6 +865,7 @@ class RestoreService {
           files: failed.files,
           commits: failed.commits,
           copyId: failed.copyId,
+          copiedAt: failed.copyAt,
         ),
       ),
     );

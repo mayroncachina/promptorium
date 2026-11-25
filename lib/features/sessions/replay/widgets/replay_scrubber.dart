@@ -450,6 +450,29 @@ class _TrackPainter extends CustomPainter {
       }
     }
 
+    // SPEC-110 R10: where the conversation went back to, with its label.
+    final marked = <String>{};
+    for (var i = 0; i <= to; i++) {
+      final mark = steps[i].reverted;
+      if (mark == null || !marked.add(mark.key) || i < from) continue;
+      final x = _x(axis.pos[i], start, span, size);
+      if (x < ReplayScrubber.labelWidth - 1) continue;
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, _laneTop + laneH * 4),
+        Paint()
+          ..color = ReplayColors.error
+          ..strokeWidth = 1.4,
+      );
+      _text(
+        canvas,
+        'conversa revertida antes do turno ${mark.turn}',
+        Offset(x + 22, 2),
+        color: ReplayColors.error,
+        mono: false,
+      );
+    }
+
     // Long pauses: a cut "⋯ 2 h".
     for (final e in axis.pauses.entries) {
       if (e.key < from || e.key > to) continue;
@@ -505,7 +528,11 @@ class _TrackPainter extends CustomPainter {
         canvas.drawRect(rect, dim);
         continue;
       }
-      final color = ReplayColors.of(s);
+      // SPEC-110 R10: what left the agent's conversation is dimmed.
+      final gone = s.reverted != null;
+      final color = gone
+          ? ReplayColors.of(s).withValues(alpha: .3)
+          : ReplayColors.of(s);
       if (s.outcome == ReplayOutcome.denied) {
         // Denied: a dash, not a block.
         canvas.drawLine(

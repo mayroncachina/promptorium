@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../conversation_events.dart';
 import '../restore/restore_service.dart';
 import '../session_manager.dart';
+import '../timeline_provider.dart';
 import 'session_style.dart';
 import 'undo_dialog.dart';
 
@@ -63,6 +65,10 @@ class _RestorePointsSectionState extends ConsumerState<RestorePointsSection> {
       sessionManagerProvider.select((x) => x.live[s.id]?.busy ?? false),
     );
     final active = lastUndoable(points);
+    // SPEC-110 R9: the points whose undo took the conversation too.
+    final reverts = points.any((p) => p.state == RestoreState.undone)
+        ? ref.watch(sessionTimelineProvider(s.id)).timeline.conversationReverts
+        : const <int, ConversationRevert>{};
     final shown = _all ? points : points.take(5).toList();
     return Column(
       key: const ValueKey('restore-points-section'),
@@ -83,6 +89,7 @@ class _RestorePointsSectionState extends ConsumerState<RestorePointsSection> {
             key: ValueKey('restore-point-${p.turn}'),
             point: p,
             current: p.id == active?.id,
+            conversation: reverts[p.id],
             onUndo: () => openUndoDialog(context, ref, session: s, point: p),
             onRedo: p.state == RestoreState.undone && p.undoneSha != null
                 ? () => openUndoDialog(
@@ -128,8 +135,11 @@ class _PointItem extends StatelessWidget {
     required this.onRedo,
     required this.canUndo,
     required this.busy,
+    this.conversation,
   });
 
+  /// The revert of the agent's conversation made with the undo of [point].
+  final ConversationRevert? conversation;
   final RestorePoint point;
   final bool current;
   final VoidCallback onUndo;
@@ -188,6 +198,20 @@ class _PointItem extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (undone && conversation != null)
+                  Text(
+                    [
+                      'arquivos e conversa',
+                      if (onRedo != null)
+                        conversation!.copyId == null
+                            ? 'sem cópia da conversa'
+                            : 'Refazer usa a cópia de '
+                                  '${formatClock(conversation!.copyAt)}',
+                    ].join(' · '),
+                    key: ValueKey('restore-conversation-${point.turn}'),
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 11, color: AppColors.red),
+                  ),
               ],
             ),
           ),

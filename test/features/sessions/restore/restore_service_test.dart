@@ -801,6 +801,7 @@ void main() {
       final again = await restore.retryConversation(sid, failed);
       expect(again.ok, isTrue);
       expect(again.copyId, failed.copyId);
+      expect(again.copyAt, failed.copyAt);
       expect(store.calls.where((x) => x.startsWith('fork')), hasLength(1));
       expect(store.threads['thread-0'], ['t1']);
       expect(manager().pendingNotices(sid), isEmpty);

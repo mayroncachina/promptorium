@@ -1,6 +1,6 @@
 ---
 id: SPEC-110
-status: em implementação
+status: concluida
 versao: 0.27.0
 tipo: recurso
 epico: 332
@@ -107,6 +107,17 @@ Esta spec:
 - `restore_service.dart`: `undo(..., revertConversation: bool)` com a ordem do R8; `redo` adota a cópia; `prune` arquiva cópias órfãs. A busca do turno do Codex pelo `eventSeq` (P1) entra aqui.
 - `undo_dialog.dart`: seção "Conversa do agente" com a caixa e o estado "Só Codex". `timeline.dart` e `replay_view.dart` mostram os turnos revertidos pelo evento do app `conversation_reverted` (JSON com `beforeTurnId`, hora e id da cópia).
 
+### Como ficou na implementação
+
+- O adaptador grava um evento `system/turn_started` com o `turn_id` em cada `turn/started` (só acrescenta). O turno do ponto vem dele; nas sessões antigas, do primeiro `turn_id` depois da mensagem. Uma mensagem enviada no meio de um turno (`turn/steer`) não abre turno: o ponto dela só desfaz os arquivos e não serve de base no Replay.
+- `lib/core/codex/codex_thread_ops.dart` tem só as chamadas; quem escolhe entre o processo vivo e o App Server curto é `lib/features/sessions/codex_conversations.dart`. Enquanto a sessão tem processo, só a conexão dele pode reverter a thread (o Codex tem um escritor por thread).
+- `SessionManager.holdConversation` segura mensagens, "Retomar" e "Compactar agora" até o desfazer ou o Refazer terminar; com um turno em andamento, nada é desfeito.
+- O Refazer confere a cópia com `thread/resume` (sem turno) antes de trocar o `externalId`. A cópia que não retoma não é adotada: os arquivos são refeitos, a nota diz o motivo e o agente recebe o aviso.
+- Falha no revert: evento `conversation_revert_failed`, com "Tentar voltar a conversa" enquanto nenhum turno novo começou (reusa a cópia já feita). Os outros eventos são `conversation_reverted`, `conversation_restored` e `conversation_copy_archived`, todos em `lib/features/sessions/conversation_events.dart`.
+- R2 no Claude: quando as edições não se aplicam sobre o ponto (um formatador rodou no meio do turno), vale o `originalFile` da própria edição, que é exato. No Codex, o painel mostra o motivo, como pede o R2.
+- "Arquivo neste ponto" no Codex, sem ponto, continua tentando desfazer os diffs sobre o arquivo atual (SPEC-095 P4) antes do `startSha`.
+- Em `capabilities.dart`, `revertConversation` estava como suportada no Claude e não testada no Codex: a capacidade agora é suportada no Codex e "Só Codex" no Claude.
+
 ### Migração
 
 Não (P1). O vínculo entre ponto e turno vem de `session_events`. A cópia da conversa e o "revertido" ficam num evento do app em `session_events` (`type = 'conversation_reverted'`), e o Refazer troca o `externalId` da sessão, que já existe.
@@ -132,23 +143,23 @@ Não (P1). O vínculo entre ponto e turno vem de `session_events`. A cópia da c
 - T2 · Base pelo ponto de restauração e aplicação de diff unificado; "Quem escreveu" pelos diffs [R2, R3].
 - T3 · Complemento pela RPC e contexto do ponto [R4, R5].
 - T4 · Conversa no desfazer: turno do ponto, fork de cópia, `thread/revert`, falha e Refazer [R6–R9].
-- T5 · Turnos revertidos na timeline e no Replay; e2e no app isolado com o `fake_codex` e um turno real curto (orçamento da decisão 9) [R10, R11].
+- T5 · Turnos revertidos na timeline e no Replay; e2e no app isolado com o Codex falso (sem turno pago; o comportamento do binário 0.170 foi conferido com um modelo local, ver `docs/pesquisa/codex-0170.md`) [R10, R11].
 
 ## Critérios de aceite
 
-- [ ] Leituras por comando viram Ler, comandos misturados viram Rodar com as leituras listadas, `fileChange` vira um Editar por arquivo e os turnos levam o id do Codex [R1] verificar: flutter test test/features/sessions/replay/replay_step_test.dart (fixtures do Codex)
-- [ ] "Já leu" conta as leituras por comando e "editou sem ler" some quando o arquivo foi lido por `sed -n` [R1] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
-- [ ] "Arquivo neste ponto" usa o ponto do início do turno, aplica os *hunks* do Codex e mostra a base; um *hunk* que não se aplica explica o motivo [R2] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
-- [ ] "Quem escreveu esta linha" acha a edição do Codex pelo diff e cai em "veio de um comando" quando nenhuma edição escreveu a linha [R3] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
-- [ ] "Buscar a saída completa" usa `thread/items/list` sob demanda e nunca lê `~/.codex/sessions` [R4] verificar: flutter test test/features/sessions/replay/replay_data_test.dart (fake_codex)
-- [ ] O contexto do ponto vem da leitura do Codex e mostra "aguardando medição" sem leitura [R5] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
-- [ ] O ponto de uma sessão Codex acha o turno do Codex pelo `eventSeq`; sem turno, só os arquivos podem ser desfeitos [R6] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
-- [ ] A janela mostra a caixa da conversa marcada no Codex e desabilitada com o motivo no Claude [R7] verificar: flutter test test/features/sessions/widgets/undo_dialog_test.dart
-- [ ] Desfazer volta os arquivos, faz o fork de cópia e chama `thread/revert` com o turno certo; a falha do revert mantém os arquivos desfeitos, mostra a nota e manda o aviso [R8] verificar: flutter test test/features/sessions/restore/restore_service_test.dart (fake_codex)
-- [ ] Refazer volta os arquivos e adota a cópia da conversa; sem cópia, avisa; a limpeza arquiva cópias órfãs [R9] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
-- [ ] Turnos revertidos aparecem esmaecidos com o selo na timeline e no Replay, e o leitor de tela anuncia "revertido" [R10, R11] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
-- [ ] No app isolado, uma sessão Codex com leitura por `rg`/`sed`, `apply_patch` e testes quebrados mostra o Replay completo, desfaz arquivos e conversa e, no turno seguinte, o agente não lembra do turno desfeito [R1–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, prints em `docs/mockups/spec-110/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
+- [x] Leituras por comando viram Ler, comandos misturados viram Rodar com as leituras listadas, `fileChange` vira um Editar por arquivo e os turnos levam o id do Codex [R1] verificar: flutter test test/features/sessions/replay/replay_step_test.dart (fixtures do Codex)
+- [x] "Já leu" conta as leituras por comando e "editou sem ler" some quando o arquivo foi lido por `sed -n` [R1] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
+- [x] "Arquivo neste ponto" usa o ponto do início do turno, aplica os *hunks* do Codex e mostra a base; um *hunk* que não se aplica explica o motivo [R2] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
+- [x] "Quem escreveu esta linha" acha a edição do Codex pelo diff e cai em "veio de um comando" quando nenhuma edição escreveu a linha [R3] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
+- [x] "Buscar a saída completa" usa `thread/items/list` sob demanda e nunca lê `~/.codex/sessions` [R4] verificar: flutter test test/features/sessions/replay/replay_data_test.dart (fake_codex)
+- [x] O contexto do ponto vem da leitura do Codex e mostra "aguardando medição" sem leitura [R5] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
+- [x] O ponto de uma sessão Codex acha o turno do Codex pelo `eventSeq`; sem turno, só os arquivos podem ser desfeitos [R6] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
+- [x] A janela mostra a caixa da conversa marcada no Codex e desabilitada com o motivo no Claude [R7] verificar: flutter test test/features/sessions/widgets/undo_dialog_test.dart
+- [x] Desfazer volta os arquivos, faz o fork de cópia e chama `thread/revert` com o turno certo; a falha do revert mantém os arquivos desfeitos, mostra a nota e manda o aviso [R8] verificar: flutter test test/features/sessions/restore/restore_service_test.dart (fake_codex)
+- [x] Refazer volta os arquivos e adota a cópia da conversa; sem cópia, avisa; a limpeza arquiva cópias órfãs [R9] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
+- [x] Turnos revertidos aparecem esmaecidos com o selo na timeline e no Replay, e o leitor de tela anuncia "revertido" [R10, R11] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
+- [x] No app isolado, uma sessão Codex com leitura por `rg`/`sed`, `apply_patch` e testes quebrados mostra o Replay completo, desfaz arquivos e conversa e, no turno seguinte, o agente não lembra do turno desfeito [R1–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, prints em `docs/mockups/spec-110/app/`, com o Codex falso; sem turno pago)
+- [x] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
 
 ## Telas
 

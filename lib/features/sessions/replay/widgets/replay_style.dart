@@ -53,7 +53,9 @@ abstract final class ReplayColors {
 
   static Color markColor(ReplayMarkKind? m) => switch (m) {
     ReplayMarkKind.gatePassed => AppColors.teal,
-    ReplayMarkKind.gateFailed || ReplayMarkKind.error => error,
+    ReplayMarkKind.gateFailed ||
+    ReplayMarkKind.error ||
+    ReplayMarkKind.reverted => error,
     ReplayMarkKind.compaction => AppColors.blue,
     ReplayMarkKind.resume || ReplayMarkKind.interrupted => AppColors.amber,
     _ => AppColors.textMuted,
@@ -130,7 +132,10 @@ String replayStepTip(ReplayStep s, {String? root}) {
             '${s.added == null ? '' : ' ${s.statsLabel}'}'
             '${s.changeLabel == null ? '' : ' · ${s.changeLabel}'}';
   final at = clock(s.at);
-  return '${s.index + 1} · $body${at.isEmpty ? '' : ' · $at'}';
+  final gone = s.reverted == null
+      ? ''
+      : ' · revertido às ${clock(s.reverted!.at)}';
+  return '${s.index + 1} · $body${at.isEmpty ? '' : ' · $at'}$gone';
 }
 
 String _via(ReplayStep s) => (s.via ?? '').isEmpty ? '' : ' · ${s.via}';
@@ -159,6 +164,10 @@ String replaySemanticValue(ReplayStep s, int total) {
   }
   if (s.outcome == ReplayOutcome.error) parts.add('com erro');
   if (s.outcome == ReplayOutcome.denied) parts.add('negado');
+  // SPEC-110 R11.
+  if (s.reverted case final r?) {
+    parts.add('revertido às ${r.at.hour} e ${r.at.minute}');
+  }
   final at = clock(s.at);
   if (at.isNotEmpty) parts.add(at);
   return parts.join(', ');

@@ -2770,10 +2770,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       if (st != null &&
           st.planned.contains(ManagedHook.end) &&
           st.whenOf(ManagedHook.end) == HookWhen.afterTurn) {
-        final why = p.stopping
-            ? 'parada pelo usuário'
-            : p.released
+        // A release also sets `stopping`: nobody stopped the session.
+        final why = p.released
             ? 'suspensa'
+            : p.stopping
+            ? 'parada pelo usuário'
             : 'processo encerrou, código $code';
         final a = HookActivity(
           hook: ManagedHook.end,

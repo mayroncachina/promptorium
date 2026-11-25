@@ -202,6 +202,17 @@ ReplayState replayStateAt(
         compactedSince = true;
       }
     }
+    // SPEC-110 R10: the conversation went back after the reading.
+    var revertedAt = -1;
+    for (var i = 0; i <= end; i++) {
+      if (steps[i].mark == ReplayMarkKind.reverted) {
+        revertedAt = steps[i].itemIndex;
+      }
+    }
+    if (reading != null && reading.itemIndex <= revertedAt) {
+      reading = null;
+      compactedSince = false;
+    }
     tokens = compactedSince ? null : reading?.tokens;
   }
   return ReplayState(
@@ -213,7 +224,7 @@ ReplayState replayStateAt(
     reading: compactedSince ? null : reading,
     compactedSince: compactedSince,
     capacity: reading?.window ?? ctx?.capacity,
-    measures: ctx?.provider == 'codex',
+    measures: ctx?.provider == 'codex' || steps.any((s) => s.agent == 'Codex'),
   );
 }
 
