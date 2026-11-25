@@ -2,6 +2,31 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.26.0] - 2026-11-25
+
+### Funcionalidades
+
+- **debitos:** Parser e escritor das tabelas, arquivos, vínculos e schema v37 (SPEC-112 T1) (6a2eeac)
+- **debitos:** Tela Débitos e decisões, menu, itens à mão e commit próprio (SPEC-112 T2) (db2d36f)
+- **debitos:** Pagar débitos, riscar no merge, devolver no descarte e chip do Quadro (SPEC-112 T6) (112c8ec)
+- **debitos:** Registrar_debito e listar_debitos no MCP e etiqueta do provedor na faixa (SPEC-112 T5) (b411b45)
+- **debitos:** "Virar débito" nos comentários da Revisão e nas mensagens do agente (SPEC-112 T4) (03d419c)
+- **debitos:** Entrevista e decisões, débito e DP nas perguntas (SPEC-112 T3) (90e229d)
+- **debitos:** Chips "débitos neste arquivo", lembrete no prompt da etapa e "pago de carona?" (SPEC-112 T7) (c063ee4)
+
+### Documentação
+
+- **spec:** SPEC-112 débitos e decisões, com os mocks (04cda44)
+- **spec:** SPEC-112 ligada à issue #417 (a2ecfbf)
+- **spec:** SPEC-112 com o ícone pending_actions no menu e nos mocks (67cae83)
+- **spec:** SPEC-112 em implementação, com as decisões P fechadas (ac8ee4c)
+- **guia:** O Codex nas páginas do guia de uso (#383) (0c26564)
+
+### Testes
+
+- **debitos:** O menu tem 12 itens com Débitos e decisões (SPEC-112 T2) (902c9fb)
+- **debitos:** Ponta a ponta no app compilado e ajustes do teste (SPEC-112 T8) (79353f8)
+
 ## [0.25.0] - 2026-11-23
 
 ### Funcionalidades
