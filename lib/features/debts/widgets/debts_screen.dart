@@ -13,6 +13,7 @@ import '../debt_service.dart';
 import '../debt_table.dart';
 import 'debt_suggestions_strip.dart';
 import 'decision_panel.dart';
+import 'pay_debts_dialog.dart';
 
 /// "Débitos e decisões" (SPEC-112 R13): the debts and the pending
 /// decisions of the repository, read from the files.
@@ -580,7 +581,12 @@ class _DebtsTab extends ConsumerWidget {
                   ),
                 ),
         ),
-        _Footer(board: board, rows: rows, unrecognized: odd),
+        _Footer(
+          board: board,
+          rows: rows,
+          unrecognized: odd,
+          workspace: workspace,
+        ),
       ],
     );
   }
@@ -770,19 +776,23 @@ class _Footer extends ConsumerWidget {
     required this.board,
     required this.rows,
     required this.unrecognized,
+    required this.workspace,
   });
 
   final DebtBoard board;
   final List<DebtRowView> rows;
   final List<UnrecognizedLine> unrecognized;
+  final Workspace workspace;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sel = ref.watch(debtsSelectionProvider);
-    final codes = [
+    // Only open debts are paid (R15).
+    final picked = [
       for (final r in rows)
-        if (sel.contains(r.item.code)) r.item.code,
+        if (sel.contains(r.item.code) && r.state == DebtRowState.open) r.item,
     ];
+    final codes = [for (final d in picked) d.code];
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 10, 14, 10),
       decoration: const BoxDecoration(
@@ -813,6 +823,23 @@ class _Footer extends ConsumerWidget {
               key: const ValueKey('debts-clear'),
               label: 'Limpar',
               onTap: () => ref.read(debtsSelectionProvider.notifier).clear(),
+            ),
+            const SizedBox(width: 8),
+            AmberButton(
+              key: const ValueKey('debts-pay'),
+              label: 'Pagar · ${codes.length}',
+              onTap: () async {
+                final spec = await openPayDebtsDialog(
+                  context,
+                  ref,
+                  ws: workspace,
+                  items: picked,
+                  file: board.snapshot.config.debtsPath,
+                );
+                if (spec != null) {
+                  ref.read(debtsSelectionProvider.notifier).clear();
+                }
+              },
             ),
           ],
         ],

@@ -1144,6 +1144,12 @@ class _Header extends ConsumerWidget {
             children: [
               BoardTrayButton(count: drafts, compact: folded),
               const SizedBox(width: 8),
+              // SPEC-112 R14.
+              BoardDebtsChip(
+                workspaceId: workspaceId,
+                root: workspacePath,
+                compact: folded,
+              ),
               Builder(
                 builder: (context) {
                   ref.watch(appSettingsProvider);

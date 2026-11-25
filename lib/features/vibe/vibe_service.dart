@@ -551,6 +551,9 @@ class VibeService {
       }
     }
     await _ref.read(appSettingsProvider.notifier).remove(vibeCapKey(specId));
+    // SPEC-112 R15, P7: the debts it was paying go back to open and its
+    // "pago de carona?" marks go away.
+    await _ref.read(debtLinksRepoProvider).releaseSpec(specId);
     await repo.delete(specId);
   }
 
