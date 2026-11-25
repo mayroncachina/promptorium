@@ -148,6 +148,19 @@ class DebtLinksRepo {
     }
   }
 
+  /// Replaces the proposed cells (and the kind) of a pending suggestion.
+  Future<void> updateSuggestion(
+    int id,
+    String kind,
+    Map<String, Object?> body,
+  ) => update(
+    id,
+    DebtLinksCompanion(
+      kind: Value(kind),
+      suggestionBody: Value(jsonEncode(body)),
+    ),
+  );
+
   Future<void> update(int id, DebtLinksCompanion values) =>
       (_db.update(_t)..where((l) => l.id.equals(id))).write(values);
 
