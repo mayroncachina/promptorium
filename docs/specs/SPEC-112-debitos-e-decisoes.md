@@ -104,7 +104,7 @@ O formato funciona. Ele é legível no GitHub e no GitLab, entra no commit e nã
 Só decisões menores. As grandes já foram fechadas com o usuário e estão nos requisitos.
 
 - P1 · **Lugar no menu lateral.** Onde fica o item "Débitos e decisões"?
-  - Sugestão: logo abaixo do Quadro, com um ícone de balança. É ali que a pessoa olha o trabalho do projeto, e o chip do Quadro (R14) leva à tela vizinha.
+  - **Decidido:** logo abaixo do Quadro, com o ícone `pending_actions`
 - P2 · **Item que nasce antes de a spec ter número.** No mini-planejamento da Nova spec, a spec ainda não existe. O que acontece com o débito?
   - Sugestão: ele fica como sugestão pendente, ligada ao rascunho. Quando a spec é criada e ganha número, o app grava a linha com "(spec N, Q5)" e escreve o ID na resposta. Se o rascunho for descartado, a sugestão vai junto.
 - P3 · **Detecção do pedido em texto livre (R7).** Como reconhecer "bota em débito"?
