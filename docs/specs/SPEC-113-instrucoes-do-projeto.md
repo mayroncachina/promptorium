@@ -1,6 +1,7 @@
 ---
 id: SPEC-113
 status: rascunho
+versao: 0.28.0
 tipo: recurso
 issue: 429
 depende-de: []
@@ -69,12 +70,12 @@ Hoje a fonte é o `CLAUDE.md` (decisão 6 do épico #332, SPEC-104), e a aba Fer
 - P3 · **Provedor da entrevista.** **Decidido:** o de "Planner e assistentes".
 - P4 · **Pausar e retomar.** **Decidido:** sim, por projeto.
 - P5 · **Subpastas.** **Decidido:** só leitura.
+- P6 · **Versão.** **Decidido (25/11):** 0.28.0, depois das SPECs 108–110 (0.27.0). Canvas aprovado na mesma data.
 
 Esta spec troca a decisão 6 do épico #332 nos projetos novos e nos unificados. Nos outros, o `CLAUDE.md` continua como fonte.
 
 ## Perguntas em aberto
 
-- P6 · **Versão.** A 0.27.0 já tem as SPECs 108–110. Entra nela ou na seguinte? **Recomendação:** na seguinte, se as três já ocuparem a 0.27.0.
 - P7 · **Branch do commit.** E se a branch atual não for a base? **Recomendação:** commitar na atual e dizer qual é.
 
 ## Design
