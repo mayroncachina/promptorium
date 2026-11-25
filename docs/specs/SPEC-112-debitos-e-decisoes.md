@@ -3,6 +3,7 @@ id: SPEC-112
 status: rascunho
 versao: 0.26.0
 tipo: recurso
+issue: 417
 depende-de: []
 ---
 
