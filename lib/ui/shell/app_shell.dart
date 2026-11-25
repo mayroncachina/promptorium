@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
+import '../../features/debts/widgets/debts_screen.dart';
 import '../../features/home/home_inbox.dart';
 import '../../features/notifications/alert_target.dart'
     show alertNoticeProvider;
@@ -318,6 +319,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
       ref.read(startScreenProvider.notifier).set(true);
+    } else if (section == AppSection.debts) {
+      newDebtByHand(context, ref);
     } else if (section == AppSection.skills) {
       showNewSkillDialog(context);
     } else {
@@ -348,6 +351,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.prompt => const PromptScreen(),
     AppSection.specs => const SpecsScreen(),
     AppSection.tasks => const BoardScreen(),
+    AppSection.debts => const DebtsScreen(),
     AppSection.agents => const AgentsScreen(),
     AppSection.skills => const SkillsScreen(),
     AppSection.review => const ReviewScreen(),

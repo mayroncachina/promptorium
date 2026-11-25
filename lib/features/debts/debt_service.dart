@@ -180,6 +180,15 @@ class DebtService {
     );
   }
 
+  /// The code the next item of [kind] would get (a preview: nothing is
+  /// reserved).
+  Future<String> previewCode(String repoRoot, DebtKind kind) async {
+    final rel = DebtFiles.relPath(configOf(repoRoot), kind);
+    final files = await DebtFiles.maxNumberIn(await roots(repoRoot), rel, kind);
+    final db = await _links.maxReserved(repoRoot, kind.prefix);
+    return kind.code((files > db ? files : db) + 1);
+  }
+
   /// Writes [draft] as a new row (R1, R3, R18). [writeRoot] is the worktree
   /// of the spec or session the item was born in (null = the main
   /// checkout). [link] fills the origin of the link.
