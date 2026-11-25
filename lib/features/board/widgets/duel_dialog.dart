@@ -4,12 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/git/diff_parser.dart';
 import '../../../core/git/git_service.dart';
 import '../../../data/providers.dart';
+import '../../../core/claude/run_prefs.dart' show defaultEffort;
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../review/review_logic.dart';
 import '../../review/review_service.dart' show ReviewDraft;
 import '../../review/widgets/review_all_files.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../../prompt/compare/compare_run.dart' show compareModelLabel;
+import '../../prompt/compare/compare_weight.dart'
+    show compareDuration, compareTokens;
+import '../duel_attempt.dart';
 import '../spec_runner.dart';
 import '../step_gate.dart';
 import 'gate_report_view.dart';
@@ -83,6 +89,10 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
       0,
     ), (a, f) => (a.$1 + fileStats(f).$1, a.$2 + fileStats(f).$2));
     final on = _shown == v;
+    final session = v == 'A' ? d.sessionA : d.sessionB;
+    final stats = session == null
+        ? null
+        : ref.watch(duelStatsProvider(session)).value;
     return Expanded(
       child: InkWell(
         key: ValueKey('duel-side-$v'),
@@ -96,12 +106,36 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Tentativa $v',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Tentativa $v',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  // SPEC-108 R11: who did it, and with what.
+                  if (stats != null) ...[
+                    ProviderChip(stats.provider, dense: true),
+                    Text(
+                      [
+                        compareModelLabel(stats.model, stats.provider),
+                        if (stats.effort case final e?
+                            when e.isNotEmpty && e != defaultEffort)
+                          e,
+                      ].join(' · '),
+                      key: ValueKey('duel-model-$v'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -113,7 +147,41 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
                   color: AppColors.textSecondary,
                 ),
               ),
+              for (final f in files.take(4))
+                Text(
+                  '${f.path}  +${fileStats(f).$1} −${fileStats(f).$2}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              if (files.length > 4)
+                Text(
+                  'e mais ${files.length - 4}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               const SizedBox(height: 6),
+              if (stats != null) ...[
+                Text(
+                  [
+                    if (stats.durationMs > 0)
+                      'Tempo ${compareDuration(stats.durationMs)}',
+                    'Tokens ${compareTokens(stats.tokensIn)} → '
+                        '${compareTokens(stats.tokensOut - stats.reasoning)}',
+                    if (stats.reasoning > 0)
+                      'raciocínio ${compareTokens(stats.reasoning)}',
+                  ].join(' · '),
+                  key: ValueKey('duel-cost-$v'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.text),
+                ),
+                const SizedBox(height: 6),
+              ],
               if (report != null && report.checks.isNotEmpty)
                 GateChips(report: report, keyPrefix: 'duel-gate-$v')
               else
@@ -147,6 +215,11 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
   Widget build(BuildContext context) {
     final d = widget.duel;
     final wt = _shown == 'A' ? d.worktreeA : d.worktreeB;
+    final providers = {
+      for (final s in [d.sessionA, d.sessionB])
+        if (s != null) ?ref.watch(duelStatsProvider(s)).value?.provider,
+    };
+    final cross = providers.length > 1;
     final files =
         ref.watch(_attemptDiffProvider((wt, d.baseSha))).value ??
         const <DiffFile>[];
@@ -174,6 +247,16 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
                 'entra na branch da spec; a outra é apagada.',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
+              if (cross)
+                const Text(
+                  'Tokens de provedores diferentes servem de ordem de '
+                  'grandeza.',
+                  key: ValueKey('duel-tokenizers'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               const SizedBox(height: 12),
               Row(
                 children: [_side('A'), const SizedBox(width: 12), _side('B')],

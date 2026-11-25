@@ -36,6 +36,7 @@ import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'duel_attempt.dart';
 import 'spec_run_provider.dart';
 import 'orchestrator/escalation.dart';
 import 'orchestrator/orchestrator_rules.dart';
@@ -764,6 +765,22 @@ class SpecRunner {
     ),
   );
 
+  /// "Executar em dobro (A/B)" with a provider, model and effort per attempt
+  /// (SPEC-108 R11).
+  Future<String> runDuel(
+    int specId,
+    DuelAttempts attempts, {
+    bool reviewUnblocks = false,
+  }) => _startOnce(
+    specId,
+    () => _runNext(
+      specId,
+      duel: true,
+      attempts: attempts,
+      reviewUnblocks: reviewUnblocks,
+    ),
+  );
+
   /// Specs whose session is being opened now (SPEC-071 R6): between the
   /// request and the live session there are the classifier, the worktree
   /// and `preparar:`, and the card is only "Em execução" after that. They
@@ -800,6 +817,7 @@ class SpecRunner {
     String? previousAttemptHeading,
     String? context,
     bool duel = false,
+    DuelAttempts? attempts,
     bool keepModel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
@@ -1019,7 +1037,7 @@ class SpecRunner {
     if (isClaudeCode(runProvider)) {
       runMode =
           mode ??
-          ClaudePermissionMode.fromCli(last?.permissionMode) ??
+          ClaudePermissionMode.fromCli(sameLast?.permissionMode) ??
           ClaudePermissionMode.fromCli(
             settings.get(permissionModePreferenceKey(runProvider)),
           ) ??
@@ -1042,22 +1060,33 @@ class SpecRunner {
         sandbox: sandbox,
       );
     }
+    // SPEC-108 R11: each attempt of a duel may run on its provider.
+    _AttemptRun runOf(DuelAttempt? attempt) => _attemptRun(
+      attempt ?? DuelAttempt(provider: runProvider),
+      provider: runProvider,
+      model: runModel,
+      effort: runEffort,
+      mode: runMode,
+    );
+    ProviderCapabilities capsOf(DuelAttempt? attempt) =>
+        attempt == null ? caps : capabilitiesFor(attempt.provider);
     NewSessionRequest request({
       required String path,
       required String branch,
       String suffix = '',
       int? duelId,
       Map<String, String>? environment,
+      DuelAttempt? attempt,
     }) => NewSessionRequest(
       workspace: ws,
-      provider: runProvider,
+      provider: runOf(attempt).provider,
       title: '${specSessionTitle(spec!, steps, todo)}$suffix',
       prompt: specStepPrompt(
         spec: spec,
         specText: text,
         steps: steps,
         todo: todo,
-        subagents: caps.supports(ProviderCapability.subagents)
+        subagents: capsOf(attempt).supports(ProviderCapability.subagents)
             ? specSubagents
             : const [],
         testCommand: config.testCommand,
@@ -1067,10 +1096,12 @@ class SpecRunner {
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
         debtReminder: debtReminder,
       ),
-      agent: runAgent,
-      model: runModel,
-      effort: runEffort,
-      permissionMode: runMode,
+      agent: capsOf(attempt).supports(ProviderCapability.agentFiles)
+          ? runAgent
+          : null,
+      model: attempt == null ? runModel : runOf(attempt).model,
+      effort: attempt == null ? runEffort : runOf(attempt).effort,
+      permissionMode: attempt == null ? runMode : runOf(attempt).mode,
       specId: specId,
       steps: todo.join(','),
       worktreePath: path,
@@ -1100,6 +1131,7 @@ class SpecRunner {
       specWorktree: wt,
       todo: todo,
       request: request,
+      attempts: attempts,
     );
     await record();
     return id;
@@ -1337,6 +1369,65 @@ class SpecRunner {
 
   // --- best-of-N (F15) -------------------------------------------------------
 
+  /// What one attempt runs with (SPEC-108 R11): its own choice over the
+  /// configuration of the run, or over the defaults of its provider when
+  /// it is another one. The mode is the run's, or the one preferred for
+  /// that provider; the Codex runs in Editar or YOLO (SPEC-101 R4).
+  _AttemptRun _attemptRun(
+    DuelAttempt a, {
+    required String provider,
+    required String model,
+    required String? effort,
+    required ClaudePermissionMode mode,
+  }) {
+    final settings = _ref.read(appSettingsProvider);
+    final same = a.provider == provider;
+    final preferred = same
+        ? mode
+        : ClaudePermissionMode.fromCli(
+            settings[permissionModePreferenceKey(a.provider)],
+          );
+    if (!isClaudeCode(a.provider)) {
+      final m = codexRunModel(
+        settings,
+        requested: a.model ?? (same ? model : null),
+      );
+      return (
+        provider: a.provider,
+        model: m,
+        effort: codexRunEffort(
+          settings,
+          m,
+          requested: a.effort ?? (same ? effort : null),
+        ),
+        mode: codexRunMode(
+          preferred,
+          sandbox:
+              _ref
+                  .read(providerAvailabilityProvider(a.provider))
+                  .value
+                  ?.sandboxWarning ==
+              null,
+        ),
+      );
+    }
+    return (
+      provider: a.provider,
+      model:
+          a.model ??
+          (same
+              ? model
+              : providerModelFrom(
+                  _ref.read(runPrefsProvider),
+                  settings,
+                  a.provider,
+                  RunKind.session,
+                )),
+      effort: a.effort ?? (same ? effort : null),
+      mode: preferred ?? ClaudePermissionMode.defaultMode,
+    );
+  }
+
   /// Two temporary worktrees from the spec's HEAD, one session in each;
   /// returns the first session's id.
   Future<String> _startDuel(
@@ -1351,8 +1442,10 @@ class SpecRunner {
       String suffix,
       int? duelId,
       Map<String, String>? environment,
+      DuelAttempt? attempt,
     })
     request,
+    DuelAttempts? attempts,
   }) async {
     final factory = _ref.read(gitServiceFactoryProvider);
     final root = factory(ws.path);
@@ -1434,6 +1527,7 @@ class SpecRunner {
         suffix: ' · A',
         duelId: duel.id,
         environment: envs[0],
+        attempt: attempts?.a,
       ),
     );
     final b = await _manager.create(
@@ -1443,6 +1537,7 @@ class SpecRunner {
         suffix: ' · B',
         duelId: duel.id,
         environment: envs[1],
+        attempt: attempts?.b,
       ),
     );
     await duels.update(
@@ -2805,11 +2900,19 @@ class SpecRunner {
       final auto = runsInAuto(
         await _ref.read(specStepsRepoProvider).bySpec(done.specId!),
       );
+      // SPEC-108 R11: the attempt chosen in a duel may be of another
+      // provider; the run goes on with its own, without that attempt's
+      // model, effort and mode.
+      final recorded = recordedSpecProvider(
+        _ref.read(appSettingsProvider),
+        done.specId!,
+      );
+      final other = recorded != null && recorded != done.provider;
       await runNext(
         done.specId!,
-        mode: ClaudePermissionMode.fromCli(done.permissionMode),
-        model: auto ? null : done.model,
-        effort: auto ? null : done.effort,
+        mode: other ? null : ClaudePermissionMode.fromCli(done.permissionMode),
+        model: auto || other ? null : done.model,
+        effort: auto || other ? null : done.effort,
         // Already started (maybe with a dependency still in Review).
         ignoreBlockers: true,
       );
@@ -2826,6 +2929,14 @@ class SpecRunner {
     }
   }
 }
+
+/// Provider, model, effort and mode of one attempt (SPEC-108 R11).
+typedef _AttemptRun = ({
+  String provider,
+  String model,
+  String? effort,
+  ClaudePermissionMode mode,
+});
 
 final specRunnerProvider = Provider(SpecRunner.new);
 
