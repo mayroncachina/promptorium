@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/providers/capabilities.dart' show isClaudeCode;
 import '../../../../ui/providers/provider_logos.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,10 +71,11 @@ const compareColumnsMinWidth = 1100.0;
   };
 }
 
-/// `Resposta A, Sonnet, Perguntar, pronta em 38 segundos` (R15).
+/// `Resposta B, Codex, gpt-6.2-sol, Perguntar, pronta em 24 segundos`
+/// (R15; SPEC-108 R12).
 String compareRegionLabel(CompareSide s) =>
-    'Resposta ${s.letter}, ${compareModelLabel(s.model)}, ${s.mode.label}, '
-    '${compareStateOf(s).spoken}';
+    'Resposta ${s.letter}, ${compareProviderLabel(s.provider)}, '
+    '${s.modelLabel}, ${s.mode.label}, ${compareStateOf(s).spoken}';
 
 /// The comparison of a conversation waiting for a choice (R6–R14): the
 /// prompt once, the two columns (or tabs) and the bar to choose.
@@ -135,18 +137,22 @@ class ComparePanel extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: SessionColors.approvalBorder),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.view_column_outlined,
                       size: 13,
                       color: AppColors.amber,
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Text(
-                      'Comparando',
-                      style: TextStyle(
+                      run.crossProvider
+                          ? 'Comparando · '
+                                '${compareProviderLabel(run.a.provider)} × '
+                                '${compareProviderLabel(run.b.provider)}'
+                          : 'Comparando',
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.amber,
@@ -255,11 +261,14 @@ class _Tabs extends StatelessWidget {
                           children: [
                             CompareLetter(s.letter, size: 16),
                             const SizedBox(width: 6),
-                            Text(
-                              s.label,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
+                            Flexible(
+                              child: Text(
+                                run.crossProvider ? s.fullLabel : s.label,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ],
@@ -284,7 +293,10 @@ class _Tabs extends StatelessWidget {
               for (final s in run.sides)
                 Tab(
                   key: ValueKey('compare-tab-${s.letter}'),
-                  text: '${s.letter} · ${compareModelLabel(s.model)}',
+                  text: run.crossProvider
+                      ? '${s.letter} · ${compareProviderLabel(s.provider)} · '
+                            '${s.modelLabel}'
+                      : '${s.letter} · ${s.modelLabel}',
                 ),
             ],
           ),
@@ -357,6 +369,7 @@ class _SideColumn extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
+              // The Codex plan is its answer, already above (SPEC-108 R3).
               if (plan != null && plan.isNotEmpty)
                 Container(
                   key: ValueKey('compare-plan-${s.letter}'),
@@ -378,8 +391,10 @@ class _SideColumn extends StatelessWidget {
                           color: AppColors.amber,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      AppMarkdown(data: plan),
+                      if (isClaudeCode(s.provider)) ...[
+                        const SizedBox(height: 6),
+                        AppMarkdown(data: plan),
+                      ],
                     ],
                   ),
                 ),
@@ -397,7 +412,7 @@ class _SideColumn extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             // R14c: the border of each side in the provider's color.
             border: Border.all(
-              color: providerIdentityColor(compareSidesProviderId)!
+              color: (providerIdentityColor(s.provider) ?? AppColors.border)
                   .withValues(alpha: 0.55),
             ),
           ),
@@ -412,19 +427,20 @@ class _SideColumn extends StatelessWidget {
               ),
               const Divider(height: 1),
               Expanded(
-                child: TimelineListView(
-                  key: ValueKey('compare-timeline-${s.letter}'),
-                  items: live.timeline.items,
-                  root: root,
-                  waitingTools: {
-                    for (final a in live.approvals) ?a.request.toolUseId,
-                  },
-                  footer: footer,
-                  assistantName:
-                      'Claude · ${compareModelLabel(s.model)} · ${s.mode.label}',
-                  emptyText: s.state.live
-                      ? 'Começando…'
-                      : 'Sem resposta deste lado.',
+                child: ReadingCommands(
+                  child: TimelineListView(
+                    key: ValueKey('compare-timeline-${s.letter}'),
+                    items: live.timeline.items,
+                    root: root,
+                    waitingTools: {
+                      for (final a in live.approvals) ?a.request.toolUseId,
+                    },
+                    footer: footer,
+                    assistantName: s.fullLabel,
+                    emptyText: s.state.live
+                        ? 'Começando…'
+                        : 'Sem resposta deste lado.',
+                  ),
                 ),
               ),
               if (metrics) ...[
@@ -464,16 +480,19 @@ class _Header extends StatelessWidget {
         children: [
           CompareLetter(s.letter),
           const SizedBox(width: 8),
-          // R15: who answers on this side (Comparar runs Claude Code only
-          // for now; SPEC-096 brings the other provider).
-          ProviderChip(compareSidesProviderId, dense: true),
+          // SPEC-108 R6: who answers on this side.
+          ProviderChip(
+            s.provider,
+            key: ValueKey('compare-chip-${s.letter}'),
+            dense: true,
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
-                    text: compareModelLabel(s.model),
+                    text: s.modelLabel,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -481,7 +500,7 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                   TextSpan(
-                    text: '  · ${s.mode.label}',
+                    text: ' ${s.effortSuffix} · ${s.mode.label}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -567,6 +586,9 @@ class _ChooseBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const text = TextStyle(fontSize: 13, color: AppColors.textSecondary);
+    // SPEC-108 R7: between the sides, time and tokens; never US\$.
+    final ratio = compareTimeTokens(run.a, run.b);
     return Container(
       key: const ValueKey('compare-choose-bar'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -583,10 +605,33 @@ class _ChooseBar extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              compareBlockedMessage,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Expanded(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (ratio == null)
+                  const Text(compareBlockedMessage, style: text)
+                else
+                  Text(
+                    ratio,
+                    key: const ValueKey('compare-time-tokens'),
+                    style: text.copyWith(color: AppColors.text),
+                  ),
+                if (run.crossProvider && run.allDone)
+                  Text(
+                    compareNoRatio,
+                    key: const ValueKey('compare-no-ratio'),
+                    style: text.copyWith(fontSize: 11),
+                  ),
+                if (run.crossProvider && ratio != null)
+                  Text(
+                    compareTokenizersHint,
+                    key: const ValueKey('compare-tokenizers'),
+                    style: text.copyWith(fontSize: 11),
+                  ),
+              ],
             ),
           ),
           if (run.anyLive) ...[
@@ -672,6 +717,3 @@ class _SideContext extends StatelessWidget {
     );
   }
 }
-
-/// Provider of both sides: Comparar is released for Claude Code only.
-const compareSidesProviderId = 'claude';

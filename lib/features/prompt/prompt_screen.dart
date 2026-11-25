@@ -7,6 +7,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/codex/codex_probe.dart' show CodexModelInfo;
 import '../../core/providers/agent_registry.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
@@ -22,9 +23,11 @@ import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import '../sessions/widgets/timeline_view.dart';
 import 'attachments.dart';
 import 'compare/compare_controller.dart';
+import 'compare/compare_handoff.dart';
 import 'compare/compare_run.dart';
 import 'compare/widgets/compare_bar.dart';
 import 'compare/widgets/compare_card.dart';
+import 'compare/widgets/compare_handoff_panel.dart';
 import 'compare/widgets/compare_view.dart';
 import 'conversation_actions.dart';
 import 'conversation_manager.dart';
@@ -86,6 +89,28 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     model: 'opus',
     mode: PromptMode.ask,
   );
+
+  /// "Mesmo resumo nos dois lados" (SPEC-108 R4, P1).
+  bool _sameHandoff = false;
+
+  /// "Ver o que o B recebe" open, and the package edited by the person, of
+  /// one conversation.
+  bool _handoffOpen = false;
+  (int, CompareHandoff)? _handoffEdit;
+
+  void _resetHandoff() {
+    _sameHandoff = false;
+    _handoffOpen = false;
+    _handoffEdit = null;
+  }
+
+  /// The package as it goes: the edited one, or the app's.
+  CompareHandoff? _handoffOf(Conversation? conv) {
+    if (conv == null) return null;
+    final edit = _handoffEdit;
+    if (edit != null && edit.$1 == conv.id) return edit.$2;
+    return ref.read(compareHandoffProvider(conv.id)).value;
+  }
 
   /// Width band of the last layout (below [sidePanelNarrowWidth]) and the
   /// choice of the button in it (SPEC-056 R10).
@@ -166,22 +191,72 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   /// workspace (P8), else A = the current model and mode, B = the other.
   (CompareChoice, CompareChoice) _initialSides(
     Workspace? ws,
+    String provider,
     String model,
     PromptMode mode,
   ) {
+    final settings = ref.read(appSettingsProvider);
     final saved = ws == null
         ? null
-        : decodeCompareSides(
-            ref.read(appSettingsProvider)[compareSidesKey(ws.id)],
-          );
-    return saved ?? defaultCompareSides(model, mode);
+        : decodeCompareSides(settings[compareSidesKey(ws.id)]);
+    if (saved != null) return saved;
+    // SPEC-108 R1: A is the conversation, with its provider and effort.
+    final id = ref.read(selectedConversationProvider);
+    return defaultCompareSides(
+      model,
+      mode,
+      provider: provider,
+      effort:
+          (id == null ? null : conversationEffort(settings, id)) ??
+          providerEffortFrom(
+            ref.read(runPrefsProvider),
+            settings,
+            provider,
+            RunKind.conversation,
+          ),
+      codexModels: [
+        for (final m
+            in codexModelsCache(settings)?.models ?? const <CodexModelInfo>[])
+          m.id,
+      ],
+    );
   }
 
-  void _toggleCompare(Workspace? ws, String model, PromptMode mode) {
+  /// SPEC-108 R4: the sides that start from the package instead of the
+  /// conversation's session (none in a new conversation).
+  List<String> _handoffLetters(
+    Conversation? conv,
+    bool history,
+    CompareChoice a,
+    CompareChoice b,
+  ) {
+    if (conv == null || !history) return const [];
+    final fresh = [
+      if (a.provider != conv.provider) 'A',
+      if (b.provider != conv.provider) 'B',
+    ];
+    return fresh.isNotEmpty && _sameHandoff ? const ['A', 'B'] : fresh;
+  }
+
+  /// Why the sides cannot be sent (R2, R3; SPEC-108 R2).
+  String? _sidesProblem(CompareChoice a, CompareChoice b) =>
+      compareSidesProblem(a, b) ??
+      [
+        for (final p in {a.provider, b.provider})
+          ?ref.read(compareProviderReasonProvider(p)),
+      ].firstOrNull;
+
+  void _toggleCompare(
+    Workspace? ws,
+    String provider,
+    String model,
+    PromptMode mode,
+  ) {
     setState(() {
       _compareOn = !_compareOn;
+      _resetHandoff();
       if (_compareOn) {
-        final (a, b) = _initialSides(ws, model, mode);
+        final (a, b) = _initialSides(ws, provider, model, mode);
         _sideA = a;
         _sideB = b;
       }
@@ -201,7 +276,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
       _snack('Selecione um workspace na barra de título.');
       return;
     }
-    final problem = compareSidesProblem(a, b);
+    final problem = _sidesProblem(a, b);
     if (problem != null) {
       _snack(problem);
       return;
@@ -222,8 +297,19 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
             prompt: prepared.applyTo(msg),
             a: a,
             b: b,
+            handoff: _handoffOf(conv),
+            sameHandoff:
+                _sameHandoff &&
+                _compareOn &&
+                conv != null &&
+                (a.provider != conv.provider || b.provider != conv.provider),
           );
-      if (mounted) setState(() => _compareOn = false);
+      if (mounted) {
+        setState(() {
+          _compareOn = false;
+          _resetHandoff();
+        });
+      }
       ref.read(selectedConversationProvider.notifier).select(id);
     } catch (e) {
       if (_text.text.isEmpty) {
@@ -450,7 +536,24 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
         conv?.specId == null &&
         compare == null;
     final comparing = _compareOn && canCompare;
-    final sidesProblem = comparing ? compareSidesProblem(_sideA, _sideB) : null;
+    if (comparing) {
+      for (final p in {_sideA.provider, _sideB.provider}) {
+        ref.watch(compareProviderReasonProvider(p));
+      }
+    }
+    final sidesProblem = comparing ? _sidesProblem(_sideA, _sideB) : null;
+    final handoffLetters = comparing
+        ? _handoffLetters(
+            conv,
+            transcriptOf(items).isNotEmpty,
+            _sideA,
+            _sideB,
+          )
+        : const <String>[];
+    if (handoffLetters.isNotEmpty) {
+      ref.watch(compareHandoffProvider(conv!.id));
+    }
+    final handoff = handoffLetters.isEmpty ? null : _handoffOf(conv);
 
     return CallbackShortcuts(
       bindings: {
@@ -486,10 +589,17 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
             final ctxOpen =
                 conv != null &&
                 compare == null &&
+                !(_handoffOpen && handoff != null) &&
                 ref.watch(contextPanelOpenProvider(ContextPlace.prompt));
             final ctxWidth = (c.maxWidth * .40).clamp(380.0, 560.0);
             final left = narrow ? 230.0 : 260.0;
-            final right = collapsed ? sideStripWidth : (narrow ? 250.0 : 280.0);
+            // SPEC-108 R4: "Ver o que o B recebe" takes the right side.
+            final handoffOpen = _handoffOpen && handoff != null;
+            final right = handoffOpen
+                ? 300.0
+                : collapsed
+                ? sideStripWidth
+                : (narrow ? 250.0 : 280.0);
             return ColoredBox(
               color: AppColors.background,
               child: Row(
@@ -638,14 +748,22 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                             stopLabel: providerId == 'codex'
                                 ? 'Interromper'
                                 : 'Parar',
-                            effort: isClaudeCode(providerId)
+                            // SPEC-108 R9: the effort of the chosen side.
+                            effort: switch (conv == null
                                 ? null
-                                : providerEffortFrom(
+                                : conversationEffort(
+                                    ref.watch(appSettingsProvider),
+                                    conv.id,
+                                  )) {
+                              final e? when e != defaultEffort => e,
+                              _ when isClaudeCode(providerId) => null,
+                              _ => providerEffortFrom(
                                     ref.watch(runPrefsProvider),
                                     ref.watch(appSettingsProvider),
                                     providerId,
                                     RunKind.conversation,
                                   ),
+                            },
                             // SPEC-071 R5: no request while the VIBE's gate
                             // runs.
                             blockedReason: compare != null
@@ -658,23 +776,55 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                 : null,
                             compareBar: comparing
                                 ? CompareBar(
-                                    models: provider.models,
+                                    models: ref
+                                        .watch(
+                                          agentProviderByIdProvider(
+                                            ClaudeCodeProvider.providerId,
+                                          ),
+                                        )
+                                        .models,
                                     a: _sideA,
                                     b: _sideB,
                                     onChanged: (a, b) => setState(() {
                                       _sideA = a;
                                       _sideB = b;
                                     }),
+                                    conversationProvider: providerId,
+                                    handoffLetters: handoffLetters,
+                                    handoff: handoff,
+                                    sameHandoff: _sameHandoff,
+                                    // Both sides of the other provider
+                                    // already start from the same package.
+                                    onSameHandoff:
+                                        handoffLetters.isEmpty ||
+                                            (handoffLetters.length > 1 &&
+                                                !_sameHandoff)
+                                        ? null
+                                        : (v) =>
+                                              setState(() => _sameHandoff = v),
+                                    onShowHandoff: () => setState(
+                                      () => _handoffOpen = !_handoffOpen,
+                                    ),
                                   )
                                 : null,
                             onToggleCompare: canCompare
-                                ? () => _toggleCompare(ws, model, mode)
+                                ? () => _toggleCompare(
+                                    ws,
+                                    providerId,
+                                    model,
+                                    mode,
+                                  )
                                 : null,
                             onCompareSend: canCompare
                                 ? () {
                                     final (a, b) = _compareOn
                                         ? (_sideA, _sideB)
-                                        : _initialSides(ws, model, mode);
+                                        : _initialSides(
+                                            ws,
+                                            providerId,
+                                            model,
+                                            mode,
+                                          );
                                     _sendCompare(ws, conv, a, b);
                                   }
                                 : null,
@@ -699,7 +849,24 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                     ),
                   ),
                   const VerticalDivider(width: 1),
-                  if (ctxOpen)
+                  if (handoffOpen)
+                    SizedBox(
+                      width: right,
+                      child: CompareHandoffPanel(
+                        handoff: handoff,
+                        letters: handoffLetters,
+                        provider: conv!.provider,
+                        onClose: () => setState(() => _handoffOpen = false),
+                        onEdit: (text) => setState(
+                          () => _handoffEdit = (
+                            conv.id,
+                            handoff.withText(text),
+                          ),
+                        ),
+                        onReset: () => setState(() => _handoffEdit = null),
+                      ),
+                    )
+                  else if (ctxOpen)
                     SizedBox(
                       width: ctxWidth,
                       child: ContextPanelHost(
@@ -1040,6 +1207,7 @@ class _Conversation extends ConsumerWidget {
     final manager = ref.read(conversationManagerProvider.notifier);
     // SPEC-026: edits of a refine conversation on its spec.
     final progress = ref.watch(refineProgressProvider(c.id));
+    final authors = conversationAuthors(snap.items);
     final answer = lastAnswer(snap.items);
     final lastIsAnswer =
         snap.items.isNotEmpty && snap.items.last is! UserItem && answer != null;
@@ -1232,6 +1400,9 @@ class _Conversation extends ConsumerWidget {
           assistantName: c.provider == 'claude'
               ? 'Claude Code · ${modelLabel(c.model)}'
               : providerModelLabel(c.provider, c.model),
+          // SPEC-108 R9: the answers before the conversation moved to
+          // another provider keep their author.
+          assistantNameOf: (i) => authors[i],
           emptyText: 'Sem mensagens ainda.',
           editInfo: progress == null ? null : (t) => progress.edits[t.id],
           customItem: (i) => switch (i) {

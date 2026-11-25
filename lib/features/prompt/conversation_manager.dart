@@ -469,9 +469,15 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       }
     }
     if (effort != null) {
+      // Kept only when it is not the provider's preference, which then
+      // still follows Configurações.
+      final target = provider ?? (await _repo.getById(id))?.provider;
+      final own =
+          target == null ||
+          effort != providerEffort(ref, target, RunKind.conversation);
       await ref
           .read(appSettingsProvider.notifier)
-          .set(conversationEffortKey(id), effort);
+          .set(conversationEffortKey(id), own ? effort : '');
     }
     await _repo.update(
       id,

@@ -57,6 +57,35 @@ void main() {
     expect(a.conversationId, 7);
     expect(a.action, ActivityAction.stop);
     expect(a.subtitle, 'Prompt · comparando B');
+    expect(a.provider, 'claude');
+
+    // SPEC-108 R6: the robot of each side with its provider.
+    final cross = buildActivities(
+      [
+        ActivityWorkspace(id: 1, name: 'w', conversations: [conv]),
+      ],
+      ActivityLive(
+        compares: {
+          7: CompareView(
+            run: run.copyWith(
+              sides: [
+                run.a,
+                const CompareSide(
+                  letter: 'B',
+                  provider: 'codex',
+                  model: 'gpt-6.2-sol',
+                  mode: PromptMode.ask,
+                  state: CompareSideState.running,
+                ),
+              ],
+            ),
+          ),
+        },
+      ),
+      now: DateTime(2026, 11, 17, 10, 7),
+    ).single;
+    expect(cross.provider, 'codex');
+    expect(cross.subtitle, 'Prompt · comparando B · Codex');
   });
 
   test('the Prompt badge says it compares', () {

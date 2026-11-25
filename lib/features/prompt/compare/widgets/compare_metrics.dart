@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/providers/capabilities.dart' show isClaudeCode;
+import '../../../../ui/providers/provider_logos.dart';
 import '../../../../ui/theme/tokens.dart';
 import '../compare_run.dart';
 import '../compare_weight.dart';
@@ -120,23 +123,36 @@ class CompareMetricsView extends StatelessWidget {
     final m = s.metrics;
     final other = run.sides.firstWhere((o) => o.letter != s.letter);
     final ratio = compareRatio(run.a, run.b);
-    // "B pesou 4,8× o A · levou 2,9× o tempo", on the heavier side.
+    // "B pesou 4,8× o A", on the heavier side (the time and the tokens are
+    // between the sides, SPEC-108 R7).
     bool mine(String? t) => t?.startsWith('${s.letter} ') ?? false;
-    final lines = [
-      if (mine(ratio.weight)) ratio.weight!,
-      if (mine(ratio.time))
-        mine(ratio.weight)
-            ? ratio.time!.replaceFirst('${s.letter} ', '')
-            : ratio.time!,
-    ];
-    final max = [
-      s.weight?.five ?? 0,
-      other.weight?.five ?? 0,
-    ].reduce((a, b) => a > b ? a : b);
-    final maxWeek = [
-      s.weight?.week ?? 0,
-      other.weight?.week ?? 0,
-    ].reduce((a, b) => a > b ? a : b);
+    final lines = [if (mine(ratio.weight)) ratio.weight!];
+    // Sides on the same quota share the scale; on different quotas each
+    // bar is of its own window (SPEC-108 R8).
+    final max = run.crossProvider
+        ? 1.0
+        : math.max(s.weight?.five ?? 0, other.weight?.five ?? 0);
+    final maxWeek = run.crossProvider
+        ? 1.0
+        : math.max(s.weight?.week ?? 0, other.weight?.week ?? 0);
+    final reading = run.readingOf(s.provider);
+    final named = run.crossProvider || !isClaudeCode(s.provider);
+    final brand = compareProviderLabel(s.provider);
+    String label(int minutes) {
+      final w = compareWindowLabel(minutes);
+      return named ? '$brand · $w' : '${w[0].toUpperCase()}${w.substring(1)}';
+    }
+
+    String spokenWindow(int minutes) =>
+        'peso na ${compareWindowSpoken(minutes)}${named ? ' do $brand' : ''}';
+    final fiveMinutes = reading?.fiveMinutes ?? 300;
+    final weekMinutes = reading?.weekMinutes ?? 10080;
+    // A provider with a single window has a single bar.
+    final hasFive = reading == null || reading.five != null;
+    final hasWeek = reading == null || reading.week != null;
+    final color = run.crossProvider
+        ? providerIdentityColor(s.provider) ?? compareSideColor(s.letter)
+        : compareSideColor(s.letter);
     final pending = s.weight == null
         ? (run.anyLive ? 'medindo…' : 'sem leitura')
         : null;
@@ -144,12 +160,15 @@ class CompareMetricsView extends StatelessWidget {
       if (m != null) ...[
         'tempo ${compareDurationSpoken(m.durationMs)}',
         'tokens ${compareTokens(m.tokensIn)} de entrada e '
-            '${compareTokens(m.tokensOut)} de saída',
+            '${compareTokens(m.answerTokens)} de saída',
+        if (m.reasoning > 0) 'raciocínio ${compareTokens(m.reasoning)} tokens',
         'chamadas: ${compareCalls(m.tools)}',
       ],
       if (s.weight case final w?) ...[
-        'peso na janela de 5 horas, ${compareWeightSpoken(w.five)}',
-        'peso na semana, ${compareWeightSpoken(w.week)}',
+        if (hasFive)
+          '${spokenWindow(fiveMinutes)}, ${compareWeightSpoken(w.five)}',
+        if (hasWeek)
+          '${spokenWindow(weekMinutes)}, ${compareWeightSpoken(w.week)}',
       ] else
         'peso $pending',
       ...lines,
@@ -171,7 +190,11 @@ class CompareMetricsView extends StatelessWidget {
                     'Tempo',
                     m == null ? '—' : compareDuration(m.durationMs),
                   ),
-                  _Cell('Tokens', m == null ? '—' : compareTokensLine(m)),
+                  _Cell(
+                    'Tokens',
+                    m == null ? '—' : compareTokensLine(m),
+                    note: m == null ? null : compareReasoningLine(m),
+                  ),
                   _Cell(
                     'Chamadas',
                     m == null ? '—' : compareCalls(m.tools),
@@ -180,23 +203,29 @@ class CompareMetricsView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              _Bar(
-                label: 'Janela de 5 h',
-                letter: s.letter,
-                value: s.weight?.five,
-                max: max,
-                pending: pending,
-                hint: compareWeightHint(run.measured),
-              ),
-              const SizedBox(height: 4),
-              _Bar(
-                label: 'Semana',
-                letter: s.letter,
-                value: s.weight?.week,
-                max: maxWeek,
-                pending: pending,
-                hint: compareWeightHint(run.measured),
-              ),
+              if (hasFive)
+                _Bar(
+                  label: label(fiveMinutes),
+                  color: color,
+                  value: s.weight?.five,
+                  max: max,
+                  pending: pending,
+                  hint: compareWeightHint(
+                    run.measured || s.weight != null && run.crossProvider,
+                  ),
+                ),
+              if (hasFive && hasWeek) const SizedBox(height: 4),
+              if (hasWeek)
+                _Bar(
+                  label: label(weekMinutes),
+                  color: color,
+                  value: s.weight?.week,
+                  max: maxWeek,
+                  pending: pending,
+                  hint: compareWeightHint(
+                    run.measured || s.weight != null && run.crossProvider,
+                  ),
+                ),
               if (lines.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
@@ -214,10 +243,13 @@ class CompareMetricsView extends StatelessWidget {
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell(this.label, this.value, {this.mono = true});
+  const _Cell(this.label, this.value, {this.mono = true, this.note});
 
   final String label;
   final String value;
+
+  /// A smaller line under the value.
+  final String? note;
   final bool mono;
 
   @override
@@ -244,6 +276,14 @@ class _Cell extends StatelessWidget {
               color: AppColors.text,
             ),
           ),
+          if (note case final note?)
+            Text(
+              note,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
         ],
       ),
     );
@@ -253,7 +293,7 @@ class _Cell extends StatelessWidget {
 class _Bar extends StatelessWidget {
   const _Bar({
     required this.label,
-    required this.letter,
+    required this.color,
     required this.value,
     required this.max,
     required this.pending,
@@ -261,7 +301,7 @@ class _Bar extends StatelessWidget {
   });
 
   final String label;
-  final String letter;
+  final Color color;
   final double? value;
   final double max;
   final String? pending;
@@ -276,7 +316,7 @@ class _Bar extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 104,
+            width: 150,
             child: Text(
               label,
               style: const TextStyle(
@@ -292,9 +332,7 @@ class _Bar extends StatelessWidget {
                 value: fill,
                 minHeight: 5,
                 backgroundColor: AppColors.border,
-                color: v == null
-                    ? AppColors.textMuted
-                    : compareSideColor(letter),
+                color: v == null ? AppColors.textMuted : color,
               ),
             ),
           ),

@@ -18,6 +18,7 @@ import '../../../core/providers/provider_preferences.dart';
 import '../../../core/providers/quota_source.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/conversations_repo.dart';
+import '../../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../mcp/mcp_rules.dart';
 import '../../cost/usage_ledger.dart';
 import '../../sessions/session_manager.dart'
@@ -1089,6 +1090,45 @@ final compareProviderReasonProvider = Provider.family<String?, String>((
     _ => '$name: ${a.message}',
   };
 });
+
+/// The package of a conversation for the sides without its session
+/// (SPEC-108 R4), rebuilt when the conversation grows.
+final compareHandoffProvider = FutureProvider.autoDispose
+    .family<CompareHandoff?, int>((ref, id) async {
+      ref.watch(conversationTimelineProvider(id).select((s) => s.items.length));
+      final ctl = ref.read(compareControllerProvider.notifier);
+      final conv = await ref.read(conversationsRepoProvider).getById(id);
+      if (conv == null || !ref.mounted) return null;
+      final ws = await ref
+          .read(workspacesRepoProvider)
+          .getById(conv.workspaceId);
+      return ws == null ? null : ctl.buildHandoff(conv, ws);
+    });
+
+/// Who wrote each answer of a conversation that moved to another provider
+/// (SPEC-108 R9): the answers before the comparison keep their author.
+/// Empty when it never moved.
+Map<AssistantTextItem, String> conversationAuthors(List<TimelineItem> items) {
+  final out = <AssistantTextItem, String>{};
+  String? author;
+  for (final i in items.reversed) {
+    if (i is CompareItem) {
+      final from = i.data['originalProvider'];
+      final chosen = [
+        for (final s in (i.data['sides'] as List?) ?? const [])
+          if (s is Map && s['letter'] == i.data['chosen']) s['provider'],
+      ].firstOrNull;
+      if (from is String && chosen is String && from != chosen) {
+        author = providerModelLabel(from, i.data['originalModel'] as String?);
+      } else if (author != null && from is String) {
+        author = providerModelLabel(from, i.data['originalModel'] as String?);
+      }
+    } else if (i is AssistantTextItem && author != null) {
+      out[i] = author;
+    }
+  }
+  return out;
+}
 
 /// The comparison of one conversation waiting for a choice (null = none).
 final compareProvider = Provider.family<CompareView?, int>(

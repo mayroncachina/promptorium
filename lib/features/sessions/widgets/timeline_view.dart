@@ -168,6 +168,7 @@ class TimelineListView extends StatefulWidget {
     this.footer,
     this.maxWidth,
     this.assistantName = 'Claude',
+    this.assistantNameOf,
     this.emptyText = 'Nenhum evento ainda.',
     this.answerFooter,
     this.editInfo,
@@ -186,6 +187,10 @@ class TimelineListView extends StatefulWidget {
   /// Centers the content in a column of at most this width.
   final double? maxWidth;
   final String assistantName;
+
+  /// Who wrote one answer, when it is not [assistantName] (a conversation
+  /// that moved to another provider, SPEC-108 R9).
+  final String? Function(AssistantTextItem item)? assistantNameOf;
   final String emptyText;
 
   /// Shown under each finished top-level answer when it returns a widget
@@ -424,7 +429,9 @@ class _TimelineListViewState extends State<TimelineListView> {
               item: item,
               root: widget.root,
               waitingTools: widget.waitingTools,
-              assistantName: widget.assistantName,
+              assistantName: item is AssistantTextItem
+                  ? widget.assistantNameOf?.call(item) ?? widget.assistantName
+                  : widget.assistantName,
               editInfo: widget.editInfo,
               userMarker: widget.userMarker,
             );
@@ -865,11 +872,71 @@ Color toolColor(String name) => switch (name) {
   'Read' || 'Glob' || 'Grep' || 'LS' => AppColors.blue,
   'Edit' || 'Write' || 'MultiEdit' || 'NotebookEdit' => AppColors.amber,
   'Bash' || 'Task' || 'Agent' => AppColors.lilac,
+  // SPEC-108 R6: a command that only reads.
+  'Ler' || 'Buscar' || 'Listar' => AppColors.blue,
   // SPEC-095: the cards of neutral events.
   NeutralToolNames.file => AppColors.amber,
   NeutralToolNames.command => AppColors.lilac,
   _ => AppColors.textSecondary,
 };
+
+/// Shows the commands that only read as what they do ([commandReading]) in
+/// the timelines below it: the columns of a comparison (SPEC-108 R6), where
+/// a side that reads by command sits beside one that reads by tool.
+class ReadingCommands extends InheritedWidget {
+  const ReadingCommands({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ReadingCommands>() != null;
+
+  @override
+  bool updateShouldNotify(ReadingCommands oldWidget) => false;
+}
+
+/// A command whose actions are only reads, searches or listings (Codex
+/// `commandActions`), as what it does: `Ler lib/a.dart · sed -n`. Null for
+/// any other command, and for one that redirects its output.
+({String label, String target})? commandReading(
+  CommandEvent c, {
+  String? root,
+}) {
+  final actions = c.actions;
+  final text = c.displayCommand.trim();
+  if (actions.isEmpty || text.contains('>')) return null;
+  String rel(String? p) {
+    if (p == null || p.isEmpty) return '';
+    return root != null && root.isNotEmpty && p.startsWith('$root/')
+        ? p.substring(root.length + 1)
+        : p;
+  }
+
+  final words = text.split(RegExp(r'\s+'));
+  final via = words.length > 1 && words[1].startsWith('-')
+      ? '${words[0]} ${words[1]}'
+      : words[0];
+  final first = actions.first;
+  final reads = [
+    for (final a in actions)
+      if (a.type == CommandAction.read) rel(a.path),
+  ];
+  if (reads.isNotEmpty) {
+    return (label: 'Ler', target: '${reads.join(', ')} · $via');
+  }
+  final search = actions
+      .where((a) => a.type == CommandAction.search)
+      .firstOrNull;
+  if (search != null) {
+    final where = rel(search.path);
+    final query = search.query ?? '';
+    final what = [
+      if (query.isNotEmpty) '"$query"',
+      if (where.isNotEmpty) where,
+    ].join(' ');
+    return (label: 'Buscar', target: what.isEmpty ? text : '$what · $via');
+  }
+  final where = rel(first.path);
+  return (label: 'Listar', target: '${where.isEmpty ? '.' : where} · $via');
+}
 
 /// "novo", "alterado", "removido", "movido" (SPEC-095 R1).
 String fileChangeKindLabel(FileChangeKind k) => switch (k) {
@@ -1132,7 +1199,13 @@ class _ToolCardState extends State<ToolCard>
     final cmd = neutralCommand?.displayCommand ?? t.command?.command;
     final command = cmd != null && cmd.trim().isNotEmpty ? cmd : null;
 
-    final target = info?.outside ?? false
+    final reading = neutralCommand == null || !ReadingCommands.of(context)
+        ? null
+        : commandReading(neutralCommand, root: widget.root);
+    final name = reading?.label ?? t.name;
+    final target = reading != null
+        ? reading.target
+        : info?.outside ?? false
         ? (editFilePath(t.input) ?? toolTarget(t.name, t.input))
         : (info?.target ?? toolTarget(t.name, t.input, root: widget.root));
 
@@ -1162,8 +1235,8 @@ class _ToolCardState extends State<ToolCard>
               ConstrainedBox(
                 constraints: const BoxConstraints(minWidth: 44),
                 child: Text(
-                  t.name,
-                  style: _mono.copyWith(color: toolColor(t.name)),
+                  name,
+                  style: _mono.copyWith(color: toolColor(name)),
                 ),
               ),
               const SizedBox(width: 10),
