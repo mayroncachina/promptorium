@@ -306,4 +306,36 @@ void main() {
       expect(ok.summary, 'Pronto para merge');
     });
   });
+
+  test('comments that became debts leave the count and say so (SPEC-112 '
+      'R8)', () {
+    ReadinessItem comments(int open, List<String> debts) => evaluateReadiness(
+      ReadinessInputs(hasSpec: true, openComments: open, debtComments: debts),
+    ).items.firstWhere((i) => i.id == 'comentarios');
+    final three = comments(3, const []);
+    expect(three.level, ReadinessLevel.aviso);
+    expect(three.detail, '3 comentários abertos');
+    final two = comments(2, const ['DT-12']);
+    expect(two.level, ReadinessLevel.aviso);
+    expect(two.detail, '2 comentários abertos · 1 virou débito: DT-12');
+    // The last open comment became a debt: nothing holds the merge.
+    final none = evaluateReadiness(
+      const ReadinessInputs(hasSpec: true, debtComments: ['DT-12', 'DT-13']),
+    );
+    final item = none.items.firstWhere((i) => i.id == 'comentarios');
+    expect(item.level, ReadinessLevel.ok);
+    expect(item.detail, '2 viraram débito: DT-12, DT-13');
+    expect(none.level, ReadinessLevel.ok);
+    expect(none.summary, 'Pronto para merge');
+    // Not verified stays not verified.
+    final unknown = evaluateReadiness(
+      const ReadinessInputs(
+        hasSpec: true,
+        debtComments: ['DT-12'],
+        unknown: {'comentarios': 'banco'},
+      ),
+    ).items.firstWhere((i) => i.id == 'comentarios');
+    expect(unknown.level, ReadinessLevel.naoVerificado);
+    expect(unknown.detail, 'banco');
+  });
 }
