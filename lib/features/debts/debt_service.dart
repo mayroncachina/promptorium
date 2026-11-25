@@ -218,16 +218,19 @@ class DebtService {
   }
 
   /// A pending suggestion (R7, R11): nothing is written until accepted.
+  /// [extra] goes in the body next to the cells (e.g. the provider of an
+  /// MCP suggestion, for the label of the strip).
   Future<int> suggest(
     String repoRoot,
     DebtDraft draft, {
     required String source,
+    Map<String, Object?> extra = const {},
     DebtLinksCompanion link = const DebtLinksCompanion(),
   }) => _links.addSuggestion(
     repoRoot: repoRoot,
     kind: draft.kind.dbName,
     source: source,
-    body: draft.toJson(),
+    body: {...extra, ...draft.toJson()},
     link: link,
   );
 
