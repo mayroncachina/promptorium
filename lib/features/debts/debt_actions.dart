@@ -15,7 +15,8 @@ import 'widgets/debt_form_dialog.dart';
 /// R10, R12). [writeRoot] is the worktree of the spec or session it was
 /// born in: the row goes in its commit (R18). Without it, the row goes to
 /// the main checkout and the app asks before the own commit. Null when
-/// cancelled or failed (a toast says why).
+/// cancelled or failed (a toast says why). [write] replaces the plain
+/// [DebtService.create] (an item that also writes its other end, R6, R12).
 Future<DebtWritten?> openDebtForm(
   BuildContext context,
   WidgetRef ref, {
@@ -24,39 +25,35 @@ Future<DebtWritten?> openDebtForm(
   String? writeRoot,
   DebtLinksCompanion link = const DebtLinksCompanion(),
   String? saveLabel,
+  Future<DebtWritten> Function(DebtDraft draft)? write,
 }) async {
   final service = ref.read(debtServiceProvider);
   final messenger = ScaffoldMessenger.maybeOf(context);
   final rel = DebtFiles.relPath(service.configOf(repoRoot), initial.kind);
-  String? code;
-  try {
-    code = await service.previewCode(repoRoot, initial.kind);
-  } catch (_) {
-    code = null;
-  }
   final branch = writeRoot == null
       ? await _branchOf(repoRoot)
       : await _branchOf(writeRoot);
   if (!context.mounted) return null;
-  final draft = await showAppDialog<DebtDraft>(
-    context: context,
-    builder: (_) => DebtFormDialog(
-      initial: initial,
-      nextCode: code,
-      saveLabel: saveLabel,
-      destination: '$rel${branch == null ? '' : ' · branch $branch'}',
-    ),
+  final draft = await askDebtDraft(
+    context,
+    ref,
+    repoRoot: repoRoot,
+    initial: initial,
+    saveLabel: saveLabel,
+    destination: '$rel${branch == null ? '' : ' · branch $branch'}',
   );
   if (draft == null) return null;
   final dirty = writeRoot == null && await _isDirty(service, repoRoot, rel);
   final DebtWritten written;
   try {
-    written = await service.create(
-      repoRoot,
-      draft,
-      writeRoot: writeRoot,
-      link: link,
-    );
+    written = write != null
+        ? await write(draft)
+        : await service.create(
+            repoRoot,
+            draft,
+            writeRoot: writeRoot,
+            link: link,
+          );
   } catch (e) {
     messenger?.showAppToast(SnackBar(content: Text('Não deu para gravar: $e')));
     return null;
@@ -82,6 +79,39 @@ Future<DebtWritten?> openDebtForm(
     wasDirty: dirty,
   );
   return written;
+}
+
+/// Only the form (R6, P2): the draft typed, nothing written. [destination]
+/// is the line under the form (the file and the branch, or where it goes
+/// later).
+Future<DebtDraft?> askDebtDraft(
+  BuildContext context,
+  WidgetRef ref, {
+  required String repoRoot,
+  required DebtDraft initial,
+  String? saveLabel,
+  String? destination,
+  bool preview = true,
+}) async {
+  final service = ref.read(debtServiceProvider);
+  String? code;
+  if (preview) {
+    try {
+      code = await service.previewCode(repoRoot, initial.kind);
+    } catch (_) {
+      code = null;
+    }
+  }
+  if (!context.mounted) return null;
+  return showAppDialog<DebtDraft>(
+    context: context,
+    builder: (_) => DebtFormDialog(
+      initial: initial,
+      nextCode: code,
+      saveLabel: saveLabel,
+      destination: destination,
+    ),
+  );
 }
 
 Future<bool> _isDirty(DebtService s, String root, String rel) async {

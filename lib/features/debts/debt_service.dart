@@ -136,6 +136,9 @@ class DebtService {
 
   DebtLinksRepo get _links => links;
 
+  /// The clock of the service (the date of "Desde" and "Decidido").
+  DateTime now() => _now();
+
   String get today {
     final d = _now();
     String two(int n) => n.toString().padLeft(2, '0');

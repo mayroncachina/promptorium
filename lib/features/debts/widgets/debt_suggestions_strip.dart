@@ -12,6 +12,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../debt_actions.dart';
 import '../debt_board.dart';
 import '../debt_files.dart';
+import '../debt_interview.dart';
 import '../debt_service.dart';
 import '../debt_table.dart';
 import 'debt_form_dialog.dart';
@@ -123,7 +124,11 @@ class _SuggestionRow extends ConsumerWidget {
     }
     final DebtWritten w;
     try {
-      w = await service.accept(link.id, edited: edited, writeRoot: writeRoot);
+      // SPEC-112 R7: a suggestion of a question also writes "→ DT-NN" in
+      // its answer.
+      w = await ref
+          .read(debtInterviewProvider)
+          .accept(link.id, edited: edited, writeRoot: writeRoot);
     } catch (e) {
       messenger?.showAppToast(
         SnackBar(content: Text('Não deu para gravar: $e')),
