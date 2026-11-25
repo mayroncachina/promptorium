@@ -1,6 +1,6 @@
 ---
 id: SPEC-113
-status: rascunho
+status: aprovada
 versao: 0.28.0
 tipo: recurso
 issue: 429
@@ -54,7 +54,7 @@ Hoje a fonte é o `CLAUDE.md` (decisão 6 do épico #332, SPEC-104), e a aba Fer
 - R18 · **Pausar e retomar.** Uma entrevista por projeto fica guardada, com rodadas, respostas e rascunho, e sobrevive a fechar o app. Retomar usa a mesma thread; se ela não existir mais, começa outra com as respostas guardadas. Se os arquivos mudaram, a IA os relê.
 - R19 · **Proposta por trecho.** Cada trecho mostra arquivo, seção, pergunta de origem e diff, com Aceitar, Editar, Recusar e Desfazer. "Aplicar" grava só os aceitos, e o que não casar mais com o arquivo volta como conflito.
 - R20 · **Conferência.** O app verifica se os caminhos citados nos trechos existem e marca os que não existem.
-- R21 · **Commit.** "Commitar ao aplicar" vem desmarcado. Marcado, commita só os arquivos de instruções na branch atual, sem push. Desmarcado, avisa que as worktrees das specs continuam com o texto antigo.
+- R21 · **Commit.** "Commitar ao aplicar" vem desmarcado. Marcado, commita só os arquivos de instruções na branch atual, sem push e sem trocar de branch. A caixa diz o nome da branch ("Commitar ao aplicar em `ajuste-carrinho`"). Se ela não for a base, avisa que as specs novas só recebem o texto depois do merge. Sem branch (HEAD solto), a caixa fica desativada, com o motivo. Desmarcado, avisa que as worktrees das specs continuam com o texto antigo.
 
 ## Fora do escopo
 
@@ -71,12 +71,13 @@ Hoje a fonte é o `CLAUDE.md` (decisão 6 do épico #332, SPEC-104), e a aba Fer
 - P4 · **Pausar e retomar.** **Decidido:** sim, por projeto.
 - P5 · **Subpastas.** **Decidido:** só leitura.
 - P6 · **Versão.** **Decidido (25/11):** 0.28.0, depois das SPECs 108–110 (0.27.0). Canvas aprovado na mesma data.
+- P7 · **Branch do commit.** **Decidido (25/11):** a branch atual, com o nome na caixa e um aviso se ela não for a base.
 
 Esta spec troca a decisão 6 do épico #332 nos projetos novos e nos unificados. Nos outros, o `CLAUDE.md` continua como fonte.
 
 ## Perguntas em aberto
 
-- P7 · **Branch do commit.** E se a branch atual não for a base? **Recomendação:** commitar na atual e dizer qual é.
+Nenhuma.
 
 ## Design
 
@@ -112,7 +113,7 @@ Esta spec troca a decisão 6 do épico #332 nos projetos novos e nos unificados.
 - [ ] A entrevista roda no Claude e no Codex, só leitura, e não grava arquivo [R13, R17] verificar: teste dos args e do repositório limpo.
 - [ ] Fechar o app no meio e continuar mantém as respostas, com e sem a thread antiga [R18] verificar: teste do repositório e do controlador.
 - [ ] Aplicar grava só os aceitos, e um trecho que não casa vira conflito [R19, R20] verificar: testes.
-- [ ] O commit é opcional, desmarcado, e leva só os arquivos de instruções [R21] verificar: teste de git.
+- [ ] O commit é opcional, desmarcado, e leva só os arquivos de instruções e vai para a branch atual, que a caixa nomeia; fora da base há aviso, e com HEAD solto a caixa fica desativada [R21] verificar: teste de git e de widget.
 
 ## Telas
 
@@ -124,6 +125,6 @@ Canvas: <https://claude.ai/artifact/JHbVvRnB2uSCernVSh2wwm> (cópia em `docs/moc
 | `2-claude-importa.png` | `CLAUDE.md` com o import e o trecho só do Claude | R9 |
 | `3-unificar.png` | Diálogo Unificar com as diferenças e o resultado | R3–R5 |
 | `4-entrevista.png` | Rodada 2, com Q4–Q6, achados no código e rascunho | R13–R17 |
-| `5-proposta.png` | Trechos aceitos, a decidir e recusados, e o commit desmarcado | R19–R21 |
+| `5-proposta.png` | Trechos aceitos, a decidir e recusados, e o commit desmarcado (anterior à P7: falta o nome da branch na caixa) | R19–R21 |
 | `6-retomar.png` | Entrevista pausada e o aviso de arquivo mudado | R18 |
 | `7-ferramentas-atalho.png` | Ferramentas › Instruções como atalho | R7 |
