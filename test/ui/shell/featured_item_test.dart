@@ -72,6 +72,7 @@ void main() {
       AppSection.prompt,
       AppSection.specs,
       AppSection.tasks,
+      AppSection.debts,
       AppSection.sessions,
       AppSection.review,
       AppSection.repository,
@@ -104,8 +105,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    // The other items keep 44 × 44.
-    expect(tester.getSize(nav(AppSection.specs)), const Size.square(44));
+    // The other items are 40 × 40 (44 until SPEC-112, which added a
+    // twelfth item).
+    expect(tester.getSize(nav(AppSection.specs)), const Size.square(40));
 
     final seps = find.byKey(const ValueKey('nav-separator'));
     expect(seps, findsNWidgets(2));

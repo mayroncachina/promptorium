@@ -21,6 +21,9 @@ enum AppSection {
   /// Quadro: one card per spec (the enum name is kept: it is stored as the
   /// last visible screen).
   tasks('Quadro', 'Nova spec'),
+
+  /// Débitos e decisões (SPEC-112 R13), right below the Quadro (P1).
+  debts('Débitos e decisões', 'Novo débito'),
   agents('Agentes', 'Novo agente'),
   skills('Skills', 'Nova skill'),
   review('Review', null),
@@ -56,6 +59,7 @@ enum AppSection {
     prompt,
     specs,
     tasks,
+    debts,
     sessions,
     review,
     repository,
@@ -105,6 +109,9 @@ enum AppSection {
   /// Sidebar / palette name: the tools group is "Ferramentas".
   String get navLabel => this == agents ? 'Ferramentas' : label;
 
+  // Débitos e decisões stays out of [shortcutItems] like the Atividades: it
+  // would push every other shortcut one key.
+
   /// `Ctrl 3`, `Ctrl 0` for the tenth item (null = no shortcut).
   String? get shortcutLabel {
     final i = shortcutItems.indexOf(this);
@@ -119,6 +126,7 @@ enum AppSection {
     prompt => AppIcons.prompt,
     specs => AppIcons.specs,
     tasks => AppIcons.tasks,
+    debts => AppIcons.debts,
     agents => AppIcons.agents,
     skills => AppIcons.skills,
     review => AppIcons.review,

@@ -76,6 +76,7 @@ void main() {
       'Prompt',
       'Specs',
       'Quadro',
+      'Débitos e decisões',
       'Sessões',
       'Review',
       'Repositório',
@@ -83,7 +84,7 @@ void main() {
       'Ferramentas',
     ]);
     // The Prompt is the featured item (SPEC-055 R2).
-    expect(find.byType(SideBarItem), findsNWidgets(11));
+    expect(find.byType(SideBarItem), findsNWidgets(12));
     expect(find.byType(SideBarFeaturedItem), findsOneWidget);
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
