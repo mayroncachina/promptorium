@@ -1,5 +1,6 @@
 import '../../core/memory/ai_memory_state.dart';
 import 'conversation_continue.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -34,6 +35,7 @@ import 'refine_changes.dart';
 import 'refine_origin.dart';
 import '../snippets/snippet_actions.dart';
 import '../snippets/snippet_scope.dart';
+import '../debts/widgets/message_debt.dart' show ConversationDebtScope;
 import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
@@ -712,11 +714,12 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                           if (promptRunsIn(ref, 'codex')) 'codex',
                         ],
                         onProvider: (p) => _nextProvider = p,
-                        handoff: ref.watch(
-                                  aiMemoryDetectionProvider.select(
-                                    (d) => d.value?.serverUp ?? false,
-                                  ),
-                                )
+                        handoff:
+                            ref.watch(
+                              aiMemoryDetectionProvider.select(
+                                (d) => d.value?.serverUp ?? false,
+                              ),
+                            )
                             ? () => nextHandoffMessage(ref, ws!.path)
                             : null,
                       ),
@@ -1210,47 +1213,51 @@ class _Conversation extends ConsumerWidget {
 
     return SnippetScope(
       origin: SnippetOrigin.conversation(c),
-      child: TimelineListView(
-        key: ValueKey('conversation-timeline-${c.id}'),
-        jump: ref.watch(timelineJumpProvider('conv:${c.id}')),
-        items: snap.items,
-        loading: snap.loading,
-        root: workspace?.path,
-        waitingTools: {for (final a in approvals) ?a.request.toolUseId},
-        footer: footer,
-        maxWidth: 760,
-        // SPEC-096 R3: the Codex speaks as the Codex.
-        assistantName: c.provider == 'claude'
-            ? 'Claude Code · ${modelLabel(c.model)}'
-            : providerModelLabel(c.provider, c.model),
-        emptyText: 'Sem mensagens ainda.',
-        editInfo: progress == null ? null : (t) => progress.edits[t.id],
-        customItem: (i) => switch (i) {
-          UserItem() when identical(i, first) && suggestion != null =>
-            _SuggestionCard(
-              steps: suggestion.steps,
-              body: suggestion.body,
-              request: i.text,
-            ),
-          CompareItem() => CompareCard(item: i, root: workspace?.path),
-          _ => null,
-        },
-        answerFooter: (item) {
-          final specs = detectAnswerSpecs(item.text);
-          if (specs.isEmpty) return null;
-          if (specs.length == 1) {
-            return AnswerSpecBar(conversation: c, spec: specs.single);
-          }
-          final answer = finishedAnswers(snap.items).indexOf(item);
-          return AnswerSpecsBar(
-            conversation: c,
-            items: [
-              for (var i = 0; i < specs.length; i++)
-                SpecBatchItem.of(i, specs[i]),
-            ],
-            answer: answer < 0 ? null : answer,
-          );
-        },
+      // SPEC-112 R9: "Virar débito" on the answers.
+      child: ConversationDebtScope(
+        conversation: c,
+        child: TimelineListView(
+          key: ValueKey('conversation-timeline-${c.id}'),
+          jump: ref.watch(timelineJumpProvider('conv:${c.id}')),
+          items: snap.items,
+          loading: snap.loading,
+          root: workspace?.path,
+          waitingTools: {for (final a in approvals) ?a.request.toolUseId},
+          footer: footer,
+          maxWidth: 760,
+          // SPEC-096 R3: the Codex speaks as the Codex.
+          assistantName: c.provider == 'claude'
+              ? 'Claude Code · ${modelLabel(c.model)}'
+              : providerModelLabel(c.provider, c.model),
+          emptyText: 'Sem mensagens ainda.',
+          editInfo: progress == null ? null : (t) => progress.edits[t.id],
+          customItem: (i) => switch (i) {
+            UserItem() when identical(i, first) && suggestion != null =>
+              _SuggestionCard(
+                steps: suggestion.steps,
+                body: suggestion.body,
+                request: i.text,
+              ),
+            CompareItem() => CompareCard(item: i, root: workspace?.path),
+            _ => null,
+          },
+          answerFooter: (item) {
+            final specs = detectAnswerSpecs(item.text);
+            if (specs.isEmpty) return null;
+            if (specs.length == 1) {
+              return AnswerSpecBar(conversation: c, spec: specs.single);
+            }
+            final answer = finishedAnswers(snap.items).indexOf(item);
+            return AnswerSpecsBar(
+              conversation: c,
+              items: [
+                for (var i = 0; i < specs.length; i++)
+                  SpecBatchItem.of(i, specs[i]),
+              ],
+              answer: answer < 0 ? null : answer,
+            );
+          },
+        ),
       ),
     );
   }

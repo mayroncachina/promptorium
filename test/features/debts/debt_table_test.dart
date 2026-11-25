@@ -290,4 +290,43 @@ void main() {
     expect(DebtKind.debt.numberOf('DT-2'), isNull);
     expect(DebtKind.debt.numberOf('DP-02'), isNull);
   });
+
+  group('remove (R8, Desfazer)', () {
+    final cells = DebtItem.newCells(
+      code: 'DT-09',
+      since: '2026-11-25',
+      title: 'Upload lido inteiro na memória',
+    );
+
+    test('append then remove gives the same bytes back', () {
+      for (final text in [
+        debts,
+        debts.replaceAll('\n', '\r\n'),
+        debts.trimRight(),
+      ]) {
+        final added = DebtTable.parse(text, DebtKind.debt).append(cells);
+        final row = DebtTable.parse(added, DebtKind.debt).rowOf('DT-09')!;
+        final back = DebtTable.parse(
+          added,
+          DebtKind.debt,
+        ).remove('DT-09', expectedRaw: row.raw);
+        expect(back, text);
+      }
+    });
+
+    test('a changed row is kept and the remove gives up', () {
+      final added = DebtTable.parse(debts, DebtKind.debt).append(cells);
+      expect(
+        () => DebtTable.parse(
+          added,
+          DebtKind.debt,
+        ).remove('DT-09', expectedRaw: '| DT-09 | outra coisa |'),
+        throwsA(isA<DebtRowChanged>()),
+      );
+      expect(
+        () => DebtTable.parse(debts, DebtKind.debt).remove('DT-09'),
+        throwsA(isA<DebtRowMissing>()),
+      );
+    });
+  });
 }

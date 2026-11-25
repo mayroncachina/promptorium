@@ -29,6 +29,14 @@ class ReplaceDebtRow extends DebtEdit {
   final String? expectedRaw;
 }
 
+/// The row of [code] removed (R8, "Desfazer"); [expectedRaw] is the row
+/// as it was written (null = no check).
+class RemoveDebtRow extends DebtEdit {
+  const RemoveDebtRow(this.code, {this.expectedRaw});
+  final String code;
+  final String? expectedRaw;
+}
+
 /// Where the files live and how they are read and written (SPEC-112 R1,
 /// R2, R5).
 abstract final class DebtFiles {
@@ -108,6 +116,10 @@ abstract final class DebtFiles {
       AppendDebtRow(:final cells) => table.append(cells),
       ReplaceDebtRow(:final code, :final cells, :final expectedRaw) =>
         table.replace(code, cells, expectedRaw: expectedRaw),
+      RemoveDebtRow(:final code, :final expectedRaw) => table.remove(
+        code,
+        expectedRaw: expectedRaw,
+      ),
     };
     await f.parent.create(recursive: true);
     final tmp = File('${f.path}.promptorium-tmp');

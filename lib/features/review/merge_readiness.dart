@@ -66,6 +66,7 @@ class ReadinessInputs {
     this.failedGates = const [],
     this.prProblem,
     this.openComments = 0,
+    this.debtComments = const [],
     this.stackedOn,
     this.rootProblem,
     this.worktreeProblem,
@@ -109,6 +110,10 @@ class ReadinessInputs {
   final List<String> pendingCriteria, failedGates;
   final String? prProblem, stackedOn, rootProblem, worktreeProblem;
   final int openComments, uncommitted;
+
+  /// Codes of the debts the comments of the spec became (SPEC-112 R8): they
+  /// left [openComments] and no longer hold the merge.
+  final List<String> debtComments;
   final Map<String, String> unknown;
 }
 
@@ -225,11 +230,14 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
         action: 'Abrir etapa',
         targets: f.failedGates,
       ),
-      item(
-        'comentarios',
-        'Comentários abertos',
-        f.openComments == 0 ? null : '${f.openComments} comentários abertos',
-        action: 'Ver comentários',
+      _withDebts(
+        item(
+          'comentarios',
+          'Comentários abertos',
+          f.openComments == 0 ? null : '${f.openComments} comentários abertos',
+          action: 'Ver comentários',
+        ),
+        f.debtComments,
       ),
     ],
     if (f.hasResolution)
@@ -263,4 +271,23 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
       blocking: f.worktreeProblem != null || f.unknown.containsKey('worktree'),
     ),
   ]);
+}
+
+/// "2 comentários abertos · 1 virou débito: DT-12" (SPEC-112 R8): the level
+/// stays the one of the open comments.
+ReadinessItem _withDebts(ReadinessItem i, List<String> codes) {
+  if (codes.isEmpty || i.level == ReadinessLevel.naoVerificado) return i;
+  final debts =
+      '${codes.length} ${codes.length == 1 ? 'virou débito' : 'viraram débito'}'
+      ': ${codes.join(', ')}';
+  return ReadinessItem(
+    i.id,
+    i.label,
+    i.level,
+    i.level == ReadinessLevel.ok ? debts : '${i.detail} · $debts',
+    blocking: i.blocking,
+    origin: i.origin,
+    action: i.action,
+    targets: i.targets,
+  );
 }
