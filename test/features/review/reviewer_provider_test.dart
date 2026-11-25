@@ -145,4 +145,24 @@ void main() {
     expect(reviewOnceLabel('codex'), 'Revisar com o Claude Code desta vez');
     expect(reviewOnceLabel('claude'), 'Revisar com o Codex desta vez');
   });
+
+  test('SPEC-109 R11: in Automático the rule Revisão says the provider; an '
+      'explicit provedor: still wins', () {
+    final plan = resolveReviewerChoice(
+      const ReviewerConfig(enabled: true),
+      executedBy: 'claude',
+      auto: true,
+      planProvider: 'codex',
+    );
+    expect((plan.provider, plan.fromPlan), ('codex', true));
+    expect(plan.secondOpinion, isTrue);
+    expect(
+      resolveReviewerChoice(
+        const ReviewerConfig(enabled: true),
+        executedBy: 'codex',
+        auto: true,
+      ).provider,
+      'claude',
+    );
+  });
 }

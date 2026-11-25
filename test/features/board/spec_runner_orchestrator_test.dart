@@ -929,7 +929,13 @@ void main() {
 
     test('R10: steps of both providers in the same worktree, each in its own '
         'session; a planned Codex step that cannot run says why', () async {
-      f = await OrchestratorFixture.create(codex: true);
+      f = await OrchestratorFixture.create(
+        codex: true,
+        config:
+            'agente: spec-implementer\n'
+            'git:\n'
+            '  marcar-commits-de-agente: true\n',
+      );
       const luna = StepRule('gpt-6-luna', 'low', provider: 'codex');
       await plan({
         'R1': (StepKind.mecanica, luna),
@@ -985,6 +991,37 @@ void main() {
         ('claude', 'R3', wt),
         ('codex', 'R4', wt),
       ]);
+      // R10: the commits are marked with the agent that made them; the
+      // sandbox of the Codex opens the slice of the worktree in the git
+      // common dir; `--agent` goes only on the Claude Code.
+      expect(
+        [for (final e in f.codexEnvs) e?['PROMPTORIUM_AGENTE']],
+        ['gpt-6-luna', 'gpt-6-luna'],
+      );
+      expect(f.cli.envs.single!['PROMPTORIUM_AGENTE'], 'sonnet');
+      final turn = f.servers.first.writtenJson.firstWhere(
+        (m) => m['method'] == 'turn/start',
+      );
+      expect(
+        ((turn['params'] as Map)['sandboxPolicy'] as Map)['writableRoots'],
+        isNotEmpty,
+      );
+      expect(
+        f.cli.args.single,
+        containsAllInOrder(['--agent', 'spec-implementer']),
+      );
+      expect(sessions.map((s) => s.agentName), [
+        null,
+        'spec-implementer',
+        null,
+      ]);
+      expect(
+        await f.notes(sessions.first.id),
+        contains(
+          'O agente spec-implementer é só do Claude Code; o Codex executa '
+          'sem ele.',
+        ),
+      );
       expect(
         await f.notes(sessions.first.id),
         contains(
