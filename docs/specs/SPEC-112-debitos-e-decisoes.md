@@ -1,6 +1,6 @@
 ---
 id: SPEC-112
-status: rascunho
+status: em implementação
 versao: 0.26.0
 tipo: recurso
 issue: 417
@@ -101,22 +101,22 @@ O formato funciona. Ele é legível no GitHub e no GitLab, entra no commit e nã
 
 ## Perguntas em aberto
 
-Só decisões menores. As grandes já foram fechadas com o usuário e estão nos requisitos.
+Só decisões menores. As grandes já foram fechadas com o usuário e estão nos requisitos. Em 24/11 o usuário aprovou o canvas e mandou seguir todas as recomendações.
 
 - P1 · **Lugar no menu lateral.** Onde fica o item "Débitos e decisões"?
   - **Decidido:** logo abaixo do Quadro, com o ícone `pending_actions`
 - P2 · **Item que nasce antes de a spec ter número.** No mini-planejamento da Nova spec, a spec ainda não existe. O que acontece com o débito?
-  - Sugestão: ele fica como sugestão pendente, ligada ao rascunho. Quando a spec é criada e ganha número, o app grava a linha com "(spec N, Q5)" e escreve o ID na resposta. Se o rascunho for descartado, a sugestão vai junto.
+  - **Decidido:** ele fica como sugestão pendente, ligada ao rascunho. Quando a spec é criada e ganha número, o app grava a linha com "(spec N, Q5)" e escreve o ID na resposta. Se o rascunho for descartado, a sugestão vai junto.
 - P3 · **Detecção do pedido em texto livre (R7).** Como reconhecer "bota em débito"?
-  - Sugestão: uma lista local de expressões ("débito", "deixa simulado", "provisório por hora", "decide depois", "fica pendente"), aplicada só às respostas das perguntas da entrevista, sem chamar o modelo. Um falso positivo custa só uma sugestão descartada.
+  - **Decidido:** uma lista local de expressões ("débito", "deixa simulado", "provisório por hora", "decide depois", "fica pendente"), aplicada só às respostas das perguntas da entrevista, sem chamar o modelo. Um falso positivo custa só uma sugestão descartada.
 - P4 · **Duas specs em paralelo criando débitos.** O que fazer quando dois merges acrescentam linhas no mesmo arquivo?
-  - Sugestão: a reserva no banco (R3) evita IDs repetidos. Se o merge der conflito só no fim da tabela desse arquivo, o app resolve juntando as linhas dos dois lados em ordem de ID. Qualquer outro conflito no arquivo segue para a sessão de resolução normal (SPEC-092).
+  - **Decidido:** a reserva no banco (R3) evita IDs repetidos. Se o merge der conflito só no fim da tabela desse arquivo, o app resolve juntando as linhas dos dois lados em ordem de ID. Qualquer outro conflito no arquivo segue para a sessão de resolução normal (SPEC-092).
 - P5 · **Commit à mão com a branch principal suja (R18).** E se o arquivo de débitos já tiver alterações não commitadas na branch principal?
-  - Sugestão: o app grava a linha, mas não commita. Ele avisa "o arquivo já tinha alterações; o commit fica com você". Com o arquivo limpo, commita só esse caminho (`git commit -- DEBITO_TECNICO.md`).
+  - **Decidido:** o app grava a linha, mas não commita. Ele avisa "o arquivo já tinha alterações; o commit fica com você". Com o arquivo limpo, commita só esse caminho (`git commit -- DEBITO_TECNICO.md`).
 - P6 · **Tamanho do lembrete no prompt (R17).** Quantos débitos entram na linha?
-  - Sugestão: até 5, os mais antigos primeiro, cada um com ID, título e onde. Se houver mais, a linha termina com "e mais N (veja DEBITO_TECNICO.md)".
+  - **Decidido:** até 5, os mais antigos primeiro, cada um com ID, título e onde. Se houver mais, a linha termina com "e mais N (veja DEBITO_TECNICO.md)".
 - P7 · **"Pago de carona?" sem merge.** O agente diz que pagou, mas a spec é descartada. O que acontece?
-  - Sugestão: a marca é descartada junto com a spec, e o débito continua aberto. Confirmar na Revisão só risca a linha no merge, como em R15.
+  - **Decidido:** a marca é descartada junto com a spec, e o débito continua aberto. Confirmar na Revisão só risca a linha no merge, como em R15.
 
 ## Design
 
