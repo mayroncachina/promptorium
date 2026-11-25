@@ -2790,6 +2790,7 @@ class ReviewService {
     final unknown = <String, String>{};
     List<String> pending = [], failed = [];
     var open = 0, uncommitted = 0;
+    var debtComments = const <String>[];
     var reviewerFailed = false;
     String? reviewerAuthor;
     String? root, stacked, worktree, pr;
@@ -2805,6 +2806,10 @@ class ReviewService {
             .read(reviewCommentsRepoProvider)
             .bySpec(spec.id);
         open = rows.where(isOpenReviewComment).length;
+        // SPEC-112 R8: the comments that became debts.
+        debtComments = await _ref
+            .read(debtLinksRepoProvider)
+            .codesOfReviewComments([for (final r in rows) r.id]);
         final last = rows.where((r) => r.author == 'revisor').lastOrNull;
         reviewerFailed =
             last != null &&
@@ -2935,6 +2940,7 @@ class ReviewService {
       pendingCriteria: pending,
       failedGates: failed,
       openComments: open,
+      debtComments: debtComments,
       rootProblem: root,
       stackedOn: stacked,
       worktreeProblem: worktree,

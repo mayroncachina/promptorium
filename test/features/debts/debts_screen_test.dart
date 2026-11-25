@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/debt_links_repo.dart';
@@ -24,8 +25,9 @@ final ws = Workspace(
 
 Future<ProviderContainer> pumpScreen(
   WidgetTester tester,
-  DebtBoard board,
-) async {
+  DebtBoard board, {
+  List<Override> overrides = const [],
+}) async {
   tester.view.physicalSize = const Size(1366, 768);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -36,6 +38,7 @@ Future<ProviderContainer> pumpScreen(
         debtsScreenWorkspaceProvider.overrideWithValue(ws),
         workspacesProvider.overrideWith((ref) => Stream.value([ws])),
         debtBoardProvider.overrideWith((ref, key) => board),
+        ...overrides,
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),

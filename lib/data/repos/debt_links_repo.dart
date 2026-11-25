@@ -192,6 +192,20 @@ class DebtLinksRepo {
             ..limit(1))
           .getSingleOrNull();
 
+  /// Codes of the debts the comments [commentIds] became (R8), in the
+  /// order of the comments.
+  Future<List<String>> codesOfReviewComments(List<int> commentIds) async {
+    if (commentIds.isEmpty) return const [];
+    final rows =
+        await (_db.select(_t)..where(
+              (l) =>
+                  l.originReviewCommentId.isIn(commentIds) & l.code.isNotNull(),
+            ))
+            .get();
+    final byComment = {for (final r in rows) r.originReviewCommentId!: r.code!};
+    return [for (final id in commentIds) ?byComment[id]];
+  }
+
   /// Codes of debts linked to review comments, by comment id (R8).
   Stream<Map<int, String>> watchReviewCommentCodes() =>
       (_db.select(_t)..where(

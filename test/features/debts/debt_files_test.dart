@@ -176,4 +176,25 @@ void main() {
       DebtsConfig.defaultDebtsPath,
     );
   });
+
+  test('RemoveDebtRow takes out only the row written (R8)', () async {
+    File('${dir.path}/DEBITO_TECNICO.md').writeAsStringSync(fixture);
+    final doc = await DebtFiles.apply(
+      dir.path,
+      'DEBITO_TECNICO.md',
+      DebtKind.debt,
+      AppendDebtRow(
+        DebtItem.newCells(code: 'DT-09', since: '2026-11-25', title: 'x'),
+      ),
+    );
+    final raw = doc.table.rowOf('DT-09')!.raw;
+    final back = await DebtFiles.apply(
+      dir.path,
+      'DEBITO_TECNICO.md',
+      DebtKind.debt,
+      RemoveDebtRow('DT-09', expectedRaw: raw),
+    );
+    expect(back.table.rowOf('DT-09'), isNull);
+    expect(read('DEBITO_TECNICO.md'), fixture);
+  });
 }

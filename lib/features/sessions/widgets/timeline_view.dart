@@ -17,6 +17,7 @@ import '../../../ui/widgets/diff_view.dart';
 import '../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../ui/widgets/motion_enter.dart';
 import '../../context/context_panel_state.dart';
+import '../../debts/widgets/message_debt.dart';
 import '../../snippets/snippet_scope.dart';
 import '../edit_diff.dart';
 import '../restore/restore_service.dart';
@@ -101,32 +102,35 @@ class TimelineView extends ConsumerWidget {
       reveal: reveal,
       child: SessionSnippetScope(
         sessionId: sessionId,
-        child: SecretSessionScope(
+        child: SessionDebtScope(
           sessionId: sessionId,
-          child: TimelineListView(
-            key: ValueKey('timeline-$sessionId'),
-            assistantName: assistantName,
-            reveal: reveal,
-            jump: ref.watch(timelineJumpProvider('session:$sessionId')),
-            editInfo: (t) =>
-                diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
-            userMarker: markers.isEmpty
-                ? null
-                : (u) {
-                    final p = markers[u];
-                    if (p == null) return null;
-                    return RestorePointMarker(
-                      point: p,
-                      onTap: () => _openPoint(context, ref, p),
-                    );
-                  },
-            footer: since == null
-                ? null
-                : SessionActivity(items: snap.items, since: since),
-            items: snap.items,
-            loading: snap.loading,
-            root: root,
-            waitingTools: waitingTools,
+          child: SecretSessionScope(
+            sessionId: sessionId,
+            child: TimelineListView(
+              key: ValueKey('timeline-$sessionId'),
+              assistantName: assistantName,
+              reveal: reveal,
+              jump: ref.watch(timelineJumpProvider('session:$sessionId')),
+              editInfo: (t) =>
+                  diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
+              userMarker: markers.isEmpty
+                  ? null
+                  : (u) {
+                      final p = markers[u];
+                      if (p == null) return null;
+                      return RestorePointMarker(
+                        point: p,
+                        onTap: () => _openPoint(context, ref, p),
+                      );
+                    },
+              footer: since == null
+                  ? null
+                  : SessionActivity(items: snap.items, since: since),
+              items: snap.items,
+              loading: snap.loading,
+              root: root,
+              waitingTools: waitingTools,
+            ),
           ),
         ),
       ),
@@ -709,9 +713,13 @@ class _AssistantTextState extends State<_AssistantText> {
   bool _hover = false;
   bool _focus = false;
 
+  /// Text selected in the message: "Virar débito" takes it (SPEC-112 R9).
+  String? _selection;
+
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final debt = MessageDebtScope.maybeOf(context);
     final theme = Theme.of(context);
     final style = MarkdownStyleSheet.fromTheme(theme).copyWith(
       p: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.45),
@@ -769,6 +777,21 @@ class _AssistantTextState extends State<_AssistantText> {
                             announcement: 'Mensagem copiada',
                           ),
                         ),
+                        if (debt != null)
+                          Opacity(
+                            opacity: _hover || _focus ? 1 : 0,
+                            child: MessageDebtButton(
+                              key: const ValueKey('message-debt'),
+                              onTap: () => debt.onDebt(
+                                context,
+                                MessageDebtRequest(
+                                  message: item.text,
+                                  selection: _selection,
+                                  at: item.at,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -788,6 +811,9 @@ class _AssistantTextState extends State<_AssistantText> {
                     styleSheet: style,
                     collapseLongCode: true,
                     owner: item,
+                    onSelectionChanged: debt == null
+                        ? null
+                        : (c) => _selection = c?.plainText,
                   ),
               ],
             ),

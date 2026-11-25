@@ -30,6 +30,8 @@ const _readNames = [
   'ler_spec',
   'estado_do_quadro',
   'spec_atual',
+  'listar_debitos',
+  'registrar_debito',
 ];
 const _writeNames = ['criar_spec', 'criar_filhas', 'anotar_andamento'];
 

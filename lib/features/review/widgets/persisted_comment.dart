@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
+import '../../../ui/theme/tokens.dart';
+import '../../debts/origin_debts.dart';
+import '../../debts/widgets/review_comment_debt.dart';
+import '../../sessions/widgets/session_style.dart';
 import '../comment_anchor.dart';
 
 /// Shows the body of treated comments below it (diff since a round, where
@@ -32,13 +36,20 @@ class PersistedComment extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = comment.row;
+    // SPEC-112 R8: the debt the comment became, and "Virar débito".
+    final scope = ReviewDebtScope.maybeOf(context);
+    final debt = scope == null
+        ? null
+        : ref.watch(
+            reviewCommentDebtCodesProvider.select((m) => m.value?[c.id]),
+          );
     final who = switch (c.author) {
       'pr' => 'PR · ${c.body.startsWith('@') ? c.body.split(':').first : ''}',
       'humano' => 'Você',
       _ => 'Revisor',
     };
     return Opacity(
-      opacity: c.resolved ? .55 : 1,
+      opacity: c.resolved && debt == null ? .55 : 1,
       child: Card(
         key: ValueKey('review-comment-${c.id}'),
         margin: const EdgeInsets.fromLTRB(20, 4, 12, 4),
@@ -61,16 +72,72 @@ class PersistedComment extends ConsumerWidget {
                       '${c.requirement == null ? '' : ' · ${c.requirement}'}',
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => ref
-                        .read(reviewCommentsRepoProvider)
-                        .setResolved(c.id, !c.resolved),
-                    child: Text(c.resolved ? 'Reabrir' : 'Tratado'),
-                  ),
+                  if (debt != null)
+                    CommentDebtSeal(
+                      debt,
+                      key: ValueKey('review-comment-debt-seal-${c.id}'),
+                    )
+                  else ...[
+                    if (scope != null && isOpenReviewComment(c))
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: SmallButton(
+                          key: ValueKey('review-comment-debt-${c.id}'),
+                          label: 'Virar débito',
+                          height: 26,
+                          color: AppColors.amber,
+                          border: AppColors.amber.withValues(alpha: .6),
+                          background: Colors.transparent,
+                          onTap: () =>
+                              turnReviewCommentIntoDebt(context, ref, scope, c),
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: () => ref
+                          .read(reviewCommentsRepoProvider)
+                          .setResolved(c.id, !c.resolved),
+                      child: Text(c.resolved ? 'Reabrir' : 'Tratado'),
+                    ),
+                  ],
                 ],
               ),
-              if (!c.resolved || ResolvedCommentBodies.of(context))
+              if (debt != null)
+                Text(
+                  c.body,
+                  style: const TextStyle(
+                    decoration: TextDecoration.lineThrough,
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              else if (!c.resolved || ResolvedCommentBodies.of(context))
                 Text(c.body),
+              if (debt != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Virou débito · não conta mais como aberto',
+                          style: TextStyle(fontSize: 12, color: AppColors.teal),
+                        ),
+                      ),
+                      if (scope != null && !scope.merged)
+                        SmallButton(
+                          key: ValueKey('review-comment-debt-undo-${c.id}'),
+                          label: 'Desfazer',
+                          height: 26,
+                          onTap: () => undoReviewCommentDebt(
+                            context,
+                            ref,
+                            scope,
+                            c,
+                            debt,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if (comment.outdatedReason != null)
                 Text(
                   'Fora do diff atual · ${c.path ?? 'Geral'}:${c.line ?? 0} · ${comment.outdatedReason}'

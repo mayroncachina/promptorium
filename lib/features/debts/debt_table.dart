@@ -260,6 +260,27 @@ class DebtTable {
     return out.join('\n');
   }
 
+  /// The text without the row of [code]; every other byte stays (R8,
+  /// "Desfazer"). [expectedRaw] is the row as it was written: when it
+  /// differs, [DebtRowChanged] and nothing is removed.
+  String remove(String code, {String? expectedRaw}) {
+    final r = rowOf(code);
+    if (r == null) throw DebtRowMissing(code);
+    if (expectedRaw != null && expectedRaw.trim() != r.raw.trim()) {
+      throw DebtRowChanged(code);
+    }
+    final out = List.of(lines)..removeAt(r.line);
+    if (r.line == lines.length - 1 && r.line > 0) {
+      // The row was the last line, with no final break: the line before
+      // loses its break too.
+      final prev = out[r.line - 1];
+      out[r.line - 1] = prev.endsWith('\r')
+          ? prev.substring(0, prev.length - 1)
+          : prev;
+    }
+    return out.join('\n');
+  }
+
   /// `| a | b |` with the cells escaped ([escapeCell]).
   static String formatRow(List<String> cells, {bool escape = true}) =>
       '| ${[for (final c in cells) escape ? escapeCell(c) : c].join(' | ')} |';
