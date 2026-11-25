@@ -182,7 +182,16 @@ Future<String> fetchReplayOutput(
   if (s == null) throw const AgentUnavailable('Sessão não encontrada.');
   return ref
       .read(codexConversationsProvider)
-      .itemOutput(s, turnId: turnId, itemId: tool.id);
+      .itemOutput(
+        s,
+        turnId: turnId,
+        itemId: tool.id,
+        // A turn that left the conversation is still in the copy.
+        copies: ref
+            .read(sessionTimelineProvider(sessionId))
+            .timeline
+            .conversationCopies,
+      );
 }
 
 /// The file of an edit step right after it (R7). Key: session id and the

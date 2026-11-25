@@ -7,6 +7,7 @@ import '../../core/providers/context_events.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/secrets/secret_scanner.dart';
 import '../context/context_tracker.dart';
+import 'conversation_events.dart';
 
 /// Event types written by the app itself into `session_events` (they never
 /// come from the CLI; `ClaudeEvent.fromJson` turns them into [UnknownEvent]).
@@ -168,6 +169,21 @@ sealed class TimelineItem {
 
   /// The agent's turn it belongs to (Codex, SPEC-110 R1); null = unknown.
   String? agentTurnId;
+
+  /// It left the agent's conversation (SPEC-110 R10); null = it is in it.
+  RevertMark? reverted;
+}
+
+/// The revert of the conversation an item left with (SPEC-110 R10).
+class RevertMark {
+  const RevertMark({required this.key, required this.at, required this.turn});
+
+  /// `ConversationRevert.key`.
+  final String key;
+  final DateTime at;
+
+  /// Restore point turn the conversation went back to before.
+  final int turn;
 }
 
 class UserItem extends TimelineItem {
@@ -346,6 +362,22 @@ class CompareItem extends NoticeItem {
   final Map<String, dynamic> data;
 }
 
+/// What an undo did to the agent's conversation (SPEC-110 R8). A
+/// [NoticeItem] for every view that does not know it: its text is the note.
+class ConversationItem extends NoticeItem {
+  ConversationItem(this.data, {super.at})
+    : super(
+        data.note,
+        level: data.ok ? NoticeLevel.info : NoticeLevel.error,
+      );
+
+  final ConversationRevert data;
+
+  /// The newest one of its restore point ("Refazer" and "Tentar voltar a
+  /// conversa" show only there).
+  bool current = true;
+}
+
 /// The card of a commit, push or PR blocked by the Vigia de segredos
 /// (SPEC-085 R7). A [NoticeItem] for every reader that does not know it
 /// (replay, search): its text is the title.
@@ -471,6 +503,12 @@ class Timeline {
   /// files: one card per file, R1).
   final Map<String, List<ToolItem>> _groups = {};
   final Map<String, SecretBlockItem> _secretBlocks = {};
+
+  /// Reverts of the conversation in effect, by restore point (SPEC-110 R9),
+  /// and every copy made of it (`thread/fork`).
+  final Map<int, ConversationRevert> conversationReverts = {};
+  final List<String> conversationCopies = [];
+  final Map<int, ConversationItem> _conversationItems = {};
 
   /// A block of the Vigia de segredos by its id (SPEC-085).
   SecretBlockItem? secretBlock(String id) => _secretBlocks[id];
@@ -847,6 +885,18 @@ class Timeline {
             at: at,
           ),
         );
+      case AgentConversationEvents.reverted || AgentConversationEvents.failed:
+        final r = ConversationRevert.fromJson(j);
+        if (r != null) _applyRevert(r, at);
+      case AgentConversationEvents.restored:
+        conversationReverts.removeWhere((_, r) => r.key == j['revert']);
+        for (final i in items) {
+          if (i.reverted?.key == j['revert']) i.reverted = null;
+          if (i is ConversationItem && i.data.key == j['revert']) {
+            i.current = false;
+          }
+        }
+        items.add(NoticeItem(conversationRestoredNote(j), at: at));
       case AppEventTypes.secrets:
         final block = '${j['block'] ?? ''}';
         final item = SecretBlockItem(
@@ -872,6 +922,33 @@ class Timeline {
           items.add(NoticeItem(text, at: at));
         }
     }
+  }
+
+  /// SPEC-110 R8, R10: the items of the turns the agent forgot are marked,
+  /// from the message that opened the first of them to the end.
+  void _applyRevert(ConversationRevert r, DateTime at) {
+    if (r.copyId case final copy? when !conversationCopies.contains(copy)) {
+      conversationCopies.add(copy);
+    }
+    if (r.ok) {
+      conversationReverts[r.pointId] = r;
+      var from = r.fromSeq == null
+          ? -1
+          : items.indexWhere((i) => i is UserItem && i.seq == r.fromSeq);
+      if (from < 0) {
+        from = items.indexWhere((i) => i.agentTurnId == r.beforeTurnId);
+      }
+      if (from >= 0) {
+        final mark = RevertMark(key: r.key, at: at, turn: r.turn);
+        for (var i = from; i < items.length; i++) {
+          if (items[i] is! ConversationItem) items[i].reverted ??= mark;
+        }
+      }
+    }
+    final item = ConversationItem(r, at: at);
+    _conversationItems[r.pointId]?.current = false;
+    _conversationItems[r.pointId] = item;
+    items.add(item);
   }
 
   /// The prompt, the card and the note of the chosen side (SPEC-079 R11).

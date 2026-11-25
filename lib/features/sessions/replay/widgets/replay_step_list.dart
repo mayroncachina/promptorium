@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../ui/theme/tokens.dart';
+import '../../timeline.dart' show RevertMark;
 import '../replay_state.dart';
 import '../replay_step.dart';
 import 'replay_style.dart';
@@ -122,6 +123,14 @@ class _ReplayStepListState extends State<ReplayStepList> {
     }
   }
 
+  /// The revert the turn left the conversation with (SPEC-110 R10).
+  RevertMark? _turnReverted(int turn) {
+    for (final s in widget.steps) {
+      if (s.turn == turn && s.kind == ReplayKind.user) return s.reverted;
+    }
+    return null;
+  }
+
   String _turnText(int turn) {
     for (final s in widget.steps) {
       if (s.turn == turn && s.kind == ReplayKind.user) {
@@ -207,10 +216,25 @@ class _ReplayStepListState extends State<ReplayStepList> {
                   itemBuilder: (context, i) {
                     final e = _entries[i];
                     if (e.turn != null) {
+                      final gone = _turnReverted(e.turn!);
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
-                        child: Text(
-                          _turnText(e.turn!),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              if (gone != null)
+                                const TextSpan(
+                                  text: 'revertido · ',
+                                  style: TextStyle(color: AppColors.red),
+                                ),
+                              TextSpan(text: _turnText(e.turn!)),
+                            ],
+                          ),
+                          key: ValueKey('replay-turn-${e.turn}'),
+                          semanticsLabel: gone == null
+                              ? null
+                              : 'Turno ${e.turn}, revertido às '
+                                    '${gone.at.hour} e ${gone.at.minute}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -301,90 +325,93 @@ class _StepRow extends StatelessWidget {
       selected: selected,
       label: replaySemanticValue(s, 0).replaceFirst(' de 0', ''),
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.only(left: 8, right: 10),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.amberTint : null,
-            border: Border(
-              left: BorderSide(
-                color: selected ? AppColors.amber : Colors.transparent,
-                width: 2,
+      child: Opacity(
+        opacity: s.reverted == null ? 1 : .5,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.only(left: 8, right: 10),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.amberTint : null,
+              border: Border(
+                left: BorderSide(
+                  color: selected ? AppColors.amber : Colors.transparent,
+                  width: 2,
+                ),
               ),
             ),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 34,
-                child: Text(
-                  '${s.index + 1}',
-                  textAlign: TextAlign.right,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 34,
+                  child: Text(
+                    '${s.index + 1}',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ReplayKindBadge(s, size: 15),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        if (name != null) ...[
+                          TextSpan(
+                            text: '$name ',
+                            style: TextStyle(
+                              color: problem ? AppColors.red : AppColors.text,
+                            ),
+                          ),
+                          TextSpan(
+                            text: label.substring(name.length + 1),
+                            style: TextStyle(
+                              fontFamily: AppFonts.mono,
+                              fontSize: 11.5,
+                              color: problem
+                                  ? AppColors.red
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          if (via.isNotEmpty)
+                            TextSpan(
+                              text: ' · $via',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                        ] else
+                          TextSpan(
+                            text: label,
+                            style: TextStyle(
+                              color: problem
+                                  ? AppColors.red
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  showTurn ? 'T${s.turn}' : formatDurationShort(s.duration),
                   style: const TextStyle(
-                    fontFamily: AppFonts.mono,
                     fontSize: 11,
                     color: AppColors.textMuted,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              ReplayKindBadge(s, size: 15),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      if (name != null) ...[
-                        TextSpan(
-                          text: '$name ',
-                          style: TextStyle(
-                            color: problem ? AppColors.red : AppColors.text,
-                          ),
-                        ),
-                        TextSpan(
-                          text: label.substring(name.length + 1),
-                          style: TextStyle(
-                            fontFamily: AppFonts.mono,
-                            fontSize: 11.5,
-                            color: problem
-                                ? AppColors.red
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                        if (via.isNotEmpty)
-                          TextSpan(
-                            text: ' · $via',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                      ] else
-                        TextSpan(
-                          text: label,
-                          style: TextStyle(
-                            color: problem
-                                ? AppColors.red
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                showTurn ? 'T${s.turn}' : formatDurationShort(s.duration),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

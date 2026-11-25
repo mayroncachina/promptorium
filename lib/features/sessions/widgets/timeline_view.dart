@@ -26,6 +26,7 @@ import '../handoff/handoff_card.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
 import '../tool_expanded.dart';
+import 'conversation_cards.dart';
 import 'restore_points_section.dart';
 import 'session_activity.dart';
 import 'session_style.dart';
@@ -367,6 +368,19 @@ class _TimelineListViewState extends State<TimelineListView> {
     _seen = count;
   }
 
+  /// SPEC-110 R10: the badge goes on the answers of a reverted turn, or on
+  /// its message when there is none.
+  static bool _revertedBadge(List<TimelineItem> items, int idx) {
+    final item = items[idx];
+    if (item is AssistantTextItem) return true;
+    if (item is! UserItem) return false;
+    for (var i = idx + 1; i < items.length; i++) {
+      if (items[i] is AssistantTextItem) return false;
+      if (items[i] is UserItem || items[i].reverted == null) break;
+    }
+    return true;
+  }
+
   Widget _wrap(Widget child) => widget.maxWidth == null
       ? child
       : Center(
@@ -428,6 +442,15 @@ class _TimelineListViewState extends State<TimelineListView> {
               editInfo: widget.editInfo,
               userMarker: widget.userMarker,
             );
+        final reverted = item.reverted;
+        final shown = reverted == null
+            ? view
+            : RevertedItem(
+                mark: reverted,
+                badge: _revertedBadge(items, idx),
+                right: item is UserItem,
+                child: view,
+              );
         final extraBelow =
             item is AssistantTextItem &&
                 item.parentToolUseId == null &&
@@ -445,10 +468,10 @@ class _TimelineListViewState extends State<TimelineListView> {
             Padding(
               padding: EdgeInsets.only(top: gap),
               child: extraBelow == null
-                  ? view
+                  ? shown
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [view, const SizedBox(height: 8), extraBelow],
+                      children: [shown, const SizedBox(height: 8), extraBelow],
                     ),
             ),
           ),
@@ -552,6 +575,11 @@ class TimelineItemView extends StatelessWidget {
       ThinkingItem() => ThinkingCard(item: it),
       // SPEC-099 R8: where the session came from and what came with it.
       HandoffItem() => HandoffCard(
+        item: it,
+        sessionId: SecretSessionScope.of(context),
+      ),
+      // SPEC-110 R8: the conversation that went back (or did not).
+      ConversationItem() => ConversationCard(
         item: it,
         sessionId: SecretSessionScope.of(context),
       ),

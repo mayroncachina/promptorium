@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/providers/agent_event.dart' show NeutralLimits;
 import '../../../../core/providers/provider_availability.dart';
 import '../../../../ui/theme/tokens.dart';
 import '../../../../ui/widgets/diff_view.dart';
@@ -11,6 +10,7 @@ import '../../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../../ui/widgets/numbered_text_view.dart';
 import '../../edit_diff.dart';
 import '../../timeline.dart';
+import '../../widgets/conversation_cards.dart' show RevertedBadge;
 import '../../widgets/session_style.dart';
 import '../../widgets/tool_expanded_view.dart' show readLines;
 import '../file_at_step.dart';
@@ -131,6 +131,15 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
                   height: 28,
                   onTap: () => setState(
                     () => showFile ? _fileAt.remove(s) : _fileAt.add(s),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              if (s.reverted case final r?) ...[
+                Flexible(
+                  child: RevertedBadge(
+                    r,
+                    key: const ValueKey('replay-reverted-badge'),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -522,7 +531,8 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
-            '… ${NeutralLimits.cutLabel(c.outputCutLines, what: 'saída')}',
+            '… saída cortada: ${c.outputCutLines} '
+            '${c.outputCutLines == 1 ? 'linha' : 'linhas'} a menos',
             key: const ValueKey('replay-output-cut'),
             style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
           ),

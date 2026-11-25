@@ -61,7 +61,10 @@ enum ReplayMarkKind {
   resume,
 
   /// A turn stopped before its end (Codex `interrupted`, SPEC-110 R1).
-  interrupted;
+  interrupted,
+
+  /// The agent's conversation went back (SPEC-110 R10).
+  reverted;
 
   /// Drawn as a flag above the lanes (R3).
   bool get isFlag =>
@@ -69,7 +72,8 @@ enum ReplayMarkKind {
       this == gateFailed ||
       this == compaction ||
       this == resume ||
-      this == interrupted;
+      this == interrupted ||
+      this == reverted;
 }
 
 /// One read, search or listing made by a command (SPEC-110 R1).
@@ -212,6 +216,9 @@ class ReplayStep {
   /// Id of the agent's turn (Codex `turn/started`); null = unknown.
   String? get agentTurnId => (parent ?? this).item.agentTurnId;
 
+  /// It left the agent's conversation (SPEC-110 R10).
+  RevertMark? get reverted => (parent ?? this).item.reverted;
+
   /// What the step does, in words: the tool name, or the verb of a neutral
   /// card ("Ler", "Buscar", "Editar", "Rodar").
   String get verb {
@@ -306,6 +313,7 @@ ReplayKind replayKindOf(String name) => switch (name) {
 
 /// Kind of mark of an app notice.
 ReplayMarkKind replayMarkOf(NoticeItem n) {
+  if (n is ConversationItem && n.data.ok) return ReplayMarkKind.reverted;
   final t = n.text;
   if (t.startsWith('Verificação aprovada')) return ReplayMarkKind.gatePassed;
   if (t.startsWith('Verificação falhou')) return ReplayMarkKind.gateFailed;
@@ -485,7 +493,10 @@ ReplayStep? _stepOf(
         kind: ReplayKind.mark,
         item: item,
         turn: turn,
-        target: _firstLine(item.text),
+        target: mark == ReplayMarkKind.reverted
+            ? 'Conversa revertida para antes do turno '
+                  '${(item as ConversationItem).data.turn}'
+            : _firstLine(item.text),
         at: item.at,
         outcome:
             mark == ReplayMarkKind.error || mark == ReplayMarkKind.gateFailed
