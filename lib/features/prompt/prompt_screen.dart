@@ -78,8 +78,14 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
 
   /// Comparar on in the composer, with its sides (SPEC-079 R1).
   bool _compareOn = false;
-  CompareChoice _sideA = (model: 'sonnet', mode: PromptMode.ask);
-  CompareChoice _sideB = (model: 'opus', mode: PromptMode.ask);
+  CompareChoice _sideA = const CompareChoice(
+    model: 'sonnet',
+    mode: PromptMode.ask,
+  );
+  CompareChoice _sideB = const CompareChoice(
+    model: 'opus',
+    mode: PromptMode.ask,
+  );
 
   /// Width band of the last layout (below [sidePanelNarrowWidth]) and the
   /// choice of the button in it (SPEC-056 R10).
@@ -216,9 +222,6 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
             prompt: prepared.applyTo(msg),
             a: a,
             b: b,
-            providerId: conv == null
-                ? ref.read(promptDraftProvider).providerId
-                : null,
           );
       if (mounted) setState(() => _compareOn = false);
       ref.read(selectedConversationProvider.notifier).select(id);

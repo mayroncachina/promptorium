@@ -1,3 +1,5 @@
+import '../../../core/providers/agent_event.dart';
+import '../../../core/providers/capabilities.dart' show isClaudeCode;
 import '../../activities/quota_forecast.dart' show sessionQuotaWeights;
 import 'compare_run.dart';
 
@@ -58,6 +60,64 @@ CompareWeights compareWeights({
   );
 }
 
+/// The weights of the sides of a comparison, each on the quota of its
+/// provider (SPEC-108 R8).
+///
+/// * Different providers: the whole variation of each quota is of its only
+///   side; no cost enters, and without both readings there is no weight.
+/// * Both on the Claude: [compareWeights], by the cost (SPEC-079 R8).
+/// * Both on the Codex (no cost): the variation by the share of the total
+///   tokens; without both readings there is no weight.
+CompareWeights compareRunWeights({
+  required List<CompareSide> sides,
+  required Map<String, UsageReading> before,
+  required Map<String, UsageReading> after,
+  UsageReading? lastClaude,
+  Map<String, double> windowCosts = const {},
+}) {
+  final byProvider = <String, List<CompareSide>>{};
+  for (final s in sides) {
+    (byProvider[s.provider] ??= []).add(s);
+  }
+  final out = <String, SideWeight>{};
+  var measured = true;
+  for (final MapEntry(key: provider, value: group) in byProvider.entries) {
+    final claudePair = isClaudeCode(provider) && group.length > 1;
+    final w = compareWeights(
+      costs: {
+        for (final s in group)
+          s.letter: group.length == 1
+              ? 1.0
+              : claudePair
+              ? s.metrics?.costUsd ?? 0
+              : (s.metrics?.totalTokens ?? 0).toDouble(),
+      },
+      before: before[provider],
+      after: after[provider],
+      last: claudePair ? lastClaude : null,
+      windowCosts: claudePair ? windowCosts : const {},
+    );
+    if (!claudePair && !w.measured) {
+      measured = false;
+      continue;
+    }
+    measured = measured && w.measured;
+    out.addAll(w.weights);
+  }
+  return (weights: out, measured: measured);
+}
+
+/// What a command of the agent counts as (SPEC-108 R7): a read, a search
+/// or a command, by its classified actions (Codex `commandActions`). The
+/// keys are the Claude tools, so both providers count alike.
+String compareCommandTool(CommandEvent e) {
+  final types = {for (final a in e.actions) a.type};
+  if (types.contains(CommandAction.read)) return 'Read';
+  if (types.contains(CommandAction.search)) return 'Grep';
+  if (types.contains(CommandAction.listFiles)) return 'Glob';
+  return 'Bash';
+}
+
 String _num(double v, {int digits = 1}) =>
     v.toStringAsFixed(digits).replaceAll('.', ',');
 
@@ -98,13 +158,19 @@ String compareTokens(int n) {
   return '${_num(n / 1000000)} mi';
 }
 
-/// `14,2 mil → 1,1 mil`.
+/// `14,2 mil → 1,1 mil` (the reasoning goes apart, [compareReasoningLine]).
 String compareTokensLine(CompareMetrics m) =>
-    '${compareTokens(m.tokensIn)} → ${compareTokens(m.tokensOut)}';
+    '${compareTokens(m.tokensIn)} → ${compareTokens(m.answerTokens)}';
 
-/// `9 leituras · 2 buscas · 1 outra` (R7); `nenhuma` without calls.
+/// `raciocínio 2,1 mil` (SPEC-108 R7); null without it.
+String? compareReasoningLine(CompareMetrics m) =>
+    m.reasoning > 0 ? 'raciocínio ${compareTokens(m.reasoning)}' : null;
+
+/// `9 leituras · 2 buscas · 1 comando · 1 outra` (R7); `nenhuma` without
+/// calls.
 String compareCalls(Map<String, int> tools) {
   var reads = 0, searches = 0, web = 0, agents = 0, other = 0;
+  var commands = 0, mcp = 0;
   for (final MapEntry(:key, :value) in tools.entries) {
     switch (key) {
       case 'Read' || 'NotebookRead':
@@ -115,6 +181,10 @@ String compareCalls(Map<String, int> tools) {
         web += value;
       case 'Task' || 'Agent':
         agents += value;
+      case 'Bash' || 'PowerShell':
+        commands += value;
+      case _ when key.startsWith('mcp__'):
+        mcp += value;
       default:
         other += value;
     }
@@ -123,6 +193,8 @@ String compareCalls(Map<String, int> tools) {
   final parts = [
     if (reads > 0) n(reads, 'leitura', 'leituras'),
     if (searches > 0) n(searches, 'busca', 'buscas'),
+    if (commands > 0) n(commands, 'comando', 'comandos'),
+    if (mcp > 0) n(mcp, 'chamada MCP', 'chamadas MCP'),
     if (web > 0) n(web, 'consulta web', 'consultas web'),
     if (agents > 0) n(agents, 'subagente', 'subagentes'),
     if (other > 0) n(other, 'outra', 'outras'),
@@ -130,9 +202,31 @@ String compareCalls(Map<String, int> tools) {
   return parts.isEmpty ? 'nenhuma' : parts.join(' · ');
 }
 
+/// "cotas diferentes" (SPEC-108 R8, P2): there is no ratio of weights.
+const compareNoRatio = 'cotas diferentes · sem razão de peso';
+
+/// The hint of the tokens between providers (SPEC-108 R7).
+const compareTokenizersHint =
+    'tokenizadores diferentes: os tokens servem de ordem de grandeza';
+
+/// "B levou 0,6× o tempo · usou 1,3× os tokens" (SPEC-108 R7): B over A;
+/// null until both sides have both values.
+String? compareTimeTokens(CompareSide a, CompareSide b) {
+  final x = a.metrics, y = b.metrics;
+  if (x == null || y == null) return null;
+  String? ratio(int n, int d) => n <= 0 || d <= 0 ? null : _num(n / d);
+  final time = ratio(y.durationMs, x.durationMs);
+  final tokens = ratio(y.totalTokens, x.totalTokens);
+  final parts = [
+    if (time != null) 'levou $time× o tempo',
+    if (tokens != null) 'usou $tokens× os tokens',
+  ];
+  return parts.isEmpty ? null : '${b.letter} ${parts.join(' · ')}';
+}
+
 /// "B pesou 4,8× o A" and "B levou 2,9× o tempo" (R7): the heavier side
 /// over the lighter. Null parts when a side has no value yet (or both are
-/// even).
+/// even). Sides on different quotas have no ratio of weights (SPEC-108 R8).
 ({String? weight, String? time}) compareRatio(CompareSide a, CompareSide b) {
   String? ratio(
     double x,
@@ -148,7 +242,9 @@ String compareCalls(Map<String, int> tools) {
   }
 
   final wa = a.weight?.five ?? 0, wb = b.weight?.five ?? 0;
-  final weight = wa > 0 && wb > 0
+  final weight = a.provider != b.provider
+      ? null
+      : wa > 0 && wb > 0
       ? ratio(wb, wa, (hi, lo, r) => '$hi pesou $r× o $lo')
       : ratio(
           b.metrics?.costUsd ?? 0,

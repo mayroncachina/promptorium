@@ -239,6 +239,8 @@ class UsageLedger {
     Result e, {
     required double costUsd,
     String? model,
+    // SPEC-108: a side of a comparison may run on another provider.
+    String? provider,
   }) async {
     final mark = _marks.remove(_conversationKey(conversationId));
     if (e.usage.total <= 0) return;
@@ -265,7 +267,7 @@ class UsageLedger {
         model: resultModel(e, model ?? c.model),
         usage: e.usage,
         costUsd: costUsd,
-        provider: c.provider,
+        provider: provider ?? c.provider,
         reasoningTokens: reasoningTokensOf(e),
       );
     } catch (err) {

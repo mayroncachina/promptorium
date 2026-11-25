@@ -832,10 +832,16 @@ class Timeline {
       for (final s in (j['sides'] as List?) ?? const [])
         if (s is Map) s,
     ];
+    String? providerOf(Map s) => s['provider'] as String?;
+    // The sides name their provider when it is not the same (SPEC-108 R9).
+    final cross = {for (final s in sides) providerOf(s)}.length > 1;
     String label(Map s) {
       final m = '${s['model'] ?? ''}';
+      final codex = providerOf(s) == 'codex';
       final model = m.isEmpty || m == 'inherit'
           ? 'Padrão'
+          : codex
+          ? m
           : m[0].toUpperCase() + m.substring(1);
       final mode = switch (s['mode']) {
         'plan' => 'Planejar',
@@ -844,6 +850,9 @@ class Timeline {
       };
       return '$model · $mode';
     }
+
+    String name(Map s) => providerOf(s) == 'codex' ? 'Codex' : 'Claude';
+    String full(Map s) => cross ? '${name(s)} · ${label(s)}' : label(s);
 
     final chosen = sides.where((s) => s['letter'] == j['chosen']).firstOrNull;
     final other = sides.where((s) => s['letter'] != j['chosen']).firstOrNull;
@@ -854,16 +863,28 @@ class Timeline {
           j,
           other == null
               ? 'Comparação'
-              : 'Comparação: ${label(other)} (não escolhida)',
+              : 'Comparação: ${full(other)} (não escolhida)',
           at: at,
         ),
       );
     if (chosen != null) {
+      final before = j['originalProvider'];
+      final moved =
+          before is String &&
+          providerOf(chosen) != null &&
+          providerOf(chosen) != before;
       items.add(
-        NoticeItem(
-          'escolhida entre ${sides.length} · ${label(chosen)}',
-          at: at,
-        ),
+        moved
+            ? NoticeItem(
+                'A conversa passou para o ${name(chosen)} · ${label(chosen)} '
+                '(escolhida entre ${sides.length})',
+                level: NoticeLevel.success,
+                at: at,
+              )
+            : NoticeItem(
+                'escolhida entre ${sides.length} · ${full(chosen)}',
+                at: at,
+              ),
       );
     }
   }

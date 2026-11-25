@@ -158,8 +158,8 @@ class CompareBar extends ConsumerWidget {
                 label: 'Sonnet × Opus',
                 on: sonnetOpus,
                 onTap: () => onChanged(
-                  (model: 'sonnet', mode: a.mode),
-                  (model: 'opus', mode: a.mode),
+                  CompareChoice(model: 'sonnet', mode: a.mode),
+                  CompareChoice(model: 'opus', mode: a.mode),
                 ),
               ),
               _Chip(
@@ -167,8 +167,8 @@ class CompareBar extends ConsumerWidget {
                 label: 'Planejar × Perguntar',
                 on: planAsk,
                 onTap: () => onChanged(
-                  (model: a.model, mode: PromptMode.plan),
-                  (model: a.model, mode: PromptMode.ask),
+                  a.copyWith(mode: PromptMode.plan),
+                  a.copyWith(mode: PromptMode.ask),
                 ),
               ),
               const SizedBox(width: 8),
@@ -233,7 +233,7 @@ class _SideControls extends StatelessWidget {
             tooltip: 'Modelo do lado $letter',
             color: AppColors.surfaceRaisedSolid,
             position: PopupMenuPosition.over,
-            onSelected: (m) => onChanged((model: m, mode: choice.mode)),
+            onSelected: (m) => onChanged(choice.copyWith(model: m)),
             itemBuilder: (_) => [
               for (final m in models)
                 PopupMenuItem(
@@ -292,7 +292,7 @@ class _SideControls extends StatelessWidget {
                     mode: m,
                     on: m == choice.mode,
                     onTap: compareModes.contains(m)
-                        ? () => onChanged((model: choice.model, mode: m))
+                        ? () => onChanged(choice.copyWith(mode: m))
                         : null,
                   ),
               ],
