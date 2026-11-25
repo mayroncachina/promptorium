@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../widgets/step_decision_parts.dart' show StepDecisionShimmer;
 import 'orchestrator_rules.dart';
@@ -15,7 +16,24 @@ class StepPlanList extends StatelessWidget {
     required this.entries,
     required this.onPick,
     this.review,
+    this.prefs = const OrchestratorPrefs({}),
+    this.codexBlocked,
+    this.codexOffered = false,
+    this.hasAgent = false,
   });
+
+  /// The rules and the catalog of the Codex (SPEC-109 R9).
+  final OrchestratorPrefs prefs;
+
+  /// Why the Codex cannot run now; null = it can.
+  final String? codexBlocked;
+
+  /// The line may go to the Codex (it is on the machine, or in the plan).
+  final bool codexOffered;
+
+  /// The spec runs with `--agent`: a line on the Codex says it does not
+  /// (R10).
+  final bool hasAgent;
 
   final List<StepPlanEntry> entries;
   final StepPlanEntry? review;
@@ -31,15 +49,33 @@ class StepPlanList extends StatelessWidget {
     key: const ValueKey('step-plan-list'),
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      for (final e in entries) _PlanRow(entry: e, onPick: onPick),
-      if (review case final r?) _PlanRow(entry: r, onPick: onPick),
+      for (final e in [...entries, ?review])
+        _PlanRow(
+          entry: e,
+          onPick: onPick,
+          prefs: prefs,
+          codexBlocked: codexBlocked,
+          codexOffered: codexOffered,
+          hasAgent: hasAgent,
+        ),
     ],
   );
 }
 
 class _PlanRow extends StatelessWidget {
-  const _PlanRow({required this.entry, required this.onPick});
+  const _PlanRow({
+    required this.entry,
+    required this.onPick,
+    required this.prefs,
+    required this.codexBlocked,
+    required this.codexOffered,
+    required this.hasAgent,
+  });
 
+  final OrchestratorPrefs prefs;
+  final String? codexBlocked;
+  final bool codexOffered;
+  final bool hasAgent;
   final StepPlanEntry entry;
   final void Function(String step, StepRule rule) onPick;
 
@@ -89,6 +125,24 @@ class _PlanRow extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (!e.rule.isClaude && codexBlocked != null)
+                  Text(
+                    'Codex indisponível: $codexBlocked',
+                    key: ValueKey('step-plan-blocked-${e.step}'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.amber,
+                    ),
+                  )
+                else if (!e.rule.isClaude && hasAgent && !review)
+                  Text(
+                    'agente só no Claude',
+                    key: ValueKey('step-plan-no-agent-${e.step}'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -101,12 +155,60 @@ class _PlanRow extends StatelessWidget {
             ),
           ],
           const SizedBox(width: 8),
+          // R9, R14: who runs the step, by name, before the model.
+          if (codexOffered || !e.rule.isClaude)
+            PopupMenuButton<String>(
+              key: ValueKey('step-plan-provider-${e.step}'),
+              tooltip:
+                  'Provedor de ${review ? 'revisão' : e.step}: '
+                  '${planProviderLabel(e.rule.provider)}',
+              color: AppColors.panelSolid,
+              padding: EdgeInsets.zero,
+              onSelected: (p) {
+                if (p != e.rule.provider) {
+                  onPick(e.step, stepPlanOn(p, e, prefs));
+                }
+              },
+              itemBuilder: (_) => [
+                for (final p in const ['claude', 'codex'])
+                  PopupMenuItem(
+                    key: ValueKey('step-plan-provider-${e.step}-$p'),
+                    value: p,
+                    child: ProviderChip(p),
+                  ),
+              ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ProviderChip(
+                    e.rule.provider,
+                    key: ValueKey('step-plan-chip-${e.step}'),
+                    dense: true,
+                  ),
+                  const Icon(
+                    Icons.arrow_drop_down,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            )
+          else
+            ProviderChip(
+              e.rule.provider,
+              key: ValueKey('step-plan-chip-${e.step}'),
+              dense: true,
+            ),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 150,
+            width: e.rule.isClaude ? 150 : 190,
             child: Semantics(
               label: 'Modelo de ${review ? 'revisão' : e.step}',
               child: DropdownButtonFormField<StepRule>(
-                key: ValueKey('step-plan-model-${e.step}-${e.rule.label}'),
+                key: ValueKey(
+                  'step-plan-model-${e.step}-'
+                  '${e.rule.isClaude ? e.rule.label : e.rule.fullLabel}',
+                ),
                 initialValue: e.rule,
                 isDense: true,
                 isExpanded: true,
@@ -129,6 +231,7 @@ class _PlanRow extends StatelessWidget {
                   for (final r in stepPlanChoices(
                     suggested: e.suggested,
                     current: e.rule,
+                    prefs: prefs,
                   ))
                     DropdownMenuItem(
                       value: r,
