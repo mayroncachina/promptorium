@@ -493,4 +493,45 @@ void main() {
     expect(row.costUsd, 4.2, reason: 'the cost of before stays');
     await db.close();
   });
+  test('v36 → v37 (SPEC-112 R4): debt_links is created empty, with the '
+      'unique code per repository', () async {
+    final schema = await verifier.schemaAt(36);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-031', 'x', 'specs/x.md')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    expect(await db.select(db.debtLinks).get(), isEmpty);
+    await db
+        .into(db.debtLinks)
+        .insert(
+          DebtLinksCompanion.insert(
+            repoRoot: '/r',
+            kind: 'debito',
+            code: const Value('DT-09'),
+            originSpecId: const Value(1),
+            originQuestion: const Value('Q5'),
+          ),
+        );
+    await expectLater(
+      db
+          .into(db.debtLinks)
+          .insert(
+            DebtLinksCompanion.insert(
+              repoRoot: '/r',
+              kind: 'debito',
+              code: const Value('DT-09'),
+            ),
+          ),
+      throwsA(anything),
+    );
+    final row = await db.select(db.debtLinks).getSingle();
+    expect(
+      (row.code, row.originSpecId, row.originQuestion),
+      ('DT-09', 1, 'Q5'),
+    );
+    await db.close();
+  });
 }

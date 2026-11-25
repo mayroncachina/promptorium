@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 36;
+const appSchemaVersion = 37;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -1054,6 +1054,70 @@ class SecretWaivers extends Table {
   DateTimeColumn get lastUsedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Links of the technical debts and pending decisions (SPEC-112 R4, schema
+/// v37): only what does not fit in the Markdown table. The file
+/// (`DEBITO_TECNICO.md` / `DECISOES_PENDENTES.md`) is the source of truth;
+/// a link whose code left the file is an orphan.
+@TableIndex(name: 'debt_links_code', columns: {#repoRoot, #code}, unique: true)
+class DebtLinks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Repository of the item (its main root).
+  TextColumn get repoRoot => text()();
+
+  /// `debito` / `decisao`.
+  TextColumn get kind => text()();
+
+  /// `DT-09` / `DP-04`; null in a suggestion not yet accepted. Unique per
+  /// repository: reserving it keeps the ID from being given twice (R3).
+  TextColumn get code => text().nullable()();
+  IntColumn get originSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `Q5`, `P3`.
+  TextColumn get originQuestion => text().nullable()();
+  TextColumn get originSessionId => text().nullable()();
+  TextColumn get originMessageId => text().nullable()();
+  IntColumn get originReviewCommentId => integer().nullable().references(
+    ReviewComments,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `DP-01` that generated the debt (R12).
+  TextColumn get originDecision => text().nullable()();
+
+  /// `pendente` / `aceita` / `descartada`.
+  TextColumn get suggestionState => text().nullable()();
+
+  /// `mcp` / `entrevista` / `rascunho`.
+  TextColumn get suggestionSource => text().nullable()();
+
+  /// JSON with the proposed cells.
+  TextColumn get suggestionBody => text().nullable()();
+
+  /// Spec or VIBE paying the debt (R15).
+  IntColumn get paymentSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// Spec whose step said it paid the debt (R17).
+  IntColumn get piggybackSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `a_confirmar` / `confirmado` / `recusado`.
+  TextColumn get piggybackState => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -1095,6 +1159,7 @@ class AppSettings extends Table {
     UsageEntries,
     RestorePoints,
     SecretWaivers,
+    DebtLinks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1528,6 +1593,13 @@ class AppDatabase extends _$AppDatabase {
                 await m.addColumn(v.reviewComments, c);
               }
             }
+          },
+          // v37: links of the debts and decisions (SPEC-112 R4). Nothing
+          // is imported: the files are the source.
+          from36To37: (m, v) async {
+            if (await _hasTable('debt_links')) return;
+            await m.createTable(v.debtLinks);
+            await m.createIndex(v.debtLinksCode);
           },
           // v33: waivers of the Vigia de segredos (SPEC-085 R11).
           from32To33: (m, v) async {
