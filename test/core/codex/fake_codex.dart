@@ -295,7 +295,23 @@ class FakeCodexStore {
   /// Thread → the server whose process writes it.
   final writers = <String, FakeCodex>{};
 
+  /// Called before each operation is answered.
+  void Function(String method)? onCall;
+
   var _forks = 0;
+  var _turns = 0;
+
+  /// Ends the running turn of [thread] (the server that writes it).
+  void complete(String thread, {String status = 'completed'}) =>
+      writers[thread]!.emit(
+        jsonEncode({
+          'method': 'turn/completed',
+          'params': {
+            'threadId': thread,
+            'turn': {'id': threads[thread]!.last, 'status': status},
+          },
+        }),
+      );
 
   Map<String, dynamic> _error(String message) => {
     'error': {'code': -32600, 'message': message},
@@ -308,6 +324,7 @@ class FakeCodexStore {
   };
 
   Map<String, dynamic>? answer(FakeCodex server, String method, Map p) {
+    onCall?.call(method);
     if (fail.containsKey(method)) {
       calls.add('$method falhou');
       final message = fail[method];
@@ -321,6 +338,24 @@ class FakeCodexStore {
         server.loaded.add(server.threadId);
         writers[server.threadId] = server;
         return null;
+      case 'turn/start':
+        final turn = 't${++_turns}';
+        threads[id]!.add(turn);
+        calls.add('turn $id $turn');
+        server.emit(
+          jsonEncode({
+            'method': 'turn/started',
+            'params': {
+              'threadId': id,
+              'turn': {'id': turn},
+            },
+          }),
+        );
+        return {
+          'result': {
+            'turn': {'id': turn},
+          },
+        };
       case 'thread/resume':
         if (archived.contains(id)) return _error('session $id is archived.');
         if (!known()) return _error('no rollout found for thread id $id');
@@ -357,10 +392,6 @@ class FakeCodexStore {
         if (i < 0) return _error('turn not found: $before');
         threads[id] = turns.sublist(0, i);
         calls.add('revert $id $before');
-        return _thread(id);
-      case 'thread/read':
-        if (!known()) return _error('no rollout found for thread id $id');
-        calls.add('read $id');
         return _thread(id);
       case 'thread/archive':
         if (!known()) return _error('no rollout found for thread id $id');

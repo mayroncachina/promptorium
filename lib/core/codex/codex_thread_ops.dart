@@ -93,17 +93,6 @@ class CodexThreadOps {
     }
   }
 
-  /// Fails when the thread does not exist (any more).
-  Future<void> check(String threadId) async {
-    final r = await _call('thread/read', {
-      'threadId': threadId,
-      'includeTurns': false,
-    });
-    if ((r['thread'] as Map?)?['id'] != threadId) {
-      throw const AgentUnavailable('o Codex não achou a cópia da conversa');
-    }
-  }
-
   Future<void> archive(String threadId) async {
     await _call('thread/archive', {'threadId': threadId});
   }
@@ -217,7 +206,9 @@ String codexThreadFailure(Object e) {
   if (low.contains('turn not found')) {
     return 'o turno não está mais na conversa do Codex';
   }
-  if (low.contains('thread not found') || low.contains('no rollout found')) {
+  if (low.contains('thread not found') ||
+      low.contains('thread not loaded') ||
+      low.contains('no rollout found')) {
     return 'o Codex não achou a conversa desta sessão';
   }
   if (low.contains('does not use paginated history') ||

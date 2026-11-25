@@ -298,6 +298,13 @@ class CodexRun implements ManagedAgentRun {
   Map<String, dynamic> _lastUsage = const {};
   Map<String, dynamic> _baselineUsage = const {};
   Map<String, dynamic> _totalUsage = const {};
+
+  /// SPEC-110: the conversation went back, and the totals of the thread with
+  /// it: the next turn counts from its own first call.
+  bool _rebaseline = false;
+
+  /// The conversation of this thread went back (`thread/revert`).
+  void conversationReverted() => _rebaseline = true;
   ClaudePermissionMode? _permissionMode;
 
   /// Model of the thread (for the context readings, SPEC-095 R3).
@@ -763,6 +770,14 @@ class CodexRun implements ManagedAgentRun {
         }
         final usage = p['tokenUsage'] as Map?;
         _totalUsage = Map<String, dynamic>.from(usage?['total'] as Map? ?? {});
+        if (_rebaseline && usage?['last'] is Map) {
+          _rebaseline = false;
+          final call = usage!['last'] as Map;
+          _baselineUsage = {
+            for (final MapEntry(:key, :value) in _totalUsage.entries)
+              if (value is num) key: value - (call[key] as num? ?? 0),
+          };
+        }
         _lastUsage = {
           for (final k in [
             'inputTokens',
