@@ -550,7 +550,10 @@ class AutoReviewer {
         .read(specRunnerProvider)
         .runNext(
           specId,
-          mode: ClaudePermissionMode.fromCli(last?.permissionMode),
+          // In Automático each provider has its mode (SPEC-109 R10).
+          mode: runsInAuto(rows)
+              ? null
+              : ClaudePermissionMode.fromCli(last?.permissionMode),
           provider: choice.executedBy,
           model: last?.model,
           effort: last?.effort,

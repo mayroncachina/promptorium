@@ -207,6 +207,11 @@ Future<void> runSpec(
         data.spec.id,
         o.auto ? o.review : null,
       );
+      final settings = ref.read(appSettingsProvider.notifier);
+      final modeKey = AppSettingKeys.specAutoMode(data.spec.id);
+      o.auto
+          ? await settings.set(modeKey, o.mode.cliValue)
+          : await settings.remove(modeKey);
     }
     final id = await ref
         .read(specRunnerProvider)

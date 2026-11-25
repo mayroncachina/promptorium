@@ -17,6 +17,7 @@ import 'package:promptorium/core/system/worktree_launcher.dart';
 import 'package:promptorium/core/text/line_diff.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/board/orchestrator/quota_divert.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_decision.dart';
 import 'package:promptorium/features/board/step_decision_choices.dart';
@@ -217,6 +218,8 @@ class FakeRunner extends SpecRunner {
     String? context,
     bool duel = false,
     bool keepModel = false,
+    SpecDivert? divert,
+    SpecHandoff? handoff,
   }) async {
     if (error case final e?) throw e;
     contexts.add(context);
