@@ -1,7 +1,7 @@
 ---
 id: SPEC-109
-status: rascunho
-versao: 0.26.0
+status: em implementação
+versao: 0.27.0
 tipo: recurso
 epico: 332
 issue: 344
@@ -71,14 +71,14 @@ Quem não liga nada continua com o comportamento de hoje: as regras padrão são
 - Agentes `.claude/agents` nas etapas do Codex.
 - Desvio por cota fora do Orquestrador (Sessões soltas, Prompt). Isso cabe em "Passar o trabalho entre agentes" (SPEC-099).
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde guardar o provedor do plano.** (a) Nova coluna `spec_steps.plan_provider` (nula = Claude), com `step_runs.provider`, `tokens_in`, `tokens_out` e `diverted`; (b) codificar no texto do modelo (`codex:gpt-6.2-sol`). **Recomendação: (a).** Fica explícito, os dados antigos continuam válidos (nulo = Claude) e o Histórico consegue agrupar sem fazer parse de texto. Precisa de migração.
-- P2 · **Escada do Codex.** (a) O mesmo modelo, subindo o esforço; (b) uma lista de modelos ordenada pela pessoa; (c) ordenar pelo `model/list`. **Recomendação: (a) como padrão, com (b) editável.** O `model/list` não diz qual modelo é "mais forte", e os nomes mudam a cada versão. Subir o esforço é estável e o próprio catálogo diz quais níveis existem.
-- P3 · **Segunda opinião no topo da escada.** **Recomendação: desligada por padrão.** Ela gasta a cota dos dois provedores numa etapa só. Quem quer usa a opção.
-- P4 · **Etapa interrompida pela cota.** (a) Volta ao início da etapa no outro provedor; (b) continua do ponto em que parou, com o diff parcial. **Recomendação: (a)**, como a escalada (SPEC-035 D2). O diff parcial vai no pacote como informação, não como ponto de partida, e o rewind deixa a worktree coerente.
-- P5 · **"Retomar quando renovar".** **Recomendação: entrar**, agendado para o primeiro `resetsAt` conhecido e cancelado se a pessoa agir antes. Sem isso, a etapa para fora do horário e fica parada até alguém ver.
-- P6 · **Padrão das reservas.** **Recomendação:** preencher a reserva do Codex com o modelo padrão do Codex para "Executar spec" (SPEC-094) e o esforço da regra. O desvio continua desligado até a pessoa ligar, então nada roda no Codex sem uma escolha explícita.
+- P1 · **Onde guardar o provedor do plano.** (a) Nova coluna `spec_steps.plan_provider` (nula = Claude), com `step_runs.provider`, `tokens_in`, `tokens_out` e `diverted`; (b) codificar no texto do modelo (`codex:gpt-6.2-sol`). **Decidido: (a).** Fica explícito, os dados antigos continuam válidos (nulo = Claude) e o Histórico consegue agrupar sem fazer parse de texto. Precisa de migração.
+- P2 · **Escada do Codex.** (a) O mesmo modelo, subindo o esforço; (b) uma lista de modelos ordenada pela pessoa; (c) ordenar pelo `model/list`. **Decidido: (a) como padrão, com (b) editável.** O `model/list` não diz qual modelo é "mais forte", e os nomes mudam a cada versão. Subir o esforço é estável e o próprio catálogo diz quais níveis existem.
+- P3 · **Segunda opinião no topo da escada.** **Decidido: desligada por padrão.** Ela gasta a cota dos dois provedores numa etapa só. Quem quer usa a opção.
+- P4 · **Etapa interrompida pela cota.** (a) Volta ao início da etapa no outro provedor; (b) continua do ponto em que parou, com o diff parcial. **Decidido: (a)**, como a escalada (SPEC-035 D2). O diff parcial vai no pacote como informação, não como ponto de partida, e o rewind deixa a worktree coerente.
+- P5 · **"Retomar quando renovar".** **Decidido: entrar**, agendado para o primeiro `resetsAt` conhecido e cancelado se a pessoa agir antes. Sem isso, a etapa para fora do horário e fica parada até alguém ver.
+- P6 · **Padrão das reservas.** **Decidido:** preencher a reserva do Codex com o modelo padrão do Codex para "Executar spec" (SPEC-094) e o esforço da regra. O desvio continua desligado até a pessoa ligar, então nada roda no Codex sem uma escolha explícita.
 
 ## Design
 
