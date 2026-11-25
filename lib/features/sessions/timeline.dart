@@ -567,7 +567,7 @@ class Timeline {
         items[i].seq ??= seq;
       }
     }
-    _noteTurn(e.json);
+    _noteTurn(e.json, before);
     context.apply(e, at: now, itemIndex: items.length, live: !stored);
   }
 
@@ -711,13 +711,18 @@ class Timeline {
   /// before the `turn/started` it causes: the newest one without a turn
   /// opened this one (an older one had its process die before the turn); a
   /// message sent during the turn belongs to it.
-  void _noteTurn(Map<String, dynamic> json) {
+  void _noteTurn(Map<String, dynamic> json, int before) {
     final p = json['provider'];
     if (p is String && p.isNotEmpty) provider = p;
     final id = json['turn_id'];
     if (id is! String || id.isEmpty) return;
     final same = id == _turnId;
     _turnId = id;
+    // What the event itself created (the note of the end of the turn); the
+    // notes of the app in between are not of the agent.
+    for (var i = before; i < items.length; i++) {
+      items[i].agentTurnId ??= id;
+    }
     UserItem? last;
     for (var i = _turnScan; i < items.length; i++) {
       final item = items[i];
@@ -941,7 +946,10 @@ class Timeline {
       if (from >= 0) {
         final mark = RevertMark(key: r.key, at: at, turn: r.turn);
         for (var i = from; i < items.length; i++) {
-          if (items[i] is! ConversationItem) items[i].reverted ??= mark;
+          final item = items[i];
+          // A note of the app was never in the agent's conversation.
+          if (item is NoticeItem && item.agentTurnId == null) continue;
+          item.reverted ??= mark;
         }
       }
     }

@@ -143,7 +143,7 @@ void main() {
           'type': 'search',
           'command': 'rg frete lib',
           'query': 'frete',
-          'path': 'lib',
+          'path': 'lib/',
         },
       ]);
       // Uma leitura que falhou não conta.

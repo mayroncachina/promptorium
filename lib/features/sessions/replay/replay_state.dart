@@ -224,8 +224,7 @@ ReplayState replayStateAt(
     reading: compactedSince ? null : reading,
     compactedSince: compactedSince,
     capacity: reading?.window ?? ctx?.capacity,
-    measures:
-        ctx?.provider == 'codex' || steps.any((s) => s.agent == 'Codex'),
+    measures: ctx?.provider == 'codex' || steps.any((s) => s.agent == 'Codex'),
   );
 }
 

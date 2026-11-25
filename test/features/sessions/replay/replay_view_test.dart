@@ -647,7 +647,21 @@ void main() {
         b.turn('t-2');
         b.say('b');
         b.endTurn();
+        b.note('O app commitou o que o Codex deixou no worktree.');
         b.codexEvent(revert('A', s2, point: 2, before: 't-2').toJson());
+        // Uma nota do app nunca esteve na conversa do agente; o fim do turno
+        // sim.
+        final notices = b.items.whereType<NoticeItem>().toList();
+        expect(
+          notices
+              .firstWhere((n) => n.text.startsWith('O app commitou'))
+              .reverted,
+          isNull,
+        );
+        expect(
+          notices.where((n) => n.text.startsWith('Concluído')).last.reverted,
+          isNotNull,
+        );
         b.codexEvent(revert('B', s1).toJson());
         bool gone(String text) =>
             b.items

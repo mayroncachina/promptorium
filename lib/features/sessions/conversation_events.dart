@@ -30,6 +30,7 @@ class ConversationRevert {
     required this.at,
     this.fromSeq,
     this.copyId,
+    this.copiedAt,
     this.copyError,
     this.error,
     this.files = 0,
@@ -58,7 +59,12 @@ class ConversationRevert {
 
   /// `thread/fork` made before reverting (P3); null with [copyError].
   final String? copyId;
+
+  /// When the copy was made, if not [at] (a retry reuses the first one).
+  final DateTime? copiedAt;
   final String? copyError;
+
+  DateTime get copyAt => copiedAt ?? at;
 
   /// Why the conversation did not go back (null = it did).
   final String? error;
@@ -83,6 +89,7 @@ class ConversationRevert {
     'thread_id': threadId,
     'from_seq': ?fromSeq,
     'copy_id': ?copyId,
+    'copy_at': ?copiedAt?.toIso8601String(),
     'copy_error': ?copyError,
     'error': ?error,
     'files': files,
@@ -111,6 +118,7 @@ class ConversationRevert {
       at: DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime(1970),
       fromSeq: j['from_seq'] is num ? n(j['from_seq']) : null,
       copyId: s(j['copy_id']),
+      copiedAt: DateTime.tryParse('${j['copy_at']}')?.toLocal(),
       copyError: s(j['copy_error']),
       error: type == AgentConversationEvents.failed
           ? (s(j['error']) ?? 'erro do App Server')
@@ -174,7 +182,7 @@ Map<String, dynamic> conversationRestoredEvent({
   'revert': revert.key,
   'turn': revert.turn,
   'copy_id': revert.copyId,
-  'copy_at': revert.at.toIso8601String(),
+  'copy_at': revert.copyAt.toIso8601String(),
   'thread_id': previousThread,
   'files': files,
   'at': (at ?? DateTime.now()).toIso8601String(),

@@ -451,11 +451,10 @@ class _TrackPainter extends CustomPainter {
     }
 
     // SPEC-110 R10: where the conversation went back to, with its label.
-    for (var i = from; i <= to; i++) {
+    final marked = <String>{};
+    for (var i = 0; i <= to; i++) {
       final mark = steps[i].reverted;
-      if (mark == null || (i > 0 && steps[i - 1].reverted?.key == mark.key)) {
-        continue;
-      }
+      if (mark == null || !marked.add(mark.key) || i < from) continue;
       final x = _x(axis.pos[i], start, span, size);
       if (x < ReplayScrubber.labelWidth - 1) continue;
       canvas.drawLine(

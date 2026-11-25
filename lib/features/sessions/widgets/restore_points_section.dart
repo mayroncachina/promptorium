@@ -206,7 +206,7 @@ class _PointItem extends StatelessWidget {
                         conversation!.copyId == null
                             ? 'sem cópia da conversa'
                             : 'Refazer usa a cópia de '
-                                  '${formatClock(conversation!.at)}',
+                                  '${formatClock(conversation!.copyAt)}',
                     ].join(' · '),
                     key: ValueKey('restore-conversation-${point.turn}'),
                     maxLines: 2,

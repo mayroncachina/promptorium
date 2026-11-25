@@ -132,7 +132,12 @@ class CommandRead {
 List<CommandRead> commandReadsOf(CommandEvent? e, {String? root}) {
   if (e == null) return const [];
   final cwd = e.cwd ?? root;
-  String abs(String? p) => p == null || p.isEmpty ? '' : absolutePath(p, cwd);
+  String abs(String? p) {
+    if (p == null || p.isEmpty) return '';
+    final a = absolutePath(p, cwd);
+    return a.length > 1 && a.endsWith('/') ? a.substring(0, a.length - 1) : a;
+  }
+
   if (e.actions.isEmpty) {
     return [
       for (final p in e.reads)
