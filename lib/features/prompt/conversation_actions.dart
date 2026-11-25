@@ -1,3 +1,6 @@
+import '../sessions/handoff/continue_controller.dart'
+    show continueLabel, continueTarget;
+import 'conversation_continue.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -382,6 +385,7 @@ enum ConversationMenuAction {
   toSpec,
   split,
   continueSession,
+  continueOther,
 }
 
 /// The menu of [c] (right click on the row, ⋯ of the row or of the header):
@@ -490,6 +494,15 @@ Future<void> showConversationMenu(
         'Continuar como sessão',
         enabled: !busy && c.claudeSessionId != null,
       ),
+      // SPEC-099 R12: only where the other provider runs in the Prompt.
+      if (continueTarget(c.provider) case final to?
+          when promptRunsIn(ref, to))
+        entry(
+          ConversationMenuAction.continueOther,
+          Icons.swap_horiz,
+          continueLabel(to),
+          enabled: !busy && hasAnswer,
+        ),
     ],
   );
   if (choice == null || !context.mounted) return;
@@ -511,6 +524,11 @@ Future<void> showConversationMenu(
       }
     case ConversationMenuAction.continueSession:
       await showContinueSessionDialog(context, c);
+    case ConversationMenuAction.continueOther:
+      final loaded = items ?? await _loadedItems(ref, c.id);
+      if (context.mounted) {
+        await showConversationContinueDialog(context, ref, c, loaded);
+      }
   }
 }
 

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/claude/run_prefs.dart';
+import '../../../core/providers/workspace_assets.dart';
 import '../../../data/providers.dart';
 import '../../prompt/conversation_manager.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/timeline_provider.dart';
+import '../../skills/skills_state.dart';
 import '../compaction_controller.dart';
 import '../context_panel_state.dart';
 import '../context_snapshot.dart';
@@ -211,6 +213,9 @@ class ContextPanelHost extends ConsumerWidget {
     this.onRemoveAttachment,
     this.onNewConversation,
     this.summary,
+    this.providers = const [],
+    this.onProvider,
+    this.handoff,
   });
 
   final ContextTarget target;
@@ -223,6 +228,11 @@ class ContextPanelHost extends ConsumerWidget {
   final ValueChanged<String>? onRemoveAttachment;
   final void Function(String? summary)? onNewConversation;
   final String Function()? summary;
+
+  /// SPEC-099 R12: see [ContextActions].
+  final List<String> providers;
+  final ValueChanged<String>? onProvider;
+  final Future<String?> Function()? handoff;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -242,6 +252,16 @@ class ContextPanelHost extends ConsumerWidget {
       snapshot: s,
     );
     final controller = ref.read(compactionControllerProvider);
+    // SPEC-107 R10: the skills the Codex sees, by configuration (SPEC-104's
+    // `skills/list` with the extra roots, the same query of the Skills tab).
+    final codexSkills = provider == 'codex'
+        ? codexSkillsAvailable(
+            watchCodexSkills(
+              ref,
+              ref.watch(activeWorkspaceProvider)?.path,
+            ).value,
+          )
+        : null;
     return ContextPanel(
       key: ValueKey('context-panel-${target.jumpKey}'),
       snapshot: s,
@@ -257,6 +277,7 @@ class ContextPanelHost extends ConsumerWidget {
       onJump: (ContextReading r) => jump(r.itemIndex - 1),
       // R5: a source opens the event that originated it.
       onOpenSource: (ContextSource src) => jump(src.itemIndex - 1),
+      codexSkills: codexSkills,
       autocompact: AutocompactControl(snapshot: s),
       actions: ContextActions(
         snapshot: s,
@@ -276,6 +297,10 @@ class ContextPanelHost extends ConsumerWidget {
             : () => setTab(ContextTab.sources),
         onNewConversation: onNewConversation,
         summary: summary,
+        providers: providers,
+        provider: provider,
+        onProvider: onProvider,
+        handoff: handoff,
       ),
       nextSend: onRemoveAttachment == null
           ? null
@@ -286,14 +311,18 @@ class ContextPanelHost extends ConsumerWidget {
     );
   }
 
-  /// "Ajustar compactação automática": the same global choice as
-  /// Configurações (R7).
+  /// "Ajustar compactação automática": the same choice as Configurações
+  /// (R7), of the history's agent (SPEC-107 P1: the Codex has its own).
   Future<void> _pickAutocompact(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(runPrefsProvider).autocompact;
+    final codex = provider == 'codex';
+    final prefs = ref.read(runPrefsProvider);
+    final current = codex ? prefs.codexAutocompact : prefs.autocompact;
     final v = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Compactação automática'),
+        title: Text(
+          codex ? 'Compactação automática do Codex' : 'Compactação automática',
+        ),
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
@@ -317,7 +346,7 @@ class ContextPanelHost extends ConsumerWidget {
     if (v != null) {
       await ref
           .read(appSettingsProvider.notifier)
-          .set(AppSettingKeys.autocompact, v);
+          .set(RunPrefs.autocompactKey(provider), v);
     }
   }
 }

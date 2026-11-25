@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../activities_state.dart';
 import '../activity.dart';
@@ -47,6 +48,9 @@ typedef CardRobotState = ({
   String status,
   String? request,
   ActivityAction action,
+
+  /// `codex` when the request is the Codex's (SPEC-101 R15).
+  String? provider,
 });
 
 final cardRobotProvider = Provider.autoDispose.family<CardRobotState?, int>((
@@ -67,6 +71,7 @@ final cardRobotProvider = Provider.autoDispose.family<CardRobotState?, int>((
         status: a.status,
         request: a.lastAction,
         action: a.action,
+        provider: a.provider,
       );
     }),
   );
@@ -110,6 +115,7 @@ class CardRobot extends ConsumerWidget {
         status: 'esperando a sua revisão',
         request: null,
         action: ActivityAction.none,
+        provider: null,
       );
     }
     if (r == null) return const SizedBox.shrink();
@@ -209,6 +215,12 @@ class CardBalloon extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  // SPEC-101 R15: whose request it is.
+                  if (r.provider case final p? when p != 'claude')
+                    TextSpan(
+                      text: ' · pedido do ${providerBrandName(p)}',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
                 ],
               ),
               maxLines: 2,

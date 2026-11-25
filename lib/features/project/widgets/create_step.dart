@@ -14,7 +14,9 @@ import '../../board/board_screen.dart' show SpecCardData;
 import '../../board/widgets/run_spec_dialog.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
+import '../../../core/providers/capabilities.dart';
 import '../../../core/providers/provider_availability.dart';
+import '../../../core/providers/workspace_assets.dart';
 import '../cost_estimate.dart';
 import '../project_config.dart';
 import '../project_plan.dart';
@@ -55,6 +57,13 @@ class _CreateStepState extends ConsumerState<CreateStep> {
       .read(projectServiceProvider)
       .hasTemplateClaudeMd(widget.workspace);
   late bool _writeClaudeMd = !_claudeMdExists || _templateClaudeMd;
+
+  /// SPEC-104 R3 (plano B): the Codex does not read the CLAUDE.md, so the
+  /// option comes checked.
+  late final bool _codexNeedsAgentsMd = !ref
+      .read(codexCapabilitiesProvider)
+      .supports(ProviderCapability.instructionsFallback);
+  late bool _writeAgentsMd = _codexNeedsAgentsMd;
   bool _commit = true;
   bool _configOpen = false;
   bool _runFirst = true;
@@ -80,6 +89,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
           .materialize(
             widget.workspace,
             writeClaudeMd: _writeClaudeMd,
+            writeAgentsMd: _codexNeedsAgentsMd && _writeAgentsMd,
             commit: _commit,
           );
     } catch (e) {
@@ -141,6 +151,11 @@ class _CreateStepState extends ConsumerState<CreateStep> {
         .value;
     final first = roadmap.firstSpec;
     final hasClaudeMd = widget.data.stack.claudeMd.trim().isNotEmpty;
+    final offerAgentsMd =
+        !done &&
+        _codexNeedsAgentsMd &&
+        ((hasClaudeMd && _writeClaudeMd) || _claudeMdExists);
+    final agentsMd = offerAgentsMd && _writeAgentsMd;
     // The stack's commands merged into the config.yml (SPEC-072 R13).
     final merge = mergeStackCommands(
       ProjectConfig.loadSync(widget.workspace.path),
@@ -149,6 +164,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
     final files = [
       if (!done && merge.changed) ProjectConfig.filePath,
       if (hasClaudeMd && _writeClaudeMd) 'CLAUDE.md',
+      if (agentsMd) agentsMdName,
       for (final s in roadmap.specs)
         'specs/SPEC-…-${slugify(s.title, maxLength: 40)}.md',
     ];
@@ -230,6 +246,27 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                               onChanged: (v) =>
                                   setState(() => _writeClaudeMd = v),
                             ),
+                          if (offerAgentsMd) ...[
+                            _Check(
+                              key: const ValueKey('project-write-agentsmd'),
+                              value: _writeAgentsMd,
+                              label:
+                                  'Gravar também o AGENTS.md (o Codex não lê '
+                                  'o CLAUDE.md)',
+                              hint:
+                                  'O Codex não lê o CLAUDE.md nesta versão. O '
+                                  'AGENTS.md é uma cópia com aviso no topo: '
+                                  'edite sempre o CLAUDE.md.',
+                              onChanged: (v) =>
+                                  setState(() => _writeAgentsMd = v),
+                            ),
+                            if (_writeAgentsMd)
+                              _AgentsHeader(
+                                claudeMd: hasClaudeMd && _writeClaudeMd
+                                    ? '${widget.data.stack.claudeMd.trim()}\n'
+                                    : null,
+                              ),
+                          ],
                           if (!done)
                             _Check(
                               key: const ValueKey('project-commit'),
@@ -784,6 +821,42 @@ class _Check extends StatelessWidget {
             ),
           ),
   );
+}
+
+/// Header of the `AGENTS.md` to be generated (SPEC-104 R3, mock 3).
+class _AgentsHeader extends StatelessWidget {
+  const _AgentsHeader({required this.claudeMd});
+
+  /// The CLAUDE.md to be written (null = the one already on disk).
+  final String? claudeMd;
+
+  @override
+  Widget build(BuildContext context) {
+    final source = claudeMd;
+    final head = source == null
+        ? agentsMdHeader('<hash do CLAUDE.md>')
+        : agentsMdHeader(claudeMdHash(source));
+    final first = source?.split('\n').take(2).join('\n') ?? '# …';
+    return Container(
+      key: const ValueKey('project-agentsmd-header'),
+      margin: const EdgeInsets.only(left: 32, bottom: 6, top: 2),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SessionColors.terminalPanel,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '$head$first\n…',
+        style: const TextStyle(
+          fontFamily: AppFonts.mono,
+          fontSize: 11,
+          height: 1.5,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
 }
 
 class _Steps extends StatelessWidget {

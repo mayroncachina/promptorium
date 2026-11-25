@@ -206,7 +206,7 @@ void main() {
         ContextActions(
           snapshot: s,
           availability: compactAvailability(
-            provider: 'codex',
+            provider: 'gemini',
             busy: false,
             snapshot: s,
           ),

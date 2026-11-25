@@ -2,6 +2,265 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.25.0] - 2026-11-23
+
+### Funcionalidades
+
+- **contexto:** Medidor e compactação do Codex pelo contrato da SPEC-087 (SPEC-107) (8a900d9)
+- **contexto:** Fontes do Codex com caminhos relativos e subagente pela thread (SPEC-107) (d6d7f04)
+- **codex:** Traduz o agente .claude/agents para a execução Codex (SPEC-106 T1) (e2151d4)
+- **codex:** Sessão Codex com agente traduzido e registro no promptorium_run (SPEC-106 T2) (d16d16a)
+- **agentes:** Modelos equivalentes do Codex e quadro "No Codex" no editor (SPEC-106 T3) (51d505a)
+- **codex:** Agente na Nova sessão, Executar spec e revisor; aviso dos subagentes (SPEC-106 T4) (48e998a)
+- **mcp:** Inventário do Codex por codex mcp e mcpServerStatus/list (SPEC-105 T1) (bfa4d39)
+- **mcp:** Aba Codex na tela MCP com grupos, status, Entrar/Sair e adicionar/remover (SPEC-105 T2) (09bec2f)
+- **mcp:** Copiar para o Codex com tradução, segredos, escopo e nome repetido (SPEC-105 T3) (64682c2)
+- **codex:** MCP do Promptorium, servidores desligados por nome nos modos de leitura, Bloqueado e rodapé por provedor (SPEC-105 T4) (2bd5ae2)
+- **codex:** CLAUDE.md e skills do Claude no Codex por override da execução (SPEC-104 T1, T2) (3782b8e)
+- **instrucoes:** Aba Instruções em Ferramentas e AGENTS.md do plano B na criação (SPEC-104 T3) (168f7f1)
+- **skills:** Selos Claude/Codex, grupo Do Codex, erros do skills/list e plano B (SPEC-104 T4) (7c079d3)
+
+### Correções
+
+- **codex:** Ajustes visuais do E2E da SPEC-106 (pílula à direita, nota do maior esforço, aviso sem crases) (cfe5baa)
+- **codex:** Razões curtas das capacidades MCP (SPEC-105 T4) (eae6868)
+- **skills:** A consulta do Codex espera o workspace ativo pela configuração, sem ouvir o stream dos workspaces (SPEC-104) (3d63789)
+
+### Documentação
+
+- **spec:** SPEC-107 contexto e compactação no Codex, com mocks (e2a5076)
+- **spec:** SPEC-107 aponta a issue #342 (b2b46e0)
+- **spec:** SPEC-107 vai para a 0.25.0 (c483fa2)
+- **spec:** SPEC-107 arquiva o canvas no repositório (5164dfd)
+- **spec:** SPEC-107 em implementação, decisões P1–P5 fechadas (390e753)
+- **spec:** SPEC-107 concluída, prints do app e Codex falso do E2E; corrige o marcador depois da última leitura (72c3b92)
+- **spec:** SPEC-106 agentes no Codex, com mocks (3e4c660)
+- **spec:** SPEC-106 aponta a issue #341 (721744b)
+- **spec:** SPEC-106 vai para a 0.25.0 (37dc11a)
+- **spec:** SPEC-106 arquiva o canvas no repositório (6a99cdc)
+- **spec:** SPEC-106 em implementação, decisões P fechadas (88ab2f3)
+- **spec:** SPEC-106 concluída, prints do app e aviso dos subagentes sem crases (a567ffe)
+- **spec:** SPEC-105 MCP por provedor, com mocks (380e164)
+- **spec:** SPEC-105 aponta a issue #340 (44351ed)
+- **spec:** SPEC-105 vai para a 0.25.0 (21ac13d)
+- **spec:** SPEC-105 arquiva o canvas no repositório (87f6591)
+- **spec:** SPEC-105 em implementação, decisões e sondagem sem custo (4f6a7f5)
+- **spec:** SPEC-105 concluída, prints do app e critérios (b99eb98)
+- **spec:** SPEC-104 instruções (AGENTS.md) e skills, com mocks (34c9a94)
+- **spec:** SPEC-104 aponta a issue #339 (3bc505d)
+- **spec:** SPEC-104 vai para a 0.25.0 (28103ed)
+- **spec:** SPEC-104 arquiva o canvas no repositório (c887b65)
+- **spec:** SPEC-104 concluída, com os prints do app e o diff sem rolagem própria (855fb5c)
+
+### Testes
+
+- **mcp:** Os args exatos do app-server incluem o override de instruções da SPEC-104 (SPEC-105) (1aaaff2)
+
+## [0.24.0] - 2026-11-22
+
+### Funcionalidades
+
+- **planner:** RunStructured neutro com adaptadores do Claude Code e do Codex (SPEC-100 T1, T2) (b5c69fe)
+- **planner:** Fluxos do R8 no provedor do tipo, perfil rápido, falha e escolha desta vez (SPEC-100 T3) (321a0ff)
+- **planner:** Provedor por tipo, linha do provedor nos diálogos e escolha desta vez (SPEC-100 T4) (bbcb18f)
+- **revisor:** Provedor do revisor no config do projeto, resolução e linha Revisão do Executar (SPEC-102 T1) (e9806b1)
+- **revisor:** Rodada no Codex, achados normalizados e autoria da rodada (schema v36) (SPEC-102 T2, T3) (5050e7b)
+- **quadro:** Executar spec com o Codex, com provedor fixo por execução (SPEC-101) (c23e06b)
+- **memoria:** Detectar o ai-memory e mostrar o estado em Configurações (SPEC-098 T1) (a7caa94)
+- **memoria:** Execuções auxiliares e etapas fora da memória do ai-memory (SPEC-098 T2) (9566f46)
+- **memoria:** Ligar o ai-memory no Claude Code e no Codex com prévia (SPEC-098 T3) (cc80bcc)
+- **memoria:** Passagens do ai-memory na aba Memória do projeto (SPEC-098 T4) (7a60073)
+- **memoria:** Detecção na abertura, E2E com capturas e SPEC-098 concluída (SPEC-098 T5) (b3860b0)
+- **sessoes:** Continuar no outro agente com resumo do app e vínculo (SPEC-099 T1+T2) (163cbba)
+- **sessoes:** Passagem do ai-memory ao continuar no outro agente (SPEC-099 T3) (e76345f)
+- **sessoes:** Faixa de cota, Prompt e Memória levam ao outro agente (SPEC-099 T4) (f7f7484)
+- **hooks:** Plano neutro e adaptador Claude, provedor no hooks.log (SPEC-103 T1) (78580fe)
+- **hooks:** Script nos formatos do Claude e do Codex, teste de paridade (SPEC-103 T2) (6fe86ce)
+- **codex:** Hooks do app por -c e estado da sessão pelo hooks/list (SPEC-103 T3) (5fdf51b)
+- **sessoes:** Atividade dos hooks do Codex, pós-turno e bloqueio pela aprovação (SPEC-103 T4) (dd45953)
+- **telas:** Automações por provedor, chip dos hooks na sessão Codex, selo nos cartões e aviso do YOLO (SPEC-103 T5) (89d21ad)
+- **hooks:** E2E no app isolado, estado do Codex mantido após o fim e SPEC-103 concluída (SPEC-103 T6) (79462c5)
+
+### Correções
+
+- **planner:** Opções do Provedor por tipo na largura do texto e contraste do botão desta vez (SPEC-100 T4) (2ed47d3)
+- **revisor:** Rodada repetida "desta vez" leva o veredito no título; campos do revisor numa linha (SPEC-102) (1c1168a)
+- **sessoes:** Ajustes do teste no app da SPEC-099 (746e7b7)
+
+### Documentação
+
+- **spec:** SPEC-102 Review automático com o Codex, com mocks (16f7f46)
+- **spec:** SPEC-102 aponta para a issue #347 (03a5106)
+- **spec:** SPEC-102 vai para a 0.24.0 (c79d9f6)
+- **spec:** SPEC-102 arquiva o canvas no repositório (77fb307)
+- **spec:** SPEC-100 Execuções estruturadas em qualquer provedor, com mocks (9b612b2)
+- **spec:** SPEC-100 aponta para a issue #345 (b27705e)
+- **spec:** SPEC-100 vai para a 0.24.0 (be54bf9)
+- **spec:** SPEC-100 arquiva o canvas no repositório (79e0d44)
+- **spec:** SPEC-100 em implementação, decisões P fechadas (f2ee0a4)
+- **spec:** SPEC-100 concluída, com o E2E no app isolado e os prints (T5) (56dfc91)
+- **spec:** SPEC-102 concluída, com o E2E no app isolado e os prints (T4) (5be8958)
+- **spec:** SPEC-101 Executar spec com o Codex, com mocks (00d5c8a)
+- **spec:** SPEC-101 aponta para a issue #346 (fe66c34)
+- **spec:** SPEC-101 vai para a 0.24.0 (c5beb18)
+- **spec:** SPEC-101 arquiva o canvas no repositório (3dccc68)
+- **spec:** SPEC-101 concluída, com o E2E no app isolado e os prints (T5) (2e614a3)
+- **spec:** SPEC-098 Memória com ai-memory (eca6fc9)
+- **spec:** SPEC-098 com a issue #337 (9621dfb)
+- **spec:** SPEC-098 vai para a 0.24.0 (b5e8a39)
+- **spec:** SPEC-098 arquiva o canvas no repositório (3742e77)
+- **spec:** SPEC-098 em implementação, decisões P1–P8 fechadas (55cce44)
+- README de projeto com logo, badges e apresentação (66633d0)
+- **spec:** SPEC-099 Passar o trabalho entre agentes (603ff8d)
+- **spec:** SPEC-099 com a issue #338 (cb1b3ad)
+- **spec:** SPEC-099 vai para a 0.24.0 (90c9161)
+- **spec:** SPEC-099 arquiva o canvas no repositório (983337c)
+- **spec:** SPEC-099 em implementação, com as decisões P (91e3586)
+- **spec:** SPEC-099 concluída, com a implementação e o E2E (3916b3f)
+- **spec:** SPEC-103 Hooks gerenciados nos dois provedores, com mocks (ff9d39e)
+- **spec:** SPEC-103 aponta para a issue #348 (931280c)
+- **spec:** SPEC-103 vai para a 0.24.0 (3fd6203)
+- **spec:** SPEC-103 arquiva o canvas no repositório (b75571c)
+- **spec:** SPEC-103 em implementação, decisões P fechadas (ac9f72b)
+
+### Testes
+
+- O Codex roda nas execuções estruturadas (SPEC-100 R8) (0932c65)
+- **revisor:** O Codex libera o fluxo do revisor automático na seleção de provedor (SPEC-102) (f3d846c)
+- **configurações:** Executar spec liberado no chip do Codex (SPEC-101) (4580bf0)
+- **provedores:** Executar spec liberado para o Codex no registro de fluxos (SPEC-101) (fea62cf)
+- Desfaz formatação acidental em codex_consumption_test (SPEC-098 T3) (9711f2c)
+- **sessoes:** Formatar pós-turno espera o turno começar (SPEC-103) (91c7161)
+- **sessoes:** Formatar pós-turno espera o turno começar (SPEC-103) (81ce0aa)
+
+## [0.23.1] - 2026-11-22
+
+### Correções
+
+- **sessoes:** Arquivos alterados e Diff medidos desde o merge-base da sessão (SPEC-111) (c046d7c)
+
+### Documentação
+
+- **spec:** SPEC-111 alterações e Diff da sessão depois do commit (#376) (bf9409e)
+- **spec:** SPEC-111 concluída, com os prints do app (bd5c1d1)
+
+### Testes
+
+- **rodape:** Casos da cota não dependem da hora do dia (quebravam entre 00:00 e 01:00 no CI) (6abe670)
+
+## [0.23.0] - 2026-11-21
+
+### Funcionalidades
+
+- **codex:** Sonda do Codex 0.170 com parte paga atrás de --pago (SPEC-093) (a219468)
+- **provedores:** Capacidades declaradas por provedor e registro de fluxos (SPEC-094 T1) (cc7401a)
+- **provedores:** Opções = intenção + extras tipados, acesso por adaptador (SPEC-094 T2) (8a886d0)
+- **provedores:** Modelos do Codex, versão mínima, sandbox, etiqueta Só Claude Code e fim das comparações soltas (SPEC-094 T3) (873d657)
+- **provedores:** Identidade visual com logos oficiais, glifos e ProviderChip (SPEC-094 T4) (bee0ac8)
+- **eventos:** Tipos neutros, conversor do Claude e Codex emitindo neutros (SPEC-095 T1) (1fcea5a)
+- **timeline:** Cartões de arquivo e comando, arquivos do turno e Atividades pelos eventos neutros (SPEC-095 T2) (b0f3a6e)
+- **contexto:** Medidor e Replay pelos eventos neutros, antes do Codex pelo diff (SPEC-095 T3) (9b266f1)
+- **codex:** Religar Prompt e Sessões, estado e login, interruptor de emergência e provedor nas listas (SPEC-096 T1) (f29d98e)
+- **codex:** Codex no Prompt — thread em read-only, direcionar, interromper, Aprovar nesta conversa, permissões e Executar plano (SPEC-096 T2) (9147494)
+- **codex:** Sessões com o Codex — worktree que commita, interromper, retomar, fork com vínculo (v35), terminal e acesso por turno (SPEC-096 T3) (3d3743e)
+- **codex:** Grupo de processos do App Server, órfãos na partida e SPEC-006/007 revalidadas (SPEC-096 T4) (fa6053e)
+- **codex:** Sem sandbox o Codex só roda em worktree com YOLO, E2E com capturas e SPEC-096 concluída (SPEC-096 T4) (e7e57f9)
+- **cota:** Ler a cota do Codex sem turno, mesclar atualizações e guardar por provedor (SPEC-097 T1) (1e6d013)
+- **custo:** Ledger com provedor e tokens de raciocínio, custo indisponível no Codex e ranking sem zero falso (SPEC-097 T3, schema v34) (25442d5)
+- **rodape:** Régua da cota do provedor ativo, detalhe lado a lado e aviso de limite na Nova sessão (SPEC-097 T2) (3b99401)
+
+### Correções
+
+- **provedores:** Registro não dispara a detecção do Codex; status em implementação reconhecido (cf12fec)
+- **provedores:** Menu do rodapé mais largo, modelos do Codex em lista e prints do app (SPEC-094) (1f4e639)
+- **specs:** Status em implementação conta como aprovada (c942af1)
+- **rodape:** Nome do provedor inteiro no detalhe da cota (f36970e)
+- **codex:** Primeira mensagem não duplica, trocar de workspace encerra o Codex ocioso, teste de widget das Sessões recuperado e turno real sem mexer no config.toml (SPEC-096 pendências) (3c215ea)
+- **sessoes:** O commit do app no fim do turno do Codex entra antes do ponto de restauração (4e994ef)
+- **inicio:** O custo de Hoje não soma o Codex como $0.00 (SPEC-097 decisão 5) (f771c74)
+- **codex:** Rotular o modo Perguntar como Perguntar, não Planejar (657e094)
+- **codex:** O diálogo de fork do Codex não cita as flags do Claude (375c651)
+- **codex:** Separar as colunas do custo nas linhas só do Codex (64b2b81)
+- **codex:** Com o Codex desligado, o Prompt não o oferece nem cria conversa vazia (306792d)
+
+### Documentação
+
+- **spec:** SPEC-096 Codex no Prompt e nas Sessões, com tarefas pai/filhos e mocks (4d6f45a)
+- **spec:** SPEC-096 aponta a issue #343 (d87644f)
+- **spec:** SPEC-096 cores de provedor (1955a78)
+- **spec:** SPEC-096 logos oficiais de provedor (f2c68f5)
+- **spec:** SPEC-096 logo da OpenAI em branco oficial (d4b7743)
+- **spec:** SPEC-096 aprovada (3eb20de)
+- **spec:** SPEC-096 worktree sem sandbox e commit do app (decisão 15) (bb5df3b)
+- **spec:** SPEC-094 Capacidades e opções por provedor, com mocks (57948c8)
+- **spec:** SPEC-094 aponta a issue #334 (254f934)
+- **spec:** SPEC-094 cores de provedor (6a74641)
+- **spec:** SPEC-094 logos oficiais de provedor (983c13b)
+- **spec:** SPEC-094 logo da OpenAI em branco oficial (b9c666c)
+- **spec:** SPEC-094 aprovada (00f07cb)
+- **spec:** SPEC-094 sandbox disponível por máquina (decisão 15) (a4c31f2)
+- **spec:** SPEC-093 Sondagem do Codex 0.170, plano técnico do épico e destino das specs 002–007 (518c4f5)
+- **spec:** SPEC-093 aponta a issue #333 (12d0902)
+- **spec:** SPEC-093 aprovada (bc8cbb2)
+- **pesquisa:** Relatório da sondagem do Codex 0.170 e SPEC-093 concluída (c78f2dd)
+- **spec:** SPEC-094 em implementação, decisões P fechadas (be210dc)
+- **spec:** SPEC-094 concluída, critérios e registro da implementação (522e378)
+- **spec:** SPEC-095 Eventos neutros, com mocks (0d145f0)
+- **spec:** SPEC-095 aponta a issue #335 (512e9e0)
+- **spec:** SPEC-095 cores de provedor (25f0ef1)
+- **spec:** SPEC-095 logos oficiais de provedor (9c06e86)
+- **spec:** SPEC-095 logo da OpenAI em branco oficial (84e8a64)
+- **spec:** SPEC-095 aprovada (3d0e0ac)
+- **spec:** SPEC-095 em implementação, decisões P1–P5 (367e481)
+- **spec:** SPEC-095 prints do app (e9f0591)
+- **spec:** SPEC-095 concluída (67ae2fb)
+- **spec:** SPEC-094 permissão de uso do logo da OpenAI concedida (bc9c634)
+- **spec:** SPEC-096 em implementação, decisões P fechadas (5cec506)
+- **spec:** SPEC-097 Cota do Codex no rodapé, com mocks (6f068f5)
+- **spec:** SPEC-097 aponta a issue #349 (cf59379)
+- **spec:** SPEC-097 cores de provedor (eeec984)
+- **spec:** SPEC-097 logos oficiais de provedor (353c75e)
+- **spec:** SPEC-097 logo da OpenAI em branco oficial (9aea410)
+- **spec:** SPEC-097 aprovada (40075f5)
+- **spec:** SPEC-097 em implementação, decisões fechadas (88f9cb1)
+- **spec:** SPEC-097 concluída, prints do app (b55008a)
+
+### Testes
+
+- **codex:** Fixtures reais do App Server 0.170 e modo de reprodução no fake_codex (SPEC-093) (17aeb33)
+- Imports não usados (3d1ddf6)
+- Sem reformatar o teste do rodapé (e19e0f7)
+
+### Manutenção
+
+- Desfaz reformatação alheia (c88df3f)
+
+## [0.22.0] - 2026-11-21
+
+### Funcionalidades
+
+- **contexto:** Sondagem do CLI, contrato da medição e redutor (SPEC-087 T1) (4f0cdfe)
+- **contexto:** Medidor e painel Contexto no Prompt e nas Sessões (SPEC-087 T2) (82b0226)
+- **contexto:** Compactação automática visível, aviso e ações (SPEC-087 T3) (66df732)
+- **contexto:** Comparar, Replay e retomada com leituras próprias (SPEC-087 T4) (bd44399)
+
+### Correções
+
+- **contexto:** Aviso segue a leitura mais nova e diz quando o limiar passou (20340af)
+- **contexto:** Ajustes do teste no app isolado (045d3cb)
+- **comparar:** Medidor de cada lado junto das métricas (0ee77f2)
+
+### Documentação
+
+- **spec:** SPEC-087 contexto visual e compactação, com mocks (0ce3c22)
+- **spec:** SPEC-087 aponta a issue #324 (c63acda)
+- **spec:** SPEC-087 aprovada (4eaa905)
+- **spec:** SPEC-087 concluída, com capturas do app e teste manual (48e489e)
+
+### Testes
+
+- O FakeProcess separa os pedidos de get_context_usage das mensagens (6b6402b)
+
 ## [0.21.1] - 2026-11-20
 
 ### Correções

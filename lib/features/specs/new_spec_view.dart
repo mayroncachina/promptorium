@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../ui/widgets/run_provider_line.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +17,12 @@ import '../../ui/shell/footer_stats.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
+import '../../data/repos/debt_links_repo.dart';
+import '../debts/debt_actions.dart';
+import '../debts/debt_detector.dart';
+import '../debts/debt_interview.dart';
+import '../debts/debt_table.dart';
+import '../debts/widgets/question_debt_actions.dart';
 import '../ideas/widgets/idea_field.dart';
 import '../issues/issue_refine.dart';
 import '../project/project_config.dart';
@@ -988,6 +997,15 @@ class _MiniPlanning extends ConsumerWidget {
                   onRetry: () => planner.retry(workspace),
                 ),
               ),
+              // SPEC-100 R10, R6, R11: provider, model and use of the turn;
+              // a failure brings its choices for this turn only.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: RunProviderLine(
+                  slot: specPlannerSlot(workspace.id),
+                  onRetry: () => planner.retry(workspace),
+                ),
+              ),
               _Composer(
                 enabled: !busy,
                 onSend: (text) => planner.send(workspace, text),
@@ -1499,6 +1517,20 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
     }
   }
 
+  /// The item of "Simplificar agora"/"Decidir depois" waiting for the
+  /// number of the spec (P2), for question [i].
+  static DebtLink? _pendingOf(List<DebtLink> links, DraftQuestion q, int i) {
+    for (final l in links) {
+      if (l.suggestionSource != DebtSuggestionSource.draft) continue;
+      final asked = DebtLinksRepo.suggestionOf(l)['pergunta'];
+      if (asked == q.text ||
+          (asked == null && l.originQuestion == 'P${i + 1}')) {
+        return l;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
@@ -1524,6 +1556,16 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
     ];
     final planner = ref.read(specPlannerProvider.notifier);
     final folder = ProjectConfig.loadSync(widget.workspace.path).specsDir;
+    final draftLinks =
+        ref
+            .watch(
+              draftDebtLinksProvider((
+                workspaceId: widget.workspace.id,
+                root: widget.workspace.path,
+              )),
+            )
+            .value ??
+        const <DebtLink>[];
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.panel,
@@ -1655,7 +1697,7 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                 const SizedBox(height: 14),
                 const _Label('Perguntas em aberto'),
                 if (d.openQuestions.isEmpty) const _Empty(),
-                for (final (i, q) in d.openQuestions.indexed)
+                for (final (i, q) in d.openQuestions.indexed) ...[
                   _Item(
                     id: 'P${i + 1}',
                     text: q.text,
@@ -1663,6 +1705,32 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                         ? null
                         : 'Sugestão: ${q.suggestion}',
                   ),
+                  _DraftQuestionDebts(
+                    key: ValueKey('draft-question-debts-$i'),
+                    workspace: widget.workspace,
+                    question: q,
+                    index: i,
+                    pending: _pendingOf(draftLinks, q, i),
+                  ),
+                ],
+                // SPEC-112 R7: what the answers asked for, until the spec
+                // exists.
+                for (final l in draftLinks)
+                  if (l.suggestionSource == DebtSuggestionSource.interview)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: DetectedDebtHint(
+                        key: ValueKey('draft-detected-${l.id}'),
+                        intent: l.kind == DebtKind.debt.dbName
+                            ? DebtIntent.debt
+                            : DebtIntent.decision,
+                        answer:
+                            '${DebtLinksRepo.suggestionOf(l)['resposta'] ?? ''}',
+                        note:
+                            'vira sugestão na tela Débitos quando a spec for '
+                            'criada',
+                      ),
+                    ),
               ],
             ),
           ),
@@ -2139,6 +2207,80 @@ class _Item extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// SPEC-112 R6, P2: the two actions of a question of the draft. The spec
+/// has no number yet: the item waits as a suggestion tied to the draft and
+/// is written, with "(spec N, P5)", when the spec is created.
+class _DraftQuestionDebts extends ConsumerWidget {
+  const _DraftQuestionDebts({
+    super.key,
+    required this.workspace,
+    required this.question,
+    required this.index,
+    this.pending,
+  });
+
+  final Workspace workspace;
+  final DraftQuestion question;
+  final int index;
+  final DebtLink? pending;
+
+  Future<void> _debt(BuildContext context, WidgetRef ref) async {
+    final draft = await askDebtDraft(
+      context,
+      ref,
+      repoRoot: workspace.path,
+      preview: false,
+      saveLabel: 'Guardar no rascunho',
+      destination:
+          'Grava quando a spec for criada, com (spec N, P${index + 1})',
+      initial: DebtInterview.debtDraftFor(
+        question: question.text,
+        suggestion: question.suggestion,
+        origin: '',
+      ),
+    );
+    if (draft == null) return;
+    await ref
+        .read(debtInterviewProvider)
+        .deferForDraft(workspace, question, index, draft);
+  }
+
+  Future<void> _decision(WidgetRef ref) => ref
+      .read(debtInterviewProvider)
+      .deferForDraft(
+        workspace,
+        question,
+        index,
+        DebtInterview.decisionDraftFor(
+          question: question.text,
+          suggestion: question.suggestion,
+          origin: '',
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = pending;
+    return Padding(
+      padding: const EdgeInsets.only(left: 26, bottom: 8),
+      child: p != null
+          ? PendingDebtTag(
+              p.kind == DebtKind.debt.dbName
+                  ? '→ débito técnico pendente · grava ao criar a spec'
+                  : '→ DP pendente · grava ao criar a spec',
+              key: ValueKey('draft-question-pending-$index'),
+              onRemove: () => ref.read(debtLinksRepoProvider).delete(p.id),
+            )
+          : QuestionDebtActions(
+              keyPrefix: 'draft-question-$index',
+              height: 26,
+              onDebt: () => _debt(context, ref),
+              onDecision: () => _decision(ref),
+            ),
+    );
+  }
 }
 
 /// "Rascunho guardado" above the list of specs (R8): opens "Nova spec".

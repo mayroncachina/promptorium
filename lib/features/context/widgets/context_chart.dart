@@ -323,10 +323,12 @@ class _ChartPainter extends CustomPainter {
     // Markers between the points.
     for (final m in s.markers) {
       final after = points.indexWhere((p) => p.index >= m.readingsBefore);
-      final mx = after <= 0
-          ? x(0)
-          : after < 0
+      // A marker after the last reading (a compaction still waiting for
+      // its measurement) goes at the right edge, not at the start.
+      final mx = after < 0
           ? x(n - 1)
+          : after == 0
+          ? x(0)
           : (x(after - 1) + x(after)) / 2;
       if (m.kind == ContextMarkerKind.compaction) {
         canvas.drawLine(

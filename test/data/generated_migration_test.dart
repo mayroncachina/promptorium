@@ -400,4 +400,138 @@ void main() {
     expect(row.scope, 'arquivo');
     await db.close();
   });
+  test(
+    'v33 → v35 (SPEC-096 R16): sessions get parentSessionId, null for '
+    'the old ones; a fork points to its parent and loses it with set null',
+    () async {
+      final schema = await verifier.schemaAt(33);
+      schema.rawDatabase.execute(
+        "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+      );
+      schema.rawDatabase.execute(
+        'INSERT INTO sessions (id, workspace_id, worktree_path, branch, model) '
+        "VALUES ('pai', 1, '/r', 'main', 'gpt')",
+      );
+      final db = AppDatabase(schema.newConnection());
+      final old = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('pai'))).getSingle();
+      expect(old.parentSessionId, equals(null));
+      await db
+          .into(db.sessions)
+          .insert(
+            SessionsCompanion.insert(
+              id: 'filho',
+              workspaceId: 1,
+              worktreePath: '/wt',
+              branch: 'b',
+              model: 'gpt',
+              parentSessionId: const Value('pai'),
+            ),
+          );
+      final child = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('filho'))).getSingle();
+      expect(child.parentSessionId, 'pai');
+      await (db.delete(db.sessions)..where((s) => s.id.equals('pai'))).go();
+      final orphan = await (db.select(
+        db.sessions,
+      )..where((s) => s.id.equals('filho'))).getSingle();
+      expect(orphan.parentSessionId, equals(null));
+      await db.close();
+    },
+  );
+  test('v35 → v36 (SPEC-102 R9, P3): review_comments get provider and '
+      'model, null for the rounds of before', () async {
+    final schema = await verifier.schemaAt(35);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO sessions (id, workspace_id, worktree_path, branch, "
+        "model) VALUES ('s', 1, '/r', 'main', 'haiku')",
+      )
+      ..execute(
+        'INSERT INTO review_comments (session_id, round, author, body, '
+        "verdict) VALUES ('s', 1, 'revisor', 'Ok.', 'aprovar')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final old = await db.select(db.reviewComments).getSingle();
+    expect(old.provider, equals(null));
+    expect(old.model, equals(null));
+    await db
+        .into(db.reviewComments)
+        .insert(
+          ReviewCommentsCompanion.insert(
+            sessionId: const Value('s'),
+            round: 2,
+            author: 'revisor',
+            body: 'Correções pedidas.',
+            verdict: const Value('corrigir'),
+            provider: const Value('codex'),
+            model: const Value('gpt-6.1-terra'),
+          ),
+        );
+    final rows = await db.select(db.reviewComments).get();
+    expect(rows.map((r) => (r.round, r.provider, r.model)), [
+      (1, null, null),
+      (2, 'codex', 'gpt-6.1-terra'),
+    ]);
+    await db.close();
+  });
+  test('v33 → v34 (SPEC-097) marks the old turns as Claude\'s', () async {
+    final schema = await verifier.schemaAt(33);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        'INSERT INTO usage_entries (workspace_id, source, at, tokens_in, '
+        "tokens_out, cost_usd) VALUES (1, 'etapa', 1795224676, 10, 5, 4.2)",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.usageEntries).getSingle();
+    expect(row.provider, 'claude');
+    expect(row.tokensReasoning, 0);
+    expect(row.costUsd, 4.2, reason: 'the cost of before stays');
+    await db.close();
+  });
+  test('v36 → v37 (SPEC-112 R4): debt_links is created empty, with the '
+      'unique code per repository', () async {
+    final schema = await verifier.schemaAt(36);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-031', 'x', 'specs/x.md')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    expect(await db.select(db.debtLinks).get(), isEmpty);
+    await db
+        .into(db.debtLinks)
+        .insert(
+          DebtLinksCompanion.insert(
+            repoRoot: '/r',
+            kind: 'debito',
+            code: const Value('DT-09'),
+            originSpecId: const Value(1),
+            originQuestion: const Value('Q5'),
+          ),
+        );
+    await expectLater(
+      db
+          .into(db.debtLinks)
+          .insert(
+            DebtLinksCompanion.insert(
+              repoRoot: '/r',
+              kind: 'debito',
+              code: const Value('DT-09'),
+            ),
+          ),
+      throwsA(anything),
+    );
+    final row = await db.select(db.debtLinks).getSingle();
+    expect(
+      (row.code, row.originSpecId, row.originQuestion),
+      ('DT-09', 1, 'Q5'),
+    );
+    await db.close();
+  });
 }

@@ -7,7 +7,12 @@ import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ProcessStarter;
 import '../providers/agent_provider.dart';
+import '../providers/capabilities.dart';
+import '../providers/context_events.dart';
 import '../providers/permission_policy.dart';
+import 'codex_mcp_overrides.dart';
+import 'codex_neutral.dart';
+import 'codex_quota.dart' show codexRateLimitUpdates;
 import 'codex_rpc.dart';
 
 class CodexModel {
@@ -18,9 +23,26 @@ class CodexModel {
 }
 
 class CodexProvider implements AgentProvider {
-  CodexProvider({this.executable = 'codex', this.starter});
-  final String executable;
+  CodexProvider({
+    String executable = 'codex',
+    String Function()? resolveExecutable,
+    this.starter,
+    this.clientVersion,
+    CodexMcpLister? mcpLister,
+  }) : _resolve = resolveExecutable ?? (() => executable),
+       _mcpLister = mcpLister ?? defaultCodexMcpLister;
+
+  /// `codex mcp list --json` names (SPEC-105): which servers a run may
+  /// override.
+  final CodexMcpLister _mcpLister;
+
+  /// Resolved only when used: listing the provider never runs the CLI.
+  final String Function() _resolve;
+  String get executable => _resolve();
   final ProcessStarter? starter;
+
+  /// The app version sent in `initialize.clientInfo` (SPEC-093 D13).
+  final String? Function()? clientVersion;
 
   @override
   String get id => 'codex';
@@ -34,28 +56,57 @@ class CodexProvider implements AgentProvider {
   List<String> get models => const ['inherit'];
 
   @override
+  ProviderCapabilities get capabilities => ProviderCapabilities.codex;
+
+  @override
   Future<AgentRun> start(AgentStartOptions options) async {
     validateOptions(options);
     final args = ['app-server'];
-    if (options.mode == PromptMode.ask ||
-        options.mode == PromptMode.plan ||
-        options.strictMcpConfig) {
-      args.addAll(['-c', 'mcp_servers={}']);
+    final mcp = await _mcpArgs(options);
+    args.addAll(mcp.args);
+    for (final MapEntry(:key, :value)
+        in options.codex.configOverrides.entries) {
+      args.addAll(['-c', '$key=$value']);
+    }
+    // SPEC-104 R1: the project's CLAUDE.md reaches the Codex by an override
+    // of this run (proved by SPEC-093 R10); nothing goes to ~/.codex nor to
+    // the repository. An `AGENTS.md` still comes first (Codex order, P5).
+    if (capabilities.supports(ProviderCapability.instructionsFallback) &&
+        !options.codex.configOverrides.containsKey(
+          codexInstructionsOverrideKey,
+        )) {
+      args.addAll(['-c', codexInstructionsOverride]);
     }
     final Process process;
+    // SPEC-096 R15: the real App Server leads its own process group.
+    final group = starter == null && _setsidAvailable();
     try {
-      process = await (starter ?? _start)(
+      process = await (starter ?? (group ? _startGroup : _start))(
         executable,
         args,
         workingDirectory: options.workingDirectory,
-        environment: options.environment,
+        environment: mcp.token == null
+            ? options.environment
+            : {...?options.environment, codexAppMcpTokenVar: mcp.token!},
       );
     } on ProcessException {
       throw const AgentUnavailable(
         'Codex CLI não encontrado. Instale o Codex e confira o PATH em Configurações → Provedores.',
       );
     }
-    final run = CodexRun(CodexRpc(process), options, args: args);
+    final run = CodexRun(
+      CodexRpc(process, group: group),
+      options,
+      args: args,
+      clientVersion: clientVersion?.call(),
+      skillRoots: capabilities.supports(ProviderCapability.skillsExtraRoots)
+          ? codexSkillRoots(
+              options.workingDirectory,
+              home:
+                  options.environment?['HOME'] ?? Platform.environment['HOME'],
+            )
+          : const [],
+    );
     try {
       await run.open();
       return run;
@@ -65,36 +116,82 @@ class CodexProvider implements AgentProvider {
     }
   }
 
-  /// Fail closed rather than send Claude flags or silently drop a control.
-  static void validateOptions(AgentStartOptions o) {
-    final unsupported = <String>[
-      if (o.maxBudgetUsd != null) 'limite monetário',
-      if (o.maxTurns != null) 'limite de turnos internos',
-      if (o.agent != null) 'perfil de agente Claude',
-      if (o.agentsJson != null) 'definições de subagentes Claude',
-      if (o.settingsFile != null) 'hooks/settings Claude',
-      if (o.mcpConfigs.isNotEmpty) 'arquivos MCP Claude',
-      if (o.tools.isNotEmpty) 'restrição de ferramentas Claude',
-      if (o.mcpAllowedTools.isNotEmpty || o.mcpDisallowedTools.isNotEmpty)
-        'regras de ferramentas MCP Claude',
-      if (o.permissionMode == ClaudePermissionMode.auto)
-        'aprovação automática Claude',
-    ];
-    if (unsupported.isNotEmpty) {
-      throw AgentUnavailable(
-        'Codex: opções ainda sem equivalente validado: '
-        '${unsupported.join(', ')}. Ajuste a configuração antes de executar.',
-      );
+  /// SPEC-105 R7–R9: the MCP of the run by `-c` overrides. Read-only
+  /// runs turn every configured server off (fails closed when they cannot
+  /// be listed); "Bloqueado" rules become `disabled_tools`; the app's
+  /// server comes from its `--mcp-config` file, with its token in the
+  /// environment.
+  Future<({List<String> args, String? token})> _mcpArgs(
+    AgentStartOptions o,
+  ) async {
+    final readOnly = o.access.readOnly;
+    final disallowed = o.codex.mcpDisallowedTools;
+    var servers = const <String>[];
+    if (readOnly || disallowed.isNotEmpty) {
+      try {
+        servers = await _mcpLister(executable, o.workingDirectory);
+      } catch (e) {
+        if (readOnly) {
+          throw AgentUnavailable(
+            'Codex: não deu para listar os servidores MCP (codex mcp list) '
+            'para desligá-los neste modo de leitura. $e',
+          );
+        }
+      }
     }
+    CodexAppMcp? app;
+    for (final path in o.appMcpConfigs) {
+      app ??= readAppMcpConfig(path);
+    }
+    return (
+      args: codexMcpOverrides(
+        servers: servers,
+        readOnly: readOnly,
+        disallowed: disallowed,
+        app: app,
+      ),
+      token: app?.token,
+    );
+  }
+
+  /// Fail closed rather than send Claude flags or silently drop a control.
+  /// Extras of another provider are programming errors: the services
+  /// consult [capabilities] and never build them (SPEC-094 R5, R6). The
+  /// app's MCP server goes by override (SPEC-105 R7).
+  static void validateOptions(AgentStartOptions o) {
+    checkExtras('codex', o.extras);
     if (o.forkSession && o.resumeId == null) {
       throw const AgentUnavailable('Codex: fork exige a thread de origem.');
     }
-    if (o.autocompact != null && o.autocompact != 'auto') {
-      final raw = o.autocompact!;
+    final raw = o.codex.compactLimit;
+    if (raw != null && raw != 'auto') {
       if (!RegExp(r'^\d+[kKmM]?$').hasMatch(raw)) {
         throw const AgentUnavailable('Codex: limiar de compactação inválido.');
       }
     }
+  }
+
+  static bool _setsidAvailable() =>
+      File('/usr/bin/setsid').existsSync() || File('/bin/setsid').existsSync();
+
+  /// `setsid codex app-server …`: Dart's children are not group leaders, so
+  /// `setsid` does not fork and the pid stays the App Server's. A missing
+  /// executable fails here, as without `setsid`.
+  static Future<Process> _startGroup(
+    String exe,
+    List<String> args, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
+    if (exe.contains('/') && !File(exe).existsSync()) {
+      throw ProcessException(exe, args, 'não encontrado');
+    }
+    return Process.start(
+      'setsid',
+      [exe, ...args],
+      workingDirectory: workingDirectory,
+      environment: environment,
+    );
   }
 
   static Future<Process> _start(
@@ -110,9 +207,42 @@ class CodexProvider implements AgentProvider {
   );
 }
 
+/// `-c` key of the instructions override (SPEC-104 R1).
+const codexInstructionsOverrideKey = 'project_doc_fallback_filenames';
+
+/// The override itself: the Codex reads `CLAUDE.md` where there is no
+/// `AGENTS.md` (SPEC-093 R10).
+const codexInstructionsOverride = '$codexInstructionsOverrideKey=["CLAUDE.md"]';
+
+/// `<cwd>/.claude/skills` and `~/.claude/skills`, the ones that exist
+/// (SPEC-104 R6).
+List<String> codexSkillRoots(String? cwd, {String? home}) => [
+  for (final base in [cwd, home])
+    if (base != null &&
+        base.isNotEmpty &&
+        Directory('$base/.claude/skills').existsSync())
+      '$base/.claude/skills',
+];
+
+/// [sources] relative to [cwd] when inside it (`CLAUDE.md`,
+/// `packages/api/AGENTS.md`); others stay absolute.
+List<String> relativeInstructionSources(List<String> sources, String? cwd) {
+  if (cwd == null || cwd.isEmpty) return sources;
+  final base = cwd.endsWith('/') ? cwd : '$cwd/';
+  return [
+    for (final s in sources) s.startsWith(base) ? s.substring(base.length) : s,
+  ];
+}
+
 /// The App Server persists threads; local ids are never passed as Codex ids.
 class CodexRun implements ManagedAgentRun {
-  CodexRun(this.rpc, this.options, {required this.args}) {
+  CodexRun(
+    this.rpc,
+    this.options, {
+    required this.args,
+    this.clientVersion,
+    this.skillRoots = const [],
+  }) {
     _sub = rpc.messages.stream.listen(
       _message,
       onDone: () {
@@ -122,6 +252,22 @@ class CodexRun implements ManagedAgentRun {
   }
   final CodexRpc rpc;
   final AgentStartOptions options;
+
+  /// Version of the app in `clientInfo` (null in tests = `0.0.0`).
+  final String? clientVersion;
+
+  /// Skill folders of the Claude handed to this App Server by
+  /// `skills/extraRoots/set` before the first turn (SPEC-104 R6).
+  final List<String> skillRoots;
+
+  /// Instruction files the App Server loaded, as `thread/start` /
+  /// `thread/resume` reported (`instructionSources`, SPEC-104 R2): the
+  /// proof, relative to the working directory when inside it. Null = the
+  /// server did not report it.
+  List<String>? instructionSources;
+
+  /// Whether `skills/extraRoots/set` was accepted by this App Server.
+  bool skillRootsApplied = false;
   @override
   final List<String> args;
   late final StreamSubscription<Map<String, dynamic>> _sub;
@@ -131,6 +277,19 @@ class CodexRun implements ManagedAgentRun {
   final _finishedItems = <String>{};
   final _startedTools = <String>{};
   final _models = <CodexModel>[];
+
+  /// `fileChange` items seen in this turn, by id: the approval request
+  /// does not carry the changes (SPEC-093 D5).
+  final _fileItems = <String, Map<String, dynamic>>{};
+
+  /// SPEC-103 P2: the block rules applied to command approvals while the
+  /// app's hooks are not active; returns the rule that refuses the
+  /// command, or null. A refused command never reaches the person.
+  String? Function(Map<String, dynamic> params)? commandFilter;
+
+  /// "Interromper" was asked: the turn ends as interrupted by the person
+  /// (SPEC-096 P3).
+  bool _interruptAsked = false;
   String? _thread;
   String? _turn;
   bool _busy = false;
@@ -140,6 +299,25 @@ class CodexRun implements ManagedAgentRun {
   Map<String, dynamic> _baselineUsage = const {};
   Map<String, dynamic> _totalUsage = const {};
   ClaudePermissionMode? _permissionMode;
+
+  /// Model of the thread (for the context readings, SPEC-095 R3).
+  String? _model;
+
+  /// A `contextCompaction` item running: its id, and the size the App
+  /// Server reported meanwhile (the post-compaction size, R4).
+  String? _compacting;
+  int? _compactedTokens;
+
+  /// "Compactar agora" (`thread/compact/start`, SPEC-107 R8) is running as
+  /// its own turn: its `turn/completed` ends it with a `result` that is not
+  /// a work turn (`num_turns: 0`, as the Claude `/compact`).
+  bool _compactTurn = false;
+
+  /// Turns whose compaction was already marked (R7), by the
+  /// `contextCompaction` item or by the deprecated `thread/compacted`: the
+  /// two never mark the same turn twice.
+  final _itemCompactedTurns = <String>{};
+  final _notifiedCompactedTurns = <String>{};
 
   @override
   Stream<ClaudeEvent> get events => _events.stream;
@@ -154,36 +332,58 @@ class CodexRun implements ManagedAgentRun {
 
   void _emit(Map<String, dynamic> json) {
     if (_events.isClosed) return;
-    // Scrub before persistence; never store raw App Server authentication.
-    final clean = CodexRpc.redactJson({
-      ...json,
-      'provider': 'codex',
-      'session_id': _thread,
-      if (_turn != null) 'turn_id': _turn,
-    }) as Map<String, dynamic>;
-    _events.add(ClaudeEvent.fromJson(clean));
+    _events.add(ClaudeEvent.fromJson(_clean(json)));
   }
 
-  bool get _readOnly =>
-      options.mode == PromptMode.ask ||
-      options.mode == PromptMode.plan ||
-      _permissionMode == ClaudePermissionMode.plan;
+  // Scrub before persistence; never store raw App Server authentication.
+  Map<String, dynamic> _clean(Map<String, dynamic> json) =>
+      CodexRpc.redactJson({
+        ...json,
+        'provider': 'codex',
+        'session_id': _thread,
+        if (_turn != null) 'turn_id': _turn,
+      }) as Map<String, dynamic>;
 
-  ({String sandbox, String approval}) get _policy => codexPermissionPolicy(
-    _permissionMode,
-    readOnly: _readOnly,
-    refine: options.mode == PromptMode.refine,
+  /// A file change: stored with the diff cut to the limit (R12), the whole
+  /// diff kept in the live event.
+  void _emitFile(Map<String, dynamic> json, String? diff) {
+    if (_events.isClosed) return;
+    final full = diff == null ? null : CodexRpc.redact(diff);
+    final clean = _clean(json);
+    if (full != null) {
+      final cut = NeutralLimits.cut(full);
+      clean['diff'] = cut.text;
+      if (cut.cut > 0) clean['diff_cut'] = cut.cut;
+    }
+    _events.add(FileChangeEvent.live(clean, full));
+  }
+
+  bool get _readOnly => _access != null
+      ? _access == AgentAccess.ask || _access == AgentAccess.plan
+      : options.mode == PromptMode.ask ||
+            options.mode == PromptMode.plan ||
+            _permissionMode == ClaudePermissionMode.plan;
+
+  /// Access chosen with the turn stopped (SPEC-096 R14): the Codex takes
+  /// a policy per `turn/start`, so the next turn uses it.
+  AgentAccess? _access;
+
+  AgentAccess get access => _access ?? options.access;
+
+  ({String sandbox, String approval}) get _policy => codexAccessPolicy(
+    _readOnly ? AgentAccess.ask : access,
+    extras: options.codex,
   );
   String get _sandbox => _policy.sandbox;
   String get _approval => _policy.approval;
 
   Future<void> open() async {
-    _permissionMode = options.permissionMode;
+    _permissionMode = options.access.legacyMode;
     final init = await rpc.request('initialize', {
       'clientInfo': {
         'name': 'promptorium',
         'title': 'Promptorium',
-        'version': '0.2.0',
+        'version': clientVersion ?? '0.0.0',
       },
     });
     await rpc.write({'method': 'initialized', 'params': <String, dynamic>{}});
@@ -233,19 +433,28 @@ class CodexRun implements ManagedAgentRun {
         'Modelo Codex indisponível: $requested. Escolha o padrão do CLI ou atualize o catálogo.',
       );
     }
-    final config = <String, dynamic>{};
-    final compact = options.autocompact;
-    if (compact != null && compact != 'auto') {
-      final unit = compact.toLowerCase();
-      final mult = unit.endsWith('k')
-          ? 1000
-          : unit.endsWith('m')
-          ? 1000000
-          : 1;
-      config['model_auto_compact_token_limit'] =
-          int.parse(unit.replaceAll(RegExp('[km]'), '')) * mult;
+    // SPEC-104 R6: the Claude's skills, without copy nor link; the roots
+    // live only in this App Server. A refusal never blocks the run.
+    if (skillRoots.isNotEmpty) {
+      try {
+        await rpc.request('skills/extraRoots/set', {'extraRoots': skillRoots});
+        skillRootsApplied = true;
+      } catch (_) {
+        skillRootsApplied = false;
+      }
     }
+    final config = <String, dynamic>{};
+    if (_sentCompactLimit case final limit?) {
+      config['model_auto_compact_token_limit'] = limit;
+    }
+    // Read before the thread, so `thread/start` stays the last request of
+    // the opening; emitted after the init.
+    final agentConfig = await _readConfig();
     final resume = options.resumeId;
+    // SPEC-093 D1, SPEC-096 R10: the thread always opens `read-only` +
+    // `never` — a writable sandbox on `thread/*` makes the App Server save
+    // trust in ~/.codex/config.toml. The real policy goes on each
+    // `turn/start`.
     final result = await rpc.request(
       resume == null
           ? 'thread/start'
@@ -256,36 +465,14 @@ class CodexRun implements ManagedAgentRun {
         'threadId': ?resume,
         if (resume != null) 'excludeTurns': true,
         'cwd': options.workingDirectory,
-        'sandbox': _sandbox,
-        'approvalPolicy': _approval,
+        'sandbox': codexThreadSandbox,
+        'approvalPolicy': codexThreadApproval,
         if (requested != null && requested != 'inherit') 'model': requested,
         if (options.appendSystemPrompt != null)
           'developerInstructions': options.appendSystemPrompt,
         if (config.isNotEmpty) 'config': config,
       },
     );
-    final sandboxType = result['sandbox'] is Map
-        ? (result['sandbox'] as Map)['type']
-        : result['sandbox'];
-    final expectedType = switch (_sandbox) {
-      'danger-full-access' => 'dangerFullAccess',
-      'read-only' => 'readOnly',
-      _ => 'workspaceWrite',
-    };
-    final yolo =
-        !_readOnly && _permissionMode == ClaudePermissionMode.skipPermissions;
-    if ((yolo &&
-            (result['approvalPolicy'] != _approval ||
-                sandboxType != expectedType)) ||
-        (result['approvalPolicy'] != null &&
-            result['approvalPolicy'] != _approval) ||
-        (sandboxType != null &&
-            sandboxType != expectedType &&
-            sandboxType != _sandbox)) {
-      throw const AgentUnavailable(
-        'Codex não aplicou o modo de permissão solicitado.',
-      );
-    }
     final thread = result['thread'];
     _thread = thread is Map ? thread['id'] as String? : null;
     if (_thread == null || _thread!.isEmpty) {
@@ -293,7 +480,14 @@ class CodexRun implements ManagedAgentRun {
         'Codex não devolveu o identificador da thread.',
       );
     }
+    final sources = result['instructionSources'];
+    instructionSources = sources is List
+        ? relativeInstructionSources([
+            for (final s in sources) '$s',
+          ], options.workingDirectory)
+        : null;
     final model = '${result['model'] ?? requested ?? 'inherit'}';
+    _model = model == 'inherit' ? null : model;
     final effort = options.effort;
     final selected = _models.where((m) => m.id == model).firstOrNull;
     if (effort != null &&
@@ -311,39 +505,156 @@ class CodexRun implements ManagedAgentRun {
       'permissionMode': _readOnly
           ? 'plan'
           : _permissionMode?.cliValue ?? options.mode.name,
-      'permission_label': permissionModeLabel(
-        _readOnly ? ClaudePermissionMode.plan : _permissionMode,
-        provider: 'codex',
-      ),
+      // Perguntar and Planejar share the sandbox but keep their names.
+      'permission_label': codexAccessLabel(access),
       'sandbox': _sandbox,
       'approvalPolicy': _approval,
+      if (_sandbox == 'workspace-write' &&
+          options.codex.writableRoots.isNotEmpty)
+        'writableRoots': options.codex.writableRoots,
       'codex_version': init['userAgent'],
+      'instruction_sources': ?instructionSources,
       'models': [
         for (final m in _models)
           {'id': m.id, 'efforts': m.efforts, 'modalities': m.modalities},
       ],
     });
+    // SPEC-107 R10: what the App Server says it loaded (AGENTS.md, the
+    // CLAUDE.md fallback of SPEC-104), as proof of loading.
+    // [instructionSources] (SPEC-104) keeps them relative; the event keeps
+    // what the server sent, with the cwd to show them.
+    if (sources is List) {
+      final loaded = [
+        for (final s in sources)
+          if (s is String && s.isNotEmpty) s,
+      ];
+      if (loaded.isNotEmpty) {
+        _emit(
+          ContextAppEvents.instructionsEvent(
+            provider: 'codex',
+            sources: loaded,
+            cwd: options.workingDirectory,
+          ),
+        );
+      }
+    }
+    if (agentConfig != null) _emit(agentConfig);
   }
+
+  /// SPEC-107 R6, P2: the compaction limit (and its scope) in effect for
+  /// this directory, from `config/read` (no model call). Best effort: a
+  /// missing answer leaves the value the app sent. The app's own limit
+  /// goes as a thread override, which the config layers do not see: then
+  /// the sent value is the effective one and only the scope is used.
+  Future<Map<String, dynamic>?> _readConfig() async {
+    try {
+      final r = await rpc
+          .request('config/read', {'cwd': options.workingDirectory})
+          .timeout(const Duration(seconds: 3));
+      final config = r['config'];
+      if (config is! Map) return null;
+      final limit = _sentCompactLimit == null
+          ? config['model_auto_compact_token_limit']
+          : null;
+      final scope = config['model_auto_compact_token_limit_scope'];
+      if (limit is! num && scope is! String) return null;
+      return ContextAppEvents.agentConfigEvent(
+        provider: 'codex',
+        autocompactLimit: limit is num ? limit.toInt() : null,
+        autocompactScope: scope is String ? scope : null,
+      );
+    } catch (_) {
+      // Older App Servers or a slow answer: the panel shows the sent value.
+      return null;
+    }
+  }
+
+  /// `model_auto_compact_token_limit` the app sends (null = the agent's
+  /// default).
+  int? get _sentCompactLimit {
+    final compact = options.codex.compactLimit;
+    if (compact == null || compact == 'auto') return null;
+    final unit = compact.toLowerCase();
+    final mult = unit.endsWith('k')
+        ? 1000
+        : unit.endsWith('m')
+        ? 1000000
+        : 1;
+    return int.parse(unit.replaceAll(RegExp('[km]'), '')) * mult;
+  }
+
+  /// "Compactar agora" (SPEC-107 R8): `thread/compact/start` once, with
+  /// the thread idle. The compaction runs as a turn (SPEC-093 R14) and
+  /// ends with a `result` of `num_turns: 0`. Never a "resuma" prompt, and
+  /// no focus: the App Server takes none (R9).
+  Future<void> compactNow() async {
+    if (_busy) {
+      throw const AgentUnavailable(
+        'Espere a resposta atual: compactar só com o agente ocioso.',
+      );
+    }
+    _busy = true;
+    _compactTurn = true;
+    _interruptAsked = false;
+    _answer = '';
+    _lastUsage = const {};
+    _baselineUsage = _totalUsage;
+    try {
+      await rpc.request('thread/compact/start', {'threadId': _thread});
+    } catch (_) {
+      _busy = false;
+      _compactTurn = false;
+      rethrow;
+    }
+  }
+
+  /// Model of the thread (null = not reported).
+  String? get model => _model;
 
   /// The selected model takes images (the `image` modality); else the
   /// app sends pictures as files (SPEC-051 R8).
   bool get supportsImages =>
       _models
-          .where((m) => m.id == options.model)
+          .where((m) => m.id == (_model ?? options.model))
           .firstOrNull
           ?.modalities
           .contains('image') ??
       false;
 
+  /// `UserInput` of a message: text plus images as data URLs (SPEC-093
+  /// R11 proved both data URL and `localImage`).
+  static List<Map<String, dynamic>> _input(
+    String text,
+    List<ImagePart> images,
+  ) => [
+    {'type': 'text', 'text': text},
+    for (final image in images)
+      {
+        'type': 'image',
+        'url': 'data:${image.mediaType};base64,${image.base64}',
+      },
+  ];
+
+  /// The turn's sandbox policy (SPEC-096 R10): `workspaceWrite` carries the
+  /// writable roots (the worktree's slice of the git common dir).
+  Map<String, dynamic> get _sandboxPolicy => switch (_sandbox) {
+    'danger-full-access' => {'type': 'dangerFullAccess'},
+    'read-only' => {'type': 'readOnly'},
+    _ => {
+      'type': 'workspaceWrite',
+      if (options.codex.writableRoots.isNotEmpty)
+        'writableRoots': options.codex.writableRoots,
+    },
+  };
+
+  /// Whether a message sent now goes into the running turn (`turn/steer`).
+  bool get steering => _busy && _turn != null;
+
   @override
   Future<void> send(String text, {List<ImagePart> images = const []}) async {
-    if (_busy) {
-      throw const AgentUnavailable(
-        'Codex já está respondendo. Aguarde ou interrompa o turno.',
-      );
-    }
     if (images.isNotEmpty) {
-      final model = options.model;
+      // The thread's model (the CLI default when `inherit`, SPEC-100 R6).
+      final model = _model ?? options.model;
       final selected = _models.where((m) => m.id == model).firstOrNull;
       if (selected == null || !selected.modalities.contains('image')) {
         throw const AgentUnavailable(
@@ -351,38 +662,43 @@ class CodexRun implements ManagedAgentRun {
         );
       }
     }
+    if (_busy) {
+      // SPEC-096 R7: a message during the turn directs it (`turn/steer`,
+      // proved by SPEC-093 R13); before the turn has an id, it waits.
+      final turn = _turn;
+      if (turn == null) {
+        throw const AgentUnavailable(
+          'Codex já está respondendo. Aguarde ou interrompa o turno.',
+        );
+      }
+      await rpc.request('turn/steer', {
+        'threadId': _thread,
+        'expectedTurnId': turn,
+        'input': _input(text, images),
+      });
+      return;
+    }
     _busy = true;
+    _interruptAsked = false;
     _answer = '';
     _texts.clear();
     _finishedItems.clear();
     _startedTools.clear();
+    _fileItems.clear();
     _lastUsage = const {};
     _baselineUsage = _totalUsage;
     try {
       final r = await rpc.request('turn/start', {
         'threadId': _thread,
         'approvalPolicy': _approval,
-        'sandboxPolicy': {
-          'type': switch (_sandbox) {
-            'danger-full-access' => 'dangerFullAccess',
-            'read-only' => 'readOnly',
-            _ => 'workspaceWrite',
-          },
-        },
-        'input': [
-          {'type': 'text', 'text': text},
-          for (final image in images)
-            {
-              'type': 'image',
-              'url': 'data:${image.mediaType};base64,${image.base64}',
-            },
-        ],
+        'sandboxPolicy': _sandboxPolicy,
+        'input': _input(text, images),
         if (options.effort != null && options.effort != 'default')
           'effort': options.effort,
         if (options.jsonSchema != null)
           'outputSchema': jsonDecode(options.jsonSchema!),
       });
-      if (_busy) _turn = (r['turn'] as Map?)?['id'] as String?;
+      if (_busy) _turn ??= (r['turn'] as Map?)?['id'] as String?;
     } catch (_) {
       _busy = false;
       rethrow;
@@ -424,6 +740,14 @@ class CodexRun implements ManagedAgentRun {
           );
         }
       case 'thread/tokenUsage/updated':
+        // SPEC-095 R4: `last` is the context; during a compaction it is the
+        // new size (`inputTokens = 0`), reported on the compaction event.
+        final ctx = codexContextUsage(p, model: _model);
+        if (_compacting != null) {
+          _compactedTokens = ctx?['tokens'] as int?;
+        } else if (ctx != null) {
+          _emit(ctx);
+        }
         final usage = p['tokenUsage'] as Map?;
         _totalUsage = Map<String, dynamic>.from(usage?['total'] as Map? ?? {});
         _lastUsage = {
@@ -432,12 +756,55 @@ class CodexRun implements ManagedAgentRun {
             'outputTokens',
             'cachedInputTokens',
             'cacheWriteInputTokens',
+            'reasoningOutputTokens',
           ])
             k:
                 ((_totalUsage[k] as num? ?? 0) -
                         (_baselineUsage[k] as num? ?? 0))
                     .clamp(0, 1 << 62),
         };
+      case 'mcpServer/startupStatus/updated':
+        // SPEC-105 R11: the footer counts the Codex servers.
+        codexMcpStartupUpdates.add(p);
+      case 'account/rateLimits/updated':
+        // R5, P5: passed on, never stored (the session drops it); the quota
+        // store merges it into the last reading (SPEC-097 R2).
+        final quota = codexQuota(p);
+        if (quota != null) _emit(quota);
+        codexRateLimitUpdates.add(p);
+      case 'thread/compacted':
+        // Deprecated in 0.170 (the `contextCompaction` item replaced it):
+        // only a fallback, once per turn (SPEC-107 R7).
+        final turnId = '${p['turnId'] ?? _turn ?? ''}';
+        if (_compacting != null ||
+            _itemCompactedTurns.contains(turnId) ||
+            !_notifiedCompactedTurns.add(turnId)) {
+          return;
+        }
+        _emit(
+          CompactionEvent.toJson(
+            provider: 'codex',
+            phase: CompactionEventPhase.completed,
+            trigger: _compactTurn ? 'manual' : 'auto',
+            key: 'compacted:$turnId',
+          ),
+        );
+      case 'model/rerouted':
+        // SPEC-107 R12: the service chose another model for the turn.
+        final to = p['toModel'];
+        if (to is String && to.isNotEmpty) {
+          _modelChanged(
+            to,
+            ContextAppEvents.rerouted,
+            from: p['fromModel'] as String?,
+          );
+        }
+      case 'thread/settings/updated':
+        final settings = p['threadSettings'];
+        final to = settings is Map ? settings['model'] : null;
+        if (to is String && to.isNotEmpty && to != _model) {
+          _modelChanged(to, ContextAppEvents.settings);
+        }
       case 'serverRequest/resolved':
         _cancel('codex-${p['requestId']}');
       case 'turn/completed':
@@ -446,6 +813,26 @@ class CodexRun implements ManagedAgentRun {
         _busy = false;
         _clearPending();
         final ok = turn['status'] == 'completed';
+        if (_compacting case final id?) {
+          // The turn ended before the compaction item did.
+          _finishedItems.add(id);
+          if (ok) _itemCompactedTurns.add(_turn ?? '');
+          _emit(
+            CompactionEvent.toJson(
+              provider: 'codex',
+              phase: ok
+                  ? CompactionEventPhase.completed
+                  : CompactionEventPhase.failed,
+              trigger: _compactTurn ? 'manual' : 'auto',
+              postTokens: _compactedTokens,
+              key: id,
+              error: ok ? null : _turnError(turn['error']),
+            ),
+          );
+          _compacting = null;
+        }
+        final compactTurn = _compactTurn;
+        _compactTurn = false;
         final cached = _lastUsage['cachedInputTokens'] as num? ?? 0;
         final input = _lastUsage['inputTokens'] as num? ?? 0;
         _emit({
@@ -455,18 +842,48 @@ class CodexRun implements ManagedAgentRun {
               : turn['status'] == 'interrupted'
               ? 'interrupted'
               : 'error_during_execution',
-          'is_error': !ok,
+          'is_error': !ok && turn['status'] != 'interrupted',
+          if (turn['status'] == 'interrupted')
+            'interrupt_reason': _interruptAsked ? 'user' : 'agent',
           'result': _answer,
           'cost_available': false,
-          'num_turns': 1,
+          // "Compactar agora" is not a work turn (SPEC-087 R9).
+          'num_turns': compactTurn ? 0 : 1,
           'usage': {
             'input_tokens': (input - cached).clamp(0, 1 << 62),
             'cache_read_input_tokens': cached,
             'output_tokens': _lastUsage['outputTokens'] ?? 0,
+            // Part of the output (SPEC-097 R8).
+            'reasoning_output_tokens': _lastUsage['reasoningOutputTokens'] ?? 0,
           },
           if (turn['error'] != null) 'error': turn['error'],
         });
         _turn = null;
+      case 'hook/started':
+      case 'hook/completed':
+        // SPEC-103 R6: which hook ran and how it ended; the details of the
+        // app's hooks come from its hooks.log.
+        final run = p['run'] as Map? ?? const {};
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook',
+          'method': method,
+          'hook': {
+            for (final k in [
+              'id',
+              'eventName',
+              'status',
+              'source',
+              'sourcePath',
+              'statusMessage',
+            ])
+              if (run[k] != null) k: run[k],
+            'entries': [
+              for (final e in run['entries'] as List? ?? const [])
+                if (e is Map) {'kind': e['kind'], 'text': e['text']},
+            ],
+          },
+        });
       case 'error':
         if (p['willRetry'] != true) {
           _emit({'type': 'system', 'subtype': 'error', 'error': p['error']});
@@ -501,15 +918,34 @@ class CodexRun implements ManagedAgentRun {
       });
       return;
     }
+    // SPEC-095 R7: files, commands and compactions in the neutral
+    // vocabulary; no more `Edit` / `Bash` pretending to be Claude.
+    switch (type) {
+      case 'fileChange':
+        _fileItems[id] = item;
+        _fileChange(id, item, complete: complete);
+        return;
+      case 'commandExecution':
+        if (complete ? _finishedItems.add(id) : _startedTools.add(id)) {
+          _emit(codexCommand(item));
+        }
+        return;
+      case 'contextCompaction':
+        _compaction(id, complete: complete);
+        return;
+    }
+    if (codexSilentItems.contains(type)) return;
     final name = switch (type) {
-      'commandExecution' => 'Bash',
-      'fileChange' => 'Edit',
       'mcpToolCall' => 'mcp__${item['server']}__${item['tool']}',
       'webSearch' => 'WebSearch',
       'collabAgentToolCall' => 'Agent',
       _ => null,
     };
-    if (name == null) return;
+    if (name == null) {
+      // R6: an item without translation is shown collapsed, not dropped.
+      if (complete && _finishedItems.add(id)) _emit(codexOtherItem(item));
+      return;
+    }
     if (_startedTools.add(id)) {
       _emit({
         'type': 'assistant',
@@ -523,11 +959,13 @@ class CodexRun implements ManagedAgentRun {
               'id': id,
               'name': name,
               'input': {
-                if (item['command'] != null) 'command': item['command'],
-                if (item['cwd'] != null) 'cwd': item['cwd'],
-                if (item['changes'] != null) 'changes': item['changes'],
+                if (item['query'] != null) 'query': item['query'],
                 if (item['arguments'] != null) 'arguments': item['arguments'],
                 if (item['prompt'] != null) 'prompt': item['prompt'],
+                // SPEC-107 R12: the subagent's own threads (separate
+                // contexts, never measured in the main one).
+                if (item['receiverThreadIds'] is List)
+                  'threads': item['receiverThreadIds'],
               },
             },
           ],
@@ -544,11 +982,7 @@ class CodexRun implements ManagedAgentRun {
             {
               'type': 'tool_result',
               'tool_use_id': id,
-              'content':
-                  item['aggregatedOutput'] ??
-                  item['result'] ??
-                  item['changes'] ??
-                  item['status'],
+              'content': item['result'] ?? item['status'],
               'is_error':
                   item['status'] == 'failed' ||
                   item['status'] == 'declined' ||
@@ -560,11 +994,95 @@ class CodexRun implements ManagedAgentRun {
     }
   }
 
+  /// One [FileChangeEvent] per entry of `changes[]` (R1), when the item
+  /// starts (proposed) and when it ends.
+  void _fileChange(
+    String id,
+    Map<String, dynamic> item, {
+    required bool complete,
+  }) {
+    if (!(complete ? _finishedItems.add(id) : _startedTools.add(id))) return;
+    final changes = item['changes'] as List? ?? const [];
+    for (var i = 0; i < changes.length; i++) {
+      final c = changes[i];
+      if (c is! Map<String, dynamic>) continue;
+      final f = codexFileChange(
+        c,
+        toolUseId: id,
+        index: i,
+        status: item['status'],
+      );
+      _emitFile(f.json, f.diff);
+    }
+  }
+
+  /// `contextCompaction` (R4): started, then completed with the new size
+  /// when the App Server reported it meanwhile. The reading stays "aguardando
+  /// medição" until the next `tokenUsage`.
+  void _compaction(String id, {required bool complete}) {
+    if (!complete) {
+      if (!_startedTools.add(id)) return;
+      _compacting = id;
+      _compactedTokens = null;
+      _emit(
+        CompactionEvent.toJson(
+          provider: 'codex',
+          phase: CompactionEventPhase.started,
+          trigger: _compactTurn ? 'manual' : 'auto',
+          key: id,
+        ),
+      );
+      return;
+    }
+    if (!_finishedItems.add(id)) return;
+    // R7: the deprecated `thread/compacted` of this turn came first.
+    if (_notifiedCompactedTurns.contains(_turn)) {
+      _compacting = null;
+      _compactedTokens = null;
+      return;
+    }
+    _itemCompactedTurns.add(_turn ?? id);
+    _emit(
+      CompactionEvent.toJson(
+        provider: 'codex',
+        phase: CompactionEventPhase.completed,
+        trigger: _compactTurn ? 'manual' : 'auto',
+        postTokens: _compactedTokens,
+        key: id,
+      ),
+    );
+    _compacting = null;
+    _compactedTokens = null;
+  }
+
+  /// A model change of the thread (R12): the next readings carry the new
+  /// model, and the marker invalidates the capacity of the old one.
+  void _modelChanged(String to, String reason, {String? from}) {
+    final old = from ?? _model;
+    _model = to;
+    if (old == to) return;
+    _emit(
+      ContextAppEvents.modelChangeEvent(
+        provider: 'codex',
+        from: old,
+        to: to,
+        reason: reason,
+      ),
+    );
+  }
+
+  static String? _turnError(Object? error) => switch (error) {
+    {'message': final String m} => m,
+    final String m => m,
+    _ => null,
+  };
+
   void _request(Object id, String method, Map<String, dynamic> p) {
     final question = method == 'item/tool/requestUserInput';
-    final approval =
-        method == 'item/commandExecution/requestApproval' ||
-        method == 'item/fileChange/requestApproval';
+    final command = method == 'item/commandExecution/requestApproval';
+    final file = method == 'item/fileChange/requestApproval';
+    final permissions = method == 'item/permissions/requestApproval';
+    final approval = command || file || permissions;
     if (!question && !approval) {
       unawaited(
         rpc.write({
@@ -581,10 +1099,31 @@ class CodexRun implements ManagedAgentRun {
       unawaited(
         rpc.write({
           'id': id,
-          'result': {'decision': 'decline'},
+          'result': permissions
+              ? {'permissions': <String, dynamic>{}, 'scope': 'turn'}
+              : {'decision': 'decline'},
         }),
       );
       return;
+    }
+    if (command && commandFilter != null) {
+      final rule = commandFilter!(p);
+      if (rule != null) {
+        unawaited(
+          rpc.write({
+            'id': id,
+            'result': {'decision': 'decline'},
+          }),
+        );
+        _emit({
+          'type': 'system',
+          'subtype': 'codex_hook_refused',
+          'command': p['command'],
+          'rule': rule,
+          'tool_use_id': p['itemId'],
+        });
+        return;
+      }
     }
     final key = 'codex-$id';
     _pending[key] = (id, method, p);
@@ -595,13 +1134,24 @@ class CodexRun implements ManagedAgentRun {
         'subtype': 'can_use_tool',
         'tool_name': question
             ? 'AskUserQuestion'
-            : method.contains('commandExecution')
+            : command
             ? 'Bash'
+            : permissions
+            ? codexPermissionsTool
             : 'Edit',
         'tool_use_id': p['itemId'],
-        'description': p['reason'],
-        'input': question ? {'questions': p['questions']} : p,
-        'permission_suggestions': const [],
+        'description': permissions ? codexPermissionsSummary(p) : p['reason'],
+        'input': question
+            ? {'questions': p['questions']}
+            : file
+            ? codexFileApprovalInput(p, _fileItems['${p['itemId']}'])
+            : p,
+        // SPEC-096 R6: "Aprovar nesta conversa" = `acceptForSession`, only
+        // where the App Server offers it (never under `untrusted`, never
+        // for permissions, which are granted for the turn only).
+        'permission_suggestions': [
+          if (!permissions && codexOffersSession(p)) codexSessionSuggestion,
+        ],
       },
     });
   }
@@ -628,12 +1178,22 @@ class CodexRun implements ManagedAgentRun {
     if (p == null) {
       throw const AgentUnavailable('A solicitação Codex já foi resolvida.');
     }
+    var decision = 'accept';
     if (updatedPermissions != null) {
-      throw const AgentUnavailable(
-        'Codex: persistência dessa permissão ainda não validada.',
+      // Only "Aprovar nesta conversa" (acceptForSession); nothing that
+      // writes in the global (no execpolicy amendment, SPEC-093 D6).
+      final session = updatedPermissions.any(
+        (s) => s is Map && s['type'] == codexSessionSuggestion['type'],
       );
+      if (!session || !codexOffersSession(p.$3)) {
+        throw const AgentUnavailable(
+          'Codex: persistência dessa permissão ainda não validada.',
+        );
+      }
+      decision = 'acceptForSession';
     }
     final question = p.$2 == 'item/tool/requestUserInput';
+    final permissions = p.$2 == 'item/permissions/requestApproval';
     final answers = <String, dynamic>{};
     if (question) {
       final input = updatedInput?['answers'] as Map? ?? const {};
@@ -650,7 +1210,19 @@ class CodexRun implements ManagedAgentRun {
     }
     await rpc.write({
       'id': p.$1,
-      'result': question ? {'answers': answers} : {'decision': 'accept'},
+      'result': question
+          ? {'answers': answers}
+          : permissions
+          // R6: what was asked, for this turn only.
+          ? {
+              'permissions': {
+                for (final k in ['fileSystem', 'network'])
+                  if ((p.$3['permissions'] as Map?)?[k] != null)
+                    k: (p.$3['permissions'] as Map)[k],
+              },
+              'scope': 'turn',
+            }
+          : {'decision': decision},
     });
     _cancel(requestId);
   }
@@ -661,16 +1233,27 @@ class CodexRun implements ManagedAgentRun {
     if (p == null) return;
     await rpc.write({
       'id': p.$1,
-      'result': p.$2 == 'item/tool/requestUserInput'
-          ? {'answers': <String, dynamic>{}}
-          : {'decision': 'decline'},
+      'result': switch (p.$2) {
+        'item/tool/requestUserInput' => {'answers': <String, dynamic>{}},
+        'item/permissions/requestApproval' => {
+          'permissions': <String, dynamic>{},
+          'scope': 'turn',
+        },
+        _ => {'decision': 'decline'},
+      },
     });
     _cancel(requestId);
   }
 
+  /// `hooks/list` of this thread (SPEC-103 R5): the hooks the App Server
+  /// will really run, with their origin and trust.
+  Future<Map<String, dynamic>> hooksList() =>
+      rpc.request('hooks/list', {'threadId': _thread});
+
   @override
   Future<void> interrupt() async {
     if (_turn != null && _busy) {
+      _interruptAsked = true;
       await rpc.request('turn/interrupt', {
         'threadId': _thread,
         'turnId': _turn,
@@ -685,9 +1268,9 @@ class CodexRun implements ManagedAgentRun {
         'Pare o turno antes de alterar as permissões Codex.',
       );
     }
-    throw const AgentUnavailable(
-      'Reinicie a sessão para aplicar o modo de permissão Codex.',
-    );
+    // R14: valid from the next `turn/start`; the thread stays read-only.
+    _access = codexAccessFor(mode);
+    _permissionMode = mode;
   }
 
   @override
@@ -701,4 +1284,88 @@ class CodexRun implements ManagedAgentRun {
     unawaited(_events.close());
     return code;
   }
+}
+
+/// Sandbox and approval of every `thread/start|resume|fork` (SPEC-093 D1):
+/// read-only never saves trust in ~/.codex/config.toml; the turn raises it.
+const codexThreadSandbox = 'read-only';
+const codexThreadApproval = 'never';
+
+/// Tool name of `item/permissions/requestApproval` in the approval card.
+const codexPermissionsTool = 'Permissões';
+
+/// The suggestion behind "Aprovar nesta conversa" (SPEC-096 R6, P2): the
+/// App Server's `acceptForSession`, valid until the process ends.
+const codexSessionSuggestion = <String, dynamic>{
+  'type': 'codexAcceptForSession',
+  'destination': 'session',
+};
+
+/// Whether the request offers `acceptForSession`: always for file changes;
+/// for commands, only when `availableDecisions` lists it (absent = the
+/// `on-request` default, which offers it; `untrusted` does not, SPEC-093 R7).
+bool codexOffersSession(Map<String, dynamic> p) {
+  final decisions = p['availableDecisions'];
+  if (decisions is! List) return true;
+  return decisions.contains('acceptForSession');
+}
+
+/// "rede; gravar em /a, /b" of a permissions request (SPEC-096 R6).
+String codexPermissionsSummary(Map<String, dynamic> p) {
+  final perms = p['permissions'] as Map? ?? const {};
+  final parts = <String>[];
+  final net = perms['network'];
+  if (net is Map && net['enabled'] == true) parts.add('acesso à rede');
+  final fs = perms['fileSystem'];
+  if (fs is Map) {
+    final write = [
+      for (final w in fs['write'] as List? ?? const []) '$w',
+      for (final e in fs['entries'] as List? ?? const [])
+        if (e is Map && e['access'] == 'write' && e['path'] is Map)
+          '${(e['path'] as Map)['path'] ?? (e['path'] as Map)['pattern'] ?? ''}',
+    ].where((w) => w.isNotEmpty).toList();
+    final read = [
+      for (final r in fs['read'] as List? ?? const []) '$r',
+      for (final e in fs['entries'] as List? ?? const [])
+        if (e is Map && e['access'] == 'read' && e['path'] is Map)
+          '${(e['path'] as Map)['path'] ?? (e['path'] as Map)['pattern'] ?? ''}',
+    ].where((r) => r.isNotEmpty).toList();
+    if (write.isNotEmpty) parts.add('gravar em ${write.join(', ')}');
+    if (read.isNotEmpty) parts.add('ler ${read.join(', ')}');
+  }
+  final what = parts.isEmpty ? 'permissões extras' : parts.join('; ');
+  final reason = p['reason'];
+  return 'O Codex quer liberar $what neste turno'
+      '${reason is String && reason.isNotEmpty ? ': $reason' : ''}.';
+}
+
+/// Input of a file approval card (SPEC-093 D5): the request has no
+/// changes, so they come from the `fileChange` item with the same id —
+/// the first path and the whole diff of every file.
+Map<String, dynamic> codexFileApprovalInput(
+  Map<String, dynamic> p,
+  Map<String, dynamic>? item,
+) {
+  final changes = item?['changes'] as List? ?? const [];
+  final files = <String>[];
+  final diffs = <String>[];
+  for (var i = 0; i < changes.length; i++) {
+    final c = changes[i];
+    if (c is! Map<String, dynamic>) continue;
+    final f = codexFileChange(
+      c,
+      toolUseId: '${p['itemId']}',
+      index: i,
+      status: null,
+    );
+    final path = '${f.json['path'] ?? ''}';
+    if (path.isNotEmpty) files.add(path);
+    if (f.diff case final d?) diffs.add(d);
+  }
+  return {
+    ...p,
+    'file_path': ?files.firstOrNull,
+    if (files.length > 1) 'files': files,
+    if (diffs.isNotEmpty) 'unified_diff': diffs.join(),
+  };
 }

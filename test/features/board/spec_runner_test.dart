@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/debt_links_repo.dart';
 import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
@@ -1266,6 +1267,67 @@ status: aprovada
       ]);
       expect(m.entries[1].origin, 'SPEC-001 R1');
     }, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('SPEC-112 R17: the step prompt reminds the open debts of the files '
+        'the spec cites; "paguei o DT-05" becomes "pago de carona?" to '
+        'confirm, and the debt does not close', () async {
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        '$specText\n## Plano\n\n- R1 mexe em `frontend/src/PagarView.vue`.\n',
+      );
+      const debts =
+          '| ID | Desde | O quê | Onde | Para resolver |\n'
+          '|---|---|---|---|---|\n'
+          '| DT-05 | 2026-11-21 | **Pagamento simulado**: não chama o '
+          'gateway. | `PagarView.vue` | ligar o gateway |\n'
+          '| DT-06 | 2026-11-21 | **Outro** | `outro.py` | — |\n';
+      File('$repo/DEBITO_TECNICO.md').writeAsStringSync(debts);
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(
+        prompt,
+        contains(
+          'Débitos abertos nestes arquivos: DT-05 (Pagamento simulado · '
+          '`PagarView.vue`). Pague se for barato e diga quais pagou.',
+        ),
+      );
+      expect(prompt, isNot(contains('DT-06')));
+      cli.last.emit(
+        resultLine('Paguei o DT-05 de carona.\nETAPA CONCLUÍDA: R1'),
+      );
+      final links = c.read(debtLinksRepoProvider);
+      await until(() async => (await links.byCode(repo, 'DT-05')) != null);
+      final l = (await links.byCode(repo, 'DT-05'))!;
+      expect(l.piggybackSpecId, spec.id);
+      expect(l.piggybackState, DebtPiggybackState.toConfirm);
+      expect(await links.byCode(repo, 'DT-06'), isNull);
+      // Never closes by itself.
+      expect(File('$repo/DEBITO_TECNICO.md').readAsStringSync(), debts);
+    });
+
+    test('SPEC-112 R17: debitos.lembrar_na_execucao: false leaves the '
+        'reminder out', () async {
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        '$specText\n## Plano\n\n- R1 mexe em `PagarView.vue`.\n',
+      );
+      File('$repo/DEBITO_TECNICO.md').writeAsStringSync(
+        '| ID | Desde | O quê | Onde | Para resolver |\n'
+        '|---|---|---|---|---|\n'
+        '| DT-05 | 2026-11-21 | **Pagamento simulado** | `PagarView.vue` '
+        '| — |\n',
+      );
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('debitos:\n  lembrar_na_execucao: false\n');
+      await c.read(specRunnerProvider).runNext(spec.id);
+      await settle();
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(prompt, isNot(contains('Débitos abertos')));
+      expect(prompt, isNot(contains('DT-05')));
+    });
 
     test('spec file changed while it runs: flagged, no next step until '
         'confirmed (F11)', () async {

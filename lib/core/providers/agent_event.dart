@@ -1,4 +1,8 @@
-import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:convert' show jsonDecode, jsonEncode, utf8;
+
+import '../claude/claude_neutral.dart' as neutral;
+
+part 'neutral_events.dart';
 
 /// One NDJSON line of `claude -p --output-format stream-json --verbose`
 /// (plano, Fase 0.2).
@@ -57,6 +61,8 @@ sealed class AgentEvent {
   }
 
   static AgentEvent _parse(Map<String, dynamic> j) {
+    final n = _parseNeutral(j);
+    if (n != null) return n;
     switch (j['type']) {
       case 'system':
         return switch (j['subtype']) {
@@ -232,6 +238,14 @@ class ToolUseBlock extends ContentBlock {
   final String id;
   final String name;
   final Map<String, dynamic> input;
+
+  /// The files this call changes, in the neutral vocabulary (SPEC-095 R1,
+  /// R8): empty for a tool that edits nothing.
+  List<FileChangeEvent> get fileChanges => neutral.claudeFileChanges(this);
+
+  /// The shell command of this call (R2, R8), still running; null for other
+  /// tools. Its `tool_result` completes it ([CommandEvent.completedWith]).
+  CommandEvent? get command => neutral.claudeCommand(this);
 }
 
 /// Block type the app does not know (kept raw).
@@ -261,6 +275,9 @@ class AssistantMessage extends AgentEvent {
 
   /// Non-null ⇒ message of a subagent.
   final String? parentToolUseId;
+
+  /// The context measured by this call (SPEC-095 R3), null without usage.
+  ContextUsageEvent? get contextUsage => neutral.claudeContextUsage(this);
 
   static ContentBlock _block(Map<String, dynamic> b) => switch (b['type']) {
     'text' => TextBlock(_str(b['text']) ?? ''),
@@ -341,6 +358,9 @@ class RateLimit extends AgentEvent {
   /// 0–1.
   final double? sevenDayUtilization;
   final DateTime? sevenDayResetsAt;
+
+  /// The same reading in the neutral vocabulary (SPEC-095 R5).
+  QuotaEvent get quota => neutral.claudeQuota(this);
 
   static Map<String, dynamic> _info(Map<String, dynamic> j) =>
       _map(j['rate_limit_info']);
@@ -452,6 +472,13 @@ class Result extends AgentEvent {
   final String? result;
 
   bool get isSuccess => subtype == 'success' && !isError;
+
+  /// The turn was interrupted (Codex `turn/interrupt`): not a failure, it
+  /// can be resumed (SPEC-096 R7, R12).
+  bool get isInterrupted => subtype == 'interrupted';
+
+  /// Who interrupted it (`user` = "Interromper", SPEC-096 P3).
+  String? get interruptReason => _str(json['interrupt_reason']);
 }
 
 /// Anything not recognised (or an invalid line, see [raw]).

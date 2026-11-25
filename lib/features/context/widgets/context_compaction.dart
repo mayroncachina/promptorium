@@ -32,6 +32,7 @@ class AutocompactControl extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (snapshot.isCodex) return _CodexAutocompactControl(snapshot: snapshot);
     final global = ref.watch(runPrefsProvider).autocompact;
     final effective = snapshot.configuredAutocompact;
     final settings = ref.read(appSettingsProvider.notifier);
@@ -166,6 +167,152 @@ class AutocompactControl extends ConsumerWidget {
               'O agente informa que compacta em ${contextTokens(threshold)}'
               '${snapshot.autocompactWindow == null ? '' : ' (janela de ${contextTokens(snapshot.autocompactWindow!)} menos a reserva do resumo)'}'
               ', diferente da capacidade da janela.',
+              style: _label,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The Codex threshold (SPEC-107 R6, P1): its own preference
+/// (`codex.autocompact`), the value sent to this execution
+/// (`model_auto_compact_token_limit`) or the effective one of `config/read`,
+/// and Claude's beside it, separate.
+class _CodexAutocompactControl extends ConsumerWidget {
+  const _CodexAutocompactControl({required this.snapshot});
+
+  final ContextSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(runPrefsProvider);
+    final global = prefs.codexAutocompact;
+    final claude = prefs.autocompact;
+    final effective = snapshot.configuredAutocompact;
+    final settings = ref.read(appSettingsProvider.notifier);
+    final t = snapshot.threshold;
+    final String note;
+    if (snapshot.thresholdSource == ContextThresholdSource.config &&
+        t != null) {
+      note =
+          'O Codex informa que compacta em ${contextTokens(t)} (config/read). '
+          'Mudanças valem para as próximas execuções.';
+    } else if (effective == null) {
+      note =
+          'Vale para as próximas execuções. Esta execução não informou o '
+          'valor que recebeu.';
+    } else if (effective != global) {
+      note =
+          '${autocompactChoiceLabel(global)} vale para as próximas execuções. '
+          'Esta segue em ${autocompactLabel(effective)}'
+          '${effective == 'auto' ? '' : ' (model_auto_compact_token_limit)'}.';
+    } else if (effective == 'auto') {
+      note =
+          'O app não enviou limite: o Codex compacta no padrão dele. '
+          'Mudanças valem para as próximas execuções.';
+    } else {
+      note =
+          'Enviado ao Codex nesta execução (model_auto_compact_token_limit). '
+          'Mudanças valem para as próximas.';
+    }
+    final scope = snapshot.autocompactScope;
+    return Container(
+      key: const ValueKey('context-autocompact'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              const Text('Auto compactar · Codex', style: _title),
+              const Text('em', style: _label),
+              PopupMenuButton<String>(
+                key: const ValueKey('context-autocompact-menu'),
+                tooltip: 'Mudar a compactação automática do Codex',
+                initialValue: global,
+                onSelected: (v) =>
+                    settings.set(AppSettingKeys.codexAutocompact, v),
+                itemBuilder: (_) => [
+                  for (final c in autocompactChoices)
+                    PopupMenuItem(
+                      key: ValueKey('context-autocompact-$c'),
+                      value: c,
+                      child: Text(autocompactChoiceLabel(c)),
+                    ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.borderHover),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        autocompactChoiceLabel(global),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 12,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.expand_more,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                key: const ValueKey('context-autocompact-claude'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  'Claude: ${autocompactLabel(claude)}, separado',
+                  style: _label,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            note,
+            key: const ValueKey('context-autocompact-note'),
+            style: TextStyle(
+              fontSize: 11.5,
+              color: effective != null && effective != global
+                  ? AppColors.amber
+                  : AppColors.textSecondary,
+            ),
+          ),
+          if (scope != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Escopo do limite informado pelo Codex: '
+              '${scope == 'total'
+                  ? 'contexto inteiro'
+                  : scope == 'body_after_prefix'
+                  ? 'corpo depois do prefixo'
+                  : scope}.',
               style: _label,
             ),
           ],
@@ -447,7 +594,8 @@ class _Button extends StatelessWidget {
 }
 
 /// How a new conversation starts (R9).
-enum NewConversationStart { empty, summary }
+/// How a new conversation starts (R9; the ai-memory handoff, SPEC-099 R12).
+enum NewConversationStart { empty, summary, handoff }
 
 /// The actions of the panel (R9): adjust the auto compaction, review the
 /// next attachments, a new conversation (Prompt) and "Compactar agora".
@@ -462,6 +610,10 @@ class ContextActions extends StatefulWidget {
     this.onReviewAttachments,
     this.onNewConversation,
     this.summary,
+    this.providers = const [],
+    this.provider,
+    this.onProvider,
+    this.handoff,
   });
 
   final ContextSnapshot snapshot;
@@ -478,6 +630,17 @@ class ContextActions extends StatefulWidget {
 
   /// The summary built by the app (no model call) for a new conversation.
   final String Function()? summary;
+
+  /// SPEC-099 R12: the providers the new conversation can run in (more
+  /// than one only where the Codex runs in the Prompt), the current one and
+  /// the choice.
+  final List<String> providers;
+  final String? provider;
+  final ValueChanged<String>? onProvider;
+
+  /// SPEC-099 R12: the message that delivers the next ai-memory handoff
+  /// (null result = none); null = ai-memory off.
+  final Future<String?> Function()? handoff;
 
   @override
   State<ContextActions> createState() => _ContextActionsState();
@@ -501,7 +664,8 @@ class _ContextActionsState extends State<ContextActions> {
       _error = null;
     });
     try {
-      await widget.onCompact(_focus.text);
+      // SPEC-107 R9: no focus for the Codex.
+      await widget.onCompact(_codex ? null : _focus.text);
       _focus.clear();
     } catch (e) {
       // R9: a failure keeps the conversation and its history.
@@ -511,15 +675,32 @@ class _ContextActionsState extends State<ContextActions> {
     }
   }
 
+  late String? _provider = widget.provider;
+
+  bool get _codex => widget.snapshot.isCodex || widget.provider == 'codex';
+
   Future<void> _newConversation() async {
     final go = widget.onNewConversation!;
-    if (_start == NewConversationStart.empty || widget.summary == null) {
+    if (_provider != null && _provider != widget.provider) {
+      widget.onProvider?.call(_provider!);
+    }
+    if (_start == NewConversationStart.empty ||
+        (_start == NewConversationStart.summary && widget.summary == null)) {
       go(null);
       return;
     }
+    String? initial;
+    if (_start == NewConversationStart.handoff) {
+      initial = await widget.handoff?.call();
+      if (initial == null) {
+        if (mounted) setState(() => _error = 'Nenhuma passagem aberta.');
+        return;
+      }
+    }
+    if (!mounted) return;
     final text = await showDialog<String>(
       context: context,
-      builder: (_) => _SummaryDialog(initial: widget.summary!()),
+      builder: (_) => _SummaryDialog(initial: initial ?? widget.summary!()),
     );
     if (text != null) go(text);
   }
@@ -530,6 +711,7 @@ class _ContextActionsState extends State<ContextActions> {
     final effective = s.configuredAutocompact;
     final a = widget.availability;
     final c = s.current;
+    final codex = _codex;
     return Column(
       key: const ValueKey('context-actions'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -569,7 +751,9 @@ class _ContextActionsState extends State<ContextActions> {
                 children: [
                   const Text('Auto compactar', style: _label),
                   Text(
-                    effective == null
+                    codex && s.threshold != null
+                        ? 'em ${contextTokens(s.threshold!)} tokens'
+                        : effective == null
                         ? 'não informado'
                         : effective == 'auto'
                         ? 'padrão do agente'
@@ -595,11 +779,15 @@ class _ContextActionsState extends State<ContextActions> {
         _ActionRow(
           key: const ValueKey('context-action-adjust'),
           icon: Icons.tune,
-          title: 'Ajustar compactação automática',
+          title: codex
+              ? 'Ajustar compactação automática do Codex'
+              : 'Ajustar compactação automática',
           text: effective == null
-              ? 'Muda o limiar global. Vale para as próximas execuções.'
-              : 'Muda o limiar global. Vale para as próximas execuções; '
-                    'esta segue em ${autocompactLabel(effective)}.',
+              ? 'Muda o limiar ${codex ? 'do Codex' : 'global'}. Vale para '
+                    'as próximas execuções.'
+              : 'Muda o limiar ${codex ? 'do Codex' : 'global'}. Vale para '
+                    'as próximas execuções; esta segue em '
+                    '${autocompactLabel(effective)}.',
           onTap: widget.onAdjust,
         ),
         if (widget.onReviewAttachments != null) ...[
@@ -642,17 +830,46 @@ class _ContextActionsState extends State<ContextActions> {
                     style: _label,
                   ),
                 ),
+                if (widget.providers.length > 1) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 26),
+                    child: Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text('Nova conversa em', style: _label),
+                        for (final p in widget.providers)
+                          ChoiceChip(
+                            key: ValueKey('context-new-provider-$p'),
+                            label: Text(
+                              p == 'codex' ? 'Codex' : 'Claude Code',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            selected: _provider == p,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => setState(() => _provider = p),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 4,
                   children: [
-                    for (final (v, label) in const [
+                    for (final (v, label) in [
                       (NewConversationStart.empty, 'Começar vazia'),
                       (
                         NewConversationStart.summary,
                         'Levar um resumo desta conversa',
                       ),
+                      if (widget.handoff != null)
+                        (
+                          NewConversationStart.handoff,
+                          'Com a passagem do ai-memory',
+                        ),
                     ])
                       InkWell(
                         key: ValueKey('context-new-${v.name}'),
@@ -692,9 +909,11 @@ class _ContextActionsState extends State<ContextActions> {
                   alignment: Alignment.centerRight,
                   child: _Button(
                     key: const ValueKey('context-new-go'),
-                    label: _start == NewConversationStart.summary
-                        ? 'Revisar resumo'
-                        : 'Começar vazia',
+                    label: switch (_start) {
+                      NewConversationStart.summary => 'Revisar resumo',
+                      NewConversationStart.handoff => 'Revisar mensagem',
+                      NewConversationStart.empty => 'Começar vazia',
+                    },
                     onTap: _newConversation,
                   ),
                 ),
@@ -743,13 +962,29 @@ class _ContextActionsState extends State<ContextActions> {
                 padding: const EdgeInsets.only(left: 26, top: 4),
                 child: Text(
                   a.reason ??
-                      'Usa o comando nativo do agente (/compact) com o agente '
-                          'ocioso, um pedido por vez, sem mudar o acesso.',
+                      (codex
+                          ? 'Usa o comando nativo do Codex '
+                                '(thread/compact/start) com o agente ocioso, '
+                                'um pedido por vez, sem mudar o acesso. Gasta '
+                                'uma chamada ao modelo.'
+                          : 'Usa o comando nativo do agente (/compact) com o '
+                                'agente ocioso, um pedido por vez, sem mudar o '
+                                'acesso.'),
                   key: const ValueKey('context-compact-reason'),
                   style: _label,
                 ),
               ),
-              if (a.ok) ...[
+              // SPEC-107 R9, P3: `thread/compact/start` takes no focus.
+              if (a.ok && codex)
+                const Padding(
+                  padding: EdgeInsets.only(left: 26, top: 6),
+                  child: Text(
+                    'Foco do resumo: o Codex não aceita foco na compactação.',
+                    key: ValueKey('context-compact-no-focus'),
+                    style: _label,
+                  ),
+                ),
+              if (a.ok && !codex) ...[
                 const SizedBox(height: 6),
                 Padding(
                   padding: const EdgeInsets.only(left: 26),
@@ -831,7 +1066,13 @@ class _ActionRow extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(title, style: _title),
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: _title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       if (badge != null) ...[
                         const SizedBox(width: 6),
                         Container(

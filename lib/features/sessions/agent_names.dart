@@ -15,6 +15,7 @@ class AgentRef {
     this.model,
     this.effort,
     this.tools = const [],
+    this.file,
   });
 
   final String name;
@@ -36,6 +37,9 @@ class AgentRef {
 
   /// `tools` of the frontmatter (empty = every tool).
   final List<String> tools;
+
+  /// The whole file, for the Codex translation (SPEC-106 R8).
+  final AgentFile? file;
 
   /// Whether the agent can call subagents (`Task` / `Agent` tool).
   bool get canUseSubagents =>
@@ -78,6 +82,7 @@ List<AgentRef> effectiveAgents(List<AgentEntry> entries) {
       model: e.file.model,
       effort: e.file.effort,
       tools: e.file.tools,
+      file: e.file,
     );
   }
   return byName.values.toList()..sort((a, b) => a.name.compareTo(b.name));

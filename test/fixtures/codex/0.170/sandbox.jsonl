@@ -1,0 +1,19 @@
+{"dir": "send", "msg": {"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "promptorium", "title": "Promptorium", "version": "0.22.0"}}}}
+{"dir": "recv", "msg": {"id": 1, "result": {"userAgent": "promptorium/0.170.0 (Ubuntu 24.4.0; x86_64) gnome-terminal (promptorium; 0.22.0)", "codexHome": "~/.codex", "platformFamily": "unix", "platformOs": "linux"}}}
+{"dir": "recv", "msg": {"method": "configWarning", "params": {"summary": "Codex's Linux sandbox uses bubblewrap and needs access to create user namespaces.", "details": null}, "emittedAtMs": 1795224677558}}
+{"dir": "recv", "msg": {"method": "remoteControl/status/changed", "params": {"status": "disabled", "serverName": "[redigido]", "installationId": "[redigido]", "environmentId": null}, "emittedAtMs": 1795224677558}}
+{"dir": "send", "msg": {"method": "initialized", "params": {}}}
+{"dir": "send", "msg": {"id": 2, "method": "command/exec", "params": {"command": ["sh", "-c", "echo ok"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "readOnly"}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 2, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 3, "method": "command/exec", "params": {"command": ["sh", "-c", "echo x > ro.txt"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "readOnly"}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 3, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 4, "method": "command/exec", "params": {"command": ["sh", "-c", "echo x > ww.txt && echo gravou"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "workspaceWrite", "excludeSlashTmp": true, "excludeTmpdirEnvVar": true}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 4, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 5, "method": "command/exec", "params": {"command": ["sh", "-c", "echo agente=$PROMPTORIUM_AGENTE"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "workspaceWrite", "excludeSlashTmp": true, "excludeTmpdirEnvVar": true}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 5, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 6, "method": "command/exec", "params": {"command": ["sh", "-c", "echo a > a.txt && git add a.txt && git commit -qm a && echo commitou"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "workspaceWrite", "excludeSlashTmp": true, "excludeTmpdirEnvVar": true}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 6, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 7, "method": "command/exec", "params": {"command": ["sh", "-c", "echo b > b.txt && git add b.txt && git commit -qm b && echo commitou"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "workspaceWrite", "excludeSlashTmp": true, "excludeTmpdirEnvVar": true, "writableRoots": ["<sonda>/repos/sandbox/repo/.git"]}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 7, "result": {"exitCode": 1, "stdout": "", "stderr": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n"}}}
+{"dir": "send", "msg": {"id": 8, "method": "command/exec", "params": {"command": ["sh", "-c", "echo agente=$PROMPTORIUM_AGENTE"], "cwd": "<sonda>/repos/sandbox/wt", "sandboxPolicy": {"type": "dangerFullAccess"}, "timeoutMs": 20000}}}
+{"dir": "recv", "msg": {"id": 8, "result": {"exitCode": 0, "stdout": "agente=codex\n", "stderr": ""}}}

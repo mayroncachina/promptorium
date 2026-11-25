@@ -44,6 +44,8 @@ import '../specs/spec_file.dart';
 ///   modelo: haiku
 ///   orcamento: 0.30
 ///   rodadas: 2
+///   provedor: execucao       # outro | claude | codex (SPEC-102 R1)
+///   modelo-codex: gpt-6.1-terra  # optional (SPEC-102 R4)
 /// autopilot:
 ///   paralelo: 3
 ///   orcamento-dia: 10
@@ -52,6 +54,10 @@ import '../specs/spec_file.dart';
 ///   input: version           # field of the version (default version)
 /// git:
 ///   marcar-commits-de-agente: true  # trailer nos commits das sessões
+/// debitos:                  # SPEC-112
+///   arquivo: DEBITO_TECNICO.md
+///   decisoes: DECISOES_PENDENTES.md
+///   lembrar_na_execucao: true
 /// review:
 ///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
 ///   corrigir-ci: automatico         # SPEC-073 R11 (padrão: manual)
@@ -195,14 +201,32 @@ class ReviewerConfig {
     this.model = 'haiku',
     this.budgetUsd = 0.30,
     this.rounds = 2,
+    this.provider = ReviewerProvider.execution,
+    this.codexModel,
   });
 
   final bool enabled;
+
+  /// Claude Code model (`modelo:`): never sent to another provider.
   final String model;
+
+  /// US\$ per round (`orcamento:`): Claude Code only (SPEC-102 R6).
   final double budgetUsd;
 
   /// Correction rounds before handing the spec to the user.
   final int rounds;
+
+  /// Who reviews (`provedor:`, SPEC-102 R1): `execucao` (default), `outro`,
+  /// `claude` or `codex`.
+  final String provider;
+
+  /// Codex model (`modelo-codex:`, SPEC-102 R4, P4): null = the local
+  /// preference.
+  final String? codexModel;
+
+  /// Whether `provedor:` was written explicitly (it beats the plan's rule
+  /// in Automático, SPEC-102 R3).
+  bool get explicitProvider => provider != ReviewerProvider.execution;
 
   bool get isDefault => this == const ReviewerConfig();
 
@@ -212,10 +236,31 @@ class ReviewerConfig {
       other.enabled == enabled &&
       other.model == model &&
       other.budgetUsd == budgetUsd &&
-      other.rounds == rounds;
+      other.rounds == rounds &&
+      other.provider == provider &&
+      other.codexModel == codexModel;
 
   @override
-  int get hashCode => Object.hash(enabled, model, budgetUsd, rounds);
+  int get hashCode =>
+      Object.hash(enabled, model, budgetUsd, rounds, provider, codexModel);
+}
+
+/// Values of `revisor: provedor:` (SPEC-102 R1).
+abstract final class ReviewerProvider {
+  /// The provider that executed the spec (default, P2).
+  static const execution = 'execucao';
+
+  /// The provider that did not execute it: a second opinion.
+  static const other = 'outro';
+  static const claude = 'claude';
+  static const codex = 'codex';
+
+  static const values = [execution, other, claude, codex];
+
+  /// The value of the config, or [execution] for an unknown one.
+  static String parse(String? v) => values.contains(v?.trim().toLowerCase())
+      ? v!.trim().toLowerCase()
+      : execution;
 }
 
 /// `autopilot:` of the config: limits of the Quadro's Autopilot.
@@ -375,6 +420,53 @@ class VibeConfig {
   int get hashCode => Object.hash(dir, maxFiles, maxLines, printsCommand);
 }
 
+/// `debitos:` of the config (SPEC-112 R1, R17): where the debts and the
+/// pending decisions live and whether the step prompt reminds the agent of
+/// the open debts of the spec's files.
+@immutable
+class DebtsConfig {
+  const DebtsConfig({
+    this.debtsPath = defaultDebtsPath,
+    this.decisionsPath = defaultDecisionsPath,
+    this.remindOnRun = true,
+  });
+
+  static const defaultDebtsPath = 'DEBITO_TECNICO.md';
+  static const defaultDecisionsPath = 'DECISOES_PENDENTES.md';
+
+  /// `arquivo` / `decisoes`, relative to the repository.
+  final String debtsPath;
+  final String decisionsPath;
+
+  /// `lembrar_na_execucao`.
+  final bool remindOnRun;
+
+  bool get isDefault =>
+      debtsPath == defaultDebtsPath &&
+      decisionsPath == defaultDecisionsPath &&
+      remindOnRun;
+
+  DebtsConfig copyWith({
+    String? debtsPath,
+    String? decisionsPath,
+    bool? remindOnRun,
+  }) => DebtsConfig(
+    debtsPath: debtsPath ?? this.debtsPath,
+    decisionsPath: decisionsPath ?? this.decisionsPath,
+    remindOnRun: remindOnRun ?? this.remindOnRun,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DebtsConfig &&
+      other.debtsPath == debtsPath &&
+      other.decisionsPath == decisionsPath &&
+      other.remindOnRun == remindOnRun;
+
+  @override
+  int get hashCode => Object.hash(debtsPath, decisionsPath, remindOnRun);
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -404,6 +496,7 @@ class ProjectConfig {
     this.autoResolveConflicts = false,
     this.autoFixCi = false,
     this.secretIgnore = const [],
+    this.debts = const DebtsConfig(),
   });
 
   static const defaultSpecsDir = 'specs';
@@ -471,6 +564,9 @@ class ProjectConfig {
   /// segredos does not check (`test/fixtures/**`).
   final List<String> secretIgnore;
 
+  /// `debitos:` (SPEC-112).
+  final DebtsConfig debts;
+
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
 
@@ -513,6 +609,7 @@ class ProjectConfig {
     bool? autoResolveConflicts,
     bool? autoFixCi,
     List<String>? secretIgnore,
+    DebtsConfig? debts,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -540,6 +637,7 @@ class ProjectConfig {
     autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
     autoFixCi: autoFixCi ?? this.autoFixCi,
     secretIgnore: secretIgnore ?? this.secretIgnore,
+    debts: debts ?? this.debts,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -640,7 +738,21 @@ class ProjectConfig {
     final vibeDir = str(vb['pasta']);
     final iss = map('issues');
     const di = IssuesConfig();
+    final deb = map('debitos');
+    String? debtPath(Object? v) {
+      final p = str(v);
+      return p != null && _safeRelative(p) ? p : null;
+    }
+
     return ProjectConfig(
+      debts: DebtsConfig(
+        debtsPath: debtPath(deb['arquivo']) ?? DebtsConfig.defaultDebtsPath,
+        decisionsPath:
+            debtPath(deb['decisoes']) ?? DebtsConfig.defaultDecisionsPath,
+        remindOnRun:
+            boolean(deb['lembrar_na_execucao'] ?? deb['lembrar-na-execucao']) ??
+            true,
+      ),
       issues: IssuesConfig(
         closesInPr: boolean(iss['closes-no-pr']) ?? di.closesInPr,
         commentProgress:
@@ -700,6 +812,8 @@ class ProjectConfig {
         model: str(r['modelo']) ?? dr.model,
         budgetUsd: number(r['orcamento']) ?? dr.budgetUsd,
         rounds: integer(r['rodadas']) ?? dr.rounds,
+        provider: ReviewerProvider.parse(str(r['provedor'])),
+        codexModel: str(r['modelo-codex']),
       ),
       autopilot: AutopilotConfig(
         parallel: integer(a['paralelo'], min: 1),
@@ -805,6 +919,12 @@ class ProjectConfig {
         ..writeln('  modelo: ${reviewer.model}')
         ..writeln('  orcamento: ${reviewer.budgetUsd}')
         ..writeln('  rodadas: ${reviewer.rounds}');
+      if (reviewer.explicitProvider) {
+        b.writeln('  provedor: ${reviewer.provider}');
+      }
+      if (reviewer.codexModel case final m?) {
+        b.writeln('  modelo-codex: ${jsonEncode(m)}');
+      }
     }
     if (!autopilot.isDefault) {
       b.writeln('autopilot:');
@@ -846,6 +966,16 @@ class ProjectConfig {
       for (final g in secretIgnore) {
         b.writeln('    - ${jsonEncode(g)}');
       }
+    }
+    if (!debts.isDefault) {
+      b.writeln('debitos:');
+      if (debts.debtsPath != DebtsConfig.defaultDebtsPath) {
+        b.writeln('  arquivo: ${_quote(debts.debtsPath)}');
+      }
+      if (debts.decisionsPath != DebtsConfig.defaultDecisionsPath) {
+        b.writeln('  decisoes: ${_quote(debts.decisionsPath)}');
+      }
+      if (!debts.remindOnRun) b.writeln('  lembrar_na_execucao: false');
     }
     if (!vibe.isDefault) {
       b.writeln('vibe:');

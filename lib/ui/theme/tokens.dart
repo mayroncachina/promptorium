@@ -73,6 +73,15 @@ abstract final class AppColors {
   /// Text/icons drawn on top of amber.
   static const onAmber = Color(0xFF1A1206);
 
+  /// Identity of the Claude Code provider: clay (SPEC-094 R14). Only for
+  /// who runs (glyph mark, border, chip), never for state, and never alone:
+  /// always with the name, the logo or the glyph. Text on it: [onAmber].
+  static const providerClaude = Color(0xFFD97757);
+
+  /// Identity of the Codex provider: porcelain (SPEC-094 R14). Same rules
+  /// as [providerClaude]; it never paints the OpenAI logo.
+  static const providerCodex = Color(0xFFE8E4DA);
+
   /// Text of a disabled action, on [surfaceRaised]: 4,5:1 or more without
   /// lowering the opacity (SPEC-025 R10, SPEC-024 R10).
   static const textDisabled = Color(0xFF8A93A3);

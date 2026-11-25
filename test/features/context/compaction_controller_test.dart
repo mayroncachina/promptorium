@@ -44,14 +44,24 @@ void main() {
   });
 
   group('disponibilidade (R9)', () {
-    test('só Claude, com histórico, ocioso e sem compactação em curso', () {
+    test('pela capacidade, com histórico, ocioso e sem compactação em '
+        'curso', () {
       final s = withReading();
       expect(
         compactAvailability(provider: 'claude', busy: false, snapshot: s).ok,
         isTrue,
       );
+      // SPEC-107 R8: the Codex has `compactNow`; an ACP agent does not.
       expect(
-        compactAvailability(provider: 'codex', busy: false, snapshot: s).reason,
+        compactAvailability(provider: 'codex', busy: false, snapshot: s).ok,
+        isTrue,
+      );
+      expect(
+        compactAvailability(
+          provider: 'gemini',
+          busy: false,
+          snapshot: s,
+        ).reason,
         contains('não confirmou um comando nativo'),
       );
       expect(
@@ -105,7 +115,7 @@ void main() {
       final ok = await c.request(
         'conv:1',
         compactAvailability(
-          provider: 'codex',
+          provider: 'gemini',
           busy: false,
           snapshot: withReading(),
         ),

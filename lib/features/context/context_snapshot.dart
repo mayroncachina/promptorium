@@ -20,10 +20,13 @@ class ContextReading {
     this.input = 0,
     this.cacheWrite = 0,
     this.cacheRead = 0,
+    this.output = 0,
     this.model,
     this.messageId,
+    this.turnId,
     this.live = true,
     this.turnEnd = false,
+    this.source = ContextReadingSource.claudeUsage,
   });
 
   /// `input + cacheWrite + cacheRead` of the call (output is not context
@@ -32,8 +35,15 @@ class ContextReading {
   final int input;
   final int cacheWrite;
   final int cacheRead;
+
+  /// Output of the call when the agent counts it in the size (Codex
+  /// `last.totalTokens`, SPEC-107 R3); 0 for Claude.
+  final int output;
   final String? model;
   final String? messageId;
+
+  /// The agent's turn id (Codex `turnId`, SPEC-107 R4).
+  final String? turnId;
   final DateTime at;
 
   /// 1-based turn (user message → `result`) of the execution history.
@@ -49,8 +59,14 @@ class ContextReading {
   /// The `result` of its turn arrived ("medido no fim do turno N").
   final bool turnEnd;
 
-  /// The three parts are measured in the same call and do not overlap.
-  bool get hasComposition => input + cacheWrite + cacheRead == tokens;
+  /// Where the agent reported it (SPEC-095 R3): `claude-usage` (the
+  /// `usage` of a Claude call) or `codex-tokenUsage` (`tokenUsage.last`).
+  final String source;
+
+  /// The parts are measured in the same call and do not overlap.
+  bool get hasComposition => input + cacheWrite + cacheRead + output == tokens;
+
+  bool get isCodex => source == ContextReadingSource.codexTokenUsage;
 
   ContextReading copyWith({bool? turnEnd, bool? live}) => ContextReading(
     tokens: tokens,
@@ -60,11 +76,20 @@ class ContextReading {
     input: input,
     cacheWrite: cacheWrite,
     cacheRead: cacheRead,
+    output: output,
     model: model,
     messageId: messageId,
+    turnId: turnId,
     live: live ?? this.live,
     turnEnd: turnEnd ?? this.turnEnd,
+    source: source,
   );
+}
+
+/// Values of [ContextReading.source] (SPEC-095 R3).
+abstract final class ContextReadingSource {
+  static const claudeUsage = 'claude-usage';
+  static const codexTokenUsage = 'codex-tokenUsage';
 }
 
 enum ContextMarkerKind { compaction, modelChange }
@@ -85,6 +110,7 @@ class ContextMarker {
     this.fromModel,
     this.toModel,
     this.key,
+    this.reason,
   });
 
   final ContextMarkerKind kind;
@@ -106,6 +132,25 @@ class ContextMarker {
 
   /// Deduplication key (the event's `uuid`, or its content).
   final String? key;
+
+  /// Why the model changed (SPEC-107 R12): `rerouted` = by the service,
+  /// `settings` = a settings update; null = seen in the readings.
+  final String? reason;
+
+  bool get rerouted => reason == 'rerouted';
+}
+
+/// Where [ContextSnapshot.threshold] comes from (SPEC-107 R6).
+enum ContextThresholdSource {
+  /// The agent reported it (`get_context_usage`).
+  agent,
+
+  /// The value the app sent to the execution (Codex
+  /// `model_auto_compact_token_limit`).
+  sent,
+
+  /// The effective value the agent's configuration reports (`config/read`).
+  config,
 }
 
 /// Phases of the compaction as the agent reports them (R8).
@@ -211,6 +256,9 @@ class ContextSnapshot {
     this.warning,
     this.turn = 0,
     this.subagents = const [],
+    this.provider,
+    this.thresholdSource,
+    this.autocompactScope,
   });
 
   static const empty = ContextSnapshot();
@@ -260,6 +308,18 @@ class ContextSnapshot {
   /// Subagent types started in this history (R11): separate windows the
   /// app does not measure.
   final List<String> subagents;
+
+  /// Agent of the execution (`claude`, `codex`), when an event said it.
+  final String? provider;
+
+  /// Where [threshold] comes from (null without one).
+  final ContextThresholdSource? thresholdSource;
+
+  /// `model_auto_compact_token_limit_scope` reported by the agent (P2):
+  /// text only, never a control.
+  final String? autocompactScope;
+
+  bool get isCodex => provider == 'codex';
 
   bool get hasReading => current != null;
 

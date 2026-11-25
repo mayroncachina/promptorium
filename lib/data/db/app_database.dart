@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 33;
+const appSchemaVersion = 37;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -409,6 +409,12 @@ class ReviewComments extends Table {
   DateTimeColumn get resolvedAt => dateTime().nullable()();
   TextColumn get externalId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Who ran the automatic reviewer's round (SPEC-102 R9, P3, schema v36),
+  /// on its verdict line: `claude`, `codex`… and the model it reported.
+  /// Null on the rows of before and on the other lines.
+  TextColumn get provider => text().nullable()();
+  TextColumn get model => text().nullable()();
 }
 
 /// Acceptance criterion of a spec checked in the Review (schema v10), by
@@ -601,6 +607,14 @@ class Sessions extends Table {
   /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
   /// result does not move the spec's steps, the user picks a winner.
   IntColumn get duelId => integer().nullable()();
+
+  /// Session this one was forked from (schema v35, SPEC-096 R16); null for
+  /// sessions that did not come from a fork. Claude and Codex.
+  TextColumn get parentSessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -923,6 +937,14 @@ class UsageEntries extends Table {
 
   /// Rebuilt from the events of before (R5): weighed by today's ruler.
   BoolColumn get estimated => boolean().withDefault(const Constant(false))();
+
+  /// Who ran the turn (SPEC-097 R8, schema v34): a provider without cost in
+  /// US\$ (the Codex) has "custo indisponível", never a measured 0.
+  TextColumn get provider => text().withDefault(const Constant('claude'))();
+
+  /// Reasoning output tokens (Codex `reasoningOutputTokens`): part of
+  /// [tokensOut], shown apart (SPEC-097 R8).
+  IntColumn get tokensReasoning => integer().withDefault(const Constant(0))();
 }
 
 /// Restore points of a turn of an agent (SPEC-084 R3, schema v32): the
@@ -1032,6 +1054,70 @@ class SecretWaivers extends Table {
   DateTimeColumn get lastUsedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Links of the technical debts and pending decisions (SPEC-112 R4, schema
+/// v37): only what does not fit in the Markdown table. The file
+/// (`DEBITO_TECNICO.md` / `DECISOES_PENDENTES.md`) is the source of truth;
+/// a link whose code left the file is an orphan.
+@TableIndex(name: 'debt_links_code', columns: {#repoRoot, #code}, unique: true)
+class DebtLinks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Repository of the item (its main root).
+  TextColumn get repoRoot => text()();
+
+  /// `debito` / `decisao`.
+  TextColumn get kind => text()();
+
+  /// `DT-09` / `DP-04`; null in a suggestion not yet accepted. Unique per
+  /// repository: reserving it keeps the ID from being given twice (R3).
+  TextColumn get code => text().nullable()();
+  IntColumn get originSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `Q5`, `P3`.
+  TextColumn get originQuestion => text().nullable()();
+  TextColumn get originSessionId => text().nullable()();
+  TextColumn get originMessageId => text().nullable()();
+  IntColumn get originReviewCommentId => integer().nullable().references(
+    ReviewComments,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `DP-01` that generated the debt (R12).
+  TextColumn get originDecision => text().nullable()();
+
+  /// `pendente` / `aceita` / `descartada`.
+  TextColumn get suggestionState => text().nullable()();
+
+  /// `mcp` / `entrevista` / `rascunho`.
+  TextColumn get suggestionSource => text().nullable()();
+
+  /// JSON with the proposed cells.
+  TextColumn get suggestionBody => text().nullable()();
+
+  /// Spec or VIBE paying the debt (R15).
+  IntColumn get paymentSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// Spec whose step said it paid the debt (R17).
+  IntColumn get piggybackSpecId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// `a_confirmar` / `confirmado` / `recusado`.
+  TextColumn get piggybackState => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -1073,6 +1159,7 @@ class AppSettings extends Table {
     UsageEntries,
     RestorePoints,
     SecretWaivers,
+    DebtLinks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1473,6 +1560,46 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('snippets')) return;
             await m.createTable(v.snippets);
             await m.createIndex(v.snippetsBodyHash);
+          },
+          // v34: who ran each turn and its reasoning tokens (SPEC-097 R8);
+          // the rows of before are Claude's (the default fills them).
+          from33To34: (m, v) async {
+            if (!await _hasTable('usage_entries')) return;
+            for (final c in [
+              v.usageEntries.provider,
+              v.usageEntries.tokensReasoning,
+            ]) {
+              if (!await _hasColumn('usage_entries', c.name)) {
+                await m.addColumn(v.usageEntries, c);
+              }
+            }
+          },
+          // v35: the parent of a forked session (SPEC-096 R16).
+          from34To35: (m, v) async {
+            if (await _hasTable('sessions') &&
+                !await _hasColumn('sessions', 'parent_session_id')) {
+              await m.addColumn(v.sessions, v.sessions.parentSessionId);
+            }
+          },
+          // v36: who reviewed each round (SPEC-102 R9, P3); the rows of
+          // before stay without it.
+          from35To36: (m, v) async {
+            if (!await _hasTable('review_comments')) return;
+            for (final c in [
+              v.reviewComments.provider,
+              v.reviewComments.model,
+            ]) {
+              if (!await _hasColumn('review_comments', c.name)) {
+                await m.addColumn(v.reviewComments, c);
+              }
+            }
+          },
+          // v37: links of the debts and decisions (SPEC-112 R4). Nothing
+          // is imported: the files are the source.
+          from36To37: (m, v) async {
+            if (await _hasTable('debt_links')) return;
+            await m.createTable(v.debtLinks);
+            await m.createIndex(v.debtLinksCode);
           },
           // v33: waivers of the Vigia de segredos (SPEC-085 R11).
           from32To33: (m, v) async {

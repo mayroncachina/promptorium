@@ -36,6 +36,8 @@ SpecStatus? specStatusFromValue(String? value) {
     'rascunho' || 'draft' => SpecStatus.draft,
     'em-revisao' || 'revisao' || 'review' => SpecStatus.review,
     'aprovada' || 'aprovado' || 'approved' => SpecStatus.approved,
+    // An approved spec being built (the docs write `em implementação`).
+    'em-implementacao' || 'implementing' => SpecStatus.approved,
     'concluida' || 'feita' || 'done' => SpecStatus.done,
     'arquivada' || 'arquivado' || 'archived' => SpecStatus.archived,
     _ => null,
@@ -640,6 +642,65 @@ class SpecDocument {
   }
 
   static String _oneLine(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+  /// "→ débito técnico DT-09" (SPEC-112 R6).
+  static String debtAnnotation(String code) => '→ débito técnico $code';
+
+  /// "→ DP-09" (R6) or, with [answer], `→ DP-04: <resposta>` (R12).
+  static String decisionAnnotation(String code, {String? answer}) {
+    final a = answer == null ? '' : _oneLine(answer);
+    return a.isEmpty ? '→ $code' : '→ $code: $a';
+  }
+
+  /// The question [questionId] answered with [annotation] (SPEC-112 R6,
+  /// R12), e.g. `→ débito técnico DT-09`:
+  /// - still in `## Perguntas em aberto`: it counts as answered, as in
+  ///   [withAnswers]: `- P5 · <answer> → débito técnico DT-09 (2026-11-24)`
+  ///   in `## Decisões` and out of the open ones;
+  /// - already in `## Decisões` (`- P7 · … → DP-04 (…)`): the annotation of
+  ///   the same code is replaced (R12 `→ DP-04: <resposta>`), or added
+  ///   before the date.
+  ///
+  /// Null when the question is in neither.
+  String? withQuestionAnnotated(
+    String questionId,
+    String annotation, {
+    String? answer,
+    required DateTime at,
+  }) {
+    final note = _oneLine(annotation);
+    final a = answer == null ? '' : _oneLine(answer);
+    if (openQuestions.any((q) => q.id == questionId)) {
+      return withAnswers({questionId: a.isEmpty ? note : '$a $note'}, at);
+    }
+    final r = _sectionRange(text, decisionsSection, from: _bodyLine);
+    if (r == null) return null;
+    final lines = text.split('\n');
+    final item = RegExp(
+      '^(\\s*[-*+]\\s+\\**${RegExp.escape(questionId)}\\**\\s*[·:.\\-–—)])(.*)\$',
+    );
+    for (var i = r.start + 1; i < r.end; i++) {
+      final m = item.firstMatch(lines[i]);
+      if (m == null) continue;
+      var body = m.group(2)!.trimRight();
+      final eol = lines[i].endsWith('\r') ? '\r' : '';
+      if (eol.isNotEmpty) body = body.substring(0, body.length - 1).trimRight();
+      final date = RegExp(r'\s*\((\d{4}-\d{2}-\d{2})\)\s*$').firstMatch(body);
+      var main = date == null ? body : body.substring(0, date.start);
+      final tail = date == null ? '' : ' (${date.group(1)})';
+      final code = RegExp(r'\b(?:DT|DP)-\d+\b').firstMatch(note)?.group(0);
+      final existing = code == null
+          ? null
+          : RegExp('→\\s*(?:débito técnico\\s+)?${RegExp.escape(code)}\\b.*\$')
+                .firstMatch(main);
+      main = existing == null
+          ? '${main.trimRight()} $note'
+          : '${main.substring(0, existing.start).trimRight()} $note';
+      lines[i] = '${m.group(1)} ${main.trim()}$tail$eol';
+      return lines.join('\n');
+    }
+    return null;
+  }
 
   /// [items] at the end of `## <section>` of [source], or in a new section
   /// before the first of [before] found (the end of the file otherwise).

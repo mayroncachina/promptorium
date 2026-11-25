@@ -6,12 +6,15 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:promptorium/core/claude/readonly_run.dart'
     show PlannerException;
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
+import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
@@ -215,7 +218,10 @@ class QueueScreen {
 
   Finder key(String k) => find.byKey(ValueKey(k));
 
-  Future<void> pump({Size size = const Size(1440, 900)}) async {
+  Future<void> pump({
+    Size size = const Size(1440, 900),
+    List<Override> overrides = const [],
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -234,6 +240,7 @@ class QueueScreen {
         specDesignerProvider.overrideWith(
           (ref) => designer = QueueDesigner(ref),
         ),
+        ...overrides,
       ],
     );
     c.read(specDesignerProvider);
@@ -1108,6 +1115,58 @@ void main() {
       await q.pump();
       expect(writeClaudeMd(q), isFalse);
       expect(find.text('Substituir o CLAUDE.md que já existe'), findsOneWidget);
+    });
+
+    testWidgets('SPEC-104 R3: with the Codex reading the CLAUDE.md there is '
+        'no AGENTS.md option; without it, Criar offers it checked and writes '
+        'the header and the marker', (tester) async {
+      var q = QueueScreen(tester, tmp);
+      await q.pump();
+      expect(q.key('project-write-agentsmd'), findsNothing);
+      await unmount(tester, q.c);
+
+      q = QueueScreen(tester, tmp);
+      await q.pump(
+        size: const Size(1440, 1600),
+        overrides: [
+          codexCapabilitiesProvider.overrideWithValue(
+            const ProviderCapabilities(
+              providerId: 'codex',
+              displayName: 'Codex',
+              values: {},
+            ),
+          ),
+        ],
+      );
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.descendant(
+                of: q.key('project-write-agentsmd'),
+                matching: find.byType(CheckboxListTile),
+              ),
+            )
+            .value,
+        isTrue,
+      );
+      expect(q.key('project-agentsmd-header'), findsOneWidget);
+      expect(find.text('A  AGENTS.md'), findsOneWidget);
+      await tester.tap(q.key('project-auto-plan'));
+      await tester.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      await q.create();
+      await q.until(() => find.text('Ver quadro').evaluate().isNotEmpty);
+      final agents = File('${tmp.path}/AGENTS.md').readAsStringSync();
+      final claude = File('${tmp.path}/CLAUDE.md').readAsStringSync();
+      expect(
+        agents,
+        startsWith(
+          '<!-- Gerado do CLAUDE.md pelo Promptorium. Edite o CLAUDE.md.',
+        ),
+      );
+      expect(agentsMdMarker(agents), claudeMdHash(claude));
+      expect(agentsMdBody(agents), claude);
     });
 
     testWidgets('R8: the progress stays right after leaving the screen and '

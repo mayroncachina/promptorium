@@ -110,7 +110,7 @@ void main() {
     await until(
       tester,
       () => find
-          .text('O Claude não devolveu nenhuma spec.')
+          .text('O Claude Code não devolveu nenhuma spec.')
           .evaluate()
           .isNotEmpty,
     );

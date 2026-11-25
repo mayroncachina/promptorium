@@ -1,5 +1,6 @@
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/context_usage.dart';
+import '../../core/providers/context_events.dart';
 import 'context_snapshot.dart';
 import 'context_sources.dart';
 
@@ -10,13 +11,18 @@ abstract final class ContextEventTypes {
   static const usage = contextUsageType;
 
   /// What the app sent to one execution: `{"type":"promptorium_run","v":1,
-  /// "autocompact":"200k"|null,"model":…,"provider":…}`.
+  /// "autocompact":"200k"|null,"model":…,"provider":…}`, plus the
+  /// `instructionSources` the agent reported (SPEC-104 R2: the Codex's
+  /// `thread/start`), the proof that it loaded them. [agent] = the
+  /// translation of a `.claude/agents` agent in a Codex run (SPEC-106 R11).
   static const run = 'promptorium_run';
 
   static Map<String, dynamic> runEvent({
     String? autocompact,
     String? model,
     String? provider,
+    Map<String, dynamic>? agent,
+    List<String>? instructionSources,
     DateTime? at,
   }) => {
     'type': run,
@@ -24,6 +30,8 @@ abstract final class ContextEventTypes {
     'autocompact': autocompact,
     'model': ?model,
     'provider': ?provider,
+    'agent': ?agent,
+    'instructionSources': ?instructionSources,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 }
@@ -59,6 +67,19 @@ class ContextTracker {
   int _phaseTurn = 0;
   String? _compactError;
   List<ContextCategory> _categories = const [];
+
+  // SPEC-107: the Codex execution.
+  String? _provider;
+
+  /// `model_auto_compact_token_limit` sent to the Codex (R6) or the
+  /// effective one of `config/read`; it outlives a model change.
+  int? _agentLimit;
+  ContextThresholdSource? _agentLimitSource;
+  String? _scope;
+
+  /// A model change reported by the agent (R12): the capacity of the old
+  /// model no longer holds until the next reading.
+  bool _capacityInvalid = false;
 
   // R10: one warning per crossing, re-armed below 75% or after compacting.
   bool _armed = true;
@@ -98,7 +119,16 @@ class ContextTracker {
         for (final b in e.blocks) {
           if (b is ToolUseBlock && _subagentTools.contains(b.name)) {
             final type = '${b.input['subagent_type'] ?? ''}';
-            _subagents[b.id] = type.isEmpty ? 'subagente' : type;
+            // SPEC-107 R12: a Codex subagent is named by its thread.
+            final threads = b.input['threads'];
+            final thread = threads is List && threads.isNotEmpty
+                ? '${threads.first}'
+                : '';
+            _subagents[b.id] = type.isNotEmpty
+                ? type
+                : thread.isNotEmpty
+                ? 'thread ${thread.length > 4 ? '${thread.substring(0, 4)}…' : thread}'
+                : 'subagente';
           }
         }
       // A `/compact` alone ends with `num_turns: 0`: not a turn.
@@ -120,12 +150,33 @@ class ContextTracker {
         _status(e.json, status, at);
       case SystemOther(subtype: 'compact_boundary'):
         _boundary(e.json, at, itemIndex);
+      // SPEC-095 R3, R4: the neutral events (Codex) land in the same
+      // readings and markers.
+      case ContextUsageEvent():
+        _provider = e.provider;
+        _neutralReading(e, at, itemIndex, live);
+      case CompactionEvent():
+        _provider = e.provider;
+        _neutralCompaction(e, at, itemIndex);
       case UnknownEvent(:final json):
         switch (json['type']) {
           case ContextEventTypes.usage:
             _usage(json);
           case ContextEventTypes.run:
             _run(json);
+          case ContextAppEvents.modelChange:
+            final to = json['to'];
+            if (to is String && to.isNotEmpty) {
+              _changeModel(
+                to,
+                at,
+                itemIndex,
+                reason: json['reason'] as String? ?? ContextAppEvents.settings,
+                from: json['from'] as String?,
+              );
+            }
+          case ContextAppEvents.agentConfig:
+            _agentConfig(json);
         }
       default:
         break;
@@ -133,28 +184,50 @@ class ContextTracker {
   }
 
   void _reading(AssistantMessage e, DateTime at, int itemIndex, bool live) {
-    final u = e.json['message'];
-    if (u is! Map || u['usage'] is! Map<String, dynamic>) return;
-    final usage = Usage.fromJson(u['usage'] as Map<String, dynamic>);
-    final tokens =
-        usage.inputTokens +
-        usage.cacheCreationInputTokens +
-        usage.cacheReadInputTokens;
-    if (tokens <= 0) return;
-    if (e.model != null && e.model!.isNotEmpty) {
-      _changeModel(e.model!, at, itemIndex);
+    // The Claude usage seen through the neutral event (SPEC-095 R8).
+    final u = e.contextUsage;
+    if (u != null) _add(u, at, itemIndex, live);
+  }
+
+  /// A reading of a neutral event (Codex `tokenUsage.last`, R4): it
+  /// replaces the previous one and brings the model's window.
+  void _neutralReading(
+    ContextUsageEvent e,
+    DateTime at,
+    int itemIndex,
+    bool live,
+  ) {
+    final window = e.window;
+    if (window != null && window > 0) {
+      _windows[e.model ?? _model ?? _anyModel] = window;
     }
+    _add(e, at, itemIndex, live);
+  }
+
+  /// Key of a window reported without a model.
+  static const _anyModel = '*';
+
+  void _add(ContextUsageEvent u, DateTime at, int itemIndex, bool live) {
+    final tokens = u.tokens;
+    if (tokens <= 0) return;
+    if (u.model != null && u.model!.isNotEmpty) {
+      _changeModel(u.model!, at, itemIndex);
+    }
+    _capacityInvalid = false;
     final r = ContextReading(
       tokens: tokens,
-      input: usage.inputTokens,
-      cacheWrite: usage.cacheCreationInputTokens,
-      cacheRead: usage.cacheReadInputTokens,
-      model: e.model ?? _model,
-      messageId: e.messageId.isEmpty ? null : e.messageId,
+      input: u.input,
+      cacheWrite: u.cacheWrite,
+      cacheRead: u.cacheRead,
+      output: u.output,
+      model: u.model ?? _model,
+      messageId: u.messageId,
+      turnId: u.turnId,
       at: at,
       turn: _results + 1,
       itemIndex: itemIndex,
       live: live,
+      source: u.source,
     );
     final last = _readings.lastOrNull;
     if (last != null &&
@@ -174,10 +247,16 @@ class ContextTracker {
     _evaluateWarning();
   }
 
-  void _changeModel(String model, DateTime at, int itemIndex) {
-    final from = _model;
+  void _changeModel(
+    String model,
+    DateTime at,
+    int itemIndex, {
+    String? reason,
+    String? from,
+  }) {
+    final old = from ?? _model;
     _model = model;
-    if (from == null || from == model) return;
+    if (old == null || old == model) return;
     _markers.add(
       ContextMarker(
         kind: ContextMarkerKind.modelChange,
@@ -185,10 +264,17 @@ class ContextTracker {
         turn: _results + 1,
         itemIndex: itemIndex,
         readingsBefore: _readings.length,
-        fromModel: from,
+        fromModel: old,
         toModel: model,
+        reason: reason,
       ),
     );
+    // SPEC-107 R12: the agent changed the model; the window it reported
+    // for the old one stops counting until it measures again.
+    if (reason != null) {
+      _capacityInvalid = true;
+      _windows.remove(_anyModel);
+    }
     // R3: the limits of the previous model do not hold for the new one.
     _threshold = null;
     _autocompactWindow = null;
@@ -208,15 +294,17 @@ class ContextTracker {
   }
 
   int? get _capacityNow {
+    if (_capacityInvalid) return null;
     final m = _current?.model ?? _model;
     if (m != null && _windows[m] != null) return _windows[m];
     // `modelUsage` keys are full ids; the init may carry the same id.
     if (m != null) {
       for (final MapEntry(:key, :value) in _windows.entries) {
+        if (key == _anyModel) continue;
         if (key.startsWith(m) || m.startsWith(key)) return value;
       }
     }
-    return null;
+    return _windows[_anyModel];
   }
 
   void _status(Map<String, dynamic> json, String? status, DateTime at) {
@@ -247,7 +335,64 @@ class ContextTracker {
     final key =
         json['uuid'] as String? ??
         '${m['trigger']}:${m['pre_tokens']}:${m['post_tokens']}';
+    int? n(Object? v) => v is num ? v.toInt() : null;
+    _compacted(
+      key: key,
+      trigger: m['trigger'] as String?,
+      preTokens: n(m['pre_tokens']),
+      postTokens: n(m['post_tokens']),
+      at: at,
+      itemIndex: itemIndex,
+    );
+  }
+
+  /// A neutral compaction (R4): started → compacting; completed → the
+  /// marker, and the reading waits for the next measurement; failed.
+  void _neutralCompaction(CompactionEvent e, DateTime at, int itemIndex) {
+    switch (e.phase) {
+      case CompactionEventPhase.started:
+        if (_phase != CompactionPhase.compacting) {
+          _phase = CompactionPhase.compacting;
+          _phaseSince = at;
+          _compactError = null;
+        }
+      case CompactionEventPhase.completed:
+        _compacted(
+          key: e.key ?? '${e.trigger}:${e.preTokens}:${e.postTokens}:$at',
+          trigger: e.trigger,
+          // SPEC-107 R7: the Codex reports no size before; the last
+          // reading is it.
+          preTokens:
+              e.preTokens ??
+              (e.provider == 'codex'
+                  ? (_current ?? _readings.lastOrNull)?.tokens
+                  : null),
+          postTokens: e.postTokens,
+          at: at,
+          itemIndex: itemIndex,
+        );
+      case CompactionEventPhase.failed:
+        _phase = CompactionPhase.failed;
+        _phaseSince = at;
+        _phaseTurn = _results + 1;
+        _compactError = e.error;
+    }
+  }
+
+  void _compacted({
+    required String key,
+    required String? trigger,
+    required int? preTokens,
+    required int? postTokens,
+    required DateTime at,
+    required int itemIndex,
+  }) {
     if (!_compactionKeys.add(key)) return;
+    final m = {
+      'trigger': trigger,
+      'pre_tokens': preTokens,
+      'post_tokens': postTokens,
+    };
     int? n(Object? v) => v is num ? v.toInt() : null;
     _markers.add(
       ContextMarker(
@@ -294,15 +439,42 @@ class ContextTracker {
   void _run(Map<String, dynamic> j) {
     _sawRun = true;
     _configured = j['autocompact'] as String?;
+    _provider = j['provider'] as String? ?? _provider;
     // A new execution: its limits come with its own answers.
     _threshold = null;
     _autocompactWindow = null;
+    _scope = null;
+    // SPEC-107 R6: the Codex compacts at the limit the app sent (no
+    // `get_context_usage` to report it); "padrão do agente" = unknown.
+    final sent = _provider == 'codex' ? autocompactTokens(_configured) : null;
+    _agentLimit = sent;
+    _agentLimitSource = sent == null ? null : ContextThresholdSource.sent;
     if (_phase == CompactionPhase.notReported ||
         _phase == CompactionPhase.configured) {
       _phase = _baseline;
     }
     _evaluateWarning();
   }
+
+  /// `config/read` of the Codex (R6, P2): the effective limit replaces the
+  /// sent one; the scope is only text.
+  void _agentConfig(Map<String, dynamic> j) {
+    final limit = j['autocompact_limit'];
+    if (limit is num && limit > 0) {
+      _agentLimit = limit.toInt();
+      _agentLimitSource = ContextThresholdSource.config;
+    }
+    _scope = j['autocompact_scope'] as String? ?? _scope;
+    _evaluateWarning();
+  }
+
+  int? get _thresholdNow => _threshold ?? _agentLimit;
+
+  ContextThresholdSource? get _thresholdSourceNow => _threshold != null
+      ? ContextThresholdSource.agent
+      : _agentLimit != null
+      ? _agentLimitSource
+      : null;
 
   /// Phase when nothing is happening.
   CompactionPhase get _baseline =>
@@ -312,7 +484,7 @@ class ContextTracker {
 
   void _evaluateWarning() {
     final c = _current;
-    final threshold = _threshold;
+    final threshold = _thresholdNow;
     final capacity = _capacityNow;
     final ref = threshold ?? capacity;
     final kind = threshold != null
@@ -359,7 +531,7 @@ class ContextTracker {
     last: _readings.lastOrNull,
     pendingAfterCompaction: _pending,
     capacity: _capacityNow,
-    threshold: _threshold,
+    threshold: _thresholdNow,
     autocompactWindow: _autocompactWindow,
     autocompactEnabled: _enabled,
     autocompactSource: _source,
@@ -374,5 +546,8 @@ class ContextTracker {
     warning: _warning,
     turn: _results,
     subagents: List.unmodifiable(_subagents.values),
+    provider: _provider,
+    thresholdSource: _thresholdSourceNow,
+    autocompactScope: _scope,
   );
 }
