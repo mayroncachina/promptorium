@@ -515,6 +515,14 @@ class _TrackPainter extends CustomPainter {
             ..color = ReplayColors.edit
             ..strokeWidth = 2,
         );
+        // SPEC-110 R1: a denied approval is a mark too.
+        _text(
+          canvas,
+          '–',
+          Offset(x - 3, 2),
+          color: ReplayColors.edit,
+          size: 11,
+        );
         continue;
       }
       canvas.drawRRect(

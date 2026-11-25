@@ -16,10 +16,19 @@ class ReplayFileStat {
     this.removed = 0,
     this.editedWithoutRead = false,
     this.firstEdit,
+    this.via = const [],
+    this.folder = false,
   });
 
   /// Absolute path (or as the tool gave it).
   final String path;
+
+  /// Programs of the commands that read it, in order ("sed", "cat";
+  /// SPEC-110 R1). Empty = only by the read tool.
+  final List<String> via;
+
+  /// A folder searched or listed by a command, not a file read.
+  final bool folder;
   final int reads;
   final int edits;
   final int added;
@@ -38,8 +47,11 @@ class ReplayFileStat {
     int? removed,
     bool? editedWithoutRead,
     int? firstEdit,
+    List<String>? via,
   }) => ReplayFileStat(
     path: path,
+    via: via ?? this.via,
+    folder: folder,
     reads: reads ?? this.reads,
     edits: edits ?? this.edits,
     added: added ?? this.added,
@@ -61,6 +73,7 @@ class ReplayState {
     this.reading,
     this.compactedSince = false,
     this.capacity,
+    this.measures = false,
   });
 
   /// Files read up to here, in the order of the first read.
@@ -88,6 +101,10 @@ class ReplayState {
 
   /// Capacity reported for the session's model (null = unknown, no %).
   final int? capacity;
+
+  /// The agent reports its context after each call (Codex, SPEC-110 R5):
+  /// without a reading, the point is "aguardando medição", never 0.
+  final bool measures;
 }
 
 /// State of the session at step [index] of the top-level [steps] (R6).
@@ -98,27 +115,51 @@ ReplayState replayStateAt(
   int index, {
   List<({int items, int tokens})> context = const [],
   ContextSnapshot? ctx,
+  String? root,
 }) {
   if (steps.isEmpty) return const ReplayState();
   final end = index.clamp(0, steps.length - 1);
   final read = <String, ReplayFileStat>{};
   final edited = <String, ReplayFileStat>{};
+  // Absolute paths of the files read (the two providers write them in
+  // different ways).
+  final seen = <String>{};
   ReplayStep? lastCommand;
   var compactions = 0;
   for (var i = 0; i <= end; i++) {
     final s = steps[i];
     if (s.kind == ReplayKind.run && i < end) lastCommand = s;
     if (s.mark == ReplayMarkKind.compaction) compactions++;
+    if (countsReads(s)) {
+      for (final r in s.reads) {
+        if (r.path.isEmpty) continue;
+        // A folder never hides a file of the same path.
+        final key = r.isFile ? r.path : '${r.path}/';
+        final old =
+            read[key] ?? ReplayFileStat(path: r.path, folder: !r.isFile);
+        final by = r.program;
+        read[key] = old.copyWith(
+          reads: old.reads + 1,
+          via: by.isEmpty || old.via.contains(by) ? null : [...old.via, by],
+        );
+        if (r.isFile) seen.add(r.path);
+      }
+      continue;
+    }
     final path = s.filePath;
     if (path == null) continue;
     if (s.toolName == 'Read' && s.outcome == ReplayOutcome.ok) {
       final r = read[path] ?? ReplayFileStat(path: path);
       read[path] = r.copyWith(reads: r.reads + 1);
+      seen.add(absolutePath(path, root));
     } else if (s.isAppliedEdit) {
       final e = edited[path];
       if (e == null) {
         // A Write of a new file needs no read.
-        final blind = !read.containsKey(path) && !createsFile(s.tool!);
+        final blind =
+            !seen.contains(absolutePath(path, root)) &&
+            !_movedSeen(s, seen, root) &&
+            !createsFile(s.tool!);
         edited[path] = ReplayFileStat(
           path: path,
           edits: 1,
@@ -171,8 +212,23 @@ ReplayState replayStateAt(
     compactions: compactions,
     reading: compactedSince ? null : reading,
     compactedSince: compactedSince,
-    capacity: ctx?.capacity,
+    capacity: reading?.window ?? ctx?.capacity,
+    measures: ctx?.provider == 'codex',
   );
+}
+
+/// Whether the reads of a command count in "Já leu" (SPEC-110 R1): a read
+/// that worked, or the reads of a command that also does something else
+/// (whose exit code is about the rest). Denied or unfinished: no.
+bool countsReads(ReplayStep s) =>
+    s.reads.isNotEmpty &&
+    (s.outcome == ReplayOutcome.ok ||
+        (s.kind == ReplayKind.run && s.outcome == ReplayOutcome.error));
+
+/// A moved file read under its old name.
+bool _movedSeen(ReplayStep s, Set<String> seen, String? root) {
+  final from = s.tool?.change?.fromPath;
+  return from != null && seen.contains(absolutePath(from, root));
 }
 
 /// Step filters above the list (R9).

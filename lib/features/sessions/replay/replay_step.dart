@@ -1,3 +1,5 @@
+import '../../../core/claude/claude_event.dart'
+    show CommandAction, CommandEvent, FileChangeKind;
 import '../edit_diff.dart';
 import '../timeline.dart';
 
@@ -56,14 +58,92 @@ enum ReplayMarkKind {
   gatePassed,
   gateFailed,
   compaction,
-  resume;
+  resume,
+
+  /// A turn stopped before its end (Codex `interrupted`, SPEC-110 R1).
+  interrupted;
 
   /// Drawn as a flag above the lanes (R3).
   bool get isFlag =>
       this == gatePassed ||
       this == gateFailed ||
       this == compaction ||
-      this == resume;
+      this == resume ||
+      this == interrupted;
+}
+
+/// One read, search or listing made by a command (SPEC-110 R1).
+class CommandRead {
+  const CommandRead({
+    required this.type,
+    required this.path,
+    this.query,
+    this.command = '',
+  });
+
+  /// [CommandAction.read], `search` or `listFiles`.
+  final String type;
+
+  /// Absolute path of the file or folder ('' = not told).
+  final String path;
+
+  /// Text of a search.
+  final String? query;
+
+  /// The part of the command that does it.
+  final String command;
+
+  bool get isFile => type == CommandAction.read;
+
+  /// "sed", "rg", "cat": the program that read it.
+  String get program {
+    final first = command.trim().split(RegExp(r'\s+')).first;
+    return first.isEmpty ? '' : baseName(first);
+  }
+
+  /// "sed -n", "cat" (the list of steps).
+  String get via => program == 'sed' && RegExp(r'\s-n\b').hasMatch(command)
+      ? 'sed -n'
+      : program;
+
+  /// "1–80" of `sed -n 1,80p` (null = the whole file or unknown).
+  String? get range {
+    if (program != 'sed') return null;
+    final m = RegExp(r'(\d+),(\d+)p').firstMatch(command);
+    return m == null ? null : '${m.group(1)}–${m.group(2)}';
+  }
+
+  /// What the step shows: `tabela.dart 1–80`, `"calcularFrete" lib/`.
+  String label(String? root) {
+    final rel = path.isEmpty ? '.' : relativePath(path, root);
+    return switch (type) {
+      CommandAction.read => [baseName(path), ?range].join(' '),
+      CommandAction.search => '"${query ?? ''}" $rel',
+      _ => rel,
+    };
+  }
+}
+
+/// Reads of a command, with absolute paths.
+List<CommandRead> commandReadsOf(CommandEvent? e, {String? root}) {
+  if (e == null) return const [];
+  final cwd = e.cwd ?? root;
+  String abs(String? p) => p == null || p.isEmpty ? '' : absolutePath(p, cwd);
+  if (e.actions.isEmpty) {
+    return [
+      for (final p in e.reads)
+        CommandRead(type: CommandAction.read, path: abs(p)),
+    ];
+  }
+  return [
+    for (final a in e.actions)
+      CommandRead(
+        type: a.type,
+        path: abs(a.path),
+        query: a.query,
+        command: a.command ?? '',
+      ),
+  ];
 }
 
 /// One step of the replay: a tool call, a message of the conversation or a
@@ -84,6 +164,8 @@ class ReplayStep {
     this.itemIndex = -1,
     this.children = const [],
     this.parent,
+    this.reads = const [],
+    this.agent = 'Claude',
   });
 
   /// Position in its list (0-based; the UI shows `index + 1`).
@@ -120,8 +202,54 @@ class ReplayStep {
 
   String? get toolName => tool?.name;
 
+  /// What a command read (Codex, SPEC-110 R1): the step is **Ler** when the
+  /// command only reads, **Rodar** with these listed when it does more.
+  final List<CommandRead> reads;
+
+  /// Who answers in this session ("Claude", "Codex").
+  final String agent;
+
+  /// Id of the agent's turn (Codex `turn/started`); null = unknown.
+  String? get agentTurnId => (parent ?? this).item.agentTurnId;
+
+  /// What the step does, in words: the tool name, or the verb of a neutral
+  /// card ("Ler", "Buscar", "Editar", "Rodar").
+  String get verb {
+    final t = tool;
+    if (t == null) {
+      return kind == ReplayKind.assistant ? agent : kind.label;
+    }
+    if (!t.isNeutral) return t.name;
+    if (kind == ReplayKind.read && reads.isNotEmpty) {
+      return switch (reads.first.type) {
+        CommandAction.read => 'Ler',
+        CommandAction.search => 'Buscar',
+        _ => 'Listar',
+      };
+    }
+    return kind.label;
+  }
+
+  /// "criado", "apagado", "movido" of a neutral file change ("alterado" is
+  /// the usual case).
+  String? get changeLabel => switch (tool?.change?.kind) {
+    FileChangeKind.add => 'criado',
+    FileChangeKind.update => 'alterado',
+    FileChangeKind.delete => 'apagado',
+    FileChangeKind.move => 'movido',
+    null => null,
+  };
+
+  /// "sed -n" of a read made by a command (null otherwise).
+  String? get via =>
+      kind == ReplayKind.read && reads.isNotEmpty ? reads.first.via : null;
+
   /// Absolute or relative path of the file it reads or edits.
-  String? get filePath => tool?.filePath;
+  String? get filePath =>
+      tool?.filePath ??
+      (kind == ReplayKind.read && reads.length == 1 && reads.first.isFile
+          ? reads.first.path
+          : null);
 
   ReplayLane? get lane => switch (kind) {
     ReplayKind.read || ReplayKind.web || ReplayKind.subagent => ReplayLane.read,
@@ -155,8 +283,13 @@ class ReplayStep {
 /// R9), a Claude call by its tool.
 ReplayKind replayKindOfTool(ToolItem t) {
   if (t.change != null) return ReplayKind.edit;
-  if (t.commandEvent != null) return ReplayKind.run;
-  if (t.other != null) return ReplayKind.other;
+  // SPEC-110 R1: a command that only reads, searches or lists is a read.
+  if (t.commandEvent case final c?) {
+    return c.onlyReads ? ReplayKind.read : ReplayKind.run;
+  }
+  if (t.other case final o?) {
+    return o.isPlan ? ReplayKind.plan : ReplayKind.other;
+  }
   return replayKindOf(t.name);
 }
 
@@ -178,6 +311,7 @@ ReplayMarkKind replayMarkOf(NoticeItem n) {
   if (t.startsWith('Verificação falhou')) return ReplayMarkKind.gateFailed;
   if (t == Timeline.compactionNotice) return ReplayMarkKind.compaction;
   if (t.startsWith('Sessão retomada')) return ReplayMarkKind.resume;
+  if (t.startsWith('Interrompido')) return ReplayMarkKind.interrupted;
   return n.level == NoticeLevel.error
       ? ReplayMarkKind.error
       : ReplayMarkKind.info;
@@ -189,17 +323,29 @@ String _firstLine(String s) {
 }
 
 /// Steps of a session timeline, in order (R2). Pure: computed once per
-/// timeline snapshot. [root] makes the targets relative to the worktree.
-List<ReplayStep> replaySteps(List<TimelineItem> items, {String? root}) {
+/// timeline snapshot. [root] makes the targets relative to the worktree;
+/// [agent] names who answers.
+///
+/// SPEC-110 R1: a Codex turn starts at its `turn/started`; a message sent
+/// during the turn (`turn/steer`) does not start another one.
+List<ReplayStep> replaySteps(
+  List<TimelineItem> items, {
+  String? root,
+  String agent = 'Claude',
+}) {
   var turn = 0;
   var sawUser = false;
+  String? turnId;
   return _steps(
     items,
     root: root,
+    agent: agent,
     parent: null,
     turnOf: (item) {
       if (item is UserItem) {
-        turn++;
+        final id = item.agentTurnId;
+        if (id == null || id != turnId) turn++;
+        turnId = id;
         sawUser = true;
       }
       return sawUser ? turn : 1;
@@ -210,6 +356,7 @@ List<ReplayStep> replaySteps(List<TimelineItem> items, {String? root}) {
 List<ReplayStep> _steps(
   List<TimelineItem> items, {
   required String? root,
+  required String agent,
   required ReplayStep? parent,
   required int Function(TimelineItem) turnOf,
 }) {
@@ -222,6 +369,7 @@ List<ReplayStep> _steps(
       index: out.length,
       turn: turn,
       root: root,
+      agent: agent,
       itemIndex: parent == null ? i : -1,
       parent: parent,
       next: () => i + 1 < items.length ? items[i + 1].at : null,
@@ -237,6 +385,7 @@ ReplayStep? _stepOf(
   required int index,
   required int turn,
   required String? root,
+  required String agent,
   required int itemIndex,
   required ReplayStep? parent,
   required DateTime? Function() next,
@@ -260,12 +409,17 @@ ReplayStep? _stepOf(
           : ReplayOutcome.pending;
       final stats = item.stats;
       final children = <ReplayStep>[];
+      final reads = commandReadsOf(item.commandEvent, root: root);
       final step = ReplayStep(
         index: index,
         kind: kind,
         item: item,
         turn: turn,
-        target: toolTarget(item.name, item.input, root: root),
+        agent: agent,
+        reads: reads,
+        target: kind == ReplayKind.read && reads.isNotEmpty
+            ? reads.map((r) => r.label(root)).join(', ')
+            : toolTarget(item.name, item.input, root: root),
         at: item.at,
         duration: until(item.doneAt ?? next()),
         outcome: outcome,
@@ -277,7 +431,13 @@ ReplayStep? _stepOf(
       );
       if (item.children.isNotEmpty) {
         children.addAll(
-          _steps(item.children, root: root, parent: step, turnOf: (_) => turn),
+          _steps(
+            item.children,
+            root: root,
+            agent: agent,
+            parent: step,
+            turnOf: (_) => turn,
+          ),
         );
       }
       return step;
@@ -299,6 +459,7 @@ ReplayStep? _stepOf(
         kind: ReplayKind.assistant,
         item: item,
         turn: turn,
+        agent: agent,
         target: _firstLine(item.text),
         at: item.at,
         duration: until(next()),
@@ -361,10 +522,10 @@ Map<int, ReplayStep?> turnStarts(List<ReplayStep> steps) {
 
 /// Whether [step] (or a step of its subagent) reads or edits [path].
 bool stepTouches(ReplayStep step, String path, {String? root}) {
+  final key = absolutePath(path, root);
   final p = step.filePath;
-  if (p != null && absolutePath(p, root) == absolutePath(path, root)) {
-    return true;
-  }
+  if (p != null && absolutePath(p, root) == key) return true;
+  if (step.reads.any((r) => r.isFile && r.path == key)) return true;
   return step.children.any((c) => stepTouches(c, path, root: root));
 }
 
