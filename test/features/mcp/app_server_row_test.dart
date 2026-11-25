@@ -7,7 +7,7 @@ import 'package:promptorium/features/mcp/mcp_state.dart';
 /// read only (SPEC-052 R10).
 void main() {
   test('with the server on, promptorium is a row with no config file and '
-      'its seven tools', () {
+      'its nine tools', () {
     final rows = buildMcpRows(
       registry: const McpRegistrySnapshot([]),
       board: const McpStatusBoardState(),
@@ -17,7 +17,7 @@ void main() {
     expect(app.name, 'promptorium');
     expect(app.config, isNull);
     expect(isAppServerRow(app), isTrue);
-    expect(app.tools, hasLength(7));
+    expect(app.tools, hasLength(9));
     expect(app.tools, contains('criar_spec'));
   });
 

@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/git_root.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/repo_setup.dart';
+import '../../core/providers/workspace_assets.dart'
+    show agentsMdMarker, agentsMdName, claudeMdName, writeGeneratedAgentsMd;
 import '../../data/providers.dart';
 import '../prompt/conversation_manager.dart';
 import '../review/review_host.dart' show detectReviewHost, remoteHost;
@@ -238,13 +240,16 @@ class ProjectService {
   /// Whether that `CLAUDE.md` is still the template's minimal one (R23).
   bool hasTemplateClaudeMd(Workspace ws) => templateClaudeMd(ws.path) != null;
 
-  /// Writes the CLAUDE.md (when [writeClaudeMd]) and one approved spec file
+  /// Writes the CLAUDE.md (when [writeClaudeMd]), the `AGENTS.md` generated
+  /// from it (when [writeAgentsMd], SPEC-104 R3: the Codex does not read the
+  /// CLAUDE.md; never over an `AGENTS.md` of the person's) and one approved spec file
   /// per roadmap spec (`depende-de` translated to `SPEC-NNN`) and, when
   /// [commit], commits those files on the current branch. The specs show up
   /// in the Quadro. Marks the plan as done.
   Future<MaterializeOutcome> materialize(
     Workspace ws, {
     bool writeClaudeMd = true,
+    bool writeAgentsMd = false,
     bool commit = true,
   }) async {
     final plans = _ref.read(projectPlansRepoProvider);
@@ -264,6 +269,14 @@ class ProjectService {
     if (writeClaudeMd && claudeMd.isNotEmpty) {
       await File('${ws.path}/CLAUDE.md').writeAsString('$claudeMd\n');
       files.add('CLAUDE.md');
+    }
+    if (writeAgentsMd && File('${ws.path}/$claudeMdName').existsSync()) {
+      final agents = File('${ws.path}/$agentsMdName');
+      final current = agents.existsSync() ? agents.readAsStringSync() : null;
+      if (current == null || agentsMdMarker(current) != null) {
+        await writeGeneratedAgentsMd(ws.path, replaceGenerated: true);
+        files.add(agentsMdName);
+      }
     }
 
     // The stack's commands fill the empty keys of the config.yml

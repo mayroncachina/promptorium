@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/claude_event.dart';
-import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/providers/structured_run.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/cost/quota_ruler.dart';
 import 'package:promptorium/features/cost/usage_ledger.dart';
@@ -270,7 +269,7 @@ void main() {
     });
   });
 
-  test('runReadOnlyClaude records its turn with the spec and the origin '
+  test('runStructured records its turn with the spec and the origin '
       'given (the reviewer)', () async {
     final cli = FakeCli();
     final db = memoryDatabase();
@@ -292,15 +291,17 @@ void main() {
         );
     final run = Provider(
       (ref) =>
-          () => runReadOnlyClaude(
+          () => runStructured(
             ref,
-            cwd: '/r',
-            workspaceId: ws.id,
-            options: const ClaudeOptions(model: 'opus'),
-            prompt: 'Revise',
-            specId: spec,
-            usageSource: UsageSource.revisor,
-            usageStep: 'rodada 2',
+            StructuredIntent(
+              cwd: '/r',
+              workspaceId: ws.id,
+              claude: const ClaudeStructuredExtras(model: 'opus'),
+              prompt: 'Revise',
+              specId: spec,
+              usageSource: UsageSource.revisor,
+              usageStep: 'rodada 2',
+            ),
           ),
     );
     final done = c.read(run)();

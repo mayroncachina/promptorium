@@ -1,0 +1,14 @@
+# Débitos técnicos
+
+O que ficou simulado ou provisório de propósito, para resolver depois.
+
+| ID | Desde | O quê | Onde | Para resolver |
+|---|---|---|---|---|
+| DT-01 | 2026-11-21 | **"Salvar em PDF" é simulado** nas telas de Minhas inscrições (equipe técnica, coreografias e capacitações): mostra "Gerando PDF…" por 2 s e abre a impressão do navegador da página como está (grupos fechados ficam de fora; filtros não aparecem no papel). Decidido na spec 25 (Q5). | `frontend/src/lib/minhasInscricoes.js` (`usePdf`) | layout de impressão próprio (cabeçalho com evento e grupo/escola, tudo aberto, sem botões, filtros escritos) ou PDF no servidor como o comprovante (spec 15) |
+| ~~DT-02~~ | 2026-11-21 | ~~Arquivos da coreografia numa pasta local~~ — **resolvido** pela [spec 28](specs/28-armazenamento-s3.md) (S3 com `ARMAZENAMENTO=s3`; a pasta local fica só para desenvolvimento). | `backend/app/arquivos.py` | — |
+| DT-03 | 2026-11-21 | **PIX/boleto antigo ao mudar o valor do pedido**: a edição de elenco apaga o PIX/boleto do pedido, mas não cancela no gateway. | `coreografias_servico._ajustar_valor` | tratar na E2.5/C8 (cancelar no gateway) |
+| DT-04 | 2026-11-21 | **Lote fora dos períodos diferente entre coreografia e equipe/capacitação** (último lote com datas × `lote_{lotes}`), copiado do sistema antigo (spec 26, K1). | `coreografias_servico.preco_modalidade` × `eventos_servico.preco_atual` | unificar quando o painel do organizador for refeito |
+| DT-05 | 2026-11-21 | **Pagamento simulado**: PIX, boleto e cartão na tela Pagar não chamam o gateway; só o pedido de valor zero é pago de verdade (spec 29, P3). | `PagarView.vue` | ligar o gateway (homologação) junto com o DT-03 |
+| DT-06 | 2026-11-21 | **Responsável não cancela nem reabre pedido aguardando**: os itens ficam presos ao pedido até pagar ou a organização cancelar no painel (spec 29, P8). | `pagamentos_servico` | tela/rota para desfazer o pedido (itens voltam a "Aberto") |
+| DT-07 | 2026-11-24 | **Lotes da equipe técnica do evento**: os lotes (preço por período) na estrutura própria da equipe técnica ficam para depois ([spec 31](specs/31-equipe-tecnica-do-evento.md), DP-01). Até lá, cada função tem um valor só: o `lote_1` do formulário do sistema antigo (`painel_formulario_equipe`), que será desativado. | `app_equipe_funcao` (ainda não criada) | implementar lotes com preço e datas na função do evento, sem depender da mostra, antes de desativar o formulário |
+| DT-08 | 2026-11-24 | **Editar coreografia sem nenhum participante cadastrado** (todos removidos depois de inscrever): por ora o formulário abre normalmente na edição, sem o aviso para cadastrar participantes ([spec 32](specs/32-inscricao-sem-participantes.md), Q22). | `NovaInscricaoView.vue` (ainda não implementado) | decidir o que a edição mostra nesse caso |

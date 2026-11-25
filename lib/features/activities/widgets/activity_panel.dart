@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme/tokens.dart';
@@ -149,7 +152,15 @@ class ActivityPanel extends ConsumerWidget {
               if (name != null)
                 fact(
                   'Agente',
-                  [name, ?a.agentName, ?a.model, ?a.mode].join(' · '),
+                  [
+                    name,
+                    ?a.agentName,
+                    // SPEC-096 R3: "Codex · gpt-6.2-sol" beside the Claude.
+                    a.provider == null || a.provider == 'claude'
+                        ? a.model
+                        : providerModelLabel(a.provider!, a.model),
+                    ?a.mode,
+                  ].nonNulls.join(' · '),
                 ),
               if (a.branch != null) fact('Branch', a.branch!),
               if (a.tasks.isNotEmpty)

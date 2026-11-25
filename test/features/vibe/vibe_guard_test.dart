@@ -64,6 +64,7 @@ void main() {
     late ProviderContainer c;
     late Workspace ws;
     late List<({String request, List<String> accepted})> checks;
+    late List<String?> providers;
     late UnrelatedVerdict Function(String request, List<String> accepted)
     verdict;
 
@@ -73,6 +74,7 @@ void main() {
       db = memoryDatabase();
       provider = FakeAgentProvider();
       checks = [];
+      providers = [];
       verdict = (_, _) =>
           const UnrelatedVerdict(unrelated: false, confidence: .9);
       c = ProviderContainer(
@@ -87,8 +89,10 @@ void main() {
             required changed,
             required accepted,
             required request,
+            provider,
           }) async {
             checks.add((request: request, accepted: List.of(accepted)));
+            providers.add(provider);
             return verdict(request, accepted);
           }),
         ],
@@ -185,6 +189,8 @@ void main() {
       expect(provider.last.sent.last, 'troca o texto do login');
       expect(await flow.submit(v.conv, 'e o subtítulo do login'), isTrue);
       expect(checks.last.accepted, ['troca o texto do login']);
+      // SPEC-100 R8: the check follows the VIBE conversation's provider.
+      expect(providers.last, 'claude');
       expect(provider.last.sent.last, 'e o subtítulo do login');
     });
 

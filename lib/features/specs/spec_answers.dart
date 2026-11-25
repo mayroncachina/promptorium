@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../cost/usage_ledger.dart';
-import '../../core/claude/claude_args.dart';
-import '../../core/claude/readonly_run.dart';
-import '../../core/providers/claude_code_provider.dart';
+import '../../core/providers/structured_run.dart';
 import '../../data/providers.dart';
 import '../project/project_memory.dart';
 import 'spec_action.dart';
@@ -234,34 +231,35 @@ class SpecQuestionOptions {
     List<QuestionAlternative> avoid = const [],
     int count = alternativesPerQuestion,
   }) async {
-    final r = await runReadOnlyClaude(
+    final r = await runStructured(
       _ref,
-      workspaceId: ws.id,
-      cwd: ws.path,
-      specCode: specCodeInText(specText),
-      usageSource: UsageSource.verificacao,
-      options: ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: questionOptionsPrompt,
-        jsonSchema: jsonEncode(questionOptionsSchema),
-        maxBudgetUsd: budgetUsd,
-        includePartialMessages: false,
+      StructuredIntent(
+        workspaceId: ws.id,
+        cwd: ws.path,
+        specCode: specCodeInText(specText),
+        usageSource: UsageSource.verificacao,
+        instructions: questionOptionsPrompt,
+        schema: questionOptionsSchema,
+        claude: const ClaudeStructuredExtras(maxBudgetUsd: budgetUsd),
+        slot: specAnswersSlot(ws.id),
+        prompt: [
+          'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
+          'Pergunta ${q.id}: ${q.text}',
+          if (q.suggestion != null) 'Sugestão da spec: ${q.suggestion}',
+          if (avoid.isNotEmpty)
+            'Já mostradas (não repita nem reformule):\n'
+                '${[for (final a in avoid) '- ${a.title}: ${a.consequence}'].join('\n')}',
+          if (count != alternativesPerQuestion)
+            'Proponha só $count ${count == 1 ? 'resposta' : 'respostas'}.',
+        ].join('\n\n'),
       ),
-      prompt: [
-        'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
-        'Pergunta ${q.id}: ${q.text}',
-        if (q.suggestion != null) 'Sugestão da spec: ${q.suggestion}',
-        if (avoid.isNotEmpty)
-          'Já mostradas (não repita nem reformule):\n'
-              '${[for (final a in avoid) '- ${a.title}: ${a.consequence}'].join('\n')}',
-        if (count != alternativesPerQuestion)
-          'Proponha só $count ${count == 1 ? 'resposta' : 'respostas'}.',
-      ].join('\n\n'),
     );
-    return parseQuestionOptions(structuredOutput(r));
+    return parseQuestionOptions(r.data);
   }
 }
+
+/// Slot of the answers' provider line (SPEC-100 R10).
+String specAnswersSlot(int workspaceId) => 'answers:$workspaceId';
 
 final specQuestionOptionsProvider = Provider(SpecQuestionOptions.new);
 
@@ -310,33 +308,31 @@ class SpecAnswerApplier {
     cancelled?.then((_) => stopped = true);
     final Object? data;
     try {
-      final r = await runReadOnlyClaude(
+      final r = await runStructured(
         _ref,
-        workspaceId: ws.id,
-        cancelled: cancelled,
-        cwd: ws.path,
-        specCode: specCodeInText(withDecisions),
-        usageSource: UsageSource.verificacao,
-        options: ClaudeOptions(
-          permissionMode: ClaudePermissionMode.defaultMode,
-          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-          appendSystemPrompt: applyAnswersPrompt,
-          jsonSchema: jsonEncode(applyAnswersSchema),
-          maxBudgetUsd: budgetUsd,
-          includePartialMessages: false,
+        StructuredIntent(
+          workspaceId: ws.id,
+          cancelled: cancelled,
+          cwd: ws.path,
+          specCode: specCodeInText(withDecisions),
+          usageSource: UsageSource.verificacao,
+          instructions: applyAnswersPrompt,
+          schema: applyAnswersSchema,
+          claude: const ClaudeStructuredExtras(maxBudgetUsd: budgetUsd),
+          slot: specAnswersSlot(ws.id),
+          prompt: [
+            if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
+              'Memória do projeto:\n${m.toPrompt()}\n',
+            'Respostas:',
+            for (final MapEntry(key: q, value: a) in answers.entries)
+              if (a.answered) '- ${q.id} · ${q.text} → ${a.text}',
+            '',
+            'Spec:\n<spec>\n${withDecisions.trimRight()}\n</spec>',
+          ].join('\n'),
         ),
-        prompt: [
-          if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
-            'Memória do projeto:\n${m.toPrompt()}\n',
-          'Respostas:',
-          for (final MapEntry(key: q, value: a) in answers.entries)
-            if (a.answered) '- ${q.id} · ${q.text} → ${a.text}',
-          '',
-          'Spec:\n<spec>\n${withDecisions.trimRight()}\n</spec>',
-        ].join('\n'),
       );
       if (stopped) throw const SpecActionCancelled();
-      data = structuredOutput(r);
+      data = r.data;
     } on PlannerException {
       if (stopped) throw const SpecActionCancelled();
       rethrow;

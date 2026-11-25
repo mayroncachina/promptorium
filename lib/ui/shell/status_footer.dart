@@ -1,18 +1,23 @@
 import 'dart:async';
 
+import '../providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart' show planWindowExpired;
 import '../theme/tokens.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../core/codex/codex_cli.dart';
+import '../../core/codex/codex_probe.dart' show codexSandboxFixCommand;
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../data/providers.dart';
 import '../widgets/app_dialog.dart';
 import 'navigation.dart';
 import 'footer_stats.dart';
+import 'quota_detail.dart';
 
 /// Fixed footer (28px) fed by [footerStatsProvider]. Redraws every minute so
 /// the "reinicia em" countdowns stay right and a window that reset stops
@@ -70,6 +75,9 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
         ? legacyColor
         : s.providerStatus == 'conectado'
         ? AppColors.teal
+        // SPEC-096 R2: waiting for the person (login), not broken.
+        : s.providerStatus == 'login pendente'
+        ? AppColors.amber
         : AppColors.textMuted;
 
     String ratio(int? a, int? b) => a == null || b == null ? '—' : '$a/$b';
@@ -93,48 +101,93 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
           style: _mono,
         ),
       ]),
-      _group([
-        const Text('MCP'),
-        Text(ratio(s.mcpConnected, s.mcpTotal), style: _mono),
-        if ((s.mcpFailed ?? 0) > 0)
-          Text(
-            '· ${s.mcpFailed} falhou',
-            style: const TextStyle(color: AppColors.red),
-          ),
-      ]),
+      // SPEC-105 R11: the servers of the provider in focus.
+      Tooltip(
+        key: const ValueKey('footer-mcp'),
+        message: s.mcpHint ?? 'Servidores MCP do ${s.providerName}',
+        child: _group([
+          const Text('MCP'),
+          Text(ratio(s.mcpConnected, s.mcpTotal), style: _mono),
+          if ((s.mcpFailed ?? 0) > 0)
+            Text(
+              '· ${s.mcpFailed} falhou',
+              style: const TextStyle(color: AppColors.red),
+            ),
+        ]),
+      ),
     ];
 
-    final limitOn = s.limitRejected && !planWindowExpired(s.limitResetsAt, now);
+    final codex = s.providerId == 'codex';
+    // The Claude limit clears at its reset; the Codex one only with a new
+    // reading (SPEC-097 R7: no recovery inferred from the times).
+    final limitOn =
+        s.limitRejected && (codex || !planWindowExpired(s.limitResetsAt, now));
+    final windows = <Widget>[
+      _window(
+        key: const ValueKey('footer-usage-5h'),
+        title: s.usage5hTitle,
+        name: codex ? 'limite de 5 horas do Codex' : 'limite de 5 horas',
+        provider: s.providerName,
+        value: s.usage5h,
+        resetsAt: s.usage5hResetsAt,
+        color: AppColors.teal,
+        now: now,
+        // Weekly limit → the weekly window; anything else → the 5h one.
+        limitResetsAt: limitOn && s.limitType != 'seven_day'
+            ? s.limitResetsAt ?? s.usage5hResetsAt
+            : null,
+        limitWords: s.limitWords,
+        forceLimit: codex && limitOn && s.limitType != 'seven_day',
+      ),
+      _window(
+        key: const ValueKey('footer-usage-week'),
+        title: s.usageWeekTitle,
+        name: codex ? 'limite semanal do Codex' : 'limite semanal',
+        provider: s.providerName,
+        value: s.usageWeek,
+        resetsAt: s.usageWeekResetsAt,
+        color: AppColors.blue,
+        now: now,
+        limitResetsAt: limitOn && s.limitType == 'seven_day'
+            ? s.limitResetsAt ?? s.usageWeekResetsAt
+            : null,
+        limitWords: s.limitWords,
+        forceLimit: codex && limitOn && s.limitType == 'seven_day',
+      ),
+    ];
     final right = <Widget>[
-      if (s.providerId != 'claude')
+      if (!isClaudeCode(s.providerId) && !codex)
         const Text('Consumo indisponível')
-      else ...[
-        _window(
-          key: const ValueKey('footer-usage-5h'),
-          title: 'Uso 5h',
-          name: 'limite de 5 horas',
-          value: s.usage5h,
-          resetsAt: s.usage5hResetsAt,
-          color: AppColors.teal,
-          now: now,
-          // Weekly limit → the weekly window; anything else → the 5h one.
-          limitResetsAt: limitOn && s.limitType != 'seven_day'
-              ? s.limitResetsAt ?? s.usage5hResetsAt
-              : null,
+      else
+        // SPEC-097 R6: a click opens the quota of both providers.
+        Semantics(
+          button: true,
+          label: 'Abrir a cota dos planos',
+          child: InkWell(
+            key: const ValueKey('footer-quota'),
+            onTap: () => showQuotaDetail(context),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: codex && s.quotaError != null
+                  ? _unavailable(s, now)
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // R5: whose quota it is, by the official logo.
+                        if (codex) ...[
+                          ProviderChip('codex', dense: true),
+                          const SizedBox(width: 8),
+                        ],
+                        for (var i = 0; i < windows.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 16),
+                          windows[i],
+                        ],
+                      ],
+                    ),
+            ),
+          ),
         ),
-        _window(
-          key: const ValueKey('footer-usage-week'),
-          title: 'Semana',
-          name: 'limite semanal',
-          value: s.usageWeek,
-          resetsAt: s.usageWeekResetsAt,
-          color: AppColors.blue,
-          now: now,
-          limitResetsAt: limitOn && s.limitType == 'seven_day'
-              ? s.limitResetsAt ?? s.usageWeekResetsAt
-              : null,
-        ),
-      ],
     ];
 
     return Container(
@@ -182,10 +235,41 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
     required DateTime? resetsAt,
     required Color color,
     required DateTime now,
+    String provider = 'Claude Code',
     DateTime? limitResetsAt,
+    String? limitWords,
+    bool forceLimit = false,
   }) {
     final expired = planWindowExpired(resetsAt, now);
     final v = expired ? null : value;
+    final who = provider == 'Claude Code' ? 'Claude' : provider;
+    // SPEC-097 R7: the Codex limit in red with its kind and the renewal.
+    if (forceLimit) {
+      final at = limitResetsAt;
+      return Tooltip(
+        key: key,
+        message:
+            'O $name foi atingido (${limitWords ?? 'limite do plano'}): '
+            'novas execuções do Codex falham'
+            '${at == null ? '' : ' até ${_when(at, now)} (em ${_until(at, now)})'}. '
+            'O app não troca de provedor sozinho.',
+        child: _group([
+          Text(title, style: const TextStyle(color: AppColors.red)),
+          _UsageBar(value: 1, color: AppColors.red, label: name),
+          Text(
+            [
+              'limite atingido',
+              if (at != null) 'renova ${_when(at, now)}',
+            ].join(' · '),
+            key: const ValueKey('footer-limit'),
+            style: const TextStyle(
+              color: AppColors.red,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ]),
+      );
+    }
     final barColor = v == null
         ? color
         : v >= 1
@@ -200,8 +284,8 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
         : v == null
         ? (expired
               ? 'O $name reiniciou; o uso atualiza na próxima resposta do '
-                    'Claude.'
-              : 'Uso do $name: aparece na primeira resposta do Claude.')
+                    '$who.'
+              : 'Uso do $name: aparece na primeira resposta do $who.')
         : 'Uso do $name: ${_pct(v)} usado, ${_pct(_left(v))} disponível'
               '${resetsAt == null ? '' : '. Reinicia ${_when(resetsAt, now)} (em ${_until(resetsAt, now)})'}.';
     return Tooltip(
@@ -222,6 +306,42 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
           if (v != null && resetsAt != null)
             Text('· reinicia em ${_until(resetsAt, now)}'),
         ],
+      ]),
+    );
+  }
+
+  /// "cota indisponível" with the reason in the tip and the time of the
+  /// last reading kept (SPEC-097 R4).
+  Widget _unavailable(FooterStats s, DateTime now) {
+    final read = s.quotaReadAt;
+    final old = [
+      if (s.usage5h != null) '${s.usage5hTitle} ${_pct(s.usage5h)}',
+      if (s.usageWeek != null) '${s.usageWeekTitle} ${_pct(s.usageWeek)}',
+    ].join(' · ');
+    return Tooltip(
+      key: const ValueKey('footer-quota-unavailable'),
+      message: [
+        'Cota do Codex indisponível: ${s.quotaError}.',
+        if (read != null)
+          'Última leitura ${_when(read, now)}${old.isEmpty ? '' : ': $old'}.',
+      ].join(' '),
+      child: _group([
+        ProviderChip('codex', dense: true),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Text('cota indisponível'),
+        ),
+        Text(
+          [
+            s.quotaError!,
+            if (read != null) 'última leitura ${_when(read, now)}',
+          ].join(' · '),
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
       ]),
     );
   }
@@ -301,6 +421,31 @@ class _UsageBar extends StatelessWidget {
   }
 }
 
+final _compact = TextButton.styleFrom(
+  padding: const EdgeInsets.symmetric(horizontal: 6),
+  minimumSize: const Size(0, 26),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  textStyle: const TextStyle(fontSize: 11),
+);
+
+bool _needsAction(ProviderAvailability? a) =>
+    a != null && (!a.available || a.sandboxWarning != null);
+
+/// Command the user runs to fix it (the app never runs it, R7a, R10).
+String? _fixCommand(ProviderAvailability? a) {
+  if (a == null) return null;
+  if (a.sandboxWarning != null) return codexSandboxFixCommand;
+  if (a.status == ProviderStatus.loginRequired &&
+      a.message.contains('codex login')) {
+    return 'codex login';
+  }
+  if (a.status == ProviderStatus.incompatible &&
+      a.message.contains('codex update')) {
+    return 'codex update';
+  }
+  return null;
+}
+
 class _ProviderSelector extends ConsumerWidget {
   const _ProviderSelector({
     required this.text,
@@ -316,6 +461,8 @@ class _ProviderSelector extends ConsumerWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('footer-provider-selector'),
       tooltip: 'Selecionar provedor',
+      // Room for the version, the warnings and their actions (R10, R7a).
+      constraints: const BoxConstraints(minWidth: 280, maxWidth: 460),
       initialValue: selected,
       position: PopupMenuPosition.over,
       onSelected: (id) async {
@@ -366,6 +513,8 @@ class _ProviderSelector extends ConsumerWidget {
       itemBuilder: (context) {
         final ws = ref.read(activeWorkspaceProvider);
         final all = ref.read(agentProvidersProvider);
+        // "Desligar o Codex" (SPEC-096 P1) hides it from the menu.
+        final flows = ref.read(providerFlowsProvider);
         return [
           PopupMenuItem<String>(
             enabled: false,
@@ -377,7 +526,7 @@ class _ProviderSelector extends ConsumerWidget {
             enabled: false,
             child: Text('Aplicar às novas execuções'),
           ),
-          for (final p in all.where((p) => p.enabled))
+          for (final p in all.where((p) => p.enabled && flows.anyFor(p.id)))
             PopupMenuItem<String>(
               value: p.id,
               key: ValueKey('footer-provider-${p.id}'),
@@ -386,14 +535,37 @@ class _ProviderSelector extends ConsumerWidget {
                   final availability = ref.watch(
                     providerAvailabilityProvider(p.id),
                   );
+                  final a = availability.value;
                   final status = availability.when(
                     data: (v) => v.label,
                     error: (_, _) => 'não verificado',
                     loading: () => 'verificando…',
                   );
+                  // R10, R7a: why it is not usable, or what to watch for.
+                  final notes = [
+                    // SPEC-096 R2: the login is the person's, in a terminal.
+                    if (a?.status == ProviderStatus.loginRequired)
+                      (
+                        'rode ${p.id == 'codex' ? 'codex login' : 'claude auth login'} no terminal',
+                        AppColors.amber,
+                      )
+                    else if (a != null && !a.available)
+                      (a.message, AppColors.red),
+                    if (a?.version != null && a!.available)
+                      ('versão ${a.version}', AppColors.textMuted),
+                    if (a?.warning != null) (a!.warning!, AppColors.amber),
+                    if (a?.sandboxWarning != null)
+                      (
+                        'Sandbox do Codex indisponível: Perguntar, Planejar e '
+                            'Editar não rodam; só worktree com acesso total. '
+                            'Para liberar: $codexSandboxFixCommand',
+                        AppColors.amber,
+                      ),
+                  ];
                   return SizedBox(
-                    width: 320,
+                    width: 420,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
                           p.id == selected
@@ -402,12 +574,58 @@ class _ProviderSelector extends ConsumerWidget {
                           size: 16,
                         ),
                         const SizedBox(width: 8),
+                        if (hasProviderIdentity(p.id)) ...[
+                          ProviderLogo(p.id),
+                          const SizedBox(width: 6),
+                        ],
                         Expanded(
-                          child: Text(
-                            '${p.displayName} · $status',
-                            maxLines: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('${p.displayName} · $status', maxLines: 2),
+                              for (final (text, color) in notes)
+                                Text(
+                                  text,
+                                  style: TextStyle(fontSize: 11, color: color),
+                                ),
+                            ],
                           ),
                         ),
+                        if (_needsAction(a))
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                key: ValueKey(
+                                  'footer-provider-recheck-${p.id}',
+                                ),
+                                onPressed: () {
+                                  if (p.id == 'codex') {
+                                    ref.invalidate(codexCliInfoProvider);
+                                  }
+                                  ref.invalidate(
+                                    providerAvailabilityProvider(p.id),
+                                  );
+                                  Navigator.pop(context);
+                                },
+                                style: _compact,
+                                child: const Text('Verificar de novo'),
+                              ),
+                              if (_fixCommand(a) case final cmd?)
+                                TextButton(
+                                  key: ValueKey('footer-provider-copy-${p.id}'),
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: cmd),
+                                    );
+                                    if (context.mounted) Navigator.pop(context);
+                                  },
+                                  style: _compact,
+                                  child: const Text('Copiar comando'),
+                                ),
+                            ],
+                          ),
                       ],
                     ),
                   );
@@ -431,6 +649,11 @@ class _ProviderSelector extends ConsumerWidget {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
+              // R15: who runs, with the official logo next to the name.
+              if (hasProviderIdentity(selected)) ...[
+                ProviderChip(selected, dense: true),
+                const SizedBox(width: 6),
+              ],
               Flexible(
                 child: Text(
                   text,

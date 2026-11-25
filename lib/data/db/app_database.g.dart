@@ -4949,6 +4949,20 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _parentSessionIdMeta = const VerificationMeta(
+    'parentSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> parentSessionId = GeneratedColumn<String>(
+    'parent_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     provider,
@@ -4977,6 +4991,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5159,6 +5174,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         duelId.isAcceptableOrUnknown(data['duel_id']!, _duelIdMeta),
       );
     }
+    if (data.containsKey('parent_session_id')) {
+      context.handle(
+        _parentSessionIdMeta,
+        parentSessionId.isAcceptableOrUnknown(
+          data['parent_session_id']!,
+          _parentSessionIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5274,6 +5298,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.int,
         data['${effectivePrefix}duel_id'],
       ),
+      parentSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_session_id'],
+      ),
     );
   }
 
@@ -5338,6 +5366,10 @@ class Session extends DataClass implements Insertable<Session> {
   /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
   /// result does not move the spec's steps, the user picks a winner.
   final int? duelId;
+
+  /// Session this one was forked from (schema v35, SPEC-096 R16); null for
+  /// sessions that did not come from a fork. Claude and Codex.
+  final String? parentSessionId;
   const Session({
     required this.provider,
     this.externalId,
@@ -5365,6 +5397,7 @@ class Session extends DataClass implements Insertable<Session> {
     this.prUrl,
     this.pid,
     this.duelId,
+    this.parentSessionId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5429,6 +5462,9 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || duelId != null) {
       map['duel_id'] = Variable<int>(duelId);
     }
+    if (!nullToAbsent || parentSessionId != null) {
+      map['parent_session_id'] = Variable<String>(parentSessionId);
+    }
     return map;
   }
 
@@ -5488,6 +5524,9 @@ class Session extends DataClass implements Insertable<Session> {
       duelId: duelId == null && nullToAbsent
           ? const Value.absent()
           : Value(duelId),
+      parentSessionId: parentSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentSessionId),
     );
   }
 
@@ -5525,6 +5564,7 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: serializer.fromJson<String?>(json['prUrl']),
       pid: serializer.fromJson<int?>(json['pid']),
       duelId: serializer.fromJson<int?>(json['duelId']),
+      parentSessionId: serializer.fromJson<String?>(json['parentSessionId']),
     );
   }
   @override
@@ -5559,6 +5599,7 @@ class Session extends DataClass implements Insertable<Session> {
       'prUrl': serializer.toJson<String?>(prUrl),
       'pid': serializer.toJson<int?>(pid),
       'duelId': serializer.toJson<int?>(duelId),
+      'parentSessionId': serializer.toJson<String?>(parentSessionId),
     };
   }
 
@@ -5589,6 +5630,7 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> prUrl = const Value.absent(),
     Value<int?> pid = const Value.absent(),
     Value<int?> duelId = const Value.absent(),
+    Value<String?> parentSessionId = const Value.absent(),
   }) => Session(
     provider: provider ?? this.provider,
     externalId: externalId.present ? externalId.value : this.externalId,
@@ -5618,6 +5660,9 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
     pid: pid.present ? pid.value : this.pid,
     duelId: duelId.present ? duelId.value : this.duelId,
+    parentSessionId: parentSessionId.present
+        ? parentSessionId.value
+        : this.parentSessionId,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -5659,6 +5704,9 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
       pid: data.pid.present ? data.pid.value : this.pid,
       duelId: data.duelId.present ? data.duelId.value : this.duelId,
+      parentSessionId: data.parentSessionId.present
+          ? data.parentSessionId.value
+          : this.parentSessionId,
     );
   }
 
@@ -5690,7 +5738,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
-          ..write('duelId: $duelId')
+          ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId')
           ..write(')'))
         .toString();
   }
@@ -5723,6 +5772,7 @@ class Session extends DataClass implements Insertable<Session> {
     prUrl,
     pid,
     duelId,
+    parentSessionId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5753,7 +5803,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.mergeCommit == this.mergeCommit &&
           other.prUrl == this.prUrl &&
           other.pid == this.pid &&
-          other.duelId == this.duelId);
+          other.duelId == this.duelId &&
+          other.parentSessionId == this.parentSessionId);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -5783,6 +5834,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> prUrl;
   final Value<int?> pid;
   final Value<int?> duelId;
+  final Value<String?> parentSessionId;
   final Value<int> rowid;
   const SessionsCompanion({
     this.provider = const Value.absent(),
@@ -5811,6 +5863,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -5840,6 +5893,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
     this.duelId = const Value.absent(),
+    this.parentSessionId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -5873,6 +5927,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? prUrl,
     Expression<int>? pid,
     Expression<int>? duelId,
+    Expression<String>? parentSessionId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5902,6 +5957,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (prUrl != null) 'pr_url': prUrl,
       if (pid != null) 'pid': pid,
       if (duelId != null) 'duel_id': duelId,
+      if (parentSessionId != null) 'parent_session_id': parentSessionId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5933,6 +5989,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? prUrl,
     Value<int?>? pid,
     Value<int?>? duelId,
+    Value<String?>? parentSessionId,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -5962,6 +6019,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       prUrl: prUrl ?? this.prUrl,
       pid: pid ?? this.pid,
       duelId: duelId ?? this.duelId,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6049,6 +6107,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (duelId.present) {
       map['duel_id'] = Variable<int>(duelId.value);
     }
+    if (parentSessionId.present) {
+      map['parent_session_id'] = Variable<String>(parentSessionId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6084,6 +6145,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
           ..write('duelId: $duelId, ')
+          ..write('parentSessionId: $parentSessionId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11192,6 +11254,26 @@ class $ReviewCommentsTable extends ReviewComments
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -11210,6 +11292,8 @@ class $ReviewCommentsTable extends ReviewComments
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11325,6 +11409,18 @@ class $ReviewCommentsTable extends ReviewComments
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
     return context;
   }
 
@@ -11398,6 +11494,14 @@ class $ReviewCommentsTable extends ReviewComments
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
     );
   }
 
@@ -11443,6 +11547,12 @@ class ReviewCommentRow extends DataClass
   final DateTime? resolvedAt;
   final String? externalId;
   final DateTime createdAt;
+
+  /// Who ran the automatic reviewer's round (SPEC-102 R9, P3, schema v36),
+  /// on its verdict line: `claude`, `codex`… and the model it reported.
+  /// Null on the rows of before and on the other lines.
+  final String? provider;
+  final String? model;
   const ReviewCommentRow({
     required this.id,
     this.specId,
@@ -11460,6 +11570,8 @@ class ReviewCommentRow extends DataClass
     this.resolvedAt,
     this.externalId,
     required this.createdAt,
+    this.provider,
+    this.model,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11500,6 +11612,12 @@ class ReviewCommentRow extends DataClass
       map['external_id'] = Variable<String>(externalId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || provider != null) {
+      map['provider'] = Variable<String>(provider);
+    }
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
     return map;
   }
 
@@ -11537,6 +11655,12 @@ class ReviewCommentRow extends DataClass
           ? const Value.absent()
           : Value(externalId),
       createdAt: Value(createdAt),
+      provider: provider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provider),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
     );
   }
 
@@ -11562,6 +11686,8 @@ class ReviewCommentRow extends DataClass
       resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
       externalId: serializer.fromJson<String?>(json['externalId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      provider: serializer.fromJson<String?>(json['provider']),
+      model: serializer.fromJson<String?>(json['model']),
     );
   }
   @override
@@ -11584,6 +11710,8 @@ class ReviewCommentRow extends DataClass
       'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
       'externalId': serializer.toJson<String?>(externalId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'provider': serializer.toJson<String?>(provider),
+      'model': serializer.toJson<String?>(model),
     };
   }
 
@@ -11604,6 +11732,8 @@ class ReviewCommentRow extends DataClass
     Value<DateTime?> resolvedAt = const Value.absent(),
     Value<String?> externalId = const Value.absent(),
     DateTime? createdAt,
+    Value<String?> provider = const Value.absent(),
+    Value<String?> model = const Value.absent(),
   }) => ReviewCommentRow(
     id: id ?? this.id,
     specId: specId.present ? specId.value : this.specId,
@@ -11621,6 +11751,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
     externalId: externalId.present ? externalId.value : this.externalId,
     createdAt: createdAt ?? this.createdAt,
+    provider: provider.present ? provider.value : this.provider,
+    model: model.present ? model.value : this.model,
   );
   ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
     return ReviewCommentRow(
@@ -11646,6 +11778,8 @@ class ReviewCommentRow extends DataClass
           ? data.externalId.value
           : this.externalId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      model: data.model.present ? data.model.value : this.model,
     );
   }
 
@@ -11667,7 +11801,9 @@ class ReviewCommentRow extends DataClass
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -11690,6 +11826,8 @@ class ReviewCommentRow extends DataClass
     resolvedAt,
     externalId,
     createdAt,
+    provider,
+    model,
   );
   @override
   bool operator ==(Object other) =>
@@ -11710,7 +11848,9 @@ class ReviewCommentRow extends DataClass
           other.resolved == this.resolved &&
           other.resolvedAt == this.resolvedAt &&
           other.externalId == this.externalId &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.provider == this.provider &&
+          other.model == this.model);
 }
 
 class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
@@ -11730,6 +11870,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<DateTime?> resolvedAt;
   final Value<String?> externalId;
   final Value<DateTime> createdAt;
+  final Value<String?> provider;
+  final Value<String?> model;
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
@@ -11747,6 +11889,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   });
   ReviewCommentsCompanion.insert({
     this.id = const Value.absent(),
@@ -11765,6 +11909,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
   }) : round = Value(round),
        author = Value(author),
        body = Value(body);
@@ -11785,6 +11931,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Expression<DateTime>? resolvedAt,
     Expression<String>? externalId,
     Expression<DateTime>? createdAt,
+    Expression<String>? provider,
+    Expression<String>? model,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -11803,6 +11951,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       if (resolvedAt != null) 'resolved_at': resolvedAt,
       if (externalId != null) 'external_id': externalId,
       if (createdAt != null) 'created_at': createdAt,
+      if (provider != null) 'provider': provider,
+      if (model != null) 'model': model,
     });
   }
 
@@ -11823,6 +11973,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Value<DateTime?>? resolvedAt,
     Value<String?>? externalId,
     Value<DateTime>? createdAt,
+    Value<String?>? provider,
+    Value<String?>? model,
   }) {
     return ReviewCommentsCompanion(
       id: id ?? this.id,
@@ -11841,6 +11993,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       resolvedAt: resolvedAt ?? this.resolvedAt,
       externalId: externalId ?? this.externalId,
       createdAt: createdAt ?? this.createdAt,
+      provider: provider ?? this.provider,
+      model: model ?? this.model,
     );
   }
 
@@ -11895,6 +12049,12 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
     return map;
   }
 
@@ -11916,7 +12076,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
           ..write('resolved: $resolved, ')
           ..write('resolvedAt: $resolvedAt, ')
           ..write('externalId: $externalId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model')
           ..write(')'))
         .toString();
   }
@@ -16930,6 +17092,30 @@ class $UsageEntriesTable extends UsageEntries
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('claude'),
+  );
+  static const VerificationMeta _tokensReasoningMeta = const VerificationMeta(
+    'tokensReasoning',
+  );
+  @override
+  late final GeneratedColumn<int> tokensReasoning = GeneratedColumn<int>(
+    'tokens_reasoning',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -16949,6 +17135,8 @@ class $UsageEntriesTable extends UsageEntries
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -17069,6 +17257,21 @@ class $UsageEntriesTable extends UsageEntries
         estimated.isAcceptableOrUnknown(data['estimated']!, _estimatedMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('tokens_reasoning')) {
+      context.handle(
+        _tokensReasoningMeta,
+        tokensReasoning.isAcceptableOrUnknown(
+          data['tokens_reasoning']!,
+          _tokensReasoningMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -17148,6 +17351,14 @@ class $UsageEntriesTable extends UsageEntries
         DriftSqlType.bool,
         data['${effectivePrefix}estimated'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      tokensReasoning: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_reasoning'],
+      )!,
     );
   }
 
@@ -17189,6 +17400,14 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
 
   /// Rebuilt from the events of before (R5): weighed by today's ruler.
   final bool estimated;
+
+  /// Who ran the turn (SPEC-097 R8, schema v34): a provider without cost in
+  /// US\$ (the Codex) has "custo indisponível", never a measured 0.
+  final String provider;
+
+  /// Reasoning output tokens (Codex `reasoningOutputTokens`): part of
+  /// [tokensOut], shown apart (SPEC-097 R8).
+  final int tokensReasoning;
   const UsageEntry({
     required this.id,
     this.workspaceId,
@@ -17207,6 +17426,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     this.fiveHourPct,
     this.weekPct,
     required this.estimated,
+    required this.provider,
+    required this.tokensReasoning,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -17248,6 +17469,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       map['week_pct'] = Variable<double>(weekPct);
     }
     map['estimated'] = Variable<bool>(estimated);
+    map['provider'] = Variable<String>(provider);
+    map['tokens_reasoning'] = Variable<int>(tokensReasoning);
     return map;
   }
 
@@ -17284,6 +17507,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ? const Value.absent()
           : Value(weekPct),
       estimated: Value(estimated),
+      provider: Value(provider),
+      tokensReasoning: Value(tokensReasoning),
     );
   }
 
@@ -17312,6 +17537,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       fiveHourPct: serializer.fromJson<double?>(json['fiveHourPct']),
       weekPct: serializer.fromJson<double?>(json['weekPct']),
       estimated: serializer.fromJson<bool>(json['estimated']),
+      provider: serializer.fromJson<String>(json['provider']),
+      tokensReasoning: serializer.fromJson<int>(json['tokensReasoning']),
     );
   }
   @override
@@ -17337,6 +17564,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
       'fiveHourPct': serializer.toJson<double?>(fiveHourPct),
       'weekPct': serializer.toJson<double?>(weekPct),
       'estimated': serializer.toJson<bool>(estimated),
+      'provider': serializer.toJson<String>(provider),
+      'tokensReasoning': serializer.toJson<int>(tokensReasoning),
     };
   }
 
@@ -17358,6 +17587,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     Value<double?> fiveHourPct = const Value.absent(),
     Value<double?> weekPct = const Value.absent(),
     bool? estimated,
+    String? provider,
+    int? tokensReasoning,
   }) => UsageEntry(
     id: id ?? this.id,
     workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
@@ -17378,6 +17609,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct: fiveHourPct.present ? fiveHourPct.value : this.fiveHourPct,
     weekPct: weekPct.present ? weekPct.value : this.weekPct,
     estimated: estimated ?? this.estimated,
+    provider: provider ?? this.provider,
+    tokensReasoning: tokensReasoning ?? this.tokensReasoning,
   );
   UsageEntry copyWithCompanion(UsageEntriesCompanion data) {
     return UsageEntry(
@@ -17408,6 +17641,10 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           : this.fiveHourPct,
       weekPct: data.weekPct.present ? data.weekPct.value : this.weekPct,
       estimated: data.estimated.present ? data.estimated.value : this.estimated,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      tokensReasoning: data.tokensReasoning.present
+          ? data.tokensReasoning.value
+          : this.tokensReasoning,
     );
   }
 
@@ -17430,7 +17667,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -17454,6 +17693,8 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
     fiveHourPct,
     weekPct,
     estimated,
+    provider,
+    tokensReasoning,
   );
   @override
   bool operator ==(Object other) =>
@@ -17475,7 +17716,9 @@ class UsageEntry extends DataClass implements Insertable<UsageEntry> {
           other.costUsd == this.costUsd &&
           other.fiveHourPct == this.fiveHourPct &&
           other.weekPct == this.weekPct &&
-          other.estimated == this.estimated);
+          other.estimated == this.estimated &&
+          other.provider == this.provider &&
+          other.tokensReasoning == this.tokensReasoning);
 }
 
 class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
@@ -17496,6 +17739,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
   final Value<double?> fiveHourPct;
   final Value<double?> weekPct;
   final Value<bool> estimated;
+  final Value<String> provider;
+  final Value<int> tokensReasoning;
   const UsageEntriesCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -17514,6 +17759,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   });
   UsageEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -17533,6 +17780,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     this.fiveHourPct = const Value.absent(),
     this.weekPct = const Value.absent(),
     this.estimated = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensReasoning = const Value.absent(),
   }) : source = Value(source),
        at = Value(at);
   static Insertable<UsageEntry> custom({
@@ -17553,6 +17802,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Expression<double>? fiveHourPct,
     Expression<double>? weekPct,
     Expression<bool>? estimated,
+    Expression<String>? provider,
+    Expression<int>? tokensReasoning,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -17572,6 +17823,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       if (fiveHourPct != null) 'five_hour_pct': fiveHourPct,
       if (weekPct != null) 'week_pct': weekPct,
       if (estimated != null) 'estimated': estimated,
+      if (provider != null) 'provider': provider,
+      if (tokensReasoning != null) 'tokens_reasoning': tokensReasoning,
     });
   }
 
@@ -17593,6 +17846,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     Value<double?>? fiveHourPct,
     Value<double?>? weekPct,
     Value<bool>? estimated,
+    Value<String>? provider,
+    Value<int>? tokensReasoning,
   }) {
     return UsageEntriesCompanion(
       id: id ?? this.id,
@@ -17612,6 +17867,8 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
       fiveHourPct: fiveHourPct ?? this.fiveHourPct,
       weekPct: weekPct ?? this.weekPct,
       estimated: estimated ?? this.estimated,
+      provider: provider ?? this.provider,
+      tokensReasoning: tokensReasoning ?? this.tokensReasoning,
     );
   }
 
@@ -17671,6 +17928,12 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
     if (estimated.present) {
       map['estimated'] = Variable<bool>(estimated.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (tokensReasoning.present) {
+      map['tokens_reasoning'] = Variable<int>(tokensReasoning.value);
+    }
     return map;
   }
 
@@ -17693,7 +17956,9 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
           ..write('costUsd: $costUsd, ')
           ..write('fiveHourPct: $fiveHourPct, ')
           ..write('weekPct: $weekPct, ')
-          ..write('estimated: $estimated')
+          ..write('estimated: $estimated, ')
+          ..write('provider: $provider, ')
+          ..write('tokensReasoning: $tokensReasoning')
           ..write(')'))
         .toString();
   }
@@ -19830,6 +20095,1067 @@ class SecretWaiversCompanion extends UpdateCompanion<SecretWaiver> {
   }
 }
 
+class $DebtLinksTable extends DebtLinks
+    with TableInfo<$DebtLinksTable, DebtLink> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DebtLinksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _repoRootMeta = const VerificationMeta(
+    'repoRoot',
+  );
+  @override
+  late final GeneratedColumn<String> repoRoot = GeneratedColumn<String>(
+    'repo_root',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originSpecIdMeta = const VerificationMeta(
+    'originSpecId',
+  );
+  @override
+  late final GeneratedColumn<int> originSpecId = GeneratedColumn<int>(
+    'origin_spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _originQuestionMeta = const VerificationMeta(
+    'originQuestion',
+  );
+  @override
+  late final GeneratedColumn<String> originQuestion = GeneratedColumn<String>(
+    'origin_question',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originSessionIdMeta = const VerificationMeta(
+    'originSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> originSessionId = GeneratedColumn<String>(
+    'origin_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originMessageIdMeta = const VerificationMeta(
+    'originMessageId',
+  );
+  @override
+  late final GeneratedColumn<String> originMessageId = GeneratedColumn<String>(
+    'origin_message_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originReviewCommentIdMeta =
+      const VerificationMeta('originReviewCommentId');
+  @override
+  late final GeneratedColumn<int> originReviewCommentId = GeneratedColumn<int>(
+    'origin_review_comment_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES review_comments (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _originDecisionMeta = const VerificationMeta(
+    'originDecision',
+  );
+  @override
+  late final GeneratedColumn<String> originDecision = GeneratedColumn<String>(
+    'origin_decision',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _suggestionStateMeta = const VerificationMeta(
+    'suggestionState',
+  );
+  @override
+  late final GeneratedColumn<String> suggestionState = GeneratedColumn<String>(
+    'suggestion_state',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _suggestionSourceMeta = const VerificationMeta(
+    'suggestionSource',
+  );
+  @override
+  late final GeneratedColumn<String> suggestionSource = GeneratedColumn<String>(
+    'suggestion_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _suggestionBodyMeta = const VerificationMeta(
+    'suggestionBody',
+  );
+  @override
+  late final GeneratedColumn<String> suggestionBody = GeneratedColumn<String>(
+    'suggestion_body',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paymentSpecIdMeta = const VerificationMeta(
+    'paymentSpecId',
+  );
+  @override
+  late final GeneratedColumn<int> paymentSpecId = GeneratedColumn<int>(
+    'payment_spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _piggybackSpecIdMeta = const VerificationMeta(
+    'piggybackSpecId',
+  );
+  @override
+  late final GeneratedColumn<int> piggybackSpecId = GeneratedColumn<int>(
+    'piggyback_spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _piggybackStateMeta = const VerificationMeta(
+    'piggybackState',
+  );
+  @override
+  late final GeneratedColumn<String> piggybackState = GeneratedColumn<String>(
+    'piggyback_state',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    repoRoot,
+    kind,
+    code,
+    originSpecId,
+    originQuestion,
+    originSessionId,
+    originMessageId,
+    originReviewCommentId,
+    originDecision,
+    suggestionState,
+    suggestionSource,
+    suggestionBody,
+    paymentSpecId,
+    piggybackSpecId,
+    piggybackState,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'debt_links';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DebtLink> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('repo_root')) {
+      context.handle(
+        _repoRootMeta,
+        repoRoot.isAcceptableOrUnknown(data['repo_root']!, _repoRootMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_repoRootMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    }
+    if (data.containsKey('origin_spec_id')) {
+      context.handle(
+        _originSpecIdMeta,
+        originSpecId.isAcceptableOrUnknown(
+          data['origin_spec_id']!,
+          _originSpecIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_question')) {
+      context.handle(
+        _originQuestionMeta,
+        originQuestion.isAcceptableOrUnknown(
+          data['origin_question']!,
+          _originQuestionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_session_id')) {
+      context.handle(
+        _originSessionIdMeta,
+        originSessionId.isAcceptableOrUnknown(
+          data['origin_session_id']!,
+          _originSessionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_message_id')) {
+      context.handle(
+        _originMessageIdMeta,
+        originMessageId.isAcceptableOrUnknown(
+          data['origin_message_id']!,
+          _originMessageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_review_comment_id')) {
+      context.handle(
+        _originReviewCommentIdMeta,
+        originReviewCommentId.isAcceptableOrUnknown(
+          data['origin_review_comment_id']!,
+          _originReviewCommentIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_decision')) {
+      context.handle(
+        _originDecisionMeta,
+        originDecision.isAcceptableOrUnknown(
+          data['origin_decision']!,
+          _originDecisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggestion_state')) {
+      context.handle(
+        _suggestionStateMeta,
+        suggestionState.isAcceptableOrUnknown(
+          data['suggestion_state']!,
+          _suggestionStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggestion_source')) {
+      context.handle(
+        _suggestionSourceMeta,
+        suggestionSource.isAcceptableOrUnknown(
+          data['suggestion_source']!,
+          _suggestionSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggestion_body')) {
+      context.handle(
+        _suggestionBodyMeta,
+        suggestionBody.isAcceptableOrUnknown(
+          data['suggestion_body']!,
+          _suggestionBodyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_spec_id')) {
+      context.handle(
+        _paymentSpecIdMeta,
+        paymentSpecId.isAcceptableOrUnknown(
+          data['payment_spec_id']!,
+          _paymentSpecIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('piggyback_spec_id')) {
+      context.handle(
+        _piggybackSpecIdMeta,
+        piggybackSpecId.isAcceptableOrUnknown(
+          data['piggyback_spec_id']!,
+          _piggybackSpecIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('piggyback_state')) {
+      context.handle(
+        _piggybackStateMeta,
+        piggybackState.isAcceptableOrUnknown(
+          data['piggyback_state']!,
+          _piggybackStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DebtLink map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DebtLink(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      repoRoot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}repo_root'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      ),
+      originSpecId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_spec_id'],
+      ),
+      originQuestion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_question'],
+      ),
+      originSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_session_id'],
+      ),
+      originMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_message_id'],
+      ),
+      originReviewCommentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_review_comment_id'],
+      ),
+      originDecision: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_decision'],
+      ),
+      suggestionState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}suggestion_state'],
+      ),
+      suggestionSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}suggestion_source'],
+      ),
+      suggestionBody: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}suggestion_body'],
+      ),
+      paymentSpecId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}payment_spec_id'],
+      ),
+      piggybackSpecId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}piggyback_spec_id'],
+      ),
+      piggybackState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}piggyback_state'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DebtLinksTable createAlias(String alias) {
+    return $DebtLinksTable(attachedDatabase, alias);
+  }
+}
+
+class DebtLink extends DataClass implements Insertable<DebtLink> {
+  final int id;
+
+  /// Repository of the item (its main root).
+  final String repoRoot;
+
+  /// `debito` / `decisao`.
+  final String kind;
+
+  /// `DT-09` / `DP-04`; null in a suggestion not yet accepted. Unique per
+  /// repository: reserving it keeps the ID from being given twice (R3).
+  final String? code;
+  final int? originSpecId;
+
+  /// `Q5`, `P3`.
+  final String? originQuestion;
+  final String? originSessionId;
+  final String? originMessageId;
+  final int? originReviewCommentId;
+
+  /// `DP-01` that generated the debt (R12).
+  final String? originDecision;
+
+  /// `pendente` / `aceita` / `descartada`.
+  final String? suggestionState;
+
+  /// `mcp` / `entrevista` / `rascunho`.
+  final String? suggestionSource;
+
+  /// JSON with the proposed cells.
+  final String? suggestionBody;
+
+  /// Spec or VIBE paying the debt (R15).
+  final int? paymentSpecId;
+
+  /// Spec whose step said it paid the debt (R17).
+  final int? piggybackSpecId;
+
+  /// `a_confirmar` / `confirmado` / `recusado`.
+  final String? piggybackState;
+  final DateTime createdAt;
+  const DebtLink({
+    required this.id,
+    required this.repoRoot,
+    required this.kind,
+    this.code,
+    this.originSpecId,
+    this.originQuestion,
+    this.originSessionId,
+    this.originMessageId,
+    this.originReviewCommentId,
+    this.originDecision,
+    this.suggestionState,
+    this.suggestionSource,
+    this.suggestionBody,
+    this.paymentSpecId,
+    this.piggybackSpecId,
+    this.piggybackState,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['repo_root'] = Variable<String>(repoRoot);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || code != null) {
+      map['code'] = Variable<String>(code);
+    }
+    if (!nullToAbsent || originSpecId != null) {
+      map['origin_spec_id'] = Variable<int>(originSpecId);
+    }
+    if (!nullToAbsent || originQuestion != null) {
+      map['origin_question'] = Variable<String>(originQuestion);
+    }
+    if (!nullToAbsent || originSessionId != null) {
+      map['origin_session_id'] = Variable<String>(originSessionId);
+    }
+    if (!nullToAbsent || originMessageId != null) {
+      map['origin_message_id'] = Variable<String>(originMessageId);
+    }
+    if (!nullToAbsent || originReviewCommentId != null) {
+      map['origin_review_comment_id'] = Variable<int>(originReviewCommentId);
+    }
+    if (!nullToAbsent || originDecision != null) {
+      map['origin_decision'] = Variable<String>(originDecision);
+    }
+    if (!nullToAbsent || suggestionState != null) {
+      map['suggestion_state'] = Variable<String>(suggestionState);
+    }
+    if (!nullToAbsent || suggestionSource != null) {
+      map['suggestion_source'] = Variable<String>(suggestionSource);
+    }
+    if (!nullToAbsent || suggestionBody != null) {
+      map['suggestion_body'] = Variable<String>(suggestionBody);
+    }
+    if (!nullToAbsent || paymentSpecId != null) {
+      map['payment_spec_id'] = Variable<int>(paymentSpecId);
+    }
+    if (!nullToAbsent || piggybackSpecId != null) {
+      map['piggyback_spec_id'] = Variable<int>(piggybackSpecId);
+    }
+    if (!nullToAbsent || piggybackState != null) {
+      map['piggyback_state'] = Variable<String>(piggybackState);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  DebtLinksCompanion toCompanion(bool nullToAbsent) {
+    return DebtLinksCompanion(
+      id: Value(id),
+      repoRoot: Value(repoRoot),
+      kind: Value(kind),
+      code: code == null && nullToAbsent ? const Value.absent() : Value(code),
+      originSpecId: originSpecId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originSpecId),
+      originQuestion: originQuestion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originQuestion),
+      originSessionId: originSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originSessionId),
+      originMessageId: originMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originMessageId),
+      originReviewCommentId: originReviewCommentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originReviewCommentId),
+      originDecision: originDecision == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originDecision),
+      suggestionState: suggestionState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestionState),
+      suggestionSource: suggestionSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestionSource),
+      suggestionBody: suggestionBody == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestionBody),
+      paymentSpecId: paymentSpecId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentSpecId),
+      piggybackSpecId: piggybackSpecId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(piggybackSpecId),
+      piggybackState: piggybackState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(piggybackState),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory DebtLink.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DebtLink(
+      id: serializer.fromJson<int>(json['id']),
+      repoRoot: serializer.fromJson<String>(json['repoRoot']),
+      kind: serializer.fromJson<String>(json['kind']),
+      code: serializer.fromJson<String?>(json['code']),
+      originSpecId: serializer.fromJson<int?>(json['originSpecId']),
+      originQuestion: serializer.fromJson<String?>(json['originQuestion']),
+      originSessionId: serializer.fromJson<String?>(json['originSessionId']),
+      originMessageId: serializer.fromJson<String?>(json['originMessageId']),
+      originReviewCommentId: serializer.fromJson<int?>(
+        json['originReviewCommentId'],
+      ),
+      originDecision: serializer.fromJson<String?>(json['originDecision']),
+      suggestionState: serializer.fromJson<String?>(json['suggestionState']),
+      suggestionSource: serializer.fromJson<String?>(json['suggestionSource']),
+      suggestionBody: serializer.fromJson<String?>(json['suggestionBody']),
+      paymentSpecId: serializer.fromJson<int?>(json['paymentSpecId']),
+      piggybackSpecId: serializer.fromJson<int?>(json['piggybackSpecId']),
+      piggybackState: serializer.fromJson<String?>(json['piggybackState']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'repoRoot': serializer.toJson<String>(repoRoot),
+      'kind': serializer.toJson<String>(kind),
+      'code': serializer.toJson<String?>(code),
+      'originSpecId': serializer.toJson<int?>(originSpecId),
+      'originQuestion': serializer.toJson<String?>(originQuestion),
+      'originSessionId': serializer.toJson<String?>(originSessionId),
+      'originMessageId': serializer.toJson<String?>(originMessageId),
+      'originReviewCommentId': serializer.toJson<int?>(originReviewCommentId),
+      'originDecision': serializer.toJson<String?>(originDecision),
+      'suggestionState': serializer.toJson<String?>(suggestionState),
+      'suggestionSource': serializer.toJson<String?>(suggestionSource),
+      'suggestionBody': serializer.toJson<String?>(suggestionBody),
+      'paymentSpecId': serializer.toJson<int?>(paymentSpecId),
+      'piggybackSpecId': serializer.toJson<int?>(piggybackSpecId),
+      'piggybackState': serializer.toJson<String?>(piggybackState),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  DebtLink copyWith({
+    int? id,
+    String? repoRoot,
+    String? kind,
+    Value<String?> code = const Value.absent(),
+    Value<int?> originSpecId = const Value.absent(),
+    Value<String?> originQuestion = const Value.absent(),
+    Value<String?> originSessionId = const Value.absent(),
+    Value<String?> originMessageId = const Value.absent(),
+    Value<int?> originReviewCommentId = const Value.absent(),
+    Value<String?> originDecision = const Value.absent(),
+    Value<String?> suggestionState = const Value.absent(),
+    Value<String?> suggestionSource = const Value.absent(),
+    Value<String?> suggestionBody = const Value.absent(),
+    Value<int?> paymentSpecId = const Value.absent(),
+    Value<int?> piggybackSpecId = const Value.absent(),
+    Value<String?> piggybackState = const Value.absent(),
+    DateTime? createdAt,
+  }) => DebtLink(
+    id: id ?? this.id,
+    repoRoot: repoRoot ?? this.repoRoot,
+    kind: kind ?? this.kind,
+    code: code.present ? code.value : this.code,
+    originSpecId: originSpecId.present ? originSpecId.value : this.originSpecId,
+    originQuestion: originQuestion.present
+        ? originQuestion.value
+        : this.originQuestion,
+    originSessionId: originSessionId.present
+        ? originSessionId.value
+        : this.originSessionId,
+    originMessageId: originMessageId.present
+        ? originMessageId.value
+        : this.originMessageId,
+    originReviewCommentId: originReviewCommentId.present
+        ? originReviewCommentId.value
+        : this.originReviewCommentId,
+    originDecision: originDecision.present
+        ? originDecision.value
+        : this.originDecision,
+    suggestionState: suggestionState.present
+        ? suggestionState.value
+        : this.suggestionState,
+    suggestionSource: suggestionSource.present
+        ? suggestionSource.value
+        : this.suggestionSource,
+    suggestionBody: suggestionBody.present
+        ? suggestionBody.value
+        : this.suggestionBody,
+    paymentSpecId: paymentSpecId.present
+        ? paymentSpecId.value
+        : this.paymentSpecId,
+    piggybackSpecId: piggybackSpecId.present
+        ? piggybackSpecId.value
+        : this.piggybackSpecId,
+    piggybackState: piggybackState.present
+        ? piggybackState.value
+        : this.piggybackState,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  DebtLink copyWithCompanion(DebtLinksCompanion data) {
+    return DebtLink(
+      id: data.id.present ? data.id.value : this.id,
+      repoRoot: data.repoRoot.present ? data.repoRoot.value : this.repoRoot,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      code: data.code.present ? data.code.value : this.code,
+      originSpecId: data.originSpecId.present
+          ? data.originSpecId.value
+          : this.originSpecId,
+      originQuestion: data.originQuestion.present
+          ? data.originQuestion.value
+          : this.originQuestion,
+      originSessionId: data.originSessionId.present
+          ? data.originSessionId.value
+          : this.originSessionId,
+      originMessageId: data.originMessageId.present
+          ? data.originMessageId.value
+          : this.originMessageId,
+      originReviewCommentId: data.originReviewCommentId.present
+          ? data.originReviewCommentId.value
+          : this.originReviewCommentId,
+      originDecision: data.originDecision.present
+          ? data.originDecision.value
+          : this.originDecision,
+      suggestionState: data.suggestionState.present
+          ? data.suggestionState.value
+          : this.suggestionState,
+      suggestionSource: data.suggestionSource.present
+          ? data.suggestionSource.value
+          : this.suggestionSource,
+      suggestionBody: data.suggestionBody.present
+          ? data.suggestionBody.value
+          : this.suggestionBody,
+      paymentSpecId: data.paymentSpecId.present
+          ? data.paymentSpecId.value
+          : this.paymentSpecId,
+      piggybackSpecId: data.piggybackSpecId.present
+          ? data.piggybackSpecId.value
+          : this.piggybackSpecId,
+      piggybackState: data.piggybackState.present
+          ? data.piggybackState.value
+          : this.piggybackState,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtLink(')
+          ..write('id: $id, ')
+          ..write('repoRoot: $repoRoot, ')
+          ..write('kind: $kind, ')
+          ..write('code: $code, ')
+          ..write('originSpecId: $originSpecId, ')
+          ..write('originQuestion: $originQuestion, ')
+          ..write('originSessionId: $originSessionId, ')
+          ..write('originMessageId: $originMessageId, ')
+          ..write('originReviewCommentId: $originReviewCommentId, ')
+          ..write('originDecision: $originDecision, ')
+          ..write('suggestionState: $suggestionState, ')
+          ..write('suggestionSource: $suggestionSource, ')
+          ..write('suggestionBody: $suggestionBody, ')
+          ..write('paymentSpecId: $paymentSpecId, ')
+          ..write('piggybackSpecId: $piggybackSpecId, ')
+          ..write('piggybackState: $piggybackState, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    repoRoot,
+    kind,
+    code,
+    originSpecId,
+    originQuestion,
+    originSessionId,
+    originMessageId,
+    originReviewCommentId,
+    originDecision,
+    suggestionState,
+    suggestionSource,
+    suggestionBody,
+    paymentSpecId,
+    piggybackSpecId,
+    piggybackState,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DebtLink &&
+          other.id == this.id &&
+          other.repoRoot == this.repoRoot &&
+          other.kind == this.kind &&
+          other.code == this.code &&
+          other.originSpecId == this.originSpecId &&
+          other.originQuestion == this.originQuestion &&
+          other.originSessionId == this.originSessionId &&
+          other.originMessageId == this.originMessageId &&
+          other.originReviewCommentId == this.originReviewCommentId &&
+          other.originDecision == this.originDecision &&
+          other.suggestionState == this.suggestionState &&
+          other.suggestionSource == this.suggestionSource &&
+          other.suggestionBody == this.suggestionBody &&
+          other.paymentSpecId == this.paymentSpecId &&
+          other.piggybackSpecId == this.piggybackSpecId &&
+          other.piggybackState == this.piggybackState &&
+          other.createdAt == this.createdAt);
+}
+
+class DebtLinksCompanion extends UpdateCompanion<DebtLink> {
+  final Value<int> id;
+  final Value<String> repoRoot;
+  final Value<String> kind;
+  final Value<String?> code;
+  final Value<int?> originSpecId;
+  final Value<String?> originQuestion;
+  final Value<String?> originSessionId;
+  final Value<String?> originMessageId;
+  final Value<int?> originReviewCommentId;
+  final Value<String?> originDecision;
+  final Value<String?> suggestionState;
+  final Value<String?> suggestionSource;
+  final Value<String?> suggestionBody;
+  final Value<int?> paymentSpecId;
+  final Value<int?> piggybackSpecId;
+  final Value<String?> piggybackState;
+  final Value<DateTime> createdAt;
+  const DebtLinksCompanion({
+    this.id = const Value.absent(),
+    this.repoRoot = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.code = const Value.absent(),
+    this.originSpecId = const Value.absent(),
+    this.originQuestion = const Value.absent(),
+    this.originSessionId = const Value.absent(),
+    this.originMessageId = const Value.absent(),
+    this.originReviewCommentId = const Value.absent(),
+    this.originDecision = const Value.absent(),
+    this.suggestionState = const Value.absent(),
+    this.suggestionSource = const Value.absent(),
+    this.suggestionBody = const Value.absent(),
+    this.paymentSpecId = const Value.absent(),
+    this.piggybackSpecId = const Value.absent(),
+    this.piggybackState = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  DebtLinksCompanion.insert({
+    this.id = const Value.absent(),
+    required String repoRoot,
+    required String kind,
+    this.code = const Value.absent(),
+    this.originSpecId = const Value.absent(),
+    this.originQuestion = const Value.absent(),
+    this.originSessionId = const Value.absent(),
+    this.originMessageId = const Value.absent(),
+    this.originReviewCommentId = const Value.absent(),
+    this.originDecision = const Value.absent(),
+    this.suggestionState = const Value.absent(),
+    this.suggestionSource = const Value.absent(),
+    this.suggestionBody = const Value.absent(),
+    this.paymentSpecId = const Value.absent(),
+    this.piggybackSpecId = const Value.absent(),
+    this.piggybackState = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : repoRoot = Value(repoRoot),
+       kind = Value(kind);
+  static Insertable<DebtLink> custom({
+    Expression<int>? id,
+    Expression<String>? repoRoot,
+    Expression<String>? kind,
+    Expression<String>? code,
+    Expression<int>? originSpecId,
+    Expression<String>? originQuestion,
+    Expression<String>? originSessionId,
+    Expression<String>? originMessageId,
+    Expression<int>? originReviewCommentId,
+    Expression<String>? originDecision,
+    Expression<String>? suggestionState,
+    Expression<String>? suggestionSource,
+    Expression<String>? suggestionBody,
+    Expression<int>? paymentSpecId,
+    Expression<int>? piggybackSpecId,
+    Expression<String>? piggybackState,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (repoRoot != null) 'repo_root': repoRoot,
+      if (kind != null) 'kind': kind,
+      if (code != null) 'code': code,
+      if (originSpecId != null) 'origin_spec_id': originSpecId,
+      if (originQuestion != null) 'origin_question': originQuestion,
+      if (originSessionId != null) 'origin_session_id': originSessionId,
+      if (originMessageId != null) 'origin_message_id': originMessageId,
+      if (originReviewCommentId != null)
+        'origin_review_comment_id': originReviewCommentId,
+      if (originDecision != null) 'origin_decision': originDecision,
+      if (suggestionState != null) 'suggestion_state': suggestionState,
+      if (suggestionSource != null) 'suggestion_source': suggestionSource,
+      if (suggestionBody != null) 'suggestion_body': suggestionBody,
+      if (paymentSpecId != null) 'payment_spec_id': paymentSpecId,
+      if (piggybackSpecId != null) 'piggyback_spec_id': piggybackSpecId,
+      if (piggybackState != null) 'piggyback_state': piggybackState,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  DebtLinksCompanion copyWith({
+    Value<int>? id,
+    Value<String>? repoRoot,
+    Value<String>? kind,
+    Value<String?>? code,
+    Value<int?>? originSpecId,
+    Value<String?>? originQuestion,
+    Value<String?>? originSessionId,
+    Value<String?>? originMessageId,
+    Value<int?>? originReviewCommentId,
+    Value<String?>? originDecision,
+    Value<String?>? suggestionState,
+    Value<String?>? suggestionSource,
+    Value<String?>? suggestionBody,
+    Value<int?>? paymentSpecId,
+    Value<int?>? piggybackSpecId,
+    Value<String?>? piggybackState,
+    Value<DateTime>? createdAt,
+  }) {
+    return DebtLinksCompanion(
+      id: id ?? this.id,
+      repoRoot: repoRoot ?? this.repoRoot,
+      kind: kind ?? this.kind,
+      code: code ?? this.code,
+      originSpecId: originSpecId ?? this.originSpecId,
+      originQuestion: originQuestion ?? this.originQuestion,
+      originSessionId: originSessionId ?? this.originSessionId,
+      originMessageId: originMessageId ?? this.originMessageId,
+      originReviewCommentId:
+          originReviewCommentId ?? this.originReviewCommentId,
+      originDecision: originDecision ?? this.originDecision,
+      suggestionState: suggestionState ?? this.suggestionState,
+      suggestionSource: suggestionSource ?? this.suggestionSource,
+      suggestionBody: suggestionBody ?? this.suggestionBody,
+      paymentSpecId: paymentSpecId ?? this.paymentSpecId,
+      piggybackSpecId: piggybackSpecId ?? this.piggybackSpecId,
+      piggybackState: piggybackState ?? this.piggybackState,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (repoRoot.present) {
+      map['repo_root'] = Variable<String>(repoRoot.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (originSpecId.present) {
+      map['origin_spec_id'] = Variable<int>(originSpecId.value);
+    }
+    if (originQuestion.present) {
+      map['origin_question'] = Variable<String>(originQuestion.value);
+    }
+    if (originSessionId.present) {
+      map['origin_session_id'] = Variable<String>(originSessionId.value);
+    }
+    if (originMessageId.present) {
+      map['origin_message_id'] = Variable<String>(originMessageId.value);
+    }
+    if (originReviewCommentId.present) {
+      map['origin_review_comment_id'] = Variable<int>(
+        originReviewCommentId.value,
+      );
+    }
+    if (originDecision.present) {
+      map['origin_decision'] = Variable<String>(originDecision.value);
+    }
+    if (suggestionState.present) {
+      map['suggestion_state'] = Variable<String>(suggestionState.value);
+    }
+    if (suggestionSource.present) {
+      map['suggestion_source'] = Variable<String>(suggestionSource.value);
+    }
+    if (suggestionBody.present) {
+      map['suggestion_body'] = Variable<String>(suggestionBody.value);
+    }
+    if (paymentSpecId.present) {
+      map['payment_spec_id'] = Variable<int>(paymentSpecId.value);
+    }
+    if (piggybackSpecId.present) {
+      map['piggyback_spec_id'] = Variable<int>(piggybackSpecId.value);
+    }
+    if (piggybackState.present) {
+      map['piggyback_state'] = Variable<String>(piggybackState.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtLinksCompanion(')
+          ..write('id: $id, ')
+          ..write('repoRoot: $repoRoot, ')
+          ..write('kind: $kind, ')
+          ..write('code: $code, ')
+          ..write('originSpecId: $originSpecId, ')
+          ..write('originQuestion: $originQuestion, ')
+          ..write('originSessionId: $originSessionId, ')
+          ..write('originMessageId: $originMessageId, ')
+          ..write('originReviewCommentId: $originReviewCommentId, ')
+          ..write('originDecision: $originDecision, ')
+          ..write('suggestionState: $suggestionState, ')
+          ..write('suggestionSource: $suggestionSource, ')
+          ..write('suggestionBody: $suggestionBody, ')
+          ..write('paymentSpecId: $paymentSpecId, ')
+          ..write('piggybackSpecId: $piggybackSpecId, ')
+          ..write('piggybackState: $piggybackState, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -19868,6 +21194,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UsageEntriesTable usageEntries = $UsageEntriesTable(this);
   late final $RestorePointsTable restorePoints = $RestorePointsTable(this);
   late final $SecretWaiversTable secretWaivers = $SecretWaiversTable(this);
+  late final $DebtLinksTable debtLinks = $DebtLinksTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
@@ -19891,6 +21218,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index secretWaiversWorkspace = Index(
     'secret_waivers_workspace',
     'CREATE INDEX secret_waivers_workspace ON secret_waivers (workspace_id)',
+  );
+  late final Index debtLinksCode = Index(
+    'debt_links_code',
+    'CREATE UNIQUE INDEX debt_links_code ON debt_links (repo_root, code)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -19927,12 +21258,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     usageEntries,
     restorePoints,
     secretWaivers,
+    debtLinks,
     snippetsBodyHash,
     activityEventsAt,
     usageEntriesSpec,
     usageEntriesWorkspace,
     restorePointsSession,
     secretWaiversWorkspace,
+    debtLinksCode,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -19995,6 +21328,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('sessions', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('sessions', kind: UpdateKind.update)],
@@ -20187,6 +21527,34 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('secret_waivers', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('debt_links', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'review_comments',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('debt_links', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('debt_links', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('debt_links', kind: UpdateKind.update)],
     ),
   ]);
 }
@@ -25227,6 +26595,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -25256,6 +26625,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> prUrl,
   Value<int?> pid,
   Value<int?> duelId,
+  Value<String?> parentSessionId,
   Value<int> rowid,
 });
 
@@ -25308,6 +26678,23 @@ final class $$SessionsTableReferences
       $_db.specs,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _parentSessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('sessions__parent_session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get parentSessionId {
+    final $_column = $_itemColumn<String>('parent_session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_parentSessionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -25626,6 +27013,29 @@ class $$SessionsTableFilterComposer
           }) => $$SpecsTableFilterComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get parentSessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26003,6 +27413,29 @@ class $$SessionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SessionsTableOrderingComposer get parentSessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$SessionsTableAnnotationComposer
@@ -26153,6 +27586,29 @@ class $$SessionsTableAnnotationComposer
           }) => $$SpecsTableAnnotationComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get parentSessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -26355,6 +27811,7 @@ class $$SessionsTableTableManager
             bool workspaceId,
             bool taskId,
             bool specId,
+            bool parentSessionId,
             bool sessionEventsRefs,
             bool conversationsRefs,
             bool pendingNoticesRefs,
@@ -26403,6 +27860,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 provider: provider,
@@ -26431,6 +27889,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -26461,6 +27920,7 @@ class $$SessionsTableTableManager
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
                 Value<int?> duelId = const Value.absent(),
+                Value<String?> parentSessionId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 provider: provider,
@@ -26489,6 +27949,7 @@ class $$SessionsTableTableManager
                 prUrl: prUrl,
                 pid: pid,
                 duelId: duelId,
+                parentSessionId: parentSessionId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -26504,6 +27965,7 @@ class $$SessionsTableTableManager
                 workspaceId = false,
                 taskId = false,
                 specId = false,
+                parentSessionId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
@@ -26569,6 +28031,17 @@ class $$SessionsTableTableManager
                                 ._specIdTable(db),
                             referencedColumn: $$SessionsTableReferences
                                 ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (parentSessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.parentSessionId,
+                            referencedTable: $$SessionsTableReferences
+                                ._parentSessionIdTable(db),
+                            referencedColumn: $$SessionsTableReferences
+                                ._parentSessionIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -26748,6 +28221,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool workspaceId,
         bool taskId,
         bool specId,
+        bool parentSessionId,
         bool sessionEventsRefs,
         bool conversationsRefs,
         bool pendingNoticesRefs,
@@ -30717,6 +32191,8 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
     ReviewCommentsCompanion Function({
@@ -30736,6 +32212,8 @@ typedef $$ReviewCommentsTableUpdateCompanionBuilder =
       Value<DateTime?> resolvedAt,
       Value<String?> externalId,
       Value<DateTime> createdAt,
+      Value<String?> provider,
+      Value<String?> model,
     });
 
 final class $$ReviewCommentsTableReferences
@@ -30778,6 +32256,23 @@ final class $$ReviewCommentsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$DebtLinksTable, List<DebtLink>>
+  _debtLinksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.debtLinks,
+    aliasName: 'review_comments__id__debt_links__origin_review_comment_id',
+  );
+
+  $$DebtLinksTableProcessedTableManager get debtLinksRefs {
+    final manager = $$DebtLinksTableTableManager($_db, $_db.debtLinks).filter(
+      (f) => f.originReviewCommentId.id.sqlEquals($_itemColumn<int>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_debtLinksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -30861,6 +32356,16 @@ class $$ReviewCommentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SpecsTableFilterComposer get specId {
     final $$SpecsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -30905,6 +32410,31 @@ class $$ReviewCommentsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> debtLinksRefs(
+    Expression<bool> Function($$DebtLinksTableFilterComposer f) f,
+  ) {
+    final $$DebtLinksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.debtLinks,
+      getReferencedColumn: (t) => t.originReviewCommentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DebtLinksTableFilterComposer(
+            $db: $db,
+            $table: $db.debtLinks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -30984,6 +32514,16 @@ class $$ReviewCommentsTableOrderingComposer
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -31091,6 +32631,12 @@ class $$ReviewCommentsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -31136,6 +32682,31 @@ class $$ReviewCommentsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> debtLinksRefs<T extends Object>(
+    Expression<T> Function($$DebtLinksTableAnnotationComposer a) f,
+  ) {
+    final $$DebtLinksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.debtLinks,
+      getReferencedColumn: (t) => t.originReviewCommentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DebtLinksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.debtLinks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ReviewCommentsTableTableManager
@@ -31151,7 +32722,11 @@ class $$ReviewCommentsTableTableManager
           $$ReviewCommentsTableUpdateCompanionBuilder,
           (ReviewCommentRow, $$ReviewCommentsTableReferences),
           ReviewCommentRow,
-          PrefetchHooks Function({bool specId, bool sessionId})
+          PrefetchHooks Function({
+            bool specId,
+            bool sessionId,
+            bool debtLinksRefs,
+          })
         > {
   $$ReviewCommentsTableTableManager(
     _$AppDatabase db,
@@ -31184,6 +32759,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion(
                 id: id,
                 specId: specId,
@@ -31201,6 +32778,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           createCompanionCallback:
               ({
@@ -31220,6 +32799,8 @@ class $$ReviewCommentsTableTableManager
                 Value<DateTime?> resolvedAt = const Value.absent(),
                 Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
               }) => ReviewCommentsCompanion.insert(
                 id: id,
                 specId: specId,
@@ -31237,6 +32818,8 @@ class $$ReviewCommentsTableTableManager
                 resolvedAt: resolvedAt,
                 externalId: externalId,
                 createdAt: createdAt,
+                provider: provider,
+                model: model,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -31246,56 +32829,79 @@ class $$ReviewCommentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({specId = false, sessionId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (specId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.specId,
-                        referencedTable: $$ReviewCommentsTableReferences
-                            ._specIdTable(db),
-                        referencedColumn: $$ReviewCommentsTableReferences
-                            ._specIdTable(db)
-                            .id,
-                      ) as T;
-                    }
-                    if (sessionId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.sessionId,
-                        referencedTable: $$ReviewCommentsTableReferences
-                            ._sessionIdTable(db),
-                        referencedColumn: $$ReviewCommentsTableReferences
-                            ._sessionIdTable(db)
-                            .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({specId = false, sessionId = false, debtLinksRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [if (debtLinksRefs) db.debtLinks],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (specId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.specId,
+                            referencedTable: $$ReviewCommentsTableReferences
+                                ._specIdTable(db),
+                            referencedColumn: $$ReviewCommentsTableReferences
+                                ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sessionId,
+                            referencedTable: $$ReviewCommentsTableReferences
+                                ._sessionIdTable(db),
+                            referencedColumn: $$ReviewCommentsTableReferences
+                                ._sessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (debtLinksRefs)
+                        await $_getPrefetchedData<
+                          ReviewCommentRow,
+                          $ReviewCommentsTable,
+                          DebtLink
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ReviewCommentsTableReferences
+                              ._debtLinksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ReviewCommentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).debtLinksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.originReviewCommentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -31312,7 +32918,7 @@ typedef $$ReviewCommentsTableProcessedTableManager =
       $$ReviewCommentsTableUpdateCompanionBuilder,
       (ReviewCommentRow, $$ReviewCommentsTableReferences),
       ReviewCommentRow,
-      PrefetchHooks Function({bool specId, bool sessionId})
+      PrefetchHooks Function({bool specId, bool sessionId, bool debtLinksRefs})
     >;
 typedef $$SpecCriteriaTableCreateCompanionBuilder =
     SpecCriteriaCompanion Function({
@@ -34648,6 +36254,8 @@ typedef $$UsageEntriesTableCreateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 typedef $$UsageEntriesTableUpdateCompanionBuilder =
     UsageEntriesCompanion Function({
@@ -34668,6 +36276,8 @@ typedef $$UsageEntriesTableUpdateCompanionBuilder =
       Value<double?> fiveHourPct,
       Value<double?> weekPct,
       Value<bool> estimated,
+      Value<String> provider,
+      Value<int> tokensReasoning,
     });
 
 final class $$UsageEntriesTableReferences
@@ -34816,6 +36426,16 @@ class $$UsageEntriesTableFilterComposer
 
   ColumnFilters<bool> get estimated => $composableBuilder(
     column: $table.estimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34986,6 +36606,16 @@ class $$UsageEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -35133,6 +36763,14 @@ class $$UsageEntriesTableAnnotationComposer
   GeneratedColumn<bool> get estimated =>
       $composableBuilder(column: $table.estimated, builder: (column) => column);
 
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensReasoning => $composableBuilder(
+    column: $table.tokensReasoning,
+    builder: (column) => column,
+  );
+
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -35276,6 +36914,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -35294,6 +36934,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           createCompanionCallback:
               ({
@@ -35314,6 +36956,8 @@ class $$UsageEntriesTableTableManager
                 Value<double?> fiveHourPct = const Value.absent(),
                 Value<double?> weekPct = const Value.absent(),
                 Value<bool> estimated = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int> tokensReasoning = const Value.absent(),
               }) => UsageEntriesCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -35332,6 +36976,8 @@ class $$UsageEntriesTableTableManager
                 fiveHourPct: fiveHourPct,
                 weekPct: weekPct,
                 estimated: estimated,
+                provider: provider,
+                tokensReasoning: tokensReasoning,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -36798,6 +38444,829 @@ typedef $$SecretWaiversTableProcessedTableManager =
       SecretWaiver,
       PrefetchHooks Function({bool workspaceId})
     >;
+typedef $$DebtLinksTableCreateCompanionBuilder = DebtLinksCompanion Function({
+  Value<int> id,
+  required String repoRoot,
+  required String kind,
+  Value<String?> code,
+  Value<int?> originSpecId,
+  Value<String?> originQuestion,
+  Value<String?> originSessionId,
+  Value<String?> originMessageId,
+  Value<int?> originReviewCommentId,
+  Value<String?> originDecision,
+  Value<String?> suggestionState,
+  Value<String?> suggestionSource,
+  Value<String?> suggestionBody,
+  Value<int?> paymentSpecId,
+  Value<int?> piggybackSpecId,
+  Value<String?> piggybackState,
+  Value<DateTime> createdAt,
+});
+typedef $$DebtLinksTableUpdateCompanionBuilder = DebtLinksCompanion Function({
+  Value<int> id,
+  Value<String> repoRoot,
+  Value<String> kind,
+  Value<String?> code,
+  Value<int?> originSpecId,
+  Value<String?> originQuestion,
+  Value<String?> originSessionId,
+  Value<String?> originMessageId,
+  Value<int?> originReviewCommentId,
+  Value<String?> originDecision,
+  Value<String?> suggestionState,
+  Value<String?> suggestionSource,
+  Value<String?> suggestionBody,
+  Value<int?> paymentSpecId,
+  Value<int?> piggybackSpecId,
+  Value<String?> piggybackState,
+  Value<DateTime> createdAt,
+});
+
+final class $$DebtLinksTableReferences
+    extends BaseReferences<_$AppDatabase, $DebtLinksTable, DebtLink> {
+  $$DebtLinksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _originSpecIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('debt_links__origin_spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get originSpecId {
+    final $_column = $_itemColumn<int>('origin_spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_originSpecIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ReviewCommentsTable _originReviewCommentIdTable(_$AppDatabase db) =>
+      db.reviewComments.createAlias(
+        'debt_links__origin_review_comment_id__review_comments__id',
+      );
+
+  $$ReviewCommentsTableProcessedTableManager? get originReviewCommentId {
+    final $_column = $_itemColumn<int>('origin_review_comment_id');
+    if ($_column == null) return null;
+    final manager = $$ReviewCommentsTableTableManager(
+      $_db,
+      $_db.reviewComments,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(
+      _originReviewCommentIdTable($_db),
+    );
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpecsTable _paymentSpecIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('debt_links__payment_spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get paymentSpecId {
+    final $_column = $_itemColumn<int>('payment_spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_paymentSpecIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpecsTable _piggybackSpecIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('debt_links__piggyback_spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get piggybackSpecId {
+    final $_column = $_itemColumn<int>('piggyback_spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_piggybackSpecIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DebtLinksTableFilterComposer
+    extends Composer<_$AppDatabase, $DebtLinksTable> {
+  $$DebtLinksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get repoRoot => $composableBuilder(
+    column: $table.repoRoot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originQuestion => $composableBuilder(
+    column: $table.originQuestion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originSessionId => $composableBuilder(
+    column: $table.originSessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originMessageId => $composableBuilder(
+    column: $table.originMessageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originDecision => $composableBuilder(
+    column: $table.originDecision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get suggestionState => $composableBuilder(
+    column: $table.suggestionState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get suggestionSource => $composableBuilder(
+    column: $table.suggestionSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get suggestionBody => $composableBuilder(
+    column: $table.suggestionBody,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get piggybackState => $composableBuilder(
+    column: $table.piggybackState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get originSpecId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReviewCommentsTableFilterComposer get originReviewCommentId {
+    final $$ReviewCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originReviewCommentId,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableFilterComposer get paymentSpecId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.paymentSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableFilterComposer get piggybackSpecId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.piggybackSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DebtLinksTableOrderingComposer
+    extends Composer<_$AppDatabase, $DebtLinksTable> {
+  $$DebtLinksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get repoRoot => $composableBuilder(
+    column: $table.repoRoot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originQuestion => $composableBuilder(
+    column: $table.originQuestion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originSessionId => $composableBuilder(
+    column: $table.originSessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originMessageId => $composableBuilder(
+    column: $table.originMessageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originDecision => $composableBuilder(
+    column: $table.originDecision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get suggestionState => $composableBuilder(
+    column: $table.suggestionState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get suggestionSource => $composableBuilder(
+    column: $table.suggestionSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get suggestionBody => $composableBuilder(
+    column: $table.suggestionBody,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get piggybackState => $composableBuilder(
+    column: $table.piggybackState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get originSpecId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReviewCommentsTableOrderingComposer get originReviewCommentId {
+    final $$ReviewCommentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originReviewCommentId,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableOrderingComposer get paymentSpecId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.paymentSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableOrderingComposer get piggybackSpecId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.piggybackSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DebtLinksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DebtLinksTable> {
+  $$DebtLinksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get repoRoot =>
+      $composableBuilder(column: $table.repoRoot, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get originQuestion => $composableBuilder(
+    column: $table.originQuestion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originSessionId => $composableBuilder(
+    column: $table.originSessionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originMessageId => $composableBuilder(
+    column: $table.originMessageId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originDecision => $composableBuilder(
+    column: $table.originDecision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get suggestionState => $composableBuilder(
+    column: $table.suggestionState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get suggestionSource => $composableBuilder(
+    column: $table.suggestionSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get suggestionBody => $composableBuilder(
+    column: $table.suggestionBody,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get piggybackState => $composableBuilder(
+    column: $table.piggybackState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get originSpecId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ReviewCommentsTableAnnotationComposer get originReviewCommentId {
+    final $$ReviewCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originReviewCommentId,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableAnnotationComposer get paymentSpecId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.paymentSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableAnnotationComposer get piggybackSpecId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.piggybackSpecId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DebtLinksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DebtLinksTable,
+          DebtLink,
+          $$DebtLinksTableFilterComposer,
+          $$DebtLinksTableOrderingComposer,
+          $$DebtLinksTableAnnotationComposer,
+          $$DebtLinksTableCreateCompanionBuilder,
+          $$DebtLinksTableUpdateCompanionBuilder,
+          (DebtLink, $$DebtLinksTableReferences),
+          DebtLink,
+          PrefetchHooks Function({
+            bool originSpecId,
+            bool originReviewCommentId,
+            bool paymentSpecId,
+            bool piggybackSpecId,
+          })
+        > {
+  $$DebtLinksTableTableManager(_$AppDatabase db, $DebtLinksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DebtLinksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DebtLinksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DebtLinksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> repoRoot = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String?> code = const Value.absent(),
+                Value<int?> originSpecId = const Value.absent(),
+                Value<String?> originQuestion = const Value.absent(),
+                Value<String?> originSessionId = const Value.absent(),
+                Value<String?> originMessageId = const Value.absent(),
+                Value<int?> originReviewCommentId = const Value.absent(),
+                Value<String?> originDecision = const Value.absent(),
+                Value<String?> suggestionState = const Value.absent(),
+                Value<String?> suggestionSource = const Value.absent(),
+                Value<String?> suggestionBody = const Value.absent(),
+                Value<int?> paymentSpecId = const Value.absent(),
+                Value<int?> piggybackSpecId = const Value.absent(),
+                Value<String?> piggybackState = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => DebtLinksCompanion(
+                id: id,
+                repoRoot: repoRoot,
+                kind: kind,
+                code: code,
+                originSpecId: originSpecId,
+                originQuestion: originQuestion,
+                originSessionId: originSessionId,
+                originMessageId: originMessageId,
+                originReviewCommentId: originReviewCommentId,
+                originDecision: originDecision,
+                suggestionState: suggestionState,
+                suggestionSource: suggestionSource,
+                suggestionBody: suggestionBody,
+                paymentSpecId: paymentSpecId,
+                piggybackSpecId: piggybackSpecId,
+                piggybackState: piggybackState,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String repoRoot,
+                required String kind,
+                Value<String?> code = const Value.absent(),
+                Value<int?> originSpecId = const Value.absent(),
+                Value<String?> originQuestion = const Value.absent(),
+                Value<String?> originSessionId = const Value.absent(),
+                Value<String?> originMessageId = const Value.absent(),
+                Value<int?> originReviewCommentId = const Value.absent(),
+                Value<String?> originDecision = const Value.absent(),
+                Value<String?> suggestionState = const Value.absent(),
+                Value<String?> suggestionSource = const Value.absent(),
+                Value<String?> suggestionBody = const Value.absent(),
+                Value<int?> paymentSpecId = const Value.absent(),
+                Value<int?> piggybackSpecId = const Value.absent(),
+                Value<String?> piggybackState = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => DebtLinksCompanion.insert(
+                id: id,
+                repoRoot: repoRoot,
+                kind: kind,
+                code: code,
+                originSpecId: originSpecId,
+                originQuestion: originQuestion,
+                originSessionId: originSessionId,
+                originMessageId: originMessageId,
+                originReviewCommentId: originReviewCommentId,
+                originDecision: originDecision,
+                suggestionState: suggestionState,
+                suggestionSource: suggestionSource,
+                suggestionBody: suggestionBody,
+                paymentSpecId: paymentSpecId,
+                piggybackSpecId: piggybackSpecId,
+                piggybackState: piggybackState,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DebtLinksTable, DebtLink>(table),
+                  $$DebtLinksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                originSpecId = false,
+                originReviewCommentId = false,
+                paymentSpecId = false,
+                piggybackSpecId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (originSpecId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.originSpecId,
+                            referencedTable: $$DebtLinksTableReferences
+                                ._originSpecIdTable(db),
+                            referencedColumn: $$DebtLinksTableReferences
+                                ._originSpecIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (originReviewCommentId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.originReviewCommentId,
+                            referencedTable: $$DebtLinksTableReferences
+                                ._originReviewCommentIdTable(db),
+                            referencedColumn: $$DebtLinksTableReferences
+                                ._originReviewCommentIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (paymentSpecId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.paymentSpecId,
+                            referencedTable: $$DebtLinksTableReferences
+                                ._paymentSpecIdTable(db),
+                            referencedColumn: $$DebtLinksTableReferences
+                                ._paymentSpecIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (piggybackSpecId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.piggybackSpecId,
+                            referencedTable: $$DebtLinksTableReferences
+                                ._piggybackSpecIdTable(db),
+                            referencedColumn: $$DebtLinksTableReferences
+                                ._piggybackSpecIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$DebtLinksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DebtLinksTable,
+      DebtLink,
+      $$DebtLinksTableFilterComposer,
+      $$DebtLinksTableOrderingComposer,
+      $$DebtLinksTableAnnotationComposer,
+      $$DebtLinksTableCreateCompanionBuilder,
+      $$DebtLinksTableUpdateCompanionBuilder,
+      (DebtLink, $$DebtLinksTableReferences),
+      DebtLink,
+      PrefetchHooks Function({
+        bool originSpecId,
+        bool originReviewCommentId,
+        bool paymentSpecId,
+        bool piggybackSpecId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -36862,4 +39331,6 @@ class $AppDatabaseManager {
       $$RestorePointsTableTableManager(_db, _db.restorePoints);
   $$SecretWaiversTableTableManager get secretWaivers =>
       $$SecretWaiversTableTableManager(_db, _db.secretWaivers);
+  $$DebtLinksTableTableManager get debtLinks =>
+      $$DebtLinksTableTableManager(_db, _db.debtLinks);
 }

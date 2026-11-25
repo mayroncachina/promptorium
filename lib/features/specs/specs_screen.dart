@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import '../../ui/widgets/run_provider_line.dart';
+
 import 'dart:io' show File, FileSystemException;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -26,6 +29,9 @@ import '../prompt/conversation_manager.dart';
 import '../prompt/refine_origin.dart';
 import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
+import '../debts/debt_actions.dart';
+import '../debts/debt_interview.dart';
+import '../debts/debt_table.dart';
 import 'spec_action.dart';
 import 'spec_answers.dart';
 import 'spec_design.dart';
@@ -1331,6 +1337,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   Future<bool> _saveAnswers(Workspace ws, Spec spec, String text) async {
     final c = _controller;
     if (c == null || _held(spec.id) || _loadedSpecId != spec.id) return false;
+    // SPEC-112 R7: the answers that ask for a debt or a decision become
+    // suggestions once saved (never a row in the file by themselves).
+    final asked = SpecDocument.parse(c.text).openQuestions;
+    final given = ref.read(specAnswersProvider.notifier).of(spec.id);
     text = SpecDocument.parse(text).withAutoPlan(false);
     try {
       await ref.read(specServiceProvider).save(ws, spec, text);
@@ -1346,7 +1356,110 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     ref.read(specAnswersProvider.notifier).clear(spec.id);
     setState(() {});
     _snack('Respostas salvas na ${spec.code}.');
+    final interview = ref.read(debtInterviewProvider);
+    for (final q in asked) {
+      final a = given[q.id];
+      if (a == null || !a.answered) continue;
+      try {
+        await interview.suggestFromAnswer(ws, spec, q, a.text);
+      } catch (e) {
+        debugPrint('Sugestão de débito da ${q.id}: $e');
+      }
+    }
     return true;
+  }
+
+  /// "Simplificar agora → débito" / "Decidir depois → DP" (SPEC-112 R6):
+  /// the debt opens the form already filled; the decision is written with
+  /// the suggestion as the recommendation. The answer in the spec gets
+  /// "→ DT-NN" / "→ DP-NN" and the question counts as answered. The row
+  /// goes to the worktree of the spec while it is open (R18).
+  Future<void> _debtFromQuestion(
+    Workspace ws,
+    Spec spec,
+    OpenQuestion q,
+    DebtKind kind,
+    String? answer,
+  ) async {
+    if (_dirty) {
+      _snack('Salve a spec antes: a resposta vai ganhar o ID do item.');
+      return;
+    }
+    final interview = ref.read(debtInterviewProvider);
+    final writeRoot = DebtInterview.writeRootOf(spec);
+    var annotated = true;
+    String? code;
+    if (kind == DebtKind.debt) {
+      final w = await openDebtForm(
+        context,
+        ref,
+        repoRoot: ws.path,
+        writeRoot: writeRoot,
+        initial: DebtInterview.debtDraftFor(
+          question: q.text,
+          answer: answer,
+          suggestion: q.suggestion,
+          origin: DebtInterview.originOf(spec, q.id),
+        ),
+        write: (d) async {
+          final r = await interview.record(ws, spec, q.id, d, answer: answer);
+          annotated = r.annotated;
+          return r.written;
+        },
+      );
+      code = w?.code;
+    } else {
+      try {
+        final r = await interview.record(
+          ws,
+          spec,
+          q.id,
+          DebtInterview.decisionDraftFor(
+            question: q.text,
+            suggestion: q.suggestion,
+            origin: DebtInterview.decisionOriginOf(spec, q.id),
+          ),
+          answer: answer,
+        );
+        annotated = r.annotated;
+        code = r.written.code;
+        if (writeRoot == null && mounted) {
+          await askOwnCommit(
+            context,
+            ref,
+            repoRoot: ws.path,
+            written: r.written,
+            title: q.text,
+            wasDirty: false,
+          );
+        } else {
+          _snack('${r.written.code} gravada na worktree; vai no commit dela.');
+        }
+      } catch (e) {
+        _snack('Não deu para gravar a decisão: $e');
+        return;
+      }
+    }
+    if (code == null || !mounted) return;
+    if (!annotated) {
+      _snack('$code gravado, mas a ${q.id} não estava mais na spec.');
+    }
+    await _reloadText(ws, spec);
+  }
+
+  /// The file text again in the editor, after the app wrote it (the editor
+  /// had nothing unsaved).
+  Future<void> _reloadText(Workspace ws, Spec spec) async {
+    final c = _controller;
+    final text = await ref.read(specServiceProvider).read(ws, spec);
+    if (!mounted || c == null || text == null || _loadedSpecId != spec.id) {
+      return;
+    }
+    _saved = text;
+    c.text = text;
+    _setWarnings(text);
+    ref.read(specDirtyProvider.notifier).set(_dirty);
+    setState(() {});
   }
 
   // --- protótipo (SPEC-022) -------------------------------------------------------
@@ -1680,6 +1793,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                 ? AgentOriginBanner(spec: spec!)
                 : const SizedBox.shrink(),
           ),
+          // SPEC-100 R10, R11: who plans the spec (Design, Perguntas e
+          // respostas), with the model and the use; a failure brings its
+          // choices.
+          if (spec != null &&
+              (strip || failure != null) &&
+              action?.kind != SpecActionKind.screens &&
+              failure?.kind != SpecActionKind.screens)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: RunProviderLine(
+                slot: specDesignSlot(ws.id),
+                onRetry: failure == null
+                    ? null
+                    : () {
+                        setState(() => _failure = null);
+                        _retry(ws, spec, failure.kind);
+                      },
+              ),
+            ),
           Expanded(
             child: FocusTraversalOrder(
               order: const NumericFocusOrder(2),
@@ -2245,6 +2377,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             onApply: (answers, update) =>
                 _applyAnswers(ws, spec, answers, update),
             onSave: (text) => _saveAnswers(ws, spec, text),
+            onDebtAction: (q, kind, answer) =>
+                _debtFromQuestion(ws, spec, q, kind, answer),
           )
         : null;
     final screen = Column(

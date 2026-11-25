@@ -19,7 +19,7 @@ List<String> codexCommandArgs({
       'Codex: aprovação automática Claude não tem equivalente validado.',
     );
   }
-  final policy = codexPermissionPolicy(permissionMode);
+  final policy = codexCliPolicy(codexAccessFor(permissionMode));
   return [
     if (threadId != null) ...[fork ? 'fork' : 'resume', threadId],
     if (permissionMode == ClaudePermissionMode.skipPermissions)

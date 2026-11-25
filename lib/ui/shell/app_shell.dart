@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
+import '../../features/debts/widgets/debts_screen.dart';
 import '../../features/home/home_inbox.dart';
 import '../../features/notifications/alert_target.dart'
     show alertNoticeProvider;
@@ -27,6 +28,7 @@ import '../../features/sessions/session_manager.dart';
 import '../../features/sessions/sessions_screen.dart'
     show SessionsScreen, toggleSplit;
 import '../../features/settings/settings_screen.dart';
+import '../../features/instructions/instructions_view.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_view.dart';
@@ -35,6 +37,7 @@ import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
 import '../../features/activities/activities_screen.dart';
 import '../../features/resume/widgets/resume_host.dart';
+import '../../core/memory/ai_memory_state.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/glass.dart';
@@ -316,6 +319,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
       ref.read(startScreenProvider.notifier).set(true);
+    } else if (section == AppSection.debts) {
+      newDebtByHand(context, ref);
     } else if (section == AppSection.skills) {
       showNewSkillDialog(context);
     } else {
@@ -346,12 +351,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.prompt => const PromptScreen(),
     AppSection.specs => const SpecsScreen(),
     AppSection.tasks => const BoardScreen(),
+    AppSection.debts => const DebtsScreen(),
     AppSection.agents => const AgentsScreen(),
     AppSection.skills => const SkillsScreen(),
     AppSection.review => const ReviewScreen(),
     AppSection.repository => const RepositoryScreen(),
     AppSection.code => const CodeScreen(),
     AppSection.mcp => const McpScreen(),
+    AppSection.instructions => const InstructionsView(),
     AppSection.settings => const SettingsScreen(),
   };
 
@@ -360,6 +367,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     final section = ref.watch(navigationProvider);
     // Watches the workspace's specs / agents / skills / config (F11).
     ref.watch(workspaceWatcherProvider);
+    // SPEC-098 R1: ai-memory is detected when the app opens (only the disk,
+    // `--version` and /healthz; nothing at all without the binary) and the
+    // result stays cached until "Verificar de novo".
+    ref.listen(aiMemoryDetectionProvider, (_, _) {});
     // SPEC-086 R7: the request of a notification was already answered.
     ref.listen(alertNoticeProvider, (_, notice) {
       if (notice == null) return;

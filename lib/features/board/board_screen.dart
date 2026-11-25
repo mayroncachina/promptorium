@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../ui/providers/provider_logos.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart' show isClaudeCode;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/motion.dart';
@@ -61,6 +64,7 @@ import 'widgets/sprint_selector.dart';
 import 'widgets/board_tray.dart';
 import 'widgets/board_view_switch.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
+import '../debts/widgets/debt_file_chip.dart' show SpecCardDebts;
 
 /// Step rows of every spec of a workspace.
 final specStepsProvider = StreamProvider.family<List<SpecStep>, int>(
@@ -1141,6 +1145,12 @@ class _Header extends ConsumerWidget {
             children: [
               BoardTrayButton(count: drafts, compact: folded),
               const SizedBox(width: 8),
+              // SPEC-112 R14.
+              BoardDebtsChip(
+                workspaceId: workspaceId,
+                root: workspacePath,
+                compact: folded,
+              ),
               Builder(
                 builder: (context) {
                   ref.watch(appSettingsProvider);
@@ -1924,6 +1934,21 @@ class SpecCard extends ConsumerWidget {
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
+                                  // SPEC-101 R15: who works on it, beside
+                                  // the robot; a Claude-only spec has none.
+                                  if (cardProviderBadge(spec, last)
+                                      case final p?) ...[
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: ProviderChip(
+                                        p,
+                                        key: ValueKey(
+                                          'board-provider-badge-${spec.code}',
+                                        ),
+                                        dense: true,
+                                      ),
+                                    ),
+                                  ],
                                   // SPEC-074 R1.
                                   if (spec.issueNumber != null) ...[
                                     const SizedBox(width: 6),
@@ -2056,6 +2081,12 @@ class SpecCard extends ConsumerWidget {
               // SPEC-052 R7: the agent's newest progress note.
               if (spec.stage != SpecStage.done) SpecNoteLine(spec: spec),
               SuggestionBanner(spec: spec),
+              // SPEC-112 R16, R17: debts in the files it changed and
+              // "pago de carona?".
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: SpecCardDebts(spec: spec, sessionId: last?.id),
+              ),
               // SPEC-073 R7: the CI of the spec's PR.
               Listener(
                 onPointerDown: AppPressable.claim,
@@ -2089,6 +2120,17 @@ class SpecCard extends ConsumerWidget {
                       style: TextStyle(fontSize: 11, color: metaColor),
                     ),
                   ),
+                  // SPEC-094 R15: who ran it last (glyph, never state).
+                  if (last != null && hasProviderIdentity(last.provider)) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: providerBrandName(last.provider),
+                      child: ProviderGlyph(
+                        last.provider,
+                        key: ValueKey('board-provider-${spec.code}'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               // SPEC-076 R13: the agent's request, answered from here.
@@ -2104,6 +2146,16 @@ class SpecCard extends ConsumerWidget {
     );
   }
 }
+
+/// Provider of the badge of a card in execution (SPEC-101 R15): the
+/// provider of its session when it is not the Claude Code; null otherwise.
+String? cardProviderBadge(Spec spec, Session? last) =>
+    spec.stage == SpecStage.running &&
+        last != null &&
+        !isClaudeCode(last.provider) &&
+        hasProviderIdentity(last.provider)
+    ? last.provider
+    : null;
 
 /// Shared by columns and the canvas detail panel.
 class BoardSpecAction extends ConsumerWidget {

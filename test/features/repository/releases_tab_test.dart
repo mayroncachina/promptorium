@@ -60,8 +60,9 @@ void main() {
       );
       expect(AppSection.repository.label, 'Repositório');
       expect(AppSection.repository.shortcutLabel, 'Ctrl 8');
-      // SPEC-076 P6: the Atividades is the eleventh item, out of Ctrl+1…0.
-      expect(items.length, 11);
+      // SPEC-076 P6: the Atividades is out of Ctrl+1…0, and so is Débitos e
+      // decisões (SPEC-112), the twelfth item.
+      expect(items.length, 12);
       expect(AppSection.shortcutItems, hasLength(10));
       expect(items.last.shortcutLabel, 'Ctrl 0');
       expect(AppSection.shortcutsVersion, 5);

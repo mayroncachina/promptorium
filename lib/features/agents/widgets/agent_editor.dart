@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/claude/run_prefs.dart';
+import '../../../core/providers/agent_registry.dart' show providerFlowsProvider;
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../agent_file.dart';
 import '../agent_repository.dart';
 import 'agent_style.dart';
+import 'codex_agent_panel.dart';
 
 /// Editor of one agent (mockup Agentes): Identidade, Prompt de sistema,
 /// Ferramentas, Execução and the live preview of the generated file.
@@ -309,6 +311,7 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
     final ws = widget.workspace;
     final mcpKnown =
         ref.watch(mcpServerNamesProvider(ws?.path)).value ?? const <String>[];
+    final codexOn = ref.watch(providerFlowsProvider).anyFor('codex');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -332,6 +335,11 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
                     _toolsCard(),
                     const SizedBox(height: 16),
                     _execution(mcpKnown),
+                    // SPEC-106 R7: the translation for the Codex, live.
+                    if (codexOn) ...[
+                      const SizedBox(height: 16),
+                      CodexAgentPanel(file: file, name: _name.text.trim()),
+                    ],
                     const SizedBox(height: 16),
                     _preview(file),
                   ],

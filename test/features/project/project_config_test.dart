@@ -231,6 +231,44 @@ autopilot:
     expect(const ProjectConfig(specsDir: 'docs').isDefault, isFalse);
   });
 
+  test('revisor: provedor e modelo-codex são lidos e gravados; sem eles, '
+      'execucao (SPEC-102 R1, R4)', () {
+    final old = ProjectConfig.parse(
+      'revisor:\n  ligado: true\n  modelo: haiku\n  orcamento: 0.3\n'
+      '  rodadas: 2\n',
+    );
+    expect(old.reviewer.provider, ReviewerProvider.execution);
+    expect(old.reviewer.explicitProvider, isFalse);
+    expect(old.reviewer.codexModel, isNull);
+    // An old config is written back without the new keys.
+    expect(old.toYaml(), isNot(contains('provedor')));
+    expect(old.toYaml(), isNot(contains('modelo-codex')));
+
+    const c = ProjectConfig(
+      reviewer: ReviewerConfig(
+        enabled: true,
+        provider: ReviewerProvider.other,
+        codexModel: 'gpt-6.1-terra',
+      ),
+    );
+    final yaml = c.toYaml();
+    expect(yaml, contains('  provedor: outro\n'));
+    expect(yaml, contains('  modelo-codex: "gpt-6.1-terra"\n'));
+    final back = ProjectConfig.parse(yaml);
+    expect(back, c);
+    expect(back.reviewer.explicitProvider, isTrue);
+    for (final v in ReviewerProvider.values) {
+      expect(
+        ProjectConfig.parse('revisor:\n  provedor: $v\n').reviewer.provider,
+        v,
+      );
+    }
+    expect(
+      ProjectConfig.parse('revisor:\n  provedor: gemini\n').reviewer.provider,
+      ReviewerProvider.execution,
+    );
+  });
+
   test('contar-testes (SPEC-023 R5): on by default, "nao" turns it off and '
       'toYaml keeps it', () {
     expect(const ProjectConfig().gate.countTests, isTrue);

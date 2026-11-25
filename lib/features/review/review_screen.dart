@@ -11,6 +11,8 @@ import 'merge_options.dart';
 import 'merge_readiness.dart';
 import '../board/widgets/spec_steps_panel.dart' show selectedStepProvider;
 import 'comment_anchor.dart';
+import '../debts/widgets/review_comment_debt.dart' show ReviewDebtScope;
+import '../debts/widgets/debt_file_chip.dart' show SpecReviewDebts;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
@@ -2021,11 +2023,15 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            child: _since != null
-                ? _sinceBody()
-                : _step == null
-                ? _body(async, d, file, draft, busy)
-                : _stepBody(),
+            child: _debtScope(
+              d,
+              s,
+              _since != null
+                  ? _sinceBody()
+                  : _step == null
+                  ? _body(async, d, file, draft, busy)
+                  : _stepBody(),
+            ),
           ),
         ),
       ],
@@ -2042,6 +2048,27 @@ extension on _ReviewMainState {
           style: TextStyle(color: color, fontSize: 12),
         ),
       );
+
+  /// SPEC-112 R8: "Virar débito" on the comments of a spec.
+  Widget _debtScope(ReviewDetail? d, Session s, Widget child) {
+    final spec = widget.item.spec;
+    if (spec == null) return child;
+    return ReviewDebtScope(
+      spec: spec,
+      workspaceId: widget.workspaceId,
+      merged: s.status == SessionStatus.merged || spec.stage == SpecStage.done,
+      files: d?.files ?? const [],
+      // SPEC-112 R15, R17: "pago de carona?" to confirm and what the spec
+      // pays.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SpecReviewDebts(spec: spec),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
 
   Widget _body(
     AsyncValue<ReviewDetail> async,

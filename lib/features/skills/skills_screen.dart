@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart';
+import '../../core/providers/workspace_assets.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/agent_repository.dart' show agentHomeProvider;
@@ -12,6 +14,7 @@ import 'skill_repository.dart';
 import 'skills_state.dart';
 import 'widgets/catalog_view.dart';
 import 'widgets/installed_view.dart';
+import 'widgets/provider_badge.dart';
 import 'widgets/skill_dialogs.dart';
 
 /// Skills: the installed ones (project / global, editable; plugins and
@@ -232,6 +235,32 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
       for (final s in inventory.value?.skills ?? const <String>[])
         if (!installedNames.contains(s) && _match(s, '')) s,
     ];
+    // SPEC-104 R7, R12: one `skills/list` when the tab opens and on
+    // "Atualizar" — the filter never queries.
+    final codex = watchCodexSkills(ref, widget.workspacePath);
+    final extraRoots = ref
+        .watch(codexCapabilitiesProvider)
+        .supports(ProviderCapability.skillsExtraRoots);
+    final codexOwn = switch (codex.value) {
+      CodexSkillsReady(:final inventory) => [
+        for (final s in inventory.own)
+          if (_match(s.name, s.description)) s,
+      ],
+      _ => const <CodexSkill>[],
+    };
+    final orphanErrors = switch (codex.value) {
+      CodexSkillsReady(:final inventory) => [
+        for (final err in inventory.errors)
+          if (!widget.entries.any(
+                (e) =>
+                    err.path == e.skillMdPath ||
+                    err.path.startsWith('${e.dir}/'),
+              ) &&
+              err.path.contains('/'))
+            err,
+      ],
+      _ => const <CodexSkillError>[],
+    };
     final repos = ref.watch(catalogReposProvider);
     final snapshots = {
       for (final r in repos) r: ref.watch(catalogSnapshotProvider(r)).value,
@@ -281,6 +310,12 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
     Widget item(SkillEntry e) {
       final on = e.dir == widget.selected;
       final b = badge(e);
+      final status = codexStatusFor(
+        e,
+        codex.value,
+        extraRoots: extraRoots,
+        workspacePath: widget.workspacePath,
+      );
       final radius = BorderRadius.circular(8);
       return Padding(
         padding: const EdgeInsets.only(bottom: 2),
@@ -316,6 +351,35 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
                           ),
                         ),
                       ),
+                      const ProviderBadge('Claude'),
+                      if (status != null) ...[
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: ProviderBadge(
+                            status.badge,
+                            key: ValueKey(
+                              'skill-codex-${e.scope.name}-${e.name}',
+                            ),
+                            tone: codexBadgeTone(status.state),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          e.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         b,
                         style: TextStyle(
@@ -329,15 +393,18 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
                       ),
                     ],
                   ),
-                  Text(
-                    e.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                  // R9: the error of `skills/list` on its skill.
+                  if (status?.state == CodexSkillState.error)
+                    Text(
+                      'skills/list: ${status!.detail}',
+                      key: ValueKey('skill-codex-error-${e.name}'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.red,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -359,17 +426,38 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-          child: TextField(
-            key: const ValueKey('skills-filter'),
-            controller: _filter,
-            onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 12, color: AppColors.text),
-            decoration: const InputDecoration(
-              isDense: true,
-              hintText: 'Filtrar skills…',
-              hintStyle: TextStyle(color: AppColors.textMuted),
-              border: OutlineInputBorder(),
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('skills-filter'),
+                  controller: _filter,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(fontSize: 12, color: AppColors.text),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: 'Filtrar skills…',
+                    hintStyle: TextStyle(color: AppColors.textMuted),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message:
+                    'Relê as pastas e consulta o skills/list do Codex '
+                    '(sem prompt ao modelo)',
+                child: SmallButton(
+                  key: const ValueKey('skills-refresh'),
+                  label: 'Atualizar',
+                  height: 34,
+                  onTap: () {
+                    ref.invalidate(skillEntriesProvider(widget.workspacePath));
+                    ref.read(codexSkillsReloadProvider.notifier).bump();
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         if (widget.workspacePath != null)
@@ -380,6 +468,65 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
         group('Global', '~/.claude/skills', [
           if (global.isEmpty) const _Hint('Nenhuma.'),
           ...global,
+        ]),
+        // R8: the Codex's own skills, read-only.
+        group('Do Codex', 'só leitura', [
+          if (codex.isLoading) const _Hint('Consultando o Codex…'),
+          if (codex.value case CodexSkillsUnavailable(:final reason))
+            _Hint('Não foi possível listar ($reason).'),
+          if (codex.value is CodexSkillsReady && codexOwn.isEmpty)
+            const _Hint('Nenhuma.'),
+          // R9: errors of folders the app does not list (no frontmatter).
+          for (final err in orphanErrors)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 4),
+              child: Text(
+                '${err.path.split('/').reversed.skip(1).first}: '
+                'skills/list: ${err.message}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.red),
+              ),
+            ),
+          for (final s in codexOwn)
+            Padding(
+              key: ValueKey('skill-codex-own-${s.name}'),
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 12,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                      ProviderBadge(
+                        s.enabled ? 'Codex' : 'Codex · desligada',
+                        tone: s.enabled ? BadgeTone.codex : BadgeTone.muted,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    s.origin,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ]),
         group('Plugins e embutidas', '${others.length}', [
           if (inventory.isLoading) const _Hint('Consultando o Claude Code…'),
@@ -404,8 +551,8 @@ class _InstalledListState extends ConsumerState<_InstalledList> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 6),
           child: Text(
-            'Skills de plugins e as embutidas vêm do Claude Code e são só '
-            'para leitura.',
+            'Skills de plugins e as embutidas vêm do Claude Code; as do '
+            'grupo Do Codex vêm do skills/list. Todas são só para leitura.',
             style: TextStyle(fontSize: 11, color: AppColors.textMuted),
           ),
         ),

@@ -21,6 +21,9 @@ enum AppSection {
   /// Quadro: one card per spec (the enum name is kept: it is stored as the
   /// last visible screen).
   tasks('Quadro', 'Nova spec'),
+
+  /// Débitos e decisões (SPEC-112 R13), right below the Quadro (P1).
+  debts('Débitos e decisões', 'Novo débito'),
   agents('Agentes', 'Novo agente'),
   skills('Skills', 'Nova skill'),
   review('Review', null),
@@ -30,6 +33,9 @@ enum AppSection {
   repository('Repositório', null),
   code('Código', null),
   mcp('Servidores MCP', 'Adicionar servidor'),
+
+  /// What each provider reads of the project (SPEC-104 R5).
+  instructions('Instruções', null),
 
   /// Reached through the gear at the bottom of the sidebar.
   settings('Configurações', null);
@@ -45,7 +51,7 @@ enum AppSection {
   /// Main sidebar items, in the order of the work (plano F10, UX v2,
   /// SPEC-055 R1): Início · Projeto · Prompt · Specs · Quadro · Sessões ·
   /// Review · Repositório · Código · Ferramentas. [agents] stands for
-  /// "Ferramentas" (Agentes / Skills / MCP as tabs).
+  /// "Ferramentas" (Agentes / Skills / MCP / Instruções as tabs).
   static const navItems = [
     home,
     activities,
@@ -53,6 +59,7 @@ enum AppSection {
     prompt,
     specs,
     tasks,
+    debts,
     sessions,
     review,
     repository,
@@ -64,7 +71,7 @@ enum AppSection {
   bool get featured => this == prompt;
 
   /// Screens shown as tabs of "Ferramentas".
-  static const toolTabs = [agents, skills, mcp];
+  static const toolTabs = [agents, skills, mcp, instructions];
 
   bool get isTool => toolTabs.contains(this);
 
@@ -102,6 +109,9 @@ enum AppSection {
   /// Sidebar / palette name: the tools group is "Ferramentas".
   String get navLabel => this == agents ? 'Ferramentas' : label;
 
+  // Débitos e decisões stays out of [shortcutItems] like the Atividades: it
+  // would push every other shortcut one key.
+
   /// `Ctrl 3`, `Ctrl 0` for the tenth item (null = no shortcut).
   String? get shortcutLabel {
     final i = shortcutItems.indexOf(this);
@@ -116,12 +126,14 @@ enum AppSection {
     prompt => AppIcons.prompt,
     specs => AppIcons.specs,
     tasks => AppIcons.tasks,
+    debts => AppIcons.debts,
     agents => AppIcons.agents,
     skills => AppIcons.skills,
     review => AppIcons.review,
     repository => AppIcons.repository,
     code => AppIcons.code,
     mcp => AppIcons.mcp,
+    instructions => AppIcons.specs,
     settings => AppIcons.settings,
   };
 

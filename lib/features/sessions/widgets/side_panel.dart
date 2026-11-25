@@ -6,14 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../notifications/alert_target.dart' show AlertSpotlight;
 
+import '../../../core/codex/codex_provider.dart' show codexSessionSuggestion;
 import '../../../core/providers/agent_event.dart' show PermissionRequest;
 import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/shell/navigation.dart';
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
+import '../handoff/continue_link.dart';
 import '../session_manager.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../edit_diff.dart';
@@ -83,6 +86,10 @@ String approvalVerb(String tool) => switch (tool) {
 String? alwaysAllowLabel(List<Map<String, dynamic>> suggestions) {
   if (suggestions.isEmpty) return null;
   final s = suggestions.first;
+  // SPEC-096 R6: the Codex `acceptForSession`, valid until the process ends.
+  if (s['type'] == codexSessionSuggestion['type']) {
+    return 'Aprovar nesta conversa';
+  }
   final where = switch (s['destination']) {
     'session' => ' nesta sessão',
     'localSettings' => ' neste projeto (local)',
@@ -210,7 +217,10 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
   /// section, "+N −M" and the diff in a box that scrolls by itself.
   Widget _editCard(PendingApproval a, PermissionRequest r, String? always) {
     final info = widget.edit;
-    final diff = info?.diff ?? editDiffOf(r.toolName, r.input);
+    final diff =
+        info?.diff ??
+        codexApprovalDiff(r.input) ??
+        editDiffOf(r.toolName, r.input);
     final path = editFilePath(r.input) ?? toolTarget(r.toolName, r.input);
     final outside = info?.outside ?? false;
     final onSpec = info?.target != null && !outside;
@@ -702,8 +712,76 @@ class _DetailsState extends ConsumerState<_Details> {
         ],
       ),
     );
+    // SPEC-096 R12, R16: the parent of a fork and the forks of this one.
+    final all =
+        ref.watch(sessionsProvider(s.workspaceId)).value ?? const <Session>[];
+    final parent = s.parentSessionId == null
+        ? null
+        : all.where((x) => x.id == s.parentSessionId).firstOrNull;
+    // SPEC-099 P5: a continuation is the same link with its own record.
+    final links =
+        ref.watch(continuationLinksProvider(s.workspaceId)).value ??
+        const ContinuationLinks();
+    final continuation = links.of(s.id);
+    final forks = [
+      for (final x in all)
+        if (x.parentSessionId == s.id && !links.isContinuation(x.id)) x,
+    ];
+    final thread = s.externalId;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // SPEC-096 R3: who runs it.
+        if (hasProviderIdentity(s.provider))
+          row(
+            'Provedor',
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ProviderChip(s.provider, dense: true),
+            ),
+          ),
+        if (s.provider == 'codex' && thread != null && thread.isNotEmpty)
+          row(
+            'Thread',
+            Tooltip(
+              message: thread,
+              child: Text(
+                thread.length > 14
+                    ? '${thread.substring(0, 8)}…${thread.substring(thread.length - 4)}'
+                    : thread,
+                key: const ValueKey('session-thread'),
+                style: mono,
+              ),
+            ),
+          ),
+        if (s.parentSessionId != null)
+          row(
+            continuation != null ? 'Continuada de' : 'Bifurcada de',
+            InkWell(
+              key: const ValueKey('session-parent'),
+              onTap: parent == null
+                  ? null
+                  : () => ref
+                        .read(selectedSessionProvider.notifier)
+                        .select(parent.id),
+              child: Text(
+                parent == null ? 'sessão removida' : sessionTitle(parent),
+                style: value.copyWith(color: AppColors.amber),
+              ),
+            ),
+          ),
+        if (continuation?.handoff case final h?)
+          row(
+            'Passagem',
+            Tooltip(
+              message: h.id,
+              child: Text(
+                h.shortId,
+                key: const ValueKey('session-handoff-id'),
+                style: mono,
+              ),
+            ),
+          ),
         row('Spec', Text(spec ?? '—', style: value)),
         row('Duração', Text(formatDuration(dur), style: mono)),
         // SPEC-087 R11: the sum of every call, not the window's size (the
@@ -717,7 +795,14 @@ class _DetailsState extends ConsumerState<_Details> {
             child: Text(formatTokens(s.tokensIn + s.tokensOut), style: mono),
           ),
         ),
-        row('Custo', Text(formatCost(s.costUsd), style: mono)),
+        row(
+          'Custo',
+          Text(
+            formatRunCost(s.provider, s.costUsd, unavailable: 'indisponível'),
+            key: const ValueKey('session-cost'),
+            style: mono,
+          ),
+        ),
         row(
           'Session ID',
           InkWell(
@@ -739,6 +824,31 @@ class _DetailsState extends ConsumerState<_Details> {
             ),
           ),
         ),
+        if (forks.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const Text('BIFURCAÇÕES', style: sectionTitleStyle),
+          const SizedBox(height: 6),
+          for (final f in forks)
+            InkWell(
+              key: ValueKey('session-fork-${f.id}'),
+              onTap: () =>
+                  ref.read(selectedSessionProvider.notifier).select(f.id),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(sessionTitle(f), style: value),
+                    Text(
+                      'bifurcada desta sessão · '
+                      '${SessionLook.of(f.status, alive: false).label.toLowerCase()}',
+                      style: label.copyWith(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -804,7 +914,14 @@ class _ChangedFiles extends ConsumerWidget {
         const SizedBox(height: 10),
         InkWell(
           onTap: () {
-            ref.read(selectedReviewProvider.notifier).select(sessionId);
+            // SPEC-099 P7: the Review follows the newest of the chain.
+            final ws = ref.read(activeWorkspaceProvider);
+            final links = ws == null
+                ? null
+                : ref.read(continuationLinksProvider(ws.id)).value;
+            ref
+                .read(selectedReviewProvider.notifier)
+                .select(links?.newestOfChain(sessionId) ?? sessionId);
             ref.read(navigationProvider.notifier).go(AppSection.review);
           },
           child: const Text(

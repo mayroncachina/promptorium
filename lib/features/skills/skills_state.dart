@@ -2,8 +2,10 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/workspace_assets.dart';
 import '../../data/providers.dart';
 import 'skill_catalog.dart';
+import 'skill_repository.dart';
 
 /// UI state of the Skills screen.
 
@@ -88,3 +90,51 @@ final skillUsageProvider = FutureProvider.autoDispose.family<SkillUsage, String>
     );
   },
 );
+
+/// What the Codex says of an installed Claude skill (SPEC-104 R7, R10):
+/// from the `skills/list` of [result]; without the extra roots, "Só Claude
+/// Code" unless the skill was linked into `.agents/skills` (plano B).
+CodexSkillStatus? codexStatusFor(
+  SkillEntry e,
+  CodexSkillsResult? result, {
+  required bool extraRoots,
+  String? workspacePath,
+}) {
+  // The link only matters in plano B (sync IO: one stat per skill).
+  final linked = !extraRoots && e.isProject && workspacePath != null
+      ? linkedSkillDir(workspacePath, e.name)
+      : null;
+  if (!extraRoots && linked == null) {
+    return const CodexSkillStatus(
+      CodexSkillState.claudeOnly,
+      'Só Claude Code: o Codex não recebe as pastas do Claude nesta versão',
+    );
+  }
+  return switch (result) {
+    null => null,
+    CodexSkillsUnavailable(:final reason) => CodexSkillStatus(
+      CodexSkillState.unavailable,
+      reason,
+    ),
+    CodexSkillsReady(:final inventory) => inventory.statusOf(
+      e.dir,
+      linkedDir: linked,
+    ),
+  };
+}
+
+/// The Codex skills of [workspacePath], queried only once the active
+/// workspace has loaded: before that it reads as null, and a query for "no
+/// workspace" would start one App Server too many (R12).
+AsyncValue<CodexSkillsResult> watchCodexSkills(
+  WidgetRef ref,
+  String? workspacePath,
+) {
+  final saved = ref.watch(
+    appSettingsProvider.select((s) => s[AppSettingKeys.activeWorkspace]),
+  );
+  if (workspacePath == null && (saved ?? '').isNotEmpty) {
+    return const AsyncLoading();
+  }
+  return ref.watch(codexSkillsProvider(workspacePath));
+}

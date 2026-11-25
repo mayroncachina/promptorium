@@ -1,3 +1,4 @@
+import 'ai_memory_view.dart';
 import 'secrets_view.dart';
 
 import 'dart:convert';
@@ -19,6 +20,10 @@ import '../project/widgets/project_config_view.dart';
 import '../sessions/widgets/session_style.dart';
 import 'app_mcp_card.dart';
 import 'automations_view.dart';
+import 'provider_kind_card.dart';
+import 'codex_agent_models.dart';
+import 'codex_autocompact_card.dart';
+import 'codex_consumption.dart';
 import 'backups_view.dart';
 import 'notifications_view.dart';
 import 'orchestrator_view.dart';
@@ -198,20 +203,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
-                  title: 'Automações',
+                  title: 'Automações (hooks)',
                   intro:
-                      'Hooks que o app adiciona a cada sessão num settings.json '
-                      'temporário (--settings); os do seu ~/.claude continuam '
-                      'valendo.',
+                      'Hooks que o app adiciona a cada sessão, no Claude Code e '
+                      'no Codex; os seus e os do projeto continuam valendo.',
                   children: [AutomationsCard()],
                 ),
                 SettingsSection.providers => const _Page(
                   title: 'Provedores',
                   intro:
-                      'Agentes que falam o Agent Client Protocol aparecem no '
-                      'seletor do Prompt. O Claude Code continua por '
-                      'stream-json.',
-                  children: [AcpProvidersCard()],
+                      'O Claude Code e o Codex (Prompt e Sessões) e os agentes '
+                      'que falam o Agent Client Protocol, no seletor do Prompt.',
+                  children: [
+                    CodexStatusCard(),
+                    CodexAgentModelsCard(),
+                    AcpProvidersCard(),
+                  ],
+                ),
+                SettingsSection.aiMemory => const _Page(
+                  title: 'Memória (ai-memory)',
+                  intro:
+                      'Integração opcional. O ai-memory guarda a memória num '
+                      'wiki local e passa o trabalho de uma sessão para a '
+                      'próxima, em qualquer agente. O app só detecta, liga com '
+                      'prévia e mostra; quem grava nos arquivos dos agentes é '
+                      'o instalador do ai-memory.',
+                  children: [AiMemorySettingsView()],
                 ),
                 SettingsSection.backups => const _Page(
                   title: 'Banco e backups',
@@ -364,11 +381,52 @@ class _Page extends StatelessWidget {
   );
 }
 
-class _ConsumptionSection extends ConsumerWidget {
+/// Configurações → Consumo with one tab per provider (SPEC-094 R8).
+class _ConsumptionSection extends ConsumerStatefulWidget {
   const _ConsumptionSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ConsumptionSection> createState() =>
+      _ConsumptionSectionState();
+}
+
+class _ConsumptionSectionState extends ConsumerState<_ConsumptionSection> {
+  String _tab = 'claude';
+
+  Widget _tabs() => Row(
+    children: [
+      for (final (id, label) in const [
+        ('claude', 'Claude Code'),
+        ('codex', 'Codex'),
+      ])
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: ToggleBox(
+            key: ValueKey('consumption-tab-$id'),
+            on: _tab == id,
+            onTap: () => setState(() => _tab = id),
+            child: ProviderTabLabel(id, label),
+          ),
+        ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (_tab == 'codex') {
+      return _Page(
+        title: 'Modelo e consumo',
+        intro: 'Modelo e esforço de cada tipo de execução com o Codex.',
+        children: [
+          _tabs(),
+          const ProviderKindCard(),
+          const CodexConsumptionTab(),
+          // SPEC-107 P1: the Codex threshold, separate from Claude's.
+          const CodexAutocompactCard(),
+          const CodexCapabilitiesCard(),
+        ],
+      );
+    }
     final prefs = ref.watch(runPrefsProvider);
     final settings = ref.read(appSettingsProvider.notifier);
     return _Page(
@@ -396,6 +454,7 @@ class _ConsumptionSection extends ConsumerWidget {
         '${prefs.autocompact == 'auto' ? 'padrão do CLI' : prefs.autocompact}.',
       ),
       children: [
+        _tabs(),
         AgentCard(
           title: 'Modelo e esforço padrão',
           children: [
@@ -463,6 +522,8 @@ class _ConsumptionSection extends ConsumerWidget {
             ),
           ],
         ),
+        // SPEC-100 R9: who runs each kind of execution.
+        const ProviderKindCard(),
       ],
     );
   }

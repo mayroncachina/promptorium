@@ -14,6 +14,9 @@ import '../../core/claude/usage_tracker.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../core/providers/provider_availability.dart';
 import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
@@ -25,6 +28,8 @@ import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show
         LiveTool,
+        liveToolOfNeutral,
+        recordLiveTool,
         PendingApproval,
         SessionManager,
         liveTextLine,
@@ -122,6 +127,10 @@ class _Run {
   final String model;
   String title;
 
+  /// Workspace of the conversation (SPEC-096 R15: switching workspaces
+  /// ends its idle Codex processes).
+  int? workspaceId;
+
   /// Claude session id used by this process (`--session-id` / `--resume`).
   final String sid;
   double lastCost;
@@ -199,6 +208,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
     final selected =
         providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
+    // Refused before the row exists: no empty conversation is left behind.
+    _promptProvider(selected);
     final refine = mode == PromptMode.refine;
     // SPEC-026 R8: the spec text when the conversation starts (the Specs
     // screen saves the editor before opening it, so this is the disk text).
@@ -245,11 +256,33 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (conv.archivedAt != null) await _repo.unarchive(id);
     if (conv.specId != null) await _vibeMessage(conv);
     var r = _runs[id];
+    // SPEC-096 R7: with the Codex turn running, the message directs it
+    // (`turn/steer`); it does not open a turn nor restart the process.
+    final steer = r != null && r.busy && r.run is CodexRun
+        ? r.run as CodexRun
+        : null;
+    if (r != null && steer != null && steer.steering) {
+      final run = r;
+      final codex = steer;
+      await _enqueue(id, run, () async {
+        final json = AppEventTypes.userMessage(msg, DateTime.now());
+        final row = await _repo.appendEvent(
+          id,
+          type: AppEventTypes.user,
+          json: jsonEncode(json),
+        );
+        await _repo.countMessage(id);
+        _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      });
+      await codex.send(msg, images: images);
+      return;
+    }
     final mode = PromptMode.fromName(conv.mode);
     if (r != null && (r.mode != mode || r.model != conv.model)) {
       await _note(
         id,
-        'Modo/modelo alterado (${mode.label} · ${modelLabel(conv.model)}); '
+        'Modo/modelo alterado (${mode.label} · '
+        '${isClaudeCode(conv.provider) ? modelLabel(conv.model) : conv.model}); '
         'reiniciando com --resume',
       );
       await _stopRun(id, r);
@@ -287,7 +320,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> compactNow(int id, {String? focus}) async {
     final conv = await _repo.getById(id);
     if (conv == null) throw ConversationException('Conversa $id não existe.');
-    if (conv.provider != 'claude') {
+    // SPEC-107 R8: decided by the capability, not by the provider name.
+    if (!capabilitiesFor(conv.provider)
+        .supports(ProviderCapability.compactNow)) {
       throw const ConversationException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -304,6 +339,22 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       ..compacting = true
       ..busySince = DateTime.now();
     _publish();
+    final agent = run.run;
+    if (agent is CodexRun) {
+      // SPEC-107 R8, R9: `thread/compact/start`, once, without focus.
+      await _note(id, 'Compactação pedida pelo app (thread/compact/start).');
+      try {
+        await agent.compactNow();
+      } catch (_) {
+        run
+          ..busy = false
+          ..compacting = false
+          ..busySince = null;
+        _publish();
+        rethrow;
+      }
+      return;
+    }
     await _note(id, 'Compactação pedida pelo app (/compact).');
     await run.run.send(compactCommand(focus));
   }
@@ -458,6 +509,44 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await r.run.deny(requestId, message);
   }
 
+  /// SPEC-096 R15: leaving [workspaceId] ends its idle Codex processes (no
+  /// turn running, nothing waiting for an answer); the next message resumes
+  /// the thread. A turn on its way keeps running. Returns the ids ended.
+  Future<List<int>> releaseCodexOf(int workspaceId) async {
+    final ended = <int>[];
+    for (final MapEntry(key: id, value: r) in _runs.entries.toList()) {
+      if (r.workspaceId != workspaceId ||
+          r.run is! CodexRun ||
+          r.busy ||
+          r.stopping ||
+          r.pending.isNotEmpty) {
+        continue;
+      }
+      ended.add(id);
+      await _stopRun(id, r);
+    }
+    return ended;
+  }
+
+  /// "Interromper" (SPEC-096 R7): the Codex turn ends as interrupted
+  /// (`turn/interrupt`) and the process stays; other providers stop.
+  Future<void> interrupt(int id) async {
+    final r = _runs[id];
+    if (r == null) return;
+    if (r.run case final CodexRun codex) {
+      await codex.interrupt();
+      return;
+    }
+    await _stopRun(id, r);
+  }
+
+  /// "Executar plano" of a Codex conversation (SPEC-096 R5): the Codex has
+  /// no `ExitPlanMode`, so a new turn in Editar carries the plan.
+  Future<void> executePlan(int id, String plan) async {
+    await setMode(id, PromptMode.edit);
+    await send(id, planExecutionMessage(plan));
+  }
+
   /// Stops the process (the next message resumes it).
   Future<void> stop(int id) async {
     final r = _runs[id];
@@ -499,6 +588,32 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     return env.isEmpty ? null : env;
   }
 
+  /// The provider of a Prompt conversation, or why it cannot run there.
+  /// Checked before a new conversation is stored, so a refusal never
+  /// leaves an empty one behind.
+  AgentProvider _promptProvider(String id) {
+    final provider = ref.read(agentProviderByIdProvider(id));
+    if (!provider.enabled) {
+      throw ConversationException(
+        '${provider.displayName} ainda não está disponível.',
+      );
+    }
+    final flows = ref.read(providerFlowsProvider);
+    if (!flows.allows(id, AppFlow.prompt)) {
+      throw ConversationException(
+        flows.refusal(id, provider.displayName, AppFlow.prompt),
+      );
+    }
+    // SPEC-096 R10a: no sandbox, no Codex in the Prompt (nothing runs in
+    // the project root without it).
+    if (id == ProviderCapabilities.codex.providerId &&
+        ref.read(providerAvailabilityProvider(id)).value?.sandboxWarning !=
+            null) {
+      throw ConversationException(codexNoSandboxMessage());
+    }
+    return provider;
+  }
+
   Future<_Run> _startRun(Conversation conv) async {
     if (_shuttingDown) {
       throw const ConversationException('O aplicativo está sendo encerrado.');
@@ -507,12 +622,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (ws == null) {
       throw const ConversationException('Workspace da conversa não existe.');
     }
-    final provider = ref.read(agentProviderByIdProvider(conv.provider));
-    if (!provider.enabled) {
-      throw ConversationException(
-        '${provider.displayName} ainda não está disponível.',
-      );
-    }
+    final provider = _promptProvider(conv.provider);
     // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
     final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
     final resume = conv.claudeSessionId;
@@ -522,7 +632,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final prefs = ref.read(runPrefsProvider);
     // SPEC-052 R1, R8: the app's MCP server for Claude conversations;
     // "Perguntar" only reads. "Refinar" is an internal run (out of scope).
-    final mcpLink = conv.provider == 'claude' && mode != PromptMode.refine
+    final caps = provider.capabilities;
+    final mcpLink =
+        caps.supports(ProviderCapability.appMcpServer) &&
+            mode != PromptMode.refine
         ? await openMcpRun(
             ref,
             workspaceId: ws.id,
@@ -544,15 +657,29 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           effort: effortArg(
             providerEffort(ref, conv.provider, RunKind.conversation),
           ),
-          autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
-          mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: [...mcp.disallowed, ...?mcpLink?.disallowedTools],
-          mcpConfigs: [?mcpLink?.configPath],
+          appMcpConfigs: [?mcpLink?.configPath],
           appAllowedTools: mcpLink?.allowedTools ?? const [],
-          // Other providers refuse Claude's --settings.
-          settingsFile: conv.provider == 'claude'
-              ? await runSettingsFile(ref)
-              : null,
+          // R5: each provider gets only its own extras.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: prefs.autocompact,
+              mcpAllowedTools: mcp.allowed,
+              mcpDisallowedTools: [
+                ...mcp.disallowed,
+                ...?mcpLink?.disallowedTools,
+              ],
+              settingsFile: caps.supports(ProviderCapability.managedHooks)
+                  ? await runSettingsFile(ref)
+                  : null,
+            ),
+            // SPEC-107 R6, P1: the Codex threshold preference; SPEC-105 R9:
+            // "Bloqueado" becomes `disabled_tools`.
+            codex: CodexExtras(
+              compactLimit: prefs.codexAutocompact,
+              mcpDisallowedTools: mcp.disallowed,
+            ),
+          ),
           // SPEC-048: commits of the Prompt (end of a plan) are marked too.
           environment: await _agentEnv(conv, ws.path),
         ),
@@ -569,14 +696,16 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       );
     }
     final r = _Run(run, mode, conv.model, conv.title, conv.costUsd, sid)
+      ..workspaceId = conv.workspaceId
       ..mcp = mcpLink
       ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _runs[conv.id] = r;
     // SPEC-087 R7: what this execution received (effective threshold).
     final runJson = ContextEventTypes.runEvent(
-      autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
+      autocompact: prefs.autocompactOf(conv.provider),
       model: conv.model,
       provider: conv.provider,
+      instructionSources: run is CodexRun ? run.instructionSources : null,
     );
     final runRow = await _repo.appendEvent(
       conv.id,
@@ -619,7 +748,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> _handle(int id, _Run r, ClaudeEvent e) async {
     if (!ref.mounted) return;
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, r.lastJson) && e.json.isNotEmpty) {
         seq = r.lastSeq;
       } else {
@@ -651,15 +780,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case AssistantMessage() when e.parentToolUseId == null:
         for (final b in e.blocks) {
           if (b is ToolUseBlock && !r.recent.any((t) => t.id == b.id)) {
-            r.recent.insert(
-              0,
-              LiveTool(
-                id: b.id,
-                name: b.name,
-                input: b.input,
-                at: DateTime.now(),
-              ),
-            );
+            r.recent.insert(0, LiveTool.fromBlock(b));
             if (r.recent.length > 5) r.recent.removeLast();
             r.calls++;
           }
@@ -670,6 +791,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case ToolResult() when e.parentToolUseId == null:
         final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) r.recent[i] = r.recent[i].finished();
+      // SPEC-095: a file change or command of any provider.
+      case FileChangeEvent() || CommandEvent():
+        if (recordLiveTool(r.recent, liveToolOfNeutral(e)!)) r.calls++;
       case Result():
         final turn = turnCost(
           e.totalCostUsd,
@@ -868,11 +992,25 @@ class PromptDraftController extends Notifier<PromptDraft> {
     }
     final provider = ref.watch(activeAgentProvider);
     ref.watch(runPrefsProvider);
-    return _chosen ??
+    final draft =
+        _chosen ??
         PromptDraft(
           providerId: provider,
           model: providerModel(ref, provider, RunKind.conversation),
         );
+    // "Desligar o Codex" (SPEC-096 P1): a provider turned off in
+    // Configurações is not offered; the draft goes back to the Claude Code.
+    if (ref.watch(providerFlowsProvider).isOff(draft.providerId)) {
+      return PromptDraft(
+        model: providerModel(
+          ref,
+          ClaudeCodeProvider.providerId,
+          RunKind.conversation,
+        ),
+        mode: draft.mode,
+      );
+    }
+    return draft;
   }
 
   void set(PromptDraft d) {
@@ -885,6 +1023,10 @@ final promptDraftProvider =
     NotifierProvider<PromptDraftController, PromptDraft>(
       PromptDraftController.new,
     );
+
+/// The message of "Executar plano" (SPEC-096 R5).
+String planExecutionMessage(String plan) =>
+    'Execute o plano abaixo, editando os arquivos necessários.\n\n$plan';
 
 /// `sonnet` → `Sonnet`; `inherit` → `Modelo padrão`.
 String modelLabel(String model) {

@@ -1,21 +1,29 @@
 import 'dart:async';
 import 'dart:convert' show jsonEncode, jsonDecode;
+import 'dart:io' show File;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/memory/ai_memory_env.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/git/worktree_roots.dart';
+import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../core/providers/provider_availability.dart';
+import '../../ui/providers/provider_logos.dart' show providerModelLabel;
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
+import '../../core/providers/context_events.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/git/agent_trailer.dart';
@@ -32,6 +40,7 @@ import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../agents/codex_agent.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../prompt/conversation_manager.dart' show conversationManagerProvider;
@@ -45,6 +54,7 @@ import 'app_notifier.dart';
 import '../cost/usage_ledger.dart';
 import 'restore/restore_service.dart';
 import 'session_changes.dart';
+import 'session_composer_draft.dart';
 import '../context/compaction_controller.dart';
 import '../context/context_tracker.dart';
 import 'timeline.dart';
@@ -91,6 +101,9 @@ class NewSessionRequest {
     this.environment,
     this.duelId,
     this.prUrl,
+    this.draft = false,
+    this.parentSessionId,
+    this.startEvent,
   });
 
   final Workspace workspace;
@@ -143,6 +156,18 @@ class NewSessionRequest {
   /// stored before the process starts, so its hooks already refuse the
   /// forced pushes (R7).
   final String? prUrl;
+
+  /// SPEC-099 P1: the process starts idle and [prompt] goes to the
+  /// session's message field ([sessionComposerDraftProvider]); nothing is
+  /// sent until the person sends it. An empty prompt is allowed.
+  final bool draft;
+
+  /// The session this one continues (SPEC-099 R9; the link of SPEC-096).
+  final String? parentSessionId;
+
+  /// App event written before anything else (the "continuação" record,
+  /// SPEC-099 P5): the note at the top of the timeline.
+  final Map<String, dynamic>? startEvent;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -174,7 +199,26 @@ class LiveTool {
     required this.input,
     required this.at,
     this.done = false,
+    this.kind = LiveToolKind.tool,
+    this.files = const [],
   });
+
+  /// A Claude tool call, seen through its neutral events (SPEC-095 R9).
+  factory LiveTool.fromBlock(ToolUseBlock b, {DateTime? at}) {
+    final files = b.fileChanges;
+    return LiveTool(
+      id: b.id,
+      name: b.name,
+      input: b.input,
+      at: at ?? DateTime.now(),
+      kind: files.isNotEmpty
+          ? LiveToolKind.file
+          : b.command != null
+          ? LiveToolKind.command
+          : LiveToolKind.tool,
+      files: [for (final f in files) f.path],
+    );
+  }
 
   final String id;
   final String name;
@@ -184,12 +228,72 @@ class LiveTool {
   /// Its result arrived: the agent is between tools (thinking).
   final bool done;
 
-  LiveTool finished() =>
-      LiveTool(id: id, name: name, input: input, at: at, done: true);
+  /// What the call does, whatever the provider.
+  final LiveToolKind kind;
+
+  /// Files it changes.
+  final List<String> files;
+
+  LiveTool finished() => LiveTool(
+    id: id,
+    name: name,
+    input: input,
+    at: at,
+    done: true,
+    kind: kind,
+    files: files,
+  );
 }
 
-/// Tools that write files (SPEC-076 R3: "arquivos" of the turn).
-const fileEditTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+/// What a live tool call does (SPEC-095): the Atividades pick the pose from
+/// it, not from a tool name.
+enum LiveToolKind { tool, file, command }
+
+/// The live tool of a neutral event (a Codex file change or command), or
+/// null (SPEC-095 R9).
+LiveTool? liveToolOfNeutral(AgentEvent e, {DateTime? at}) => switch (e) {
+  FileChangeEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.file,
+    input: {'path': e.path},
+    at: at ?? DateTime.now(),
+    done: e.status != FileChangeStatus.proposed,
+    kind: LiveToolKind.file,
+    files: [e.path],
+  ),
+  CommandEvent() => LiveTool(
+    id: e.toolUseId,
+    name: NeutralToolNames.command,
+    input: {'command': e.displayCommand},
+    at: at ?? DateTime.now(),
+    done: e.done,
+    kind: LiveToolKind.command,
+  ),
+  _ => null,
+};
+
+/// Records the neutral live tool [t] in [recent] (newest first, five at
+/// most): a new call is inserted (true), a known one updated (its files
+/// merged, done when it ends).
+bool recordLiveTool(List<LiveTool> recent, LiveTool t) {
+  final i = recent.indexWhere((x) => x.id == t.id);
+  if (i < 0) {
+    recent.insert(0, t);
+    if (recent.length > 5) recent.removeLast();
+    return true;
+  }
+  final old = recent[i];
+  recent[i] = LiveTool(
+    id: old.id,
+    name: old.name,
+    input: old.input,
+    at: old.at,
+    done: t.done,
+    kind: old.kind,
+    files: {...old.files, ...t.files}.toList(),
+  );
+  return false;
+}
 
 /// Runtime state of a session with a live process.
 @immutable
@@ -266,16 +370,48 @@ class SessionException implements Exception {
 /// Records the top-level tool call [b] in [p] (SPEC-076 R3).
 void _trackTool(_Proc p, ToolUseBlock b) {
   if (p.recent.any((t) => t.id == b.id)) return;
-  p.recent.insert(
-    0,
-    LiveTool(id: b.id, name: b.name, input: b.input, at: DateTime.now()),
-  );
+  final t = LiveTool.fromBlock(b);
+  p.recent.insert(0, t);
   if (p.recent.length > 5) p.recent.removeLast();
   p.calls++;
-  if (fileEditTools.contains(b.name)) {
-    final path = b.input['file_path'] ?? b.input['notebook_path'];
-    if (path is String) p.files.add(path);
+  p.files.addAll(t.files);
+}
+
+/// Records a neutral file change or command in [p] (SPEC-095 R9): one call
+/// per item, every file it changes.
+void _trackNeutral(_Proc p, AgentEvent e) {
+  final t = liveToolOfNeutral(e);
+  if (t == null) return;
+  if (!p.seenNeutral.contains(t.id)) {
+    p.seenNeutral.add(t.id);
+    p.calls++;
   }
+  recordLiveTool(p.recent, t);
+  p.files.addAll(t.files);
+}
+
+/// SPEC-101 R8: a `git commit` of a non-Claude agent that failed because
+/// the sandbox did not let git write (the git common dir out of the
+/// writable roots, `bwrap` not starting). Returns the timeline line with
+/// the command and the path; null for any other command or failure.
+String? sandboxCommitRefusal(CommandEvent e) {
+  if (e.provider == 'claude' || e.status != CommandStatus.failed) return null;
+  if (!RegExp(r'\bgit\b[^|;&]*\bcommit\b').hasMatch(e.command)) return null;
+  final out = e.output ?? '';
+  final denied = RegExp(
+    r'Permiss(ão|ion) (negada|denied)|Operation not permitted|'
+    r'Read-only file system|bwrap:|index\.lock',
+    caseSensitive: false,
+  );
+  if (!denied.hasMatch(out)) return null;
+  final path =
+      RegExp(r"'([^']*\.git[^']*)'").firstMatch(out)?.group(1) ?? e.cwd;
+  final cmd = e.command.length > 120
+      ? '${e.command.substring(0, 119)}…'
+      : e.command;
+  return 'O sandbox do Codex bloqueou o commit: `$cmd`'
+      '${path == null ? '' : ' em $path'}. O app commita o que ficou no fim '
+      'do turno.';
 }
 
 /// The agent's text as one line of at most 200 characters.
@@ -294,6 +430,13 @@ class _Proc {
 
   final ManagedAgentRun process;
   String title;
+
+  /// Workspace of the session (SPEC-096 R15).
+  int? workspaceId;
+
+  /// "Codex · gpt-6.2-sol" of a session not run by the Claude Code: goes
+  /// with its notifications (SPEC-096 R3). Null for Claude.
+  String? who;
 
   /// Started with `--dangerously-skip-permissions` (a start flag: a live
   /// switch to another mode does not undo it).
@@ -317,6 +460,17 @@ class _Proc {
   /// Context of the last top-level answer (input + cache read + cache
   /// write): what the next call sends again (SPEC-017 R4).
   int? contextTokens;
+
+  /// Window the provider reports for the model (Codex
+  /// `modelContextWindow`, SPEC-101 R10); null = not reported.
+  int? contextWindow;
+
+  /// Commands whose sandbox refusal of `git commit` was noted (SPEC-101
+  /// R8).
+  final Set<String> sandboxCommitNoted = {};
+
+  /// Ids of the neutral calls of the turn already counted (SPEC-095).
+  final Set<String> seenNeutral = {};
 
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
@@ -349,12 +503,21 @@ class _Proc {
   /// Bytes of the hooks log already shown.
   int hookOffset = 0;
 
+  /// SPEC-103: the app's hooks of a Codex process and what `hooks/list`
+  /// said about them; the files the turn left (post-turn `formatar:`).
+  ManagedHookPlan? hookPlan;
+  CodexHookStatus? codexHooks;
+  final Set<String> formatFiles = {};
+
   /// SPEC-076 R3: the newest tool calls (newest first), calls and edited
   /// files of the turn, and the agent's newest text.
   final List<LiveTool> recent = [];
   int calls = 0;
   final Set<String> files = {};
   String? lastText;
+
+  /// The usage limit of this turn was noted (SPEC-099 R2): once per turn.
+  bool limitNoted = false;
   StreamSubscription<ClaudeEvent>? sub;
   StreamSubscription<String>? logSub;
 }
@@ -406,6 +569,9 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Claude sessions started without `python3` (no hook at all, R2).
   final Set<String> _noPython = {};
 
+  /// Codex sessions told once what stayed post-turn (SPEC-103 R7).
+  final Set<String> _hookFallbackNoted = {};
+
   /// Tests have no hooks: let them exercise the end-of-turn check (R2).
   @visibleForTesting
   static bool secretTurnCheckWithoutHooks = false;
@@ -432,7 +598,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final title = r.title.trim();
     final prompt = r.prompt.trim();
     if (title.isEmpty) throw const SessionException('Informe um título.');
-    if (prompt.isEmpty) {
+    if (prompt.isEmpty && !r.draft) {
       throw const SessionException('Informe o prompt inicial.');
     }
     final id = ref.read(sessionIdGeneratorProvider)();
@@ -460,6 +626,26 @@ class SessionManager extends Notifier<SessionManagerState> {
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
     }
+    // SPEC-096 R10a: without the sandbox, the Codex runs only in a worktree
+    // with full access (and the app commits at the end of the turn).
+    if (provider == ProviderCapabilities.codex.providerId &&
+        ref
+                .read(providerAvailabilityProvider(provider))
+                .value
+                ?.sandboxWarning !=
+            null &&
+        (path == ws.path ||
+            r.permissionMode != ClaudePermissionMode.skipPermissions)) {
+      if (r.useWorktree && r.worktreePath == null && path != ws.path) {
+        try {
+          await git.removeWorktree(path, force: true);
+          await git.deleteBranch(branch, force: true);
+        } on GitException catch (e) {
+          debugPrint('worktree $path não removido — $e');
+        }
+      }
+      throw SessionException(codexNoSandboxMessage());
+    }
     if (r.permissionMode == ClaudePermissionMode.skipPermissions &&
         path == ws.path) {
       throw const SessionException(
@@ -469,9 +655,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final effort =
         r.effort ??
-        (provider == 'claude'
-            ? ref.read(runPrefsProvider).effort(RunKind.session)
-            : 'default');
+        providerEffortFrom(
+          ref.read(runPrefsProvider),
+          ref.read(appSettingsProvider),
+          provider,
+          RunKind.session,
+        );
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
@@ -479,7 +668,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       branch: branch,
       model: r.model,
       provider: provider,
-      externalId: provider == 'claude' ? id : null,
+      externalId: isClaudeCode(provider) ? id : null,
       effort: effort,
       agentName: r.agent,
       title: title,
@@ -489,12 +678,41 @@ class SessionManager extends Notifier<SessionManagerState> {
       steps: r.steps,
       baseBranch: base,
       duelId: r.duelId,
+      parentSessionId: r.parentSessionId,
     );
     if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
+    if (r.startEvent != null) await _appEvent(id, r.startEvent!);
     if (r.origin != null) await _note(id, r.origin!);
+    if (r.draft) {
+      // SPEC-099 P1: idle, with the message in the field.
+      await _startNew(id, r, provider: provider, effort: effort, path: path);
+      await _repo.setStatus(id, SessionStatus.completed);
+      if (prompt.isNotEmpty) {
+        ref.read(sessionComposerDraftProvider.notifier).put(id, prompt);
+      }
+      return id;
+    }
     // SPEC-084 R1: the point of the first turn before the agent starts (its
     // start competes with the git work for the machine).
     _firstPoints[id] = await _checkpoint(id, prompt);
+    await _startNew(id, r, provider: provider, effort: effort, path: path);
+    try {
+      await send(id, prompt);
+    } finally {
+      _firstPoints.remove(id);
+    }
+    return id;
+  }
+
+  /// The first process of a new session ([create]).
+  Future<void> _startNew(
+    String id,
+    NewSessionRequest r, {
+    required String provider,
+    required String? effort,
+    required String path,
+  }) async {
+    final ws = r.workspace;
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
     final env =
@@ -515,16 +733,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         disallowedTools: mcp.disallowed,
       ),
       cwd: path,
-      title: title,
+      title: r.title.trim(),
       root: ws.path,
       environment: env,
     );
-    try {
-      await send(id, prompt);
-    } finally {
-      _firstPoints.remove(id);
-    }
-    return id;
   }
 
   /// Sends a user message; resumes the session (`--resume`, same worktree)
@@ -571,7 +783,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     // A new turn counts its own calls and files (SPEC-076 R3).
     proc
       ..calls = 0
-      ..files.clear();
+      ..files.clear()
+      ..formatFiles.clear()
+      ..seenNeutral.clear()
+      ..limitNoted = false;
     _publish();
     // SPEC-084 R1: the restore point of the turn, before the message goes
     // (the first one was recorded by [create]).
@@ -600,7 +815,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> compactNow(String id, {String? focus}) async {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não existe.');
-    if (s.provider != 'claude') {
+    // SPEC-107 R8: decided by the capability, not by the provider name.
+    if (!capabilitiesFor(s.provider).supports(ProviderCapability.compactNow)) {
       throw const SessionException(
         'Este agente não tem um comando nativo de compactação confirmado.',
       );
@@ -623,6 +839,22 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..busySince = DateTime.now()
       ..lastActivity = DateTime.now();
     _publish();
+    final run = proc.process;
+    if (run is CodexRun) {
+      // SPEC-107 R8, R9: `thread/compact/start`, once, without focus.
+      await _note(id, 'Compactação pedida pelo app (thread/compact/start).');
+      try {
+        await run.compactNow();
+      } catch (_) {
+        proc
+          ..busy = false
+          ..compacting = false
+          ..busySince = null;
+        _publish();
+        rethrow;
+      }
+      return;
+    }
     await _note(id, 'Compactação pedida pelo app (/compact).');
     await proc.process.send(compactCommand(focus));
   }
@@ -894,12 +1126,16 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final limits = await _agentLimits(s.agentName, ws?.path);
     final mcp = await _mcpRules();
+    // SPEC-099 P1: a continued session whose message was never sent has
+    // nothing for the CLI to resume: it starts again, as new.
+    final fresh = !await _repo.hasEventOfType(id, AppEventTypes.user);
     await _start(
       id,
       ClaudeOptions(
-        resumeId: id,
+        sessionId: fresh && isClaudeCode(s.provider) ? id : null,
+        resumeId: fresh ? null : id,
         model: _model(s.model),
-        effort: s.provider != 'claude'
+        effort: !isClaudeCode(s.provider)
             ? effortArg(s.effort)
             : _effort(s.effort),
         agent: s.agentName,
@@ -998,6 +1234,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseBranch: parent.worktreePath != ws.path ? parent.baseBranch : null,
       // total_cost_usd keeps counting the parent's cost.
       costUsd: parent.costUsd,
+      // SPEC-096 R16: "bifurcada de …".
+      parentSessionId: id,
     );
     await _note(newId, 'Fork de "${_titleOf(parent)}" (${_short(id)})');
     final limits = await _agentLimits(parent.agentName, ws.path);
@@ -1009,7 +1247,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
-        effort: parent.provider != 'claude'
+        effort: !isClaudeCode(parent.provider)
             ? effortArg(parent.effort)
             : _effort(parent.effort),
         agent: parent.agentName,
@@ -1064,6 +1302,80 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (p == null || req == null) return;
     await p.process.deny(requestId, message);
     await _afterAnswer(id);
+  }
+
+  /// "Interromper" (SPEC-096 R12): the Codex turn ends with
+  /// `turn/interrupt` and the session becomes `interrupted` (never failed);
+  /// the process stays for "Retomar". Other providers have no live
+  /// interrupt here: [stop].
+  Future<void> interrupt(String id) async {
+    final p = _procs[id];
+    if (p == null) return;
+    if (p.process is CodexRun) {
+      await p.process.interrupt();
+      return;
+    }
+    await stop(id);
+  }
+
+  /// Whether the turn of [id] can be interrupted now (a Codex turn running).
+  bool canInterrupt(String id) {
+    final p = _procs[id];
+    return p != null && p.busy && p.process is CodexRun;
+  }
+
+  Future<void> _markInterruptedByUser(String id) async {
+    final s = await _repo.getById(id);
+    if (s == null) return;
+    final config = s.runConfig == null
+        ? <String, dynamic>{}
+        : jsonDecode(s.runConfig!) as Map<String, dynamic>;
+    config['interrupted'] = 'user';
+    await _repo.setRunConfig(id, jsonEncode(config));
+  }
+
+  Future<void> _recordThreadModel(String id, _Proc p, String? model) async {
+    final m = model?.trim() ?? '';
+    if (m.isEmpty || m == 'inherit') return;
+    final s = await _repo.getById(id);
+    if (s == null || isClaudeCode(s.provider)) return;
+    if (s.model.isNotEmpty && s.model != 'inherit') return;
+    await _repo.setModel(id, m);
+    p.who = providerModelLabel(s.provider, m);
+  }
+
+  /// R10, R10a: commits what the Codex left in its worktree at the end of
+  /// a writing turn, with the agent's message as body and the trailer of
+  /// SPEC-048. Never in the project root, never in Perguntar / Planejar.
+  Future<void> _codexTurnCommit(String id, _Proc p, String? answer) async {
+    final s = await _repo.getById(id);
+    if (s == null) return;
+    final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    if (ws == null || s.worktreePath == ws.path) return;
+    final access = AgentAccess.fromClaudeMode(
+      ClaudePermissionMode.fromCli(s.permissionMode),
+    );
+    if (access == null ||
+        access == AgentAccess.ask ||
+        access == AgentAccess.plan) {
+      return;
+    }
+    final git = ref.read(gitServiceFactoryProvider)(s.worktreePath);
+    final config = ProjectConfig.loadSync(ws.path);
+    final trailer = config.git.markAgentCommits
+        ? agentTrailerLine(
+            agentModelLabel(s.model, s.provider),
+            await _agentOrigin(s),
+          )
+        : null;
+    final committed = await git.commitAll(
+      codexTurnCommitMessage(_titleOf(s), answer),
+      trailer: trailer,
+    );
+    if (committed) {
+      await _note(id, 'O app commitou o que o Codex deixou no worktree.');
+      ref.invalidate(sessionChangesProvider(id));
+    }
   }
 
   /// SIGTERM (then SIGKILL); the session becomes `stopped`.
@@ -1122,7 +1434,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final session = await _repo.getById(id);
     final current = _procs[id];
     if (session != null &&
-        session.provider != 'claude' &&
+        !isClaudeCode(session.provider) &&
         current != null &&
         (current.busy ||
             current.pending.isNotEmpty ||
@@ -1132,13 +1444,23 @@ class SessionManager extends Notifier<SessionManagerState> {
       );
     }
     await _repo.setPermissionMode(id, mode.cliValue);
-    if (session != null && session.provider != 'claude') {
+    if (session != null && !isClaudeCode(session.provider)) {
       if (session.runConfig != null) {
         final config = jsonDecode(session.runConfig!) as Map<String, dynamic>;
         config['permissionMode'] = mode.cliValue;
         await _repo.setRunConfig(id, jsonEncode(config));
       }
-      if (current != null) await release(id);
+      // R14: the Codex takes a policy per turn — an idle process keeps
+      // running and the next turn/start uses the new access.
+      if (current != null) {
+        await current.process.setPermissionMode(mode);
+        await _note(
+          id,
+          'Modo de permissão: ${permissionModeLabel(mode, provider: "codex")} '
+          '(no próximo turno)',
+        );
+        return;
+      }
       await _note(
         id,
         'Modo de permissão: ${permissionModeLabel(mode, provider: "codex")} (ao retomar)',
@@ -1196,6 +1518,9 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Context of the session's last answer (null: no process or no usage).
   int? contextTokens(String id) => _procs[id]?.contextTokens;
+
+  /// Model window reported by the live process of [id] (SPEC-101 R10).
+  int? contextWindow(String id) => _procs[id]?.contextWindow;
 
   /// A spec session that goes on to more steps (SPEC-017 R4).
   Future<void> setSteps(String id, String steps, String title) async {
@@ -1261,6 +1586,39 @@ class SessionManager extends Notifier<SessionManagerState> {
       origin: await _agentOrigin(s),
       sessionId: s.id,
     );
+  }
+
+  /// SPEC-096 R15: leaving [workspaceId] ends the idle Codex processes of
+  /// its sessions (like [closeIdle], without waiting the idle time). A
+  /// session with a turn, an approval or a sub-agent on its way keeps
+  /// running; sessions of other workspaces are untouched. "Retomar"
+  /// resumes the thread. Returns the ids ended.
+  Future<List<String>> releaseCodexOf(int workspaceId) async {
+    if (_shuttingDown) return const [];
+    final ended = <String>[];
+    for (final e in _procs.entries.toList()) {
+      final p = e.value;
+      if (p.workspaceId != workspaceId ||
+          p.process is! CodexRun ||
+          p.busy ||
+          p.stopping ||
+          p.pending.isNotEmpty ||
+          p.subagents.isNotEmpty) {
+        continue;
+      }
+      ended.add(e.key);
+      try {
+        await release(e.key);
+        await _note(
+          e.key,
+          'Processo do Codex encerrado ao trocar de workspace (Retomar '
+          'continua de onde parou)',
+        );
+      } catch (err) {
+        debugPrint('sessão ${e.key}: não encerrada — $err');
+      }
+    }
+    return ended;
   }
 
   /// Closes the process of every session idle for the configured time (no
@@ -1334,6 +1692,11 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
   }
 
+  /// The budget in US\$ of [agent] (`agent_settings`), shown as "fica para
+  /// trás" when the work goes to a provider without it (SPEC-099 R3).
+  Future<double?> agentBudget(String? agent, String? workspacePath) async =>
+      (await _agentLimits(agent, workspacePath)).budgetUsd;
+
   /// MCP tool rules (Fase 11): "Permitido" → `--allowedTools`, "Bloqueado"
   /// → `--disallowedTools`. Sessions have no read-only mode, so "Permitido"
   /// always applies (re-read on every start / resume / fork).
@@ -1358,13 +1721,25 @@ class SessionManager extends Notifier<SessionManagerState> {
     // SPEC-048: only the agent's process gets the marking, never the
     // terminals of the worktree (worktreeEnvProvider below).
     final marking = await _agentEnv(session, root ?? cwd);
-    final processEnv = marking.isEmpty
+    // SPEC-098 R6: step sessions of the Quadro capture but leave no
+    // automatic handoff (P3); free sessions keep ai-memory's behavior.
+    final memory = await aiMemoryRunEnvironment(
+      ref,
+      session.specId != null
+          ? AiMemoryRunKind.stepSession
+          : AiMemoryRunKind.free,
+    );
+    final extra = {...marking, ...memory};
+    final processEnv = extra.isEmpty
         ? environment
-        : {...?environment, ...marking};
+        : {...?environment, ...extra};
     final ManagedAgentRun process;
     McpRunLink? mcpLink;
+    ManagedHookPlan? hookPlan;
+    CodexHookStatus? hookStatus;
+    CodexAgentPlan? agentPlan;
     try {
-      if (session.provider != 'claude') {
+      if (!isClaudeCode(session.provider)) {
         final saved = session.runConfig == null
             ? <String, dynamic>{}
             : jsonDecode(session.runConfig!) as Map<String, dynamic>;
@@ -1384,26 +1759,115 @@ class SessionManager extends Notifier<SessionManagerState> {
             );
           }
         }
-        final effective = AgentStartOptions(
+        final provider = agentProviderForFlow(
+          ref,
+          session.provider,
+          session.specId == null ? AppFlow.sessions : AppFlow.runSpec,
+        );
+        final caps = provider.capabilities;
+        final mode = options.permissionMode;
+        // R7: the stored mode becomes the app's access; Claude-only modes
+        // (`auto`, `dontAsk`) fail closed.
+        final access = mode == null
+            ? AgentAccess.edit
+            : AgentAccess.fromClaudeMode(mode) ??
+                  (throw AgentUnavailable(
+                    '${provider.displayName}: o modo ${mode.cliValue} é só '
+                    'do Claude Code.',
+                  ));
+        // SPEC-107 R6, P1: the Codex threshold preference of this start.
+        final compact = isClaudeCode(session.provider)
+            ? saved['autocompact'] as String?
+            : ref.read(runPrefsProvider).autocompactOf(session.provider);
+        final codexHooks = await _prepareCodexHooks(id, cwd: cwd, root: root);
+        // SPEC-105 R7: the app's MCP server, by override of the run.
+        if (caps.supports(ProviderCapability.appMcpServer)) {
+          mcpLink = await openMcpRun(
+            ref,
+            workspaceId: session.workspaceId,
+            sessionId: id,
+            access: access.readOnly ? McpAccess.read : McpAccess.write,
+            specId: session.specId,
+            steps: session.steps,
+            title: title,
+          );
+        }
+        var effective = AgentStartOptions.forAccess(
+          access,
           workingDirectory: cwd,
-          mode: PromptMode.edit,
           resumeId: externalId,
           forkSession: options.forkSession,
           model: options.model,
           effort: options.effort,
-          permissionMode: options.permissionMode,
           environment: processEnv,
-          autocompact: saved['autocompact'] as String?,
-          agent: options.agent,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTurns: options.maxTurns,
-          mcpAllowedTools: options.allowedTools,
-          mcpDisallowedTools: options.disallowedTools,
+          appMcpConfigs: [?mcpLink?.configPath],
+          // R5: agent, budget and turns only where the provider has them.
+          extras: extrasFor(
+            caps,
+            claude: ClaudeExtras(
+              autocompact: compact,
+              agent: options.agent,
+              maxBudgetUsd: options.maxBudgetUsd,
+              maxTurns: options.maxTurns,
+              mcpAllowedTools: options.allowedTools,
+              mcpDisallowedTools: options.disallowedTools,
+              permissionMode: mode,
+            ),
+            // SPEC-096 R10: in a linked worktree, `git commit` writes in
+            // its slice of the git common dir; nothing else is opened.
+            codex: CodexExtras(
+              compactLimit: compact,
+              writableRoots: root != null && root != cwd
+                  ? worktreeWritableRoots(cwd)
+                  : const [],
+              configOverrides: codexHooks.overrides,
+              // SPEC-105 R9: "Bloqueado" becomes `disabled_tools`.
+              mcpDisallowedTools: options.disallowedTools,
+            ),
+          ),
         );
-        final run = await ref
-            .read(agentProviderByIdProvider(session.provider))
-            .start(effective);
+        // SPEC-106: the agent translated for this run only (R1–R4, R12).
+        if (options.agent case final name?
+            when name.isNotEmpty &&
+                caps.providerId == ProviderCapabilities.codex.providerId) {
+          agentPlan = await resolveCodexAgentPlan(
+            ref,
+            agent: name,
+            workspacePath: root ?? cwd,
+            access: access,
+            runModel: options.model ?? 'inherit',
+            runEffort: options.effort,
+          );
+          if (agentPlan != null) {
+            effective = withCodexAgent(effective, agentPlan);
+          } else {
+            await _note(
+              id,
+              'Agente $name não encontrado em .claude/agents: a sessão segue '
+              'sem ele.',
+            );
+          }
+        }
+        final run = await provider.start(effective);
         process = run as ManagedAgentRun;
+        if (run is CodexRun) {
+          hookPlan = codexHooks.plan;
+          hookStatus = await _confirmCodexHooks(
+            id,
+            run,
+            plan: codexHooks.plan,
+            command: codexHooks.command,
+          );
+          // P2: while the block hook does not run, its rules go to the
+          // command approvals.
+          final plan = codexHooks.plan;
+          if (plan != null &&
+              plan.enabled.contains(ManagedHook.block) &&
+              !(hookStatus?.active.contains(ManagedHook.block) ?? false)) {
+            run.commandFilter = (params) =>
+                codexApprovalBlockedBy(params, plan.rules);
+          }
+        }
         await _repo.setRunConfig(
           id,
           jsonEncode({
@@ -1412,11 +1876,11 @@ class SessionManager extends Notifier<SessionManagerState> {
             'permissionMode': options.permissionMode?.cliValue,
             'model': session.model,
             'effort': session.effort,
-            if (effective.autocompact != null)
-              'autocompact': effective.autocompact,
+            'autocompact': ?compact,
+            'agent': ?agentPlan?.toRecord(),
           }),
         );
-      } else if (session.provider == 'claude') {
+      } else if (isClaudeCode(session.provider)) {
         final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
         // SPEC-052 R1: the app's MCP server, with a token of this process.
         mcpLink = await openMcpRun(
@@ -1466,9 +1930,15 @@ class SessionManager extends Notifier<SessionManagerState> {
             skipPermissions:
                 options.permissionMode == ClaudePermissionMode.skipPermissions,
           )
+          ..workspaceId = session.workspaceId
+          ..who = isClaudeCode(session.provider)
+              ? null
+              : providerModelLabel(session.provider, session.model)
           ..markedRoot = marking.isEmpty ? null : (root ?? cwd)
           ..mcp = mcpLink
-          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
+          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider)
+          ..hookPlan = hookPlan
+          ..codexHooks = hookStatus;
     _procs[id] = p;
     if (p.markedRoot != null) {
       ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
@@ -1485,13 +1955,24 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _appEvent(
       id,
       ContextEventTypes.runEvent(
-        autocompact: session.provider == 'claude'
-            ? ref.read(runPrefsProvider).autocompact
-            : null,
+        // SPEC-107 R6: what the Codex received too.
+        autocompact: ref.read(runPrefsProvider).autocompactOf(session.provider),
         model: session.model,
         provider: session.provider,
+        agent: agentPlan?.toRecord(),
+        instructionSources: process is CodexRun
+            ? process.instructionSources
+            : null,
       ),
     );
+    if (agentPlan != null && options.resumeId == null) {
+      await _note(
+        id,
+        'Agente ${agentPlan.agent} no Codex · ${agentPlan.summary}: '
+        '${agentPlan.detail}.'
+        '${agentPlan.warnings.isEmpty ? '' : ' ${agentPlan.warnings.join(' ')}'}',
+      );
+    }
     p.logSub = process.logs.listen(
       (l) => debugPrint('${session.provider}[$id] $l'),
       onError: (_) {},
@@ -1501,6 +1982,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       onDone: () => _enqueue(id, p, () => _onExit(id, p)),
     );
     _publish();
+    await _announceHookFallback(id, p);
   }
 
   /// A new session / fork / PR worktree: `copiar:` and `preparar:` of the
@@ -1568,11 +2050,33 @@ class SessionManager extends Notifier<SessionManagerState> {
     Future<String?> plain() =>
         writeRunSettings(ref.read(runSettingsDirProvider), extra);
     if (hooks == null) return plain();
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (plan == null) return plain();
+    try {
+      final path = await hooks.prepareClaude(plan, extra: extra);
+      if (plan.enabled.contains(ManagedHook.secrets)) _secretHooks.add(id);
+      return path;
+    } catch (e) {
+      debugPrint('sessão $id: hooks do app não preparados — $e');
+      return null;
+    }
+  }
+
+  /// The neutral plan of the session's hooks (SPEC-103 R1); null = no
+  /// hooks of the app (tests, no `python3`, an error).
+  Future<ManagedHookPlan?> _hookPlan(
+    String id, {
+    required String cwd,
+    String? root,
+  }) async {
+    final hooks = ref.read(managedHooksProvider);
+    _secretHooks.remove(id);
+    if (hooks == null) return null;
     await _hookCleanups[id];
     try {
       if (!await pythonAvailable()) {
         _noPython.add(id);
-        return await plain();
+        return null;
       }
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
@@ -1595,12 +2099,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           debugPrint('sessão $id: regras do vigia não preparadas — $e');
         }
       }
-      if (secrets != null) {
-        _secretHooks.add(id);
-      } else {
-        _secretHooks.remove(id);
-      }
-      return await hooks.prepare(
+      return hooks.plan(
         id,
         enabled: enabled,
         rules: blockRules(
@@ -1611,12 +2110,229 @@ class SessionManager extends Notifier<SessionManagerState> {
         ),
         formatCommand: config?.formatCommand,
         secrets: secrets,
-        extra: extra,
       );
     } catch (e) {
-      _secretHooks.remove(id);
       debugPrint('sessão $id: hooks do app não preparados — $e');
       return null;
+    }
+  }
+
+  /// SPEC-103 R3: the Codex adapter — the plan's files in the session
+  /// folder and its `-c` overrides. Never `--trust`, never `~/.codex`.
+  Future<
+    ({ManagedHookPlan? plan, String? command, Map<String, String> overrides})
+  >
+  _prepareCodexHooks(String id, {required String cwd, String? root}) async {
+    final hooks = ref.read(managedHooksProvider);
+    final plan = await _hookPlan(id, cwd: cwd, root: root);
+    if (hooks == null || plan == null) {
+      return (plan: plan, command: null, overrides: const <String, String>{});
+    }
+    try {
+      await hooks.writePlan(plan);
+      final command = hooks.commandOf(plan, provider: 'codex');
+      return (
+        plan: plan,
+        command: command,
+        overrides: codexHookOverrides(plan, command),
+      );
+    } catch (e) {
+      debugPrint('sessão $id: hooks do Codex não preparados — $e');
+      return (plan: null, command: null, overrides: const <String, String>{});
+    }
+  }
+
+  /// SPEC-103 R5: what `hooks/list` says the App Server will run; never
+  /// what was sent. Sets the session state (chip, R9) and the Vigia's hook.
+  Future<CodexHookStatus?> _confirmCodexHooks(
+    String id,
+    CodexRun run, {
+    required ManagedHookPlan? plan,
+    required String? command,
+  }) async {
+    if (ref.read(managedHooksProvider) == null) return null;
+    CodexHookStatus status;
+    if (plan == null || command == null) {
+      // R10: no python3 (or no files) = no hooks; only the Vigia keeps its
+      // end-of-turn check.
+      final on = {
+        for (final h in ManagedHook.values)
+          if (ref.read(appSettingsProvider.notifier).get(h.settingKey) != '0')
+            h,
+      };
+      status = CodexHookStatus(
+        mode: CodexHookMode.postTurn,
+        planned: on,
+        unavailable: on.difference({ManagedHook.secrets}),
+        reason: _noPython.contains(id)
+            ? 'python3 não encontrado: os hooks do app ficam desligados.'
+            : 'Os hooks do app não foram preparados.',
+        at: DateTime.now(),
+      );
+    } else if (plan.isEmpty) {
+      status = codexHookStatus(plan, command: command, at: DateTime.now());
+    } else {
+      Map<String, dynamic>? result;
+      Object? error;
+      try {
+        result = await run.hooksList();
+      } catch (e) {
+        error = e;
+      }
+      status = codexHookStatus(
+        plan,
+        command: command,
+        result: result,
+        error: error,
+        at: DateTime.now(),
+      );
+    }
+    for (final p in status.problems) {
+      debugPrint('codex[$id] hooks/list: $p');
+    }
+    if (status.active.contains(ManagedHook.secrets)) {
+      _secretHooks.add(id);
+    } else {
+      _secretHooks.remove(id);
+    }
+    if (ref.mounted) {
+      ref.read(codexHookStatusProvider.notifier).set(id, status);
+    }
+    return status;
+  }
+
+  static const _hookFallbackMark =
+      'Os hooks do app não ficaram ativos nesta sessão Codex';
+  static const _hookPartialMark = 'Hooks parciais nesta sessão Codex';
+
+  /// SPEC-103 R7: once per session, what stayed after the turn and why.
+  Future<void> _announceHookFallback(String id, _Proc p) async {
+    final status = p.codexHooks;
+    if (status == null ||
+        status.mode == CodexHookMode.native ||
+        status.mode == CodexHookMode.off) {
+      return;
+    }
+    if (!_hookFallbackNoted.add(id)) return;
+    // Once per session, also across app restarts (a resume after reopening).
+    try {
+      final told = (await _repo.events(id)).any(
+        (e) =>
+            e.type == AppEventTypes.note &&
+            (e.json.contains(_hookFallbackMark) ||
+                e.json.contains(_hookPartialMark)),
+      );
+      if (told) return;
+    } catch (_) {}
+    final yolo = p.skipPermissions;
+    final inactive = [
+      for (final h in ManagedHook.values)
+        if (status.inactive.contains(h)) h,
+    ];
+    if (inactive.contains(ManagedHook.secrets)) _secretNoHookNoted.add(id);
+    final subs = [
+      for (final h in inactive)
+        status.whenOf(h, yolo: yolo) == HookWhen.unavailable
+            ? '${h.label}: indisponível'
+            : '${h.label}: ${hookSubstitute(h, yolo: yolo)}',
+    ].join('; ');
+    final why = status.reason == null ? '' : ' ${status.reason}';
+    await _note(
+      id,
+      status.mode == CodexHookMode.partial
+          ? '$_hookPartialMark.$why Até o fim: $subs.'
+          : '$_hookFallbackMark.$why Até o fim: $subs.',
+      provider: 'codex',
+    );
+  }
+
+  /// SPEC-103 R7: `formatar:` on the files the turn left, when the Codex
+  /// did not run the hook; the result goes to the same card.
+  Future<void> _postTurnFormat(String id, _Proc p, String cwd) async {
+    final plan = p.hookPlan;
+    final status = p.codexHooks;
+    final command = plan?.formatCommand;
+    if (plan == null ||
+        status == null ||
+        command == null ||
+        !plan.enabled.contains(ManagedHook.format) ||
+        status.active.contains(ManagedHook.format) ||
+        p.formatFiles.isEmpty) {
+      return;
+    }
+    final files = [...p.formatFiles];
+    p.formatFiles.clear();
+    final done = <String>[];
+    String? failed;
+    for (final f in files) {
+      final full = f.startsWith('/') ? f : '$cwd/$f';
+      if (!File(full).existsSync()) continue;
+      final rel = full.startsWith('$cwd/') ? full.substring(cwd.length + 1) : f;
+      final r = await ref.read(shellRunnerProvider)(
+        command.replaceAll('{arquivo}', _shellQuote(full)),
+        cwd: cwd,
+        timeout: const Duration(seconds: 60),
+      );
+      if (r.exitCode == 0) {
+        done.add(rel);
+      } else {
+        failed ??= '$rel: ${r.output.trim()}'.trim();
+      }
+    }
+    if (done.isEmpty && failed == null) return;
+    final a = HookActivity(
+      hook: ManagedHook.format,
+      text: failed == null
+          ? 'Formatado ao fim do turno: ${done.join(', ')}'
+          : 'Falha ao formatar ao fim do turno: $failed',
+      at: DateTime.now(),
+      error: failed != null,
+      provider: 'codex',
+    );
+    await _note(id, a.text, error: a.error, provider: 'codex');
+    if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+  }
+
+  Future<void> _postTurnFormatOf(String id, _Proc p) async {
+    if (p.hookPlan == null || p.formatFiles.isEmpty) return;
+    final s = await _repo.getById(id);
+    final cwd = s?.worktreePath;
+    if (cwd == null) return;
+    await _postTurnFormat(id, p, cwd);
+  }
+
+  static String _shellQuote(String s) => "'${s.replaceAll("'", r"'\''")}'";
+
+  /// A Codex hook event (SPEC-103 R6): the app's hooks write the details
+  /// to hooks.log, read here once (a line is never shown twice); a run of
+  /// the app's hook that failed gets its own card. P2: a command refused at
+  /// its approval.
+  Future<void> _codexHookEvent(String id, _Proc p, SystemOther e) async {
+    if (e.subtype == 'codex_hook_refused') {
+      final cmd = unwrapShellCommand('${e.json['command'] ?? ''}');
+      final a = HookActivity(
+        hook: ManagedHook.block,
+        text: 'Recusado antes do balão: `$cmd` (${e.json['rule']})',
+        at: DateTime.now(),
+        error: true,
+        provider: 'codex',
+      );
+      await _note(id, a.text, error: true, provider: 'codex');
+      if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+      return;
+    }
+    if (e.json['method'] != 'hook/completed') return;
+    final before = p.hookOffset;
+    await _readHooks(id, p);
+    final hook = e.json['hook'] as Map? ?? const {};
+    final ours = hook['source'] == 'sessionFlags';
+    if (ours && hook['status'] == 'failed' && p.hookOffset == before) {
+      await _note(
+        id,
+        'Hook do app falhou no Codex (${hook['eventName'] ?? '?'})',
+        error: true,
+        provider: 'codex',
+      );
     }
   }
 
@@ -1631,7 +2347,13 @@ class SessionManager extends Notifier<SessionManagerState> {
         if (a.secrets != null) {
           await _secretBlocked(id, a.secrets!);
         } else {
-          await _note(id, a.text, error: a.error);
+          // P4: the provider's badge only in Codex sessions.
+          await _note(
+            id,
+            a.text,
+            error: a.error,
+            provider: a.provider == 'codex' ? 'codex' : null,
+          );
         }
         if (a.waived.isNotEmpty) {
           try {
@@ -1661,7 +2383,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     p.lastActivity = DateTime.now();
     // 1. Persist (one row per stdout line; stream deltas are not stored).
     int? seq;
-    if (e is! StreamDelta && e is! StreamOther) {
+    if (isStoredEvent(e)) {
       if (identical(e.json, p.lastJson) && e.json.isNotEmpty) {
         seq = p.lastSeq; // same line expanded into several ToolResults
       } else {
@@ -1681,6 +2403,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     switch (e) {
       case SystemInit():
         if (e.sessionId != null) await _repo.setExternalId(id, e.sessionId!);
+        // SPEC-101 R11: a session on the provider's default records the
+        // model the thread reports, so trailers and labels never say
+        // `inherit`.
+        if (p.process is CodexRun) await _recordThreadModel(id, p, e.model);
         await recordKnownExtensions(ref, e.json);
         state = SessionManagerState(live: state.live, lastInit: e);
       case PermissionRequest():
@@ -1764,9 +2490,16 @@ class SessionManager extends Notifier<SessionManagerState> {
         p.busy = false;
         p.busySince = null;
         _publish();
+        // SPEC-096 R12, P3: an interrupted turn can be resumed; the reason
+        // ("por você") stays with the session until it starts again.
         final status = e.isSuccess
             ? SessionStatus.completed
+            : e.isInterrupted
+            ? SessionStatus.interrupted
             : SessionStatus.failed;
+        if (e.isInterrupted && e.interruptReason == 'user') {
+          await _markInterruptedByUser(id);
+        }
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
         await _specs.onResult(id, e);
@@ -1781,16 +2514,52 @@ class SessionManager extends Notifier<SessionManagerState> {
         ref.invalidate(sessionChangesProvider(id));
         // SPEC-084 R1: the end of the turn (not awaited: the next start
         // waits for it in the restore queue of the worktree).
-        unawaited(_restore.end(sessionId: id));
+        // SPEC-096 R10, R10a: what the Codex left uncommitted in its
+        // worktree is committed by the app at the end of the turn, before
+        // the end of the point is captured (in the same queue).
+        final codex = p.process is CodexRun;
+        if (codex) await _readHooks(id, p);
+        final turnEnd = _restore.end(
+          sessionId: id,
+          // SPEC-103 R7: the post-turn formatar: goes before the app's
+          // commit, so the formatted files are what gets committed.
+          beforeEnd: codex
+              ? () => _postTurnFormatOf(id, p)
+                    .catchError(
+                      (Object err) =>
+                          debugPrint('sessão $id: formatar pós-turno — $err'),
+                    )
+                    .then((_) => _codexTurnCommit(id, p, e.result))
+                    .catchError(
+                      (Object err) =>
+                          debugPrint('sessão $id: commit do app — $err'),
+                    )
+              : null,
+        );
+        // SPEC-111 R4: the panel reloads once the app's commit is done
+        // (the reload above ran before it).
+        if (codex) {
+          unawaited(
+            turnEnd.then((_) {
+              if (ref.mounted) ref.invalidate(sessionChangesProvider(id));
+            }),
+          );
+        }
         _notify(
-          e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
+          e.isSuccess
+              ? 'Sessão concluída'
+              : e.isInterrupted
+              ? 'Sessão interrompida'
+              : 'Sessão falhou',
           p.title,
           id,
         );
-        // SPEC-085 R2: no hook, the turn's commits are checked now.
+        // SPEC-085 R2: no hook, the turn's commits are checked now (after
+        // the app's commit of a Codex turn, so it is checked too).
         if (!_secretHooks.contains(id)) {
           unawaited(
-            _secretTurnCheck(id)
+            (codex ? turnEnd : Future<void>.value())
+                .then((_) => _secretTurnCheck(id))
                 .catchError((Object e) => debugPrint('sessão $id: vigia — $e')),
           );
         }
@@ -1800,6 +2569,64 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
+        // SPEC-099 R2: the session stops at the limit.
+        if (e.status == 'rejected') {
+          await _noteLimit(
+            id,
+            p,
+            provider: 'claude',
+            minutes: switch (e.rateLimitType) {
+              'seven_day' || 'seven_day_opus' || 'seven_day_sonnet' => 10080,
+              _ => 300,
+            },
+            resetsAt: e.resetsAt ?? e.fiveHourResetsAt,
+            kind: e.rateLimitType,
+          );
+        }
+      case QuotaEvent(:final reached) when reached != null:
+        final w = e.windows
+            .where((w) => (w.usedPercent ?? 0) >= 100)
+            .firstOrNull;
+        await _noteLimit(
+          id,
+          p,
+          provider: e.provider,
+          minutes: w?.minutes ?? 300,
+          resetsAt: w?.resetsAt,
+          kind: reached,
+        );
+      // SPEC-095 R9: files and commands of any provider.
+      case FileChangeEvent():
+        _trackNeutral(p, e);
+        // SPEC-103 R7: what the turn left, for the post-turn formatar:.
+        if (e.status == FileChangeStatus.applied) {
+          if (e.kind == FileChangeKind.delete) {
+            p.formatFiles.remove(e.path);
+          } else {
+            if (e.fromPath case final from?) p.formatFiles.remove(from);
+            p.formatFiles.add(e.path);
+          }
+        }
+      case CommandEvent():
+        _trackNeutral(p, e);
+        // SPEC-101 R8: the sandbox refused the agent's commit.
+        if (sandboxCommitRefusal(e) case final why?) {
+          if (p.sandboxCommitNoted.add(e.toolUseId)) await _note(id, why);
+        }
+        if (e.done && p.process is CodexRun) await _readHooks(id, p);
+      case SystemOther()
+          when e.subtype == 'codex_hook' || e.subtype == 'codex_hook_refused':
+        await _codexHookEvent(id, p, e);
+      case ContextUsageEvent(:final tokens, :final window):
+        if (tokens > 0) p.contextTokens = tokens;
+        if (window != null && window > 0) p.contextWindow = window;
+      // SPEC-107 R7, R13: after a compaction the continuation waits for the
+      // next measurement; a model change drops the old window.
+      case CompactionEvent(phase: CompactionEventPhase.completed):
+        p.contextTokens = null;
+      case UnknownEvent(:final json)
+          when json['type'] == ContextAppEvents.modelChange:
+        p.contextWindow = null;
       default:
         break;
     }
@@ -1809,7 +2636,9 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (e is AssistantMessage ||
         e is ToolResult ||
         e is Result ||
-        e is PermissionRequest) {
+        e is PermissionRequest ||
+        e is FileChangeEvent ||
+        e is CommandEvent) {
       _publish();
     }
   }
@@ -1840,7 +2669,30 @@ class SessionManager extends Notifier<SessionManagerState> {
         // the database is closing
       }
     }
-    if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
+    if (ref.mounted && !_shuttingDown) {
+      await _readHooks(id, p);
+      // SPEC-103 R7: no sessionEnd hook in the Codex = the app records it.
+      final st = p.codexHooks;
+      if (st != null &&
+          st.planned.contains(ManagedHook.end) &&
+          st.whenOf(ManagedHook.end) == HookWhen.afterTurn) {
+        final why = p.stopping
+            ? 'parada pelo usuário'
+            : p.released
+            ? 'suspensa'
+            : 'processo encerrou, código $code';
+        final a = HookActivity(
+          hook: ManagedHook.end,
+          text: 'Sessão encerrada ($why)',
+          at: DateTime.now(),
+          provider: 'codex',
+        );
+        await _note(id, a.text, provider: 'codex');
+        ref.read(hookActivityProvider.notifier).add(a);
+      }
+    }
+    // The state stays after the exit: Automações and the YOLO warning use
+    // the last one seen (the chip only shows while the process lives).
     final hooks = ref.mounted ? ref.read(managedHooksProvider) : null;
     if (hooks != null) {
       final done = hooks.cleanup(id).catchError((Object e) {
@@ -1985,6 +2837,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         command: j['comando'] as String?,
         findings: [for (final f in findings) f.toJson()],
         partial: j['parcial'] == true,
+        // SPEC-103 P4: the badge only in Codex sessions.
+        provider: j['provedor'] == 'codex' ? 'codex' : null,
       ),
     );
     final row = await _repo.getById(id);
@@ -2052,6 +2906,28 @@ class SessionManager extends Notifier<SessionManagerState> {
     });
   }
 
+  /// "Limite de uso atingido" in the timeline, once per turn (SPEC-099 R2).
+  Future<void> _noteLimit(
+    String id,
+    _Proc p, {
+    required String provider,
+    int? minutes,
+    DateTime? resetsAt,
+    String? kind,
+  }) async {
+    if (p.limitNoted) return;
+    p.limitNoted = true;
+    await _appEvent(
+      id,
+      AppEventTypes.limitEvent(
+        provider: provider,
+        minutes: minutes,
+        resetsAt: resetsAt,
+        kind: kind,
+      ),
+    );
+  }
+
   Future<void> _appEvent(String id, Map<String, dynamic> json) async {
     final row = await _repo.appendEvent(
       id,
@@ -2061,8 +2937,17 @@ class SessionManager extends Notifier<SessionManagerState> {
     _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
-  Future<void> _note(String id, String text, {bool error = false}) async {
-    final json = AppEventTypes.noteMessage(text, error: error);
+  Future<void> _note(
+    String id,
+    String text, {
+    bool error = false,
+    String? provider,
+  }) async {
+    final json = AppEventTypes.noteMessage(
+      text,
+      error: error,
+      provider: provider,
+    );
     final row = await _repo.appendEvent(
       id,
       type: AppEventTypes.note,
@@ -2075,7 +2960,10 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// click goes back to the screen the session was created from. Approvals
   /// go to the bell pointing at Sessões; the system notification is
   /// [AgentAlerts]'s (SPEC-086).
-  void _notify(String title, String body, String id, {bool approval = false}) {
+  void _notify(String title, String text, String id, {bool approval = false}) {
+    // SPEC-096 R3: who ran it, when it is not the Claude Code.
+    final who = _procs[id]?.who;
+    final body = who == null ? text : '$text · $who';
     final section = approval
         ? AppSection.sessions
         : (_origins[id] ?? AppSection.sessions);
@@ -2206,3 +3094,13 @@ class SelectedSession extends Notifier<String?> {
 final selectedSessionProvider = NotifierProvider<SelectedSession, String?>(
   SelectedSession.new,
 );
+
+/// Message of the app's commit at the end of a Codex turn (SPEC-096 R10):
+/// the session title as subject and the agent's last message as body.
+String codexTurnCommitMessage(String title, String? answer) {
+  final subject = title.trim().isEmpty ? 'Alterações do Codex' : title.trim();
+  final body = (answer ?? '').trim();
+  if (body.isEmpty) return subject;
+  final cut = body.length > 4000 ? '${body.substring(0, 4000)}…' : body;
+  return '$subject\n\n$cut';
+}
