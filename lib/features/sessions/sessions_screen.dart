@@ -485,7 +485,11 @@ class _SessionMain extends ConsumerWidget {
         },
       ),
       SessionTab.terminal => SessionTerminalView(session: s),
-      SessionTab.diff => SessionDiffView(sessionId: s.id),
+      SessionTab.diff => SessionDiffView(
+        sessionId: s.id,
+        workspaceId: s.workspaceId,
+        specId: s.specId,
+      ),
       SessionTab.preview => PreviewTab(
         dev: dev!,
         sendToSession: (text) async {

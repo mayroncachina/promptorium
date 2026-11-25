@@ -64,6 +64,7 @@ import 'widgets/sprint_selector.dart';
 import 'widgets/board_tray.dart';
 import 'widgets/board_view_switch.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
+import '../debts/widgets/debt_file_chip.dart' show SpecCardDebts;
 
 /// Step rows of every spec of a workspace.
 final specStepsProvider = StreamProvider.family<List<SpecStep>, int>(
@@ -2074,6 +2075,12 @@ class SpecCard extends ConsumerWidget {
               // SPEC-052 R7: the agent's newest progress note.
               if (spec.stage != SpecStage.done) SpecNoteLine(spec: spec),
               SuggestionBanner(spec: spec),
+              // SPEC-112 R16, R17: debts in the files it changed and
+              // "pago de carona?".
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: SpecCardDebts(spec: spec, sessionId: last?.id),
+              ),
               // SPEC-073 R7: the CI of the spec's PR.
               Listener(
                 onPointerDown: AppPressable.claim,

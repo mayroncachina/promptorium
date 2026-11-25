@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/git/diff_parser.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
+import '../../debts/widgets/debt_file_chip.dart' show DebtFileChip;
+import '../../debts/widgets/review_comment_debt.dart' show ReviewDebtScope;
 import '../review_logic.dart';
 import 'diff_highlight.dart';
 import '../comment_anchor.dart';
@@ -244,6 +246,11 @@ class _FileHeader extends StatelessWidget {
           Text('+$add', style: _mono.copyWith(color: AppColors.teal)),
           const SizedBox(width: 8),
           Text('−$del', style: _mono.copyWith(color: AppColors.red)),
+          // SPEC-112 R16: the debts whose "Onde" cites this file.
+          if (ReviewDebtScope.maybeOf(context) case final scope?) ...[
+            const SizedBox(width: 10),
+            DebtFileChip(workspaceId: scope.workspaceId, path: file.path),
+          ],
         ],
       ),
     );
