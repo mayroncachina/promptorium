@@ -96,6 +96,15 @@ abstract final class AppIcons {
     svgRect(17, 4, 4, 13, 1),
   ]);
 
+  /// `pending_actions`: a clipboard with a clock (SPEC-112 P1).
+  static final debts = AppIconData([
+    'M9 4.5H6.5a1.5 1.5 0 0 0-1.5 1.5v13.5a1.5 1.5 0 0 0 1.5 1.5H11',
+    'M15 4.5h2.5A1.5 1.5 0 0 1 19 6v4.5',
+    svgRect(9, 3, 6, 3, 1),
+    svgCircle(17, 17, 4.2),
+    'M17 15v2.2l1.4 1',
+  ]);
+
   static final agents = AppIconData([
     svgRect(4, 8, 16, 12, 3),
     'M12 4v4M9 13v1M15 13v1M9 17h6',

@@ -54,6 +54,10 @@ import '../specs/spec_file.dart';
 ///   input: version           # field of the version (default version)
 /// git:
 ///   marcar-commits-de-agente: true  # trailer nos commits das sessões
+/// debitos:                  # SPEC-112
+///   arquivo: DEBITO_TECNICO.md
+///   decisoes: DECISOES_PENDENTES.md
+///   lembrar_na_execucao: true
 /// review:
 ///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
 ///   corrigir-ci: automatico         # SPEC-073 R11 (padrão: manual)
@@ -416,6 +420,53 @@ class VibeConfig {
   int get hashCode => Object.hash(dir, maxFiles, maxLines, printsCommand);
 }
 
+/// `debitos:` of the config (SPEC-112 R1, R17): where the debts and the
+/// pending decisions live and whether the step prompt reminds the agent of
+/// the open debts of the spec's files.
+@immutable
+class DebtsConfig {
+  const DebtsConfig({
+    this.debtsPath = defaultDebtsPath,
+    this.decisionsPath = defaultDecisionsPath,
+    this.remindOnRun = true,
+  });
+
+  static const defaultDebtsPath = 'DEBITO_TECNICO.md';
+  static const defaultDecisionsPath = 'DECISOES_PENDENTES.md';
+
+  /// `arquivo` / `decisoes`, relative to the repository.
+  final String debtsPath;
+  final String decisionsPath;
+
+  /// `lembrar_na_execucao`.
+  final bool remindOnRun;
+
+  bool get isDefault =>
+      debtsPath == defaultDebtsPath &&
+      decisionsPath == defaultDecisionsPath &&
+      remindOnRun;
+
+  DebtsConfig copyWith({
+    String? debtsPath,
+    String? decisionsPath,
+    bool? remindOnRun,
+  }) => DebtsConfig(
+    debtsPath: debtsPath ?? this.debtsPath,
+    decisionsPath: decisionsPath ?? this.decisionsPath,
+    remindOnRun: remindOnRun ?? this.remindOnRun,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DebtsConfig &&
+      other.debtsPath == debtsPath &&
+      other.decisionsPath == decisionsPath &&
+      other.remindOnRun == remindOnRun;
+
+  @override
+  int get hashCode => Object.hash(debtsPath, decisionsPath, remindOnRun);
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -445,6 +496,7 @@ class ProjectConfig {
     this.autoResolveConflicts = false,
     this.autoFixCi = false,
     this.secretIgnore = const [],
+    this.debts = const DebtsConfig(),
   });
 
   static const defaultSpecsDir = 'specs';
@@ -512,6 +564,9 @@ class ProjectConfig {
   /// segredos does not check (`test/fixtures/**`).
   final List<String> secretIgnore;
 
+  /// `debitos:` (SPEC-112).
+  final DebtsConfig debts;
+
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
 
@@ -554,6 +609,7 @@ class ProjectConfig {
     bool? autoResolveConflicts,
     bool? autoFixCi,
     List<String>? secretIgnore,
+    DebtsConfig? debts,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -581,6 +637,7 @@ class ProjectConfig {
     autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
     autoFixCi: autoFixCi ?? this.autoFixCi,
     secretIgnore: secretIgnore ?? this.secretIgnore,
+    debts: debts ?? this.debts,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -681,7 +738,21 @@ class ProjectConfig {
     final vibeDir = str(vb['pasta']);
     final iss = map('issues');
     const di = IssuesConfig();
+    final deb = map('debitos');
+    String? debtPath(Object? v) {
+      final p = str(v);
+      return p != null && _safeRelative(p) ? p : null;
+    }
+
     return ProjectConfig(
+      debts: DebtsConfig(
+        debtsPath: debtPath(deb['arquivo']) ?? DebtsConfig.defaultDebtsPath,
+        decisionsPath:
+            debtPath(deb['decisoes']) ?? DebtsConfig.defaultDecisionsPath,
+        remindOnRun:
+            boolean(deb['lembrar_na_execucao'] ?? deb['lembrar-na-execucao']) ??
+            true,
+      ),
       issues: IssuesConfig(
         closesInPr: boolean(iss['closes-no-pr']) ?? di.closesInPr,
         commentProgress:
@@ -895,6 +966,16 @@ class ProjectConfig {
       for (final g in secretIgnore) {
         b.writeln('    - ${jsonEncode(g)}');
       }
+    }
+    if (!debts.isDefault) {
+      b.writeln('debitos:');
+      if (debts.debtsPath != DebtsConfig.defaultDebtsPath) {
+        b.writeln('  arquivo: ${_quote(debts.debtsPath)}');
+      }
+      if (debts.decisionsPath != DebtsConfig.defaultDecisionsPath) {
+        b.writeln('  decisoes: ${_quote(debts.decisionsPath)}');
+      }
+      if (!debts.remindOnRun) b.writeln('  lembrar_na_execucao: false');
     }
     if (!vibe.isDefault) {
       b.writeln('vibe:');

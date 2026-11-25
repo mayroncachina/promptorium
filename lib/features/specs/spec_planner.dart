@@ -10,6 +10,7 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart' show ImagePart;
 import '../../core/providers/structured_run.dart';
 import '../../data/providers.dart';
+import '../debts/debt_interview.dart';
 import '../issues/issue_refine.dart';
 import '../project/project_plan.dart' show PlanQuestion;
 import '../project/project_planner.dart' show ProjectPlanner;
@@ -326,10 +327,47 @@ class SpecPlanner extends Notifier<Set<int>> {
     if (msg.isEmpty || state.contains(ws.id)) return;
     _busy(ws.id, true);
     try {
+      await _suggestDebts(ws, msg);
       await _change(ws.id, (d) => d.withUserMessage(msg));
       await _turn(ws);
     } finally {
       _busy(ws.id, false);
+    }
+  }
+
+  /// SPEC-112 R7, P2: an answer to the planner's questions that asks for a
+  /// debt or a decision ("5 - deixa simulado e cria um débito") becomes a
+  /// suggestion tied to the draft; nothing is written in a file.
+  Future<void> _suggestDebts(Workspace ws, String msg) async {
+    try {
+      final row = await ref.read(specDraftsRepoProvider).get(ws.id);
+      if (row == null) return;
+      final data = SpecDraftData.decode(row.data);
+      final i = data.messages.lastIndexWhere((m) => !m.fromUser);
+      var questions = i < 0
+          ? const <PlanQuestion>[]
+          : data.messages[i].questions;
+      if (questions.isEmpty) {
+        questions = [
+          for (final q in data.openQuestions)
+            PlanQuestion(text: q.text, options: const []),
+        ];
+      }
+      await ref
+          .read(debtInterviewProvider)
+          .suggestFromDraftReply(ws, questions, msg);
+    } catch (e) {
+      debugPrint('Sugestão de débito do rascunho: $e');
+    }
+  }
+
+  /// SPEC-112 P2: the spec of the draft got its number; the items of the
+  /// draft are written with it.
+  Future<void> _settleDebts(Workspace ws, Spec spec) async {
+    try {
+      await ref.read(debtInterviewProvider).settleDraft(ws, spec);
+    } catch (e) {
+      debugPrint('Débitos do rascunho na ${spec.code}: $e');
     }
   }
 
@@ -443,6 +481,7 @@ class SpecPlanner extends Notifier<Set<int>> {
         ),
       ).withIssue(target.issue);
       final spec = await ref.read(specServiceProvider).save(ws, linked, text);
+      await _settleDebts(ws, spec);
       await repo.delete(ws.id);
       await deletePrintFiles(data.prints);
       ref.read(issueRefineProvider.notifier).clear(ws.id);
@@ -464,6 +503,7 @@ class SpecPlanner extends Notifier<Set<int>> {
               ? null
               : (code) => copyPrintsToMockups(ws.path, code, data.prints),
         );
+    await _settleDebts(ws, spec);
     await repo.delete(ws.id);
     await deletePrintFiles(data.prints);
     return spec;
@@ -475,6 +515,12 @@ class SpecPlanner extends Notifier<Set<int>> {
     final repo = ref.read(specDraftsRepoProvider);
     final row = await repo.get(ws.id);
     await repo.delete(ws.id);
+    // SPEC-112 P2: the suggestions of the draft go with it.
+    try {
+      await ref.read(debtInterviewProvider).discardDraft(ws);
+    } catch (e) {
+      debugPrint('Débitos do rascunho descartado: $e');
+    }
     if (row != null) {
       await deletePrintFiles(SpecDraftData.decode(row.data).prints);
     }

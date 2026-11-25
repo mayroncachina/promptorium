@@ -398,6 +398,7 @@ List<PaletteCommand> paletteCommands(
     for (final s in [
       ...AppSection.shortcutItems,
       AppSection.activities,
+      AppSection.debts,
       AppSection.skills,
       AppSection.mcp,
       AppSection.instructions,

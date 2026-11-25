@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/git/diff_parser.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../debts/widgets/debt_file_chip.dart';
 import '../session_changes.dart';
 
 const _mono = TextStyle(
@@ -18,9 +19,19 @@ const _mono = TextStyle(
 /// "Diff" tab: what the session changed (SPEC-111: from the merge-base with
 /// its base branch, or `git diff HEAD`; simple, Review is Fase 9).
 class SessionDiffView extends ConsumerWidget {
-  const SessionDiffView({super.key, required this.sessionId});
+  const SessionDiffView({
+    super.key,
+    required this.sessionId,
+    this.workspaceId,
+    this.specId,
+  });
 
   final String sessionId;
+
+  /// SPEC-112 R16, R17: the chips "N débitos neste arquivo" (with the
+  /// workspace) and the "pago de carona?" marks of the spec.
+  final int? workspaceId;
+  final int? specId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +44,7 @@ class SessionDiffView extends ConsumerWidget {
         final untracked = c.entries.where((e) => e.isUntracked).toList();
         final rows = <Widget Function()>[];
         for (final f in c.files) {
-          rows.add(() => _FileHeader(f));
+          rows.add(() => _FileHeader(f, workspaceId: workspaceId));
           if (f.isBinary) {
             rows.add(
               () => const Padding(
@@ -103,6 +114,14 @@ class SessionDiffView extends ConsumerWidget {
                 ],
               ),
             ),
+            if (workspaceId != null && specId != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: PiggybackMarks(
+                  workspaceId: workspaceId!,
+                  specId: specId!,
+                ),
+              ),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -118,9 +137,10 @@ class SessionDiffView extends ConsumerWidget {
 }
 
 class _FileHeader extends StatelessWidget {
-  const _FileHeader(this.file);
+  const _FileHeader(this.file, {this.workspaceId});
 
   final DiffFile file;
+  final int? workspaceId;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +159,10 @@ class _FileHeader extends StatelessWidget {
           Text('+$add', style: _mono.copyWith(color: AppColors.teal)),
           const SizedBox(width: 8),
           Text('−$del', style: _mono.copyWith(color: AppColors.red)),
+          if (workspaceId != null) ...[
+            const SizedBox(width: 10),
+            DebtFileChip(workspaceId: workspaceId!, path: file.path),
+          ],
         ],
       ),
     );

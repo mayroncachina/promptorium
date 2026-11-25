@@ -37,6 +37,10 @@ import 'merge_readiness.dart';
 import 'merge_options.dart';
 import 'review_host.dart';
 import '../project/project_config.dart';
+import '../debts/debt_board.dart' show specLabel;
+import '../debts/debt_merge.dart';
+import '../debts/debt_table.dart' show DebtKind;
+import '../../data/repos/debt_links_repo.dart' show DebtPiggybackState;
 import 'auto_reviewer.dart' show AutoReviewer, ReviewPhase;
 import 'reviewer_provider.dart' show executionProviderOf, reviewerAuthorLabel;
 import '../board/board_rules.dart';
@@ -2786,6 +2790,7 @@ class ReviewService {
     final unknown = <String, String>{};
     List<String> pending = [], failed = [];
     var open = 0, uncommitted = 0;
+    var debtComments = const <String>[];
     var reviewerFailed = false;
     String? reviewerAuthor;
     String? root, stacked, worktree, pr;
@@ -2801,6 +2806,10 @@ class ReviewService {
             .read(reviewCommentsRepoProvider)
             .bySpec(spec.id);
         open = rows.where(isOpenReviewComment).length;
+        // SPEC-112 R8: the comments that became debts.
+        debtComments = await _ref
+            .read(debtLinksRepoProvider)
+            .codesOfReviewComments([for (final r in rows) r.id]);
         final last = rows.where((r) => r.author == 'revisor').lastOrNull;
         reviewerFailed =
             last != null &&
@@ -2931,6 +2940,7 @@ class ReviewService {
       pendingCriteria: pending,
       failedGates: failed,
       openComments: open,
+      debtComments: debtComments,
       rootProblem: root,
       stackedOn: stacked,
       worktreeProblem: worktree,
@@ -3289,8 +3299,24 @@ class ReviewService {
       throw ReviewException('Falha ao commitar as alterações do worktree: $e');
     }
 
+    // SPEC-112 R15, R17: the debts this spec paid are struck on its branch
+    // before the merge, in a commit of their own.
+    final debtWarnings = <String>[];
+    String? strikeBefore;
+    if (spec != null) {
+      try {
+        final before = (await wt.git(['rev-parse', 'HEAD'])).trim();
+        final r = await _strikePaidDebts(ws, spec, wt, main, base, options);
+        debtWarnings.addAll(r.warnings);
+        if (r.commit != null) strikeBefore = before;
+      } on Exception catch (e) {
+        debtWarnings.add('Os débitos pagos não foram riscados: $e');
+      }
+    }
+
     final title = reviewTitle(s, task, spec);
     String? preRebase;
+    var debtTablesResolved = false;
     try {
       switch (options.method) {
         case MergeMethod.merge:
@@ -3338,46 +3364,68 @@ class ReviewService {
       } on GitException {
         /* best effort */
       }
-      if (options.method == MergeMethod.squash) {
-        await main.git(['reset', '--merge']);
+      // SPEC-112 P4: two specs appending rows to the debts or decisions
+      // file conflict only at the end of the table: the rows are joined.
+      if (options.method != MergeMethod.rebase &&
+          await _resolveDebtTables(
+            main,
+            wt,
+            conflicted,
+            options,
+            title,
+            base,
+          )) {
+        debtTablesResolved = true;
       }
-      if (options.method == MergeMethod.rebase && preRebase != null) {
-        try {
-          await wt.git(['rebase', '--abort']);
-        } on GitException {
-          /* completed */
+      if (!debtTablesResolved) {
+        if (options.method == MergeMethod.squash) {
+          await main.git(['reset', '--merge']);
         }
-        await wt.git(['reset', '-q', '--hard', preRebase]);
-      }
-      if (await _merging(main)) {
-        try {
-          await main.mergeAbort();
-        } on GitException catch (a) {
-          debugPrint('merge --abort falhou: $a');
+        if (options.method == MergeMethod.rebase && preRebase != null) {
+          try {
+            await wt.git(['rebase', '--abort']);
+          } on GitException {
+            /* completed */
+          }
+          await wt.git(['reset', '-q', '--hard', preRebase]);
         }
-      }
-      if (headBefore != null) {
-        try {
-          await wt.git(['reset', '-q', headBefore]);
-        } on GitException catch (r) {
-          debugPrint('reset do commit pendente falhou: $r');
+        if (await _merging(main)) {
+          try {
+            await main.mergeAbort();
+          } on GitException catch (a) {
+            debugPrint('merge --abort falhou: $a');
+          }
         }
+        if (strikeBefore != null) {
+          try {
+            await undoStrike(wt, strikeBefore, ws.path);
+          } on GitException catch (r) {
+            debugPrint('desfazer os débitos riscados falhou: $r');
+          }
+        }
+        if (headBefore != null) {
+          try {
+            await wt.git(['reset', '-q', headBefore]);
+          } on GitException catch (r) {
+            debugPrint('reset do commit pendente falhou: $r');
+          }
+        }
+        await markStoppedIfLive();
+        if (conflicted.isNotEmpty) {
+          throw MergeConflictException(
+            'Conflito ao fazer merge de ${s.branch} em $base '
+            '(${conflicted.join(', ')}). O merge foi desfeito '
+            '(${switch (options.method) {
+              MergeMethod.merge => 'git merge --abort',
+              MergeMethod.squash => 'git reset --merge',
+              MergeMethod.rebase => 'git rebase --abort',
+            }}); nada foi alterado. Peça ajustes ao agente '
+            '(ex.: integrar $base na branch) ou resolva manualmente.',
+            conflicted,
+          );
+        }
+        throw ReviewException('O merge falhou e foi desfeito: $e');
       }
-      await markStoppedIfLive();
-      if (conflicted.isNotEmpty) {
-        throw MergeConflictException(
-          'Conflito ao fazer merge de ${s.branch} em $base '
-          '(${conflicted.join(', ')}). O merge foi desfeito '
-          '(${switch (options.method) {
-            MergeMethod.merge => 'git merge --abort',
-            MergeMethod.squash => 'git reset --merge',
-            MergeMethod.rebase => 'git rebase --abort',
-          }}); nada foi alterado. Peça ajustes ao agente '
-          '(ex.: integrar $base na branch) ou resolva manualmente.',
-          conflicted,
-        );
-      }
-      throw ReviewException('O merge falhou e foi desfeito: $e');
     }
 
     final String commit;
@@ -3386,7 +3434,7 @@ class ReviewService {
     } on GitException catch (e) {
       throw ReviewException('Merge feito, mas o hash não foi lido: $e');
     }
-    final warnings = <String>[];
+    final warnings = <String>[...debtWarnings];
     try {
       // Everything was committed and merged: only ignored files are lost.
       await main.removeWorktree(s.worktreePath, force: true);
@@ -3424,6 +3472,77 @@ class ReviewService {
       debugPrint('rascunho do review $sessionId não removido — $e');
     }
     return MergeResult(commit: commit, warnings: warnings);
+  }
+
+  /// SPEC-112 R15, R17: strikes, on the branch of [spec], the debts it is
+  /// paying and the "pago de carona?" the person confirmed.
+  Future<DebtStrikeOutcome> _strikePaidDebts(
+    Workspace ws,
+    Spec spec,
+    GitService wt,
+    GitService main,
+    String base,
+    MergeOptions options,
+  ) async {
+    final links = _ref.read(debtLinksRepoProvider);
+    final codes = <String>{
+      for (final l in [
+        ...await links.payingBy(spec.id),
+        ...await links.piggybackOf(
+          spec.id,
+          state: DebtPiggybackState.confirmed,
+        ),
+      ])
+        if (l.repoRoot == ws.path &&
+            l.code != null &&
+            l.kind == DebtKind.debt.dbName)
+          l.code!,
+    }.toList()..sort();
+    if (codes.isEmpty) return const DebtStrikeOutcome();
+    return strikeInWorktree(
+      wt: wt,
+      mainGit: main,
+      worktree: wt.repoRoot,
+      repoRoot: ws.path,
+      base: base,
+      codes: codes,
+      label: specLabel(spec),
+      specPath: spec.path,
+      skipHooks: options.skipHooks,
+    );
+  }
+
+  /// SPEC-112 P4: the conflict of the merge is only at the end of the debts
+  /// or decisions table: the rows are joined and the merge is committed.
+  Future<bool> _resolveDebtTables(
+    GitService main,
+    GitService wt,
+    List<String> conflicted,
+    MergeOptions options,
+    String title,
+    String base,
+  ) async {
+    try {
+      if (!await resolveDebtMergeConflicts(main, conflicted)) return false;
+      if (options.method == MergeMethod.squash) {
+        final all = (await wt.git(['log', '--format=%s', '$base..HEAD']))
+            .trim()
+            .split('\n');
+        await main.git([
+          'commit',
+          '-m',
+          title,
+          '-m',
+          [...all.take(50), if (all.length > 50) '…'].join('\n'),
+        ]);
+      } else {
+        await main.git(['commit', '--no-edit']);
+      }
+      return true;
+    } on GitException catch (e) {
+      debugPrint('conflito do arquivo de débitos não resolvido: $e');
+      return false;
+    }
   }
 
   /// After the merge of a spec: every session of its worktree is `merged`,

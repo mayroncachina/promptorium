@@ -10,7 +10,9 @@ import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
 
-const _itemSize = 44.0;
+/// 40 (was 44 until SPEC-112): with Débitos e decisões, twelve items still
+/// fit a 700 px window.
+const _itemSize = 40.0;
 
 /// Gap below every item (2: with the Atividades, SPEC-076, eleven items
 /// still fit a 700 px window).

@@ -24,6 +24,7 @@ import 'repos/snippets_repo.dart';
 import 'repos/spec_duels_repo.dart';
 import 'repos/spec_notes_repo.dart';
 import 'repos/spec_steps_repo.dart';
+import 'repos/debt_links_repo.dart';
 import 'repos/spec_suggestions_repo.dart';
 import 'repos/specs_repo.dart';
 import 'repos/sprints_repo.dart';
@@ -86,6 +87,9 @@ final specDraftsRepoProvider = Provider(
 );
 final reviewCommentsRepoProvider = Provider(
   (ref) => ReviewCommentsRepo(ref.watch(appDatabaseProvider)),
+);
+final debtLinksRepoProvider = Provider(
+  (ref) => DebtLinksRepo(ref.watch(appDatabaseProvider)),
 );
 final specSuggestionsRepoProvider = Provider(
   (ref) => SpecSuggestionsRepo(ref.watch(appDatabaseProvider)),
