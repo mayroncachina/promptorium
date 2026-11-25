@@ -3133,6 +3133,17 @@ class $SpecStepsTable extends SpecSteps
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _planProviderMeta = const VerificationMeta(
+    'planProvider',
+  );
+  @override
+  late final GeneratedColumn<String> planProvider = GeneratedColumn<String>(
+    'plan_provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _planHashMeta = const VerificationMeta(
     'planHash',
   );
@@ -3197,6 +3208,7 @@ class $SpecStepsTable extends SpecSteps
     kind,
     planModel,
     planEffort,
+    planProvider,
     planHash,
     planReason,
     userPicked,
@@ -3293,6 +3305,15 @@ class $SpecStepsTable extends SpecSteps
         planEffort.isAcceptableOrUnknown(data['plan_effort']!, _planEffortMeta),
       );
     }
+    if (data.containsKey('plan_provider')) {
+      context.handle(
+        _planProviderMeta,
+        planProvider.isAcceptableOrUnknown(
+          data['plan_provider']!,
+          _planProviderMeta,
+        ),
+      );
+    }
     if (data.containsKey('plan_hash')) {
       context.handle(
         _planHashMeta,
@@ -3383,6 +3404,10 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.string,
         data['${effectivePrefix}plan_effort'],
       ),
+      planProvider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_provider'],
+      ),
       planHash: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}plan_hash'],
@@ -3450,6 +3475,10 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
   final String? planModel;
   final String? planEffort;
 
+  /// Provider of the plan (schema v38, SPEC-109): `claude` or `codex`; null
+  /// = the Claude Code (the plans of before).
+  final String? planProvider;
+
   /// Hash of the step's text when it was classified (cache of R3).
   final String? planHash;
 
@@ -3477,6 +3506,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     this.kind,
     this.planModel,
     this.planEffort,
+    this.planProvider,
     this.planHash,
     this.planReason,
     required this.userPicked,
@@ -3520,6 +3550,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     if (!nullToAbsent || planEffort != null) {
       map['plan_effort'] = Variable<String>(planEffort);
     }
+    if (!nullToAbsent || planProvider != null) {
+      map['plan_provider'] = Variable<String>(planProvider);
+    }
     if (!nullToAbsent || planHash != null) {
       map['plan_hash'] = Variable<String>(planHash);
     }
@@ -3560,6 +3593,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       planEffort: planEffort == null && nullToAbsent
           ? const Value.absent()
           : Value(planEffort),
+      planProvider: planProvider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planProvider),
       planHash: planHash == null && nullToAbsent
           ? const Value.absent()
           : Value(planHash),
@@ -3592,6 +3628,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       kind: serializer.fromJson<String?>(json['kind']),
       planModel: serializer.fromJson<String?>(json['planModel']),
       planEffort: serializer.fromJson<String?>(json['planEffort']),
+      planProvider: serializer.fromJson<String?>(json['planProvider']),
       planHash: serializer.fromJson<String?>(json['planHash']),
       planReason: serializer.fromJson<String?>(json['planReason']),
       userPicked: serializer.fromJson<bool>(json['userPicked']),
@@ -3617,6 +3654,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       'kind': serializer.toJson<String?>(kind),
       'planModel': serializer.toJson<String?>(planModel),
       'planEffort': serializer.toJson<String?>(planEffort),
+      'planProvider': serializer.toJson<String?>(planProvider),
       'planHash': serializer.toJson<String?>(planHash),
       'planReason': serializer.toJson<String?>(planReason),
       'userPicked': serializer.toJson<bool>(userPicked),
@@ -3638,6 +3676,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     Value<String?> kind = const Value.absent(),
     Value<String?> planModel = const Value.absent(),
     Value<String?> planEffort = const Value.absent(),
+    Value<String?> planProvider = const Value.absent(),
     Value<String?> planHash = const Value.absent(),
     Value<String?> planReason = const Value.absent(),
     bool? userPicked,
@@ -3656,6 +3695,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     kind: kind.present ? kind.value : this.kind,
     planModel: planModel.present ? planModel.value : this.planModel,
     planEffort: planEffort.present ? planEffort.value : this.planEffort,
+    planProvider: planProvider.present ? planProvider.value : this.planProvider,
     planHash: planHash.present ? planHash.value : this.planHash,
     planReason: planReason.present ? planReason.value : this.planReason,
     userPicked: userPicked ?? this.userPicked,
@@ -3684,6 +3724,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       planEffort: data.planEffort.present
           ? data.planEffort.value
           : this.planEffort,
+      planProvider: data.planProvider.present
+          ? data.planProvider.value
+          : this.planProvider,
       planHash: data.planHash.present ? data.planHash.value : this.planHash,
       planReason: data.planReason.present
           ? data.planReason.value
@@ -3713,6 +3756,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('kind: $kind, ')
           ..write('planModel: $planModel, ')
           ..write('planEffort: $planEffort, ')
+          ..write('planProvider: $planProvider, ')
           ..write('planHash: $planHash, ')
           ..write('planReason: $planReason, ')
           ..write('userPicked: $userPicked, ')
@@ -3736,6 +3780,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     kind,
     planModel,
     planEffort,
+    planProvider,
     planHash,
     planReason,
     userPicked,
@@ -3758,6 +3803,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.kind == this.kind &&
           other.planModel == this.planModel &&
           other.planEffort == this.planEffort &&
+          other.planProvider == this.planProvider &&
           other.planHash == this.planHash &&
           other.planReason == this.planReason &&
           other.userPicked == this.userPicked &&
@@ -3778,6 +3824,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<String?> kind;
   final Value<String?> planModel;
   final Value<String?> planEffort;
+  final Value<String?> planProvider;
   final Value<String?> planHash;
   final Value<String?> planReason;
   final Value<bool> userPicked;
@@ -3797,6 +3844,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.kind = const Value.absent(),
     this.planModel = const Value.absent(),
     this.planEffort = const Value.absent(),
+    this.planProvider = const Value.absent(),
     this.planHash = const Value.absent(),
     this.planReason = const Value.absent(),
     this.userPicked = const Value.absent(),
@@ -3817,6 +3865,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.kind = const Value.absent(),
     this.planModel = const Value.absent(),
     this.planEffort = const Value.absent(),
+    this.planProvider = const Value.absent(),
     this.planHash = const Value.absent(),
     this.planReason = const Value.absent(),
     this.userPicked = const Value.absent(),
@@ -3838,6 +3887,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? kind,
     Expression<String>? planModel,
     Expression<String>? planEffort,
+    Expression<String>? planProvider,
     Expression<String>? planHash,
     Expression<String>? planReason,
     Expression<bool>? userPicked,
@@ -3858,6 +3908,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (kind != null) 'kind': kind,
       if (planModel != null) 'plan_model': planModel,
       if (planEffort != null) 'plan_effort': planEffort,
+      if (planProvider != null) 'plan_provider': planProvider,
       if (planHash != null) 'plan_hash': planHash,
       if (planReason != null) 'plan_reason': planReason,
       if (userPicked != null) 'user_picked': userPicked,
@@ -3880,6 +3931,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<String?>? kind,
     Value<String?>? planModel,
     Value<String?>? planEffort,
+    Value<String?>? planProvider,
     Value<String?>? planHash,
     Value<String?>? planReason,
     Value<bool>? userPicked,
@@ -3900,6 +3952,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       kind: kind ?? this.kind,
       planModel: planModel ?? this.planModel,
       planEffort: planEffort ?? this.planEffort,
+      planProvider: planProvider ?? this.planProvider,
       planHash: planHash ?? this.planHash,
       planReason: planReason ?? this.planReason,
       userPicked: userPicked ?? this.userPicked,
@@ -3952,6 +4005,9 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (planEffort.present) {
       map['plan_effort'] = Variable<String>(planEffort.value);
     }
+    if (planProvider.present) {
+      map['plan_provider'] = Variable<String>(planProvider.value);
+    }
     if (planHash.present) {
       map['plan_hash'] = Variable<String>(planHash.value);
     }
@@ -3986,6 +4042,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('kind: $kind, ')
           ..write('planModel: $planModel, ')
           ..write('planEffort: $planEffort, ')
+          ..write('planProvider: $planProvider, ')
           ..write('planHash: $planHash, ')
           ..write('planReason: $planReason, ')
           ..write('userPicked: $userPicked, ')
@@ -14302,6 +14359,51 @@ class $StepRunsTable extends StepRuns with TableInfo<$StepRunsTable, StepRun> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('claude'),
+  );
+  static const VerificationMeta _tokensInMeta = const VerificationMeta(
+    'tokensIn',
+  );
+  @override
+  late final GeneratedColumn<int> tokensIn = GeneratedColumn<int>(
+    'tokens_in',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tokensOutMeta = const VerificationMeta(
+    'tokensOut',
+  );
+  @override
+  late final GeneratedColumn<int> tokensOut = GeneratedColumn<int>(
+    'tokens_out',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _divertedMeta = const VerificationMeta(
+    'diverted',
+  );
+  @override
+  late final GeneratedColumn<String> diverted = GeneratedColumn<String>(
+    'diverted',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -14314,6 +14416,10 @@ class $StepRunsTable extends StepRuns with TableInfo<$StepRunsTable, StepRun> {
     result,
     costUsd,
     createdAt,
+    provider,
+    tokensIn,
+    tokensOut,
+    diverted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -14384,6 +14490,30 @@ class $StepRunsTable extends StepRuns with TableInfo<$StepRunsTable, StepRun> {
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('tokens_in')) {
+      context.handle(
+        _tokensInMeta,
+        tokensIn.isAcceptableOrUnknown(data['tokens_in']!, _tokensInMeta),
+      );
+    }
+    if (data.containsKey('tokens_out')) {
+      context.handle(
+        _tokensOutMeta,
+        tokensOut.isAcceptableOrUnknown(data['tokens_out']!, _tokensOutMeta),
+      );
+    }
+    if (data.containsKey('diverted')) {
+      context.handle(
+        _divertedMeta,
+        diverted.isAcceptableOrUnknown(data['diverted']!, _divertedMeta),
+      );
+    }
     return context;
   }
 
@@ -14435,6 +14565,22 @@ class $StepRunsTable extends StepRuns with TableInfo<$StepRunsTable, StepRun> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      tokensIn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_in'],
+      ),
+      tokensOut: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_out'],
+      ),
+      diverted: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}diverted'],
+      ),
     );
   }
 
@@ -14465,6 +14611,18 @@ class StepRun extends DataClass implements Insertable<StepRun> {
   /// session ran several steps).
   final double? costUsd;
   final DateTime createdAt;
+
+  /// Who ran the attempt (the ones of before are the Claude Code's).
+  final String provider;
+
+  /// Share of the session's tokens (split like the cost).
+  final int? tokensIn;
+  final int? tokensOut;
+
+  /// Why the step was not on the provider of its plan: `quota` (the limit
+  /// was reached), `threshold` (preventive) or `second_opinion`; null = it
+  /// was.
+  final String? diverted;
   const StepRun({
     required this.id,
     required this.specId,
@@ -14476,6 +14634,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
     required this.result,
     this.costUsd,
     required this.createdAt,
+    required this.provider,
+    this.tokensIn,
+    this.tokensOut,
+    this.diverted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14502,6 +14664,16 @@ class StepRun extends DataClass implements Insertable<StepRun> {
       map['cost_usd'] = Variable<double>(costUsd);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['provider'] = Variable<String>(provider);
+    if (!nullToAbsent || tokensIn != null) {
+      map['tokens_in'] = Variable<int>(tokensIn);
+    }
+    if (!nullToAbsent || tokensOut != null) {
+      map['tokens_out'] = Variable<int>(tokensOut);
+    }
+    if (!nullToAbsent || diverted != null) {
+      map['diverted'] = Variable<String>(diverted);
+    }
     return map;
   }
 
@@ -14523,6 +14695,16 @@ class StepRun extends DataClass implements Insertable<StepRun> {
           ? const Value.absent()
           : Value(costUsd),
       createdAt: Value(createdAt),
+      provider: Value(provider),
+      tokensIn: tokensIn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tokensIn),
+      tokensOut: tokensOut == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tokensOut),
+      diverted: diverted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(diverted),
     );
   }
 
@@ -14544,6 +14726,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
       ),
       costUsd: serializer.fromJson<double?>(json['costUsd']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      provider: serializer.fromJson<String>(json['provider']),
+      tokensIn: serializer.fromJson<int?>(json['tokensIn']),
+      tokensOut: serializer.fromJson<int?>(json['tokensOut']),
+      diverted: serializer.fromJson<String?>(json['diverted']),
     );
   }
   @override
@@ -14562,6 +14748,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
       ),
       'costUsd': serializer.toJson<double?>(costUsd),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'provider': serializer.toJson<String>(provider),
+      'tokensIn': serializer.toJson<int?>(tokensIn),
+      'tokensOut': serializer.toJson<int?>(tokensOut),
+      'diverted': serializer.toJson<String?>(diverted),
     };
   }
 
@@ -14576,6 +14766,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
     StepRunResult? result,
     Value<double?> costUsd = const Value.absent(),
     DateTime? createdAt,
+    String? provider,
+    Value<int?> tokensIn = const Value.absent(),
+    Value<int?> tokensOut = const Value.absent(),
+    Value<String?> diverted = const Value.absent(),
   }) => StepRun(
     id: id ?? this.id,
     specId: specId ?? this.specId,
@@ -14587,6 +14781,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
     result: result ?? this.result,
     costUsd: costUsd.present ? costUsd.value : this.costUsd,
     createdAt: createdAt ?? this.createdAt,
+    provider: provider ?? this.provider,
+    tokensIn: tokensIn.present ? tokensIn.value : this.tokensIn,
+    tokensOut: tokensOut.present ? tokensOut.value : this.tokensOut,
+    diverted: diverted.present ? diverted.value : this.diverted,
   );
   StepRun copyWithCompanion(StepRunsCompanion data) {
     return StepRun(
@@ -14600,6 +14798,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
       result: data.result.present ? data.result.value : this.result,
       costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      tokensIn: data.tokensIn.present ? data.tokensIn.value : this.tokensIn,
+      tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
+      diverted: data.diverted.present ? data.diverted.value : this.diverted,
     );
   }
 
@@ -14615,7 +14817,11 @@ class StepRun extends DataClass implements Insertable<StepRun> {
           ..write('sessionId: $sessionId, ')
           ..write('result: $result, ')
           ..write('costUsd: $costUsd, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('diverted: $diverted')
           ..write(')'))
         .toString();
   }
@@ -14632,6 +14838,10 @@ class StepRun extends DataClass implements Insertable<StepRun> {
     result,
     costUsd,
     createdAt,
+    provider,
+    tokensIn,
+    tokensOut,
+    diverted,
   );
   @override
   bool operator ==(Object other) =>
@@ -14646,7 +14856,11 @@ class StepRun extends DataClass implements Insertable<StepRun> {
           other.sessionId == this.sessionId &&
           other.result == this.result &&
           other.costUsd == this.costUsd &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.provider == this.provider &&
+          other.tokensIn == this.tokensIn &&
+          other.tokensOut == this.tokensOut &&
+          other.diverted == this.diverted);
 }
 
 class StepRunsCompanion extends UpdateCompanion<StepRun> {
@@ -14660,6 +14874,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
   final Value<StepRunResult> result;
   final Value<double?> costUsd;
   final Value<DateTime> createdAt;
+  final Value<String> provider;
+  final Value<int?> tokensIn;
+  final Value<int?> tokensOut;
+  final Value<String?> diverted;
   const StepRunsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
@@ -14671,6 +14889,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
     this.result = const Value.absent(),
     this.costUsd = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensIn = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.diverted = const Value.absent(),
   });
   StepRunsCompanion.insert({
     this.id = const Value.absent(),
@@ -14683,6 +14905,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
     required StepRunResult result,
     this.costUsd = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.tokensIn = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.diverted = const Value.absent(),
   }) : specId = Value(specId),
        step = Value(step),
        model = Value(model),
@@ -14698,6 +14924,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
     Expression<String>? result,
     Expression<double>? costUsd,
     Expression<DateTime>? createdAt,
+    Expression<String>? provider,
+    Expression<int>? tokensIn,
+    Expression<int>? tokensOut,
+    Expression<String>? diverted,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -14710,6 +14940,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
       if (result != null) 'result': result,
       if (costUsd != null) 'cost_usd': costUsd,
       if (createdAt != null) 'created_at': createdAt,
+      if (provider != null) 'provider': provider,
+      if (tokensIn != null) 'tokens_in': tokensIn,
+      if (tokensOut != null) 'tokens_out': tokensOut,
+      if (diverted != null) 'diverted': diverted,
     });
   }
 
@@ -14724,6 +14958,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
     Value<StepRunResult>? result,
     Value<double?>? costUsd,
     Value<DateTime>? createdAt,
+    Value<String>? provider,
+    Value<int?>? tokensIn,
+    Value<int?>? tokensOut,
+    Value<String?>? diverted,
   }) {
     return StepRunsCompanion(
       id: id ?? this.id,
@@ -14736,6 +14974,10 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
       result: result ?? this.result,
       costUsd: costUsd ?? this.costUsd,
       createdAt: createdAt ?? this.createdAt,
+      provider: provider ?? this.provider,
+      tokensIn: tokensIn ?? this.tokensIn,
+      tokensOut: tokensOut ?? this.tokensOut,
+      diverted: diverted ?? this.diverted,
     );
   }
 
@@ -14774,6 +15016,18 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (tokensIn.present) {
+      map['tokens_in'] = Variable<int>(tokensIn.value);
+    }
+    if (tokensOut.present) {
+      map['tokens_out'] = Variable<int>(tokensOut.value);
+    }
+    if (diverted.present) {
+      map['diverted'] = Variable<String>(diverted.value);
+    }
     return map;
   }
 
@@ -14789,7 +15043,11 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
           ..write('sessionId: $sessionId, ')
           ..write('result: $result, ')
           ..write('costUsd: $costUsd, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('provider: $provider, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('diverted: $diverted')
           ..write(')'))
         .toString();
   }
@@ -25426,6 +25684,7 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> kind,
   Value<String?> planModel,
   Value<String?> planEffort,
+  Value<String?> planProvider,
   Value<String?> planHash,
   Value<String?> planReason,
   Value<bool> userPicked,
@@ -25446,6 +25705,7 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> kind,
   Value<String?> planModel,
   Value<String?> planEffort,
+  Value<String?> planProvider,
   Value<String?> planHash,
   Value<String?> planReason,
   Value<bool> userPicked,
@@ -25542,6 +25802,11 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<String> get planEffort => $composableBuilder(
     column: $table.planEffort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planProvider => $composableBuilder(
+    column: $table.planProvider,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25658,6 +25923,11 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get planProvider => $composableBuilder(
+    column: $table.planProvider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get planHash => $composableBuilder(
     column: $table.planHash,
     builder: (column) => ColumnOrderings(column),
@@ -25755,6 +26025,11 @@ class $$SpecStepsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get planProvider => $composableBuilder(
+    column: $table.planProvider,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get planHash =>
       $composableBuilder(column: $table.planHash, builder: (column) => column);
 
@@ -25838,6 +26113,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> kind = const Value.absent(),
                 Value<String?> planModel = const Value.absent(),
                 Value<String?> planEffort = const Value.absent(),
+                Value<String?> planProvider = const Value.absent(),
                 Value<String?> planHash = const Value.absent(),
                 Value<String?> planReason = const Value.absent(),
                 Value<bool> userPicked = const Value.absent(),
@@ -25857,6 +26133,7 @@ class $$SpecStepsTableTableManager
                 kind: kind,
                 planModel: planModel,
                 planEffort: planEffort,
+                planProvider: planProvider,
                 planHash: planHash,
                 planReason: planReason,
                 userPicked: userPicked,
@@ -25878,6 +26155,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> kind = const Value.absent(),
                 Value<String?> planModel = const Value.absent(),
                 Value<String?> planEffort = const Value.absent(),
+                Value<String?> planProvider = const Value.absent(),
                 Value<String?> planHash = const Value.absent(),
                 Value<String?> planReason = const Value.absent(),
                 Value<bool> userPicked = const Value.absent(),
@@ -25897,6 +26175,7 @@ class $$SpecStepsTableTableManager
                 kind: kind,
                 planModel: planModel,
                 planEffort: planEffort,
+                planProvider: planProvider,
                 planHash: planHash,
                 planReason: planReason,
                 userPicked: userPicked,
@@ -34339,6 +34618,10 @@ typedef $$StepRunsTableCreateCompanionBuilder = StepRunsCompanion Function({
   required StepRunResult result,
   Value<double?> costUsd,
   Value<DateTime> createdAt,
+  Value<String> provider,
+  Value<int?> tokensIn,
+  Value<int?> tokensOut,
+  Value<String?> diverted,
 });
 typedef $$StepRunsTableUpdateCompanionBuilder = StepRunsCompanion Function({
   Value<int> id,
@@ -34351,6 +34634,10 @@ typedef $$StepRunsTableUpdateCompanionBuilder = StepRunsCompanion Function({
   Value<StepRunResult> result,
   Value<double?> costUsd,
   Value<DateTime> createdAt,
+  Value<String> provider,
+  Value<int?> tokensIn,
+  Value<int?> tokensOut,
+  Value<String?> diverted,
 });
 
 final class $$StepRunsTableReferences
@@ -34427,6 +34714,26 @@ class $$StepRunsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get diverted => $composableBuilder(
+    column: $table.diverted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34508,6 +34815,26 @@ class $$StepRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get diverted => $composableBuilder(
+    column: $table.diverted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -34567,6 +34894,18 @@ class $$StepRunsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensIn =>
+      $composableBuilder(column: $table.tokensIn, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensOut =>
+      $composableBuilder(column: $table.tokensOut, builder: (column) => column);
+
+  GeneratedColumn<String> get diverted =>
+      $composableBuilder(column: $table.diverted, builder: (column) => column);
 
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
@@ -34630,6 +34969,10 @@ class $$StepRunsTableTableManager
                 Value<StepRunResult> result = const Value.absent(),
                 Value<double?> costUsd = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int?> tokensIn = const Value.absent(),
+                Value<int?> tokensOut = const Value.absent(),
+                Value<String?> diverted = const Value.absent(),
               }) => StepRunsCompanion(
                 id: id,
                 specId: specId,
@@ -34641,6 +34984,10 @@ class $$StepRunsTableTableManager
                 result: result,
                 costUsd: costUsd,
                 createdAt: createdAt,
+                provider: provider,
+                tokensIn: tokensIn,
+                tokensOut: tokensOut,
+                diverted: diverted,
               ),
           createCompanionCallback:
               ({
@@ -34654,6 +35001,10 @@ class $$StepRunsTableTableManager
                 required StepRunResult result,
                 Value<double?> costUsd = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<int?> tokensIn = const Value.absent(),
+                Value<int?> tokensOut = const Value.absent(),
+                Value<String?> diverted = const Value.absent(),
               }) => StepRunsCompanion.insert(
                 id: id,
                 specId: specId,
@@ -34665,6 +35016,10 @@ class $$StepRunsTableTableManager
                 result: result,
                 costUsd: costUsd,
                 createdAt: createdAt,
+                provider: provider,
+                tokensIn: tokensIn,
+                tokensOut: tokensOut,
+                diverted: diverted,
               ),
           withReferenceMapper: (p0) => p0
               .map(

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/codex/codex_probe.dart' show CodexModelInfo;
+import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
@@ -33,6 +35,23 @@ status: aprovada
 - R3 · Extrair generators
 - R4 · Ligar na CLI
 ''';
+
+/// The cached `model/list` (SPEC-109): the strong model has `ultra`, the
+/// light one does not.
+Map<String, String> codexCatalog() => {
+  codexModelsCacheKey: CodexModelsCache(
+    version: '0.170.0',
+    readAt: DateTime(2026, 11, 20),
+    models: const [
+      CodexModelInfo(
+        'gpt-6.2-sol',
+        ['low', 'medium', 'high', 'xhigh', 'ultra'],
+        ['text'],
+      ),
+      CodexModelInfo('gpt-6-luna', ['low', 'medium', 'high'], ['text']),
+    ],
+  ).encode(),
+};
 
 /// `result` line of the fixture with [text] as the final answer.
 String resultLine(String text, {double cost = 0.01}) {

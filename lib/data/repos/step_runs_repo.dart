@@ -21,6 +21,10 @@ class StepRunsRepo {
     String? sessionId,
     required StepRunResult result,
     double? costUsd,
+    String provider = 'claude',
+    int? tokensIn,
+    int? tokensOut,
+    String? diverted,
     DateTime? at,
   }) => _db
       .into(_t)
@@ -34,6 +38,10 @@ class StepRunsRepo {
           sessionId: Value(sessionId),
           result: result,
           costUsd: Value(costUsd),
+          provider: Value(provider),
+          tokensIn: Value(tokensIn),
+          tokensOut: Value(tokensOut),
+          diverted: Value(diverted),
           createdAt: Value.absentIfNull(at),
         ),
       );

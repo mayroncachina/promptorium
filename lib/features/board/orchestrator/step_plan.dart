@@ -154,7 +154,11 @@ StepRunPlan? _own(SpecStep? r, OrchestratorPrefs prefs) {
   final kind = StepKind.parse(r!.kind);
   return (
     kind: kind,
-    rule: StepRule(model, r.planEffort ?? prefs.rule(kind).effort),
+    rule: StepRule(
+      model,
+      r.planEffort ?? prefs.rule(kind).effort,
+      provider: r.planProvider ?? 'claude',
+    ),
   );
 }
 
@@ -200,6 +204,7 @@ Future<void> storePlanEntries(
       kind: e.kind.name,
       model: e.rule.model,
       effort: e.rule.effort,
+      provider: e.rule.provider,
       hash: e.hash,
       reason: e.classReason,
       userPicked: e.userPicked,
