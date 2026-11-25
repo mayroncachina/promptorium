@@ -42,7 +42,9 @@ void main() {
     );
     expect(
       preview.data,
-      startsWith('Pague os débitos DT-05 e DT-06 de DEBITO_TECNICO.md.'),
+      startsWith(
+        'Pagar débitos: DT-05, DT-06\nPague os débitos DT-05 e DT-06 de DEBITO_TECNICO.md.',
+      ),
     );
     expect(
       find.textContaining('Agora os dois ficam', findRichText: true),

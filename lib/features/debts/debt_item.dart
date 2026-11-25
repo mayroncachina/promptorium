@@ -132,9 +132,12 @@ class DebtItem {
     String toResolve = '',
   }) {
     final b = StringBuffer('**${title.trim()}**');
-    final r = reason.trim();
+    var r = reason.trim();
+    final hasOrigin = origin != null && origin.trim().isNotEmpty;
+    // "motivo. (spec 33, Q5)." would end with two full stops.
+    if (hasOrigin) r = r.replaceFirst(RegExp(r'\.+$'), '');
     if (r.isNotEmpty) b.write(': $r');
-    if (origin != null && origin.trim().isNotEmpty) {
+    if (hasOrigin) {
       b.write(' (${origin.trim()})');
     }
     var what = b.toString();
@@ -310,13 +313,14 @@ class DecisionItem {
   List<String> withGenerated(String debtCode) {
     final d = decision.trim();
     final tail = 'gerou o $debtCode.';
+    final after = d.endsWith('.') ? 'Gerou o $debtCode.' : tail;
     return [
       code,
       since,
       origin.isEmpty ? debtDash : origin,
       question,
       recommendation.isEmpty ? debtDash : recommendation,
-      d.isEmpty ? tail : (d.endsWith('.') ? '$d $tail' : '$d; $tail'),
+      d.isEmpty ? tail : (d.endsWith('.') ? '$d $after' : '$d; $tail'),
     ];
   }
 

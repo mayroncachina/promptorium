@@ -39,17 +39,15 @@ void main() {
         file: 'DEBITO_TECNICO.md',
       );
       final lines = p.split('\n');
+      expect(lines.first, 'Pagar débitos: DT-05, DT-06');
+      expect(lines[1], 'Pague os débitos DT-05 e DT-06 de DEBITO_TECNICO.md.');
       expect(
-        lines.first,
-        'Pague os débitos DT-05 e DT-06 de DEBITO_TECNICO.md.',
-      );
-      expect(
-        lines[1],
+        lines[2],
         'DT-05 · Pagamento simulado (PagarView.vue): ligar o gateway '
         '(homologação) junto com o DT-03.',
       );
-      expect(lines[2], startsWith('DT-06 · Responsável não cancela'));
-      expect(lines[2], contains('(pagamentos_servico)'));
+      expect(lines[3], startsWith('DT-06 · Responsável não cancela'));
+      expect(lines[3], contains('(pagamentos_servico)'));
       expect(lines.last, 'No fim, diga quais pagou e o que ficou de fora.');
     });
 

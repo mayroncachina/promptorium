@@ -1,6 +1,6 @@
 ---
 id: SPEC-112
-status: em implementação
+status: concluida
 versao: 0.26.0
 tipo: recurso
 issue: 417
@@ -205,22 +205,22 @@ A spec é grande e segue o padrão pai e filhos: uma branch pai `spec/112-debito
 
 ## Critérios de aceite
 
-- [ ] Ler e regravar as tabelas do exemplo (anonimizadas) não muda nenhum byte fora da linha alterada, e linhas estranhas aparecem como "N linhas não reconhecidas" [R1, R5] verificar: testes de `debt_table.dart`.
-- [ ] Com `docs/debitos-tecnicos.md` no repositório, a tela oferece usar o arquivo ou movê-lo, e nada muda sem escolha [R2] verificar: teste de widget e teste do `git mv` com links consertados.
-- [ ] Dois débitos criados em worktrees diferentes recebem IDs diferentes, e um ID riscado ou apagado nunca volta [R3] verificar: testes de `debt_links_repo.dart`.
-- [ ] Editar o arquivo fora do app atualiza a tela, e um vínculo sem linha aparece como órfão sem recriar a linha [R4, R5] verificar: teste com escrita externa.
-- [ ] "Simplificar agora → débito" e "Decidir depois → DP" gravam a linha com "(spec N, Q5)" e anotam "→ DT-NN" na resposta [R6] verificar: testes de `spec_file.dart` e do serviço.
-- [ ] "bota em débito" numa resposta gera uma sugestão e não grava no arquivo até aceitar [R7] verificar: teste do detector e do serviço.
-- [ ] "Virar débito" num comentário mostra o selo "→ DT-12", baixa "Comentários abertos" em um e libera o merge, e desfazer devolve o comentário [R8] verificar: testes de `merge_readiness.dart`.
-- [ ] "Virar débito" numa mensagem usa o trecho selecionado ou o primeiro parágrafo [R9] verificar: teste de widget da timeline.
-- [ ] `registrar_debito` no Claude Code e no Codex cria só uma sugestão, e `listar_debitos` devolve os abertos [R11] verificar: testes das ferramentas MCP.
-- [ ] Responder uma DP preenche "Decisão", leva a resposta à spec de origem e "Virar débito" cria um DT ligado à DP nas duas pontas [R12] verificar: teste do serviço.
-- [ ] A tela abre em Abertos e Pendentes, mostra a faixa de sugestões e o "na spec N", e o chip do Quadro conta só os abertos [R13, R14] verificar: testes de widget.
-- [ ] Pagar 2 débitos sugere VIBE, 3 sugere spec, e o merge risca as linhas com "**resolvido** pela spec N", enquanto o descarte as devolve a "aberto" [R15] verificar: testes do serviço com merge e descarte.
-- [ ] O diff, a Revisão e o card mostram "N débitos neste arquivo" para caminhos e nomes citados em "Onde" [R16] verificar: testes de widget.
-- [ ] O prompt da etapa traz a linha dos débitos dos arquivos da spec só quando o config permite, e "paguei o DT-05" vira "pago de carona?" a confirmar, sem fechar sozinho [R17] verificar: testes de `spec_runner.dart`.
-- [ ] O item de uma spec vai no commit dela, e o item à mão só é commitado depois da confirmação, com `docs: DT-NN …` e sem push [R18] verificar: teste de git com repositório temporário.
-- [ ] No app compilado, com dados isolados, o fluxo completo (entrevista, Revisão, Pagar por VIBE, merge) deixa o arquivo e o histórico do git corretos [R1–R18] verificar: prints e relatório do teste ponta a ponta.
+- [x] Ler e regravar as tabelas do exemplo (anonimizadas) não muda nenhum byte fora da linha alterada, e linhas estranhas aparecem como "N linhas não reconhecidas" [R1, R5] verificar: testes de `debt_table.dart`.
+- [x] Com `docs/debitos-tecnicos.md` no repositório, a tela oferece usar o arquivo ou movê-lo, e nada muda sem escolha [R2] verificar: teste de widget e teste do `git mv` com links consertados.
+- [x] Dois débitos criados em worktrees diferentes recebem IDs diferentes, e um ID riscado ou apagado nunca volta [R3] verificar: testes de `debt_links_repo.dart`.
+- [x] Editar o arquivo fora do app atualiza a tela, e um vínculo sem linha aparece como órfão sem recriar a linha [R4, R5] verificar: teste com escrita externa.
+- [x] "Simplificar agora → débito" e "Decidir depois → DP" gravam a linha com "(spec N, Q5)" e anotam "→ DT-NN" na resposta [R6] verificar: testes de `spec_file.dart` e do serviço.
+- [x] "bota em débito" numa resposta gera uma sugestão e não grava no arquivo até aceitar [R7] verificar: teste do detector e do serviço.
+- [x] "Virar débito" num comentário mostra o selo "→ DT-12", baixa "Comentários abertos" em um e libera o merge, e desfazer devolve o comentário [R8] verificar: testes de `merge_readiness.dart`.
+- [x] "Virar débito" numa mensagem usa o trecho selecionado ou o primeiro parágrafo [R9] verificar: teste de widget da timeline.
+- [x] `registrar_debito` no Claude Code e no Codex cria só uma sugestão, e `listar_debitos` devolve os abertos [R11] verificar: testes das ferramentas MCP.
+- [x] Responder uma DP preenche "Decisão", leva a resposta à spec de origem e "Virar débito" cria um DT ligado à DP nas duas pontas [R12] verificar: teste do serviço.
+- [x] A tela abre em Abertos e Pendentes, mostra a faixa de sugestões e o "na spec N", e o chip do Quadro conta só os abertos [R13, R14] verificar: testes de widget.
+- [x] Pagar 2 débitos sugere VIBE, 3 sugere spec, e o merge risca as linhas com "**resolvido** pela spec N", enquanto o descarte as devolve a "aberto" [R15] verificar: testes do serviço com merge e descarte.
+- [x] O diff, a Revisão e o card mostram "N débitos neste arquivo" para caminhos e nomes citados em "Onde" [R16] verificar: testes de widget.
+- [x] O prompt da etapa traz a linha dos débitos dos arquivos da spec só quando o config permite, e "paguei o DT-05" vira "pago de carona?" a confirmar, sem fechar sozinho [R17] verificar: testes de `spec_runner.dart`.
+- [x] O item de uma spec vai no commit dela, e o item à mão só é commitado depois da confirmação, com `docs: DT-NN …` e sem push [R18] verificar: teste de git com repositório temporário.
+- [x] No app compilado, com dados isolados, o fluxo completo (entrevista, Revisão, Pagar por VIBE, merge) deixa o arquivo e o histórico do git corretos [R1–R18] verificar: prints e relatório do teste ponta a ponta.
 
 ## Telas
 
@@ -234,3 +234,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QCqBhDaQGrctTyWWKra
 | `4-revisao.png` | A Revisão da spec 33: um comentário que virou débito com o selo "→ DT-12" e "Desfazer", outro aberto com "Virar débito", "Comentários abertos" caindo de 3 para 2 e o chip "3 débitos neste arquivo" | R8, R16, R18 |
 | `5-pagar.png` | O diálogo Pagar com 2 débitos: VIBE (sugerido até 2) × spec, o prompt da VIBE e o que acontece agora, no merge e no descarte | R15 |
 | `6-quadro-e-diff.png` | O chip "Débitos · 7" no Quadro, os chips nos cards, o diff da sessão com "2 débitos neste arquivo" aberto e o "pago de carona?" do DT-03 para confirmar | R14, R16, R17 |
+
+### No app
+
+Teste ponta a ponta com o app compilado, dados isolados (`XDG_DATA_HOME`, `HOME`, `CODEX_HOME` e `CLAUDE_CONFIG_DIR` no scratchpad) e Claude e Codex falsos, sem turno pago. Capturas em `docs/mockups/spec-112/app/`: a tela com a sugestão do Codex via MCP (`1-debitos.png`), a decisão respondida (`2-decisoes.png`), "Simplificar agora → débito" na entrevista (`3-entrevista.png`), o commit próprio (`4-commit-proprio.png`), o chip do Quadro (`5-quadro-chip.png`), a seleção, o Pagar e o "em pagamento" (`6` a `8`), a Revisão da VIBE com "Esta spec vai pagar" (`9-revisao-vai-pagar.png`), os pagos depois do merge (`10-pagos.png`) e o commit ao aceitar uma sugestão (`11-aceitar-sugestao-commit.png`). O trabalho do agente na VIBE foi simulado com um commit feito à mão na worktree; a sugestão do MCP foi montada no banco isolado.

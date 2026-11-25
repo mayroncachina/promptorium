@@ -529,7 +529,11 @@ class DebtInterview {
     final doc = await DebtFiles.read(at, rel, DebtKind.decision);
     final d = doc.decisions.where((x) => x.code == decisionCode).firstOrNull;
     if (d == null) throw StateError('$decisionCode não está em $rel.');
-    if (d.decision.contains('gerou o $debtCode')) return;
+    if (d.decision.toLowerCase().contains(
+      'gerou o ${debtCode.toLowerCase()}',
+    )) {
+      return;
+    }
     await DebtFiles.apply(
       at,
       rel,
