@@ -12,6 +12,9 @@ import '../../../ui/theme/app_theme.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../../ui/widgets/diff_view.dart';
+import '../../debts/debt_detector.dart';
+import '../../debts/debt_table.dart';
+import '../../debts/widgets/question_debt_actions.dart';
 import '../spec_answers.dart';
 import '../spec_file.dart';
 import '../../board/widgets/step_decision_parts.dart' show StepKbd;
@@ -86,6 +89,7 @@ class SpecQuestionsPanel extends ConsumerStatefulWidget {
     required this.onApply,
     required this.onSave,
     this.specTitle,
+    this.onDebtAction,
   });
 
   final Workspace ws;
@@ -110,6 +114,12 @@ class SpecQuestionsPanel extends ConsumerStatefulWidget {
 
   /// "Salvar na spec"; true = saved.
   final Future<bool> Function(String text) onSave;
+
+  /// "Simplificar agora → débito" / "Decidir depois → DP" of a question
+  /// (SPEC-112 R6), with the answer given so far (null = none). Null hides
+  /// the actions.
+  final Future<void> Function(OpenQuestion q, DebtKind kind, String? answer)?
+  onDebtAction;
 
   @override
   ConsumerState<SpecQuestionsPanel> createState() => _SpecQuestionsPanelState();
@@ -140,6 +150,51 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   /// "Ver na spec" (SPEC-059 R7): kept for the next questions until the
   /// session closes.
   bool _showExcerpt = false;
+
+  /// A debt or decision of a question is being written (SPEC-112 R6).
+  bool _debtBusy = false;
+
+  Future<void> _debtAction(OpenQuestion q, DebtKind kind) async {
+    final cb = widget.onDebtAction;
+    if (cb == null || _debtBusy) return;
+    final a = _answers[q.id];
+    setState(() => _debtBusy = true);
+    try {
+      await cb(q, kind, a != null && a.answered ? a.text : null);
+    } finally {
+      if (mounted) setState(() => _debtBusy = false);
+    }
+  }
+
+  /// SPEC-112 R6, R7: the two actions of the question and, when the answer
+  /// asks for a debt or a decision, the hint of the suggestion.
+  Widget _debtRow(OpenQuestion q) {
+    final a = _answers[q.id];
+    final answer = a != null && a.answered ? a.text : null;
+    final intent = answer == null ? null : detectDebtIntent(answer);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (intent != null) ...[
+          DetectedDebtHint(
+            intent: intent,
+            answer: answer!,
+            note:
+                'vira sugestão ao salvar as respostas; nada vai para o '
+                'arquivo antes de você aceitar',
+          ),
+          const SizedBox(height: 8),
+        ],
+        QuestionDebtActions(
+          keyPrefix: 'spec-question',
+          onDebt: _debtBusy ? null : () => _debtAction(q, DebtKind.debt),
+          onDecision: _debtBusy
+              ? null
+              : () => _debtAction(q, DebtKind.decision),
+        ),
+      ],
+    );
+  }
 
   List<OpenQuestion> get _questions => widget.questions;
 
@@ -760,6 +815,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             const SizedBox(height: 12),
             _noteLine(q, note),
             if (_showExcerpt) ...[const SizedBox(height: 12), _excerpt(q)],
+            if (widget.onDebtAction != null) ...[
+              const SizedBox(height: 12),
+              _debtRow(q),
+            ],
             const SizedBox(height: 16),
             _moreRow(q, enabled: !loading && !busy, busy: busy),
             if (_moreFailed.contains(k)) ...[

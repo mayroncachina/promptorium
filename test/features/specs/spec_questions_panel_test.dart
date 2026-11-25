@@ -582,6 +582,29 @@ void main() {
     semantics.dispose();
     await releaseEditor(tester);
   });
+
+  testWidgets('SPEC-112 R6, R7: each question has "Simplificar agora → '
+      'débito" and "Decidir depois → DP"; "bota em débito" shows the hint of '
+      'the suggestion and writes nothing', (tester) async {
+    await pump(tester);
+    await openPanel(tester);
+    expect(key('spec-question-to-debt'), findsOneWidget);
+    expect(key('spec-question-to-decision'), findsOneWidget);
+    expect(key('detected-debt-hint'), findsNothing);
+    await tester.enterText(
+      key('spec-question-other-text'),
+      'bota em débito, por ora só pela tabela',
+    );
+    await tester.pump();
+    expect(key('detected-debt-hint'), findsOneWidget);
+    expect(
+      find.textContaining('Parece um débito', findRichText: true),
+      findsOneWidget,
+    );
+    expect(disk(), questionsSpec);
+    expect(File('${tmp.path}/DEBITO_TECNICO.md').existsSync(), isFalse);
+    await releaseEditor(tester);
+  });
 }
 
 /// Closing the panel gives the focus back to the editor, whose cursor
