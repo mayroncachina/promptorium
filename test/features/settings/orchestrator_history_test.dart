@@ -19,6 +19,10 @@ StepRun _run(
   int spec = 1,
   String model = 'sonnet',
   double cost = 0.1,
+  String provider = 'claude',
+  int? tokensIn,
+  int? tokensOut,
+  String? diverted,
   required DateTime at,
 }) => StepRun(
   id: ++_id,
@@ -28,6 +32,10 @@ StepRun _run(
   model: model,
   result: result,
   costUsd: cost,
+  provider: provider,
+  tokensIn: tokensIn,
+  tokensOut: tokensOut,
+  diverted: diverted,
   createdAt: at,
 );
 
