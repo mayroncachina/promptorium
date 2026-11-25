@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/mcp/app_mcp_tools.dart' show DebtSuggestionKeys;
+import '../../../core/git/git_service.dart' show currentBranchProvider;
 import '../../../data/providers.dart';
 import '../../../data/repos/debt_links_repo.dart';
 import '../../../ui/theme/tokens.dart';
@@ -125,7 +126,12 @@ class _SuggestionRow extends ConsumerWidget {
     DebtDraft? edited,
   }) async {
     final service = ref.read(debtServiceProvider);
+    final interview = ref.read(debtInterviewProvider);
+    final branch = ref.read(currentBranchProvider(link.repoRoot)).value;
     final messenger = ScaffoldMessenger.maybeOf(context);
+    // The row goes away once accepted: the commit question uses the root
+    // navigator's context, which stays.
+    final stable = Navigator.of(context, rootNavigator: true).context;
     final kind = DebtKind.fromDb(link.kind);
     final rel = DebtFiles.relPath(service.configOf(link.repoRoot), kind);
     final writeRoot = _writeRoot;
@@ -139,28 +145,29 @@ class _SuggestionRow extends ConsumerWidget {
     try {
       // SPEC-112 R7: a suggestion of a question also writes "→ DT-NN" in
       // its answer.
-      w = await ref
-          .read(debtInterviewProvider)
-          .accept(link.id, edited: edited, writeRoot: writeRoot);
+      w = await interview.accept(link.id, edited: edited, writeRoot: writeRoot);
     } catch (e) {
       messenger?.showAppToast(
         SnackBar(content: Text('Não deu para gravar: $e')),
       );
       return;
     }
-    if (writeRoot != null || !context.mounted) {
+    if (writeRoot != null) {
       messenger?.showAppToast(
         SnackBar(content: Text('${w.code} gravado na worktree da spec.')),
       );
       return;
     }
+    if (!stable.mounted) return;
     await askOwnCommit(
-      context,
+      stable,
       ref,
       repoRoot: link.repoRoot,
       written: w,
       title: (edited ?? _draft).title,
+      branch: branch,
       wasDirty: dirty,
+      service: service,
     );
   }
 
@@ -176,6 +183,8 @@ class _SuggestionRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Read ahead: "Commitar o DT-NN na <branch>?" after Aceitar.
+    ref.watch(currentBranchProvider(link.repoRoot));
     final d = _draft;
     final where = d.where;
     final session = '${_body[DebtSuggestionKeys.sessionTitle] ?? ''}'.trim();

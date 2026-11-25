@@ -140,7 +140,11 @@ Future<void> askOwnCommit(
   required String title,
   String? branch,
   required bool wasDirty,
+  DebtService? service,
 }) async {
+  // [service] lets a caller whose widget is gone by now (the strip row of
+  // an accepted suggestion) pass it read beforehand.
+  final DebtService debts = service ?? ref.read(debtServiceProvider);
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (wasDirty) {
     messenger?.showAppToast(
@@ -165,15 +169,13 @@ Future<void> askOwnCommit(
   );
   if (ok != true) return;
   try {
-    final r = await ref
-        .read(debtServiceProvider)
-        .commitOwn(
-          repoRoot,
-          written.relPath,
-          code: written.code,
-          title: title,
-          wasDirty: false,
-        );
+    final r = await debts.commitOwn(
+      repoRoot,
+      written.relPath,
+      code: written.code,
+      title: title,
+      wasDirty: false,
+    );
     messenger?.showAppToast(
       SnackBar(
         content: Text(switch (r) {

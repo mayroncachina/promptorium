@@ -593,9 +593,9 @@ class _DebtsTab extends ConsumerWidget {
 }
 
 const _colId = 76.0;
-const _colWhere = 300.0;
+const _colWhere = 270.0;
 const _colOrigin = 130.0;
-const _colState = 150.0;
+const _colState = 180.0;
 
 class _TableHeader extends StatelessWidget {
   const _TableHeader();

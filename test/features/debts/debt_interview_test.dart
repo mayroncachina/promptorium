@@ -274,11 +274,11 @@ status: rascunho
       read('DEBITO_TECNICO.md'),
       contains('**Comprimir no servidor** (spec 33, DP-01).'),
     );
-    expect(dp().decision, endsWith('gerou o DT-01.'));
+    expect(dp().decision, endsWith('Gerou o DT-01.'));
     expect((await links.byCode(root, 'DT-01'))!.originDecision, 'DP-01');
     // Marking twice does not repeat.
     await interview.markGenerated(root, 'DP-01', 'DT-01');
-    expect('gerou o DT-01'.allMatches(dp().decision), hasLength(1));
+    expect('Gerou o DT-01'.allMatches(dp().decision), hasLength(1));
   });
 
   test('a decision changed in the file since it was read is not '

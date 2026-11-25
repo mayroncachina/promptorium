@@ -46,6 +46,9 @@ String debtPaymentLine(DebtItem d) {
 String vibePaymentPrompt(List<DebtItem> items, {required String file}) {
   final codes = [for (final d in items) d.code];
   return [
+    // The first line is the VIBE's title: no file name there (the title
+    // drops `_`, DEBITO_TECNICO.md would read DEBITOTECNICO.md).
+    paymentSpecTitle(items),
     'Pague ${codes.length == 1 ? 'o débito' : 'os débitos'} '
         '${debtCodesText(codes)} de $file.',
     for (final d in items) debtPaymentLine(d),

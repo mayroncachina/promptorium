@@ -278,9 +278,25 @@ void main() {
       );
       expect(
         decided.withGenerated('DT-10').last,
-        '**Decidido (2026-11-25):** Depois mesmo. gerou o DT-10.',
+        '**Decidido (2026-11-25):** Depois mesmo. Gerou o DT-10.',
       );
     });
+  });
+
+  test('a motive ending with a full stop does not double it before the '
+      'origin', () {
+    final cells = DebtItem.newCells(
+      code: 'DT-12',
+      since: '2026-11-25',
+      title: 'Validação no cliente',
+      reason: 'o servidor não confere o tamanho.',
+      origin: 'revisão da spec 33',
+    );
+    expect(
+      cells[2],
+      '**Validação no cliente**: o servidor não confere o tamanho '
+      '(revisão da spec 33).',
+    );
   });
 
   test('DebtKind codes have two digits or more', () {

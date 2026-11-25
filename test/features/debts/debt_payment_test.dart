@@ -101,7 +101,9 @@ void main() {
     expect(spec.code, 'VIBE-001');
     expect(
       provider.last.sent.single,
-      startsWith('Pague os débitos DT-05 e DT-06 de $_file.\nDT-05 · '),
+      startsWith(
+        'Pagar débitos: DT-05, DT-06\nPague os débitos DT-05 e DT-06 de $_file.\nDT-05 · ',
+      ),
     );
     expect(
       {for (final l in await links().payingBy(spec.id)) l.code},
