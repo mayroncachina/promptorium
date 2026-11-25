@@ -1,7 +1,7 @@
 ---
 id: SPEC-108
-status: rascunho
-versao: 0.26.0
+status: em implementação
+versao: 0.27.0
 tipo: recurso
 epico: 332
 issue: 336
@@ -79,14 +79,14 @@ Esta spec amplia o Comparar:
 - Agentes `.claude/agents` no lado Codex (decisão 7 do épico): o lado Codex ignora o agente da conversa e mostra "agente só no Claude".
 - Comparar nas Sessões, na VIBE ou no review automático.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Ponto de partida numa conversa com histórico.** (a) O lado do mesmo provedor faz fork e o outro recebe o pacote de partida; (b) os dois partem do mesmo pacote. **Recomendação: (a) como padrão, com (b) no interruptor "Mesmo resumo nos dois lados".** Com (a), o lado da conversa não perde contexto, e é por ele que a conversa provavelmente vai seguir. A faixa avisa que os pontos de partida diferem. Para quem quer só comparar os provedores, (b) fica a um clique.
-- P2 · **Razão de peso entre cotas diferentes.** (a) Não mostrar a razão: cada lado mostra o peso na própria cota; (b) comparar as porcentagens como se fossem a mesma unidade. **Recomendação: (a).** 3% da janela do Codex e 1,2% da janela do Claude não são a mesma unidade, e uma razão entre elas engana. A comparação direta fica no tempo e nos tokens, com o aviso sobre os tokenizadores.
-- P3 · **Comparar A/B do Quadro nesta spec.** (a) Fica nesta spec, como última tarefa; (b) vira uma spec à parte. **Recomendação: (a), como T5 que pode ser cortada.** O A/B já tem worktree por tentativa e `sessions.provider`, então falta pouco além do diálogo. Se a SPEC-101 atrasar, a T5 sai e o resto entrega sozinho.
-- P4 · **Padrão do lado B no atalho.** (a) O modelo padrão do provedor para conversas; (b) uma tabela de "modelo equivalente" (Opus ↔ um modelo Codex). **Recomendação: (a)**, lembrando a última combinação por workspace (SPEC-079 P8). Uma tabela de equivalência precisaria de manutenção a cada versão dos modelos e passaria uma ideia de equivalência que não existe.
-- P5 · **Esforço por lado.** **Recomendação: mostrar**, preenchido pela preferência do provedor. O Codex expõe vários esforços por modelo (até `ultra`) e isso muda muito o tempo e os tokens.
-- P6 · **Lado não escolhido de outro provedor.** (a) Fica no cartão recolhido com "Abrir no terminal"; (b) vira uma conversa à parte. **Recomendação: (a)**, como a SPEC-079 P6. Duplicar a lista de conversas não ajuda.
+- P1 · **Ponto de partida numa conversa com histórico.** (a) O lado do mesmo provedor faz fork e o outro recebe o pacote de partida; (b) os dois partem do mesmo pacote. **Decidido:** (a) como padrão, com (b) no interruptor "Mesmo resumo nos dois lados". Com (a), o lado da conversa não perde contexto, e é por ele que a conversa provavelmente vai seguir. A faixa avisa que os pontos de partida diferem. Para quem quer só comparar os provedores, (b) fica a um clique.
+- P2 · **Razão de peso entre cotas diferentes.** (a) Não mostrar a razão: cada lado mostra o peso na própria cota; (b) comparar as porcentagens como se fossem a mesma unidade. **Decidido:** (a). 3% da janela do Codex e 1,2% da janela do Claude não são a mesma unidade, e uma razão entre elas engana. A comparação direta fica no tempo e nos tokens, com o aviso sobre os tokenizadores.
+- P3 · **Comparar A/B do Quadro nesta spec.** (a) Fica nesta spec, como última tarefa; (b) vira uma spec à parte. **Decidido:** (a), como T5 (a SPEC-101 já está na main, então entra). O A/B já tem worktree por tentativa e `sessions.provider`, então falta pouco além do diálogo. Se a SPEC-101 atrasar, a T5 sai e o resto entrega sozinho.
+- P4 · **Padrão do lado B no atalho.** (a) O modelo padrão do provedor para conversas; (b) uma tabela de "modelo equivalente" (Opus ↔ um modelo Codex). **Decidido:** (a), lembrando a última combinação por workspace (SPEC-079 P8). Uma tabela de equivalência precisaria de manutenção a cada versão dos modelos e passaria uma ideia de equivalência que não existe.
+- P5 · **Esforço por lado.** **Decidido:** mostrar, preenchido pela preferência do provedor. O Codex expõe vários esforços por modelo (até `ultra`) e isso muda muito o tempo e os tokens.
+- P6 · **Lado não escolhido de outro provedor.** (a) Fica no cartão recolhido com "Abrir no terminal"; (b) vira uma conversa à parte. **Decidido:** (a), como a SPEC-079 P6. Duplicar a lista de conversas não ajuda.
 
 ## Design
 
