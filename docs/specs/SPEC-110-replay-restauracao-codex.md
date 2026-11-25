@@ -1,7 +1,7 @@
 ---
 id: SPEC-110
-status: rascunho
-versao: 0.26.0
+status: em implementação
+versao: 0.27.0
 tipo: recurso
 epico: 332
 issue: 350
@@ -77,14 +77,14 @@ Esta spec:
 - Replay de conversas do Prompt e de VIBEs (SPEC-082 P3).
 - Desfazer efeitos fora do worktree (SPEC-084, fora do escopo).
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde guardar o id do turno do Codex.** (a) Derivar de `session_events`, pelo `turn/started` depois do `eventSeq` do ponto; (b) uma coluna nova `restore_points.agent_turn_id`. **Recomendação: (a), sem migração.** O ponto já guarda o `eventSeq` da mensagem, e o evento do turno vem logo depois. Se a SPEC-095 já gravar o id do turno num evento neutro, a busca fica direta.
-- P2 · **Caixa "voltar também a conversa" marcada por padrão.** **Recomendação: marcada.** O motivo de desfazer é voltar a um estado coerente, e arquivos voltados com uma conversa que lembra do turno é justamente a incoerência do problema. Quem quer manter a conversa desmarca.
-- P3 · **Cópia da conversa antes de reverter.** (a) `thread/fork` antes do `thread/revert`, para o Refazer; (b) sem cópia, com o Refazer voltando só os arquivos. **Recomendação: (a).** O fork não chama o modelo, então não gasta cota. Sem ele, o `thread/revert` é irreversível e o Refazer fica pela metade.
-- P4 · **Complemento pela RPC.** **Recomendação: sim, sob demanda e só por `thread/items/list`.** O banco continua sendo a fonte. O formato `rollout` é interno e muda entre versões (existe até `migrate-rollouts`).
-- P5 · **"Continuar daqui" com `thread/fork` + `lastTurnId`.** **Recomendação: fora desta spec.** É um recurso novo (sessão a partir de um passo, com o worktree no ponto do fim daquele turno). Combina com os pontos de restauração, mas pede tela e fluxo próprios. Fica para uma spec futura, se o Replay for usado para isso.
-- P6 · **Ponto de restauração como primeira base também no Claude.** **Recomendação: sim.** O ponto é exato para os dois provedores, enquanto a transcrição do Claude some depois de 30 dias e não tem os arquivos que o `Bash` criou. O `originalFile` vira a segunda opção.
+- P1 · **Onde guardar o id do turno do Codex.** (a) Derivar de `session_events`, pelo `turn/started` depois do `eventSeq` do ponto; (b) uma coluna nova `restore_points.agent_turn_id`. **Decidido:** (a), sem migração. O ponto já guarda o `eventSeq` da mensagem, e o evento do turno vem logo depois. Se a SPEC-095 já gravar o id do turno num evento neutro, a busca fica direta.
+- P2 · **Caixa "voltar também a conversa" marcada por padrão.** **Decidido:** marcada. O motivo de desfazer é voltar a um estado coerente, e arquivos voltados com uma conversa que lembra do turno é justamente a incoerência do problema. Quem quer manter a conversa desmarca.
+- P3 · **Cópia da conversa antes de reverter.** (a) `thread/fork` antes do `thread/revert`, para o Refazer; (b) sem cópia, com o Refazer voltando só os arquivos. **Decidido:** (a). O fork não chama o modelo, então não gasta cota. Sem ele, o `thread/revert` é irreversível e o Refazer fica pela metade.
+- P4 · **Complemento pela RPC.** **Decidido:** sim, sob demanda e só por `thread/items/list`. O banco continua sendo a fonte. O formato `rollout` é interno e muda entre versões (existe até `migrate-rollouts`).
+- P5 · **"Continuar daqui" com `thread/fork` + `lastTurnId`.** **Decidido:** fora desta spec. É um recurso novo (sessão a partir de um passo, com o worktree no ponto do fim daquele turno). Combina com os pontos de restauração, mas pede tela e fluxo próprios. Fica para uma spec futura, se o Replay for usado para isso.
+- P6 · **Ponto de restauração como primeira base também no Claude.** **Decidido:** sim. O ponto é exato para os dois provedores, enquanto a transcrição do Claude some depois de 30 dias e não tem os arquivos que o `Bash` criou. O `originalFile` vira a segunda opção.
 
 ## Design
 
