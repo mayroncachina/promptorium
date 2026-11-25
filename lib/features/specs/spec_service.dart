@@ -59,6 +59,7 @@ class SpecService {
     TrashFolder? trash,
     this.onIssues,
     this.onDone,
+    this.onDeleted,
   })
     // ignore: prefer_initializing_formals
     : _sessions = sessions,
@@ -70,6 +71,9 @@ class SpecService {
   /// A spec reached "concluída", whatever the path: "Marcar como finalizada",
   /// the end of the review, the verification or the file (SPEC-037 R13).
   final Future<void> Function(Workspace ws, Spec spec)? onDone;
+
+  /// A spec was deleted ("Excluir"): SPEC-112 R15 frees what it was paying.
+  final Future<void> Function(Spec spec)? onDeleted;
   Future<void> _syncTail = Future<void>.value();
   final Map<int, List<String>> issues = {};
   List<String>? _collecting;
@@ -671,6 +675,7 @@ class SpecService {
       await trash(f.path);
     }
     await _repo.delete(spec.id);
+    await onDeleted?.call(spec);
   }
 
   /// "Aprovar spec": `status: aprovada` in the frontmatter of [text] (the
@@ -702,6 +707,8 @@ final specServiceProvider = Provider(
         await ref.read(specAutoPlannerProvider.notifier).specFinished(ws, spec);
       }
     },
+    // SPEC-112 R15, P7: the debts go back to open.
+    onDeleted: (spec) => ref.read(debtLinksRepoProvider).releaseSpec(spec.id),
   ),
 );
 
