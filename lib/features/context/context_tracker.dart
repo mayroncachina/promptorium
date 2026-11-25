@@ -228,6 +228,7 @@ class ContextTracker {
       itemIndex: itemIndex,
       live: live,
       source: u.source,
+      window: u.window,
     );
     final last = _readings.lastOrNull;
     if (last != null &&

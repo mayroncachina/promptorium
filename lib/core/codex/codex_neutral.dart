@@ -113,6 +113,10 @@ Map<String, dynamic> codexCommand(Map<String, dynamic> item) {
       for (final a in item['commandActions'] as List? ?? const [])
         ?CommandAction.fromJson(a),
     ],
+    unknownActions: [
+      for (final a in item['commandActions'] as List? ?? const [])
+        if (CommandAction.fromJson(a) == null) a,
+    ].length,
   );
 }
 
@@ -225,5 +229,51 @@ Map<String, dynamic> codexOtherItem(Map<String, dynamic> item) {
     itemType: type,
     summary: one.length > 160 ? '${one.substring(0, 159)}…' : one,
     toolUseId: _str(item['id']),
+    text: type == 'plan' ? _str(item['text']) : null,
   );
 }
+
+/// The text of a `reasoning` item (SPEC-110 R1): its summary, or its
+/// content. Null when the App Server sent neither (the usual case).
+String? codexReasoningText(Map<String, dynamic> item) {
+  for (final k in const ['summary', 'content']) {
+    final parts = [
+      for (final e in item[k] as List? ?? const [])
+        if (e is String)
+          e
+        else if (e is Map && e['text'] is String)
+          e['text'] as String,
+    ].where((e) => e.trim().isNotEmpty);
+    if (parts.isNotEmpty) return parts.join('\n\n');
+  }
+  return null;
+}
+
+/// `turn/plan/updated` as an [OtherItemEvent] (SPEC-110 R1): one card per
+/// turn, updated by each notification.
+Map<String, dynamic>? codexTurnPlan(Map<String, dynamic> params) {
+  final steps = [
+    for (final s in params['plan'] as List? ?? const [])
+      if (s is Map && s['step'] is String)
+        '${switch (s['status']) {
+          'completed' => '✓',
+          'inProgress' => '▸',
+          _ => '○',
+        }} ${s['step']}',
+  ];
+  if (steps.isEmpty) return null;
+  final done = steps.where((s) => s.startsWith('✓')).length;
+  final why = _str(params['explanation'])?.trim() ?? '';
+  return OtherItemEvent.toJson(
+    provider: 'codex',
+    itemType: 'turnPlan',
+    summary: '$done de ${steps.length} passos',
+    toolUseId: 'plan-${params['turnId'] ?? ''}',
+    text: [if (why.isNotEmpty) '$why\n', ...steps].join('\n'),
+  );
+}
+
+/// `subtype` of the app event that marks the `turn/started` of the App
+/// Server (SPEC-110 R1, R6): it brings the turn's id even when nothing else
+/// of the turn was stored.
+const codexTurnStartedSubtype = 'turn_started';

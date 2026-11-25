@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/agent_event.dart' show NeutralLimits;
+import '../../../../core/providers/provider_availability.dart';
 import '../../../../ui/theme/tokens.dart';
 import '../../../../ui/widgets/diff_view.dart';
 import '../../../../ui/widgets/markdown/app_markdown.dart';
@@ -61,6 +63,27 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
 
   /// "Ver tudo" of a command's output (per step).
   final _fullOutput = <ReplayStep>{};
+
+  /// "Buscar a saída completa" (SPEC-110 R4), by `tool_use_id`: what came,
+  /// or why not. Nothing is stored.
+  final _fetched = <String, String>{};
+  final _fetchFailed = <String, String>{};
+  final _fetching = <String>{};
+
+  Future<void> _fetch(ReplayStep s) async {
+    final id = s.tool!.id;
+    if (!_fetching.add(id)) return;
+    setState(() => _fetchFailed.remove(id));
+    try {
+      final text = await fetchReplayOutput(ref, widget.sessionId, s);
+      if (mounted) setState(() => _fetched[id] = text);
+    } catch (e) {
+      if (mounted) setState(() => _fetchFailed[id] = '$e');
+    } finally {
+      _fetching.remove(id);
+      if (mounted) setState(() {});
+    }
+  }
 
   @override
   void initState() {
@@ -138,8 +161,8 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
   Widget _title(ReplayStep s) {
     final t = s.tool;
     final path = s.filePath;
-    final what = t == null ? s.kind.label : t.name;
-    final target = path == null
+    final what = s.verb;
+    final target = path == null || s.reads.isNotEmpty
         ? (t == null ? '' : s.target)
         : relativePath(path, widget.root);
     return Text.rich(
@@ -168,6 +191,14 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
                 fontSize: 12,
                 color: AppColors.textMuted,
               ),
+            ),
+          // SPEC-110 R1: what happened to the file; where the read came
+          // from.
+          if (s.changeLabel ?? s.via case final String extra
+              when extra.isNotEmpty)
+            TextSpan(
+              text: '  · $extra',
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
         ],
       ),
@@ -262,9 +293,14 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
       case ReplayKind.web:
       case ReplayKind.plan:
       case ReplayKind.other:
+        if (t!.other case final o? when (o.text ?? '').isNotEmpty) {
+          return _scroll([
+            AppMarkdown(key: const ValueKey('replay-text'), data: o.text!),
+          ]);
+        }
         return _scroll([
           _Label('Entrada'),
-          _Mono(const JsonEncoder.withIndent('  ').convert(t!.input)),
+          _Mono(const JsonEncoder.withIndent('  ').convert(t.input)),
           const SizedBox(height: 12),
           _Label('Resultado'),
           _Mono(t.result ?? 'sem resposta', error: t.isError),
@@ -299,6 +335,8 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
   Widget _readBody(ReplayStep s, ToolItem t) {
     final input = t.input;
     final result = t.result;
+    // SPEC-110 R1: the command that read, and its output.
+    if (t.commandEvent != null) return _runBody(s, t);
     if (t.name == 'Read') {
       final offset = input['offset'];
       final limit = input['limit'];
@@ -348,7 +386,8 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
 
   Widget _runBody(ReplayStep s, ToolItem t) {
     final desc = t.input['description'];
-    final out = (t.result ?? '').trimRight();
+    final fetched = _fetched[t.id];
+    final out = (fetched ?? t.result ?? '').trimRight();
     final lines = out.isEmpty ? const <String>[] : out.split('\n');
     final full = _fullOutput.contains(s);
     final shown = full || lines.length <= 200
@@ -368,6 +407,26 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
         ),
       _Mono('\$ ${t.input['command'] ?? ''}'),
       const SizedBox(height: 8),
+      // SPEC-110 R1: what the command read (the only thing it does, or
+      // along with the rest).
+      if (s.reads.isNotEmpty) ...[
+        _Label(s.kind == ReplayKind.read ? 'Lido pelo comando' : 'Também leu'),
+        for (final (i, r) in s.reads.indexed)
+          Padding(
+            key: ValueKey('replay-command-read-$i'),
+            padding: const EdgeInsets.only(bottom: 2),
+            child: _Mono(
+              [
+                if (r.isFile)
+                  [relativePath(r.path, widget.root), ?r.range].join(' ')
+                else
+                  r.label(widget.root),
+                if (r.via.isNotEmpty) r.via,
+              ].join(' · '),
+            ),
+          ),
+        const SizedBox(height: 8),
+      ],
       Container(
         key: const ValueKey('replay-run-output'),
         padding: const EdgeInsets.all(10),
@@ -408,6 +467,7 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
                 ),
               ),
       ),
+      ..._fetchMore(s, t),
       if (lines.length > 200)
         Align(
           alignment: Alignment.centerLeft,
@@ -426,6 +486,73 @@ class _ReplayStepPanelState extends ConsumerState<ReplayStepPanel> {
           ),
         ),
     ]);
+  }
+
+  /// R4: the stored output is cut or was not stored at all.
+  List<Widget> _fetchMore(ReplayStep s, ToolItem t) {
+    if (_fetched.containsKey(t.id)) {
+      return const [
+        Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text(
+            'Saída completa buscada no Codex (não fica guardada).',
+            key: ValueKey('replay-output-fetched'),
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ),
+      ];
+    }
+    final c = t.commandEvent;
+    if (c == null || !replayOutputMissing(c)) return const [];
+    final reason = replayFetchBlock(
+      s,
+      ref.watch(providerAvailabilityProvider('codex')).value,
+    );
+    final busy = _fetching.contains(t.id);
+    final failed = _fetchFailed[t.id];
+    final button = SmallButton(
+      key: const ValueKey('replay-fetch-output'),
+      label: busy ? 'Buscando…' : 'Buscar a saída completa',
+      height: 28,
+      onTap: reason != null || busy ? null : () => _fetch(s),
+    );
+    return [
+      const SizedBox(height: 8),
+      if (c.outputCutLines > 0)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            '… ${NeutralLimits.cutLabel(c.outputCutLines, what: 'saída')}',
+            key: const ValueKey('replay-output-cut'),
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (reason == null)
+            button
+          else
+            Tooltip(message: reason, child: button),
+          Text(
+            reason ?? 'thread/items/list · sem chamar o modelo',
+            key: const ValueKey('replay-fetch-hint'),
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ],
+      ),
+      if (failed != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Não deu para buscar a saída: $failed',
+            key: const ValueKey('replay-fetch-failed'),
+            style: const TextStyle(fontSize: 12, color: AppColors.red),
+          ),
+        ),
+    ];
   }
 
   Widget _subagentBody(ReplayStep s, ToolItem t) {

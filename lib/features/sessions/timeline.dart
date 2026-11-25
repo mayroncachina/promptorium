@@ -161,6 +161,13 @@ sealed class TimelineItem {
 
   /// Non-null ⇒ produced inside a subagent (nested under its Task card).
   final String? parentToolUseId;
+
+  /// `seq` of the stored event that created it (top-level items only; null
+  /// = not stored yet).
+  int? seq;
+
+  /// The agent's turn it belongs to (Codex, SPEC-110 R1); null = unknown.
+  String? agentTurnId;
 }
 
 class UserItem extends TimelineItem {
@@ -474,6 +481,14 @@ class Timeline {
   /// Number of events applied (persisted or live).
   int applied = 0;
 
+  /// Provider named by the neutral and app events (null = Claude Code).
+  String? provider;
+
+  /// The agent's turn of the last event that brought one (SPEC-110 R1), and
+  /// the first item not looked at by [_noteTurn].
+  String? _turnId;
+  int _turnScan = 0;
+
   /// Context tokens of each top-level answer (SPEC-082 R6): `items` is the
   /// length of [items] once the answer was applied.
   final List<({int items, int tokens})> contextTokens = [];
@@ -486,7 +501,7 @@ class Timeline {
   }
 
   /// Applies one stored row (`session_events.json`).
-  void applyStored(String json, {DateTime? at}) {
+  void applyStored(String json, {DateTime? at, int? seq}) {
     final Object? decoded;
     try {
       decoded = jsonDecode(json);
@@ -495,18 +510,26 @@ class Timeline {
     }
     if (decoded is! Map<String, dynamic>) return;
     for (final e in ClaudeEvent.expand(decoded)) {
-      apply(e, at: at, stored: true);
+      apply(e, at: at, stored: true, seq: seq);
     }
   }
 
   /// Context window of this history (SPEC-087).
   final ContextTracker context = ContextTracker();
 
-  /// [stored] = rebuilt from a persisted row (not a live reading).
-  void apply(ClaudeEvent e, {DateTime? at, bool stored = false}) {
+  /// [stored] = rebuilt from a persisted row (not a live reading); [seq] =
+  /// its row in `session_events`.
+  void apply(ClaudeEvent e, {DateTime? at, bool stored = false, int? seq}) {
     applied++;
     final now = at ?? DateTime.now();
+    final before = items.length;
     _applyItems(e, now);
+    if (seq != null) {
+      for (var i = before; i < items.length; i++) {
+        items[i].seq ??= seq;
+      }
+    }
+    _noteTurn(e.json);
     context.apply(e, at: now, itemIndex: items.length, live: !stored);
   }
 
@@ -644,6 +667,31 @@ class Timeline {
       default:
         break;
     }
+  }
+
+  /// SPEC-110 R1: the events of a Codex turn bring its id. A message comes
+  /// before the `turn/started` it causes: the newest one without a turn
+  /// opened this one (an older one had its process die before the turn); a
+  /// message sent during the turn belongs to it.
+  void _noteTurn(Map<String, dynamic> json) {
+    final p = json['provider'];
+    if (p is String && p.isNotEmpty) provider = p;
+    final id = json['turn_id'];
+    if (id is! String || id.isEmpty) return;
+    final same = id == _turnId;
+    _turnId = id;
+    UserItem? last;
+    for (var i = _turnScan; i < items.length; i++) {
+      final item = items[i];
+      if (item is UserItem) {
+        if (same) item.agentTurnId ??= id;
+        last = item;
+      } else if (item is! NoticeItem) {
+        item.agentTurnId ??= id;
+      }
+    }
+    if (!same) last?.agentTurnId ??= id;
+    _turnScan = items.length;
   }
 
   /// The card of [id] (a neutral event), created at the end when new.

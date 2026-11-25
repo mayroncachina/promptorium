@@ -14,6 +14,7 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/codex/codex_rpc.dart' show CodexRpc;
 import '../../core/git/worktree_roots.dart';
 import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
 import '../../core/providers/provider_availability.dart';
@@ -866,6 +867,18 @@ class SessionManager extends Notifier<SessionManagerState> {
     final p = _procs[id]?.process;
     if (p == null) return false;
     return p is! CodexRun || p.supportsImages;
+  }
+
+  /// Connection of the live Codex process of [id] (SPEC-110): the only one
+  /// that may write its thread. Null without one (or on its way out).
+  CodexRpc? codexRpc(String id) {
+    final p = _procs[id];
+    final run = p?.process;
+    return p == null || p.stopping || p.released || run is! CodexRun
+        ? null
+        : run.isRunning
+        ? run.rpc
+        : null;
   }
 
   /// Restore point of the start of a turn (SPEC-084 R1–R4): a failure or

@@ -10,7 +10,12 @@ import '../../../core/git/diff_parser.dart';
 import '../../../core/git/git_service.dart';
 import '../../../core/text/line_diff.dart';
 import '../../../data/providers.dart';
+import '../../../core/claude/claude_event.dart' show CommandEvent;
+import '../../../core/providers/agent_provider.dart' show AgentUnavailable;
+import '../../../core/providers/provider_availability.dart';
+import '../codex_conversations.dart';
 import '../edit_diff.dart';
+import '../timeline.dart';
 import '../timeline_provider.dart';
 import 'file_at_step.dart';
 import 'replay_step.dart';
@@ -19,7 +24,11 @@ import 'replay_step.dart';
 final _stepsOf = Expando<List<ReplayStep>>('replay steps');
 
 List<ReplayStep> replayStepsOf(TimelineSnapshot snap, String? root) =>
-    _stepsOf[snap] ??= replaySteps(snap.items, root: root);
+    _stepsOf[snap] ??= replaySteps(
+      snap.items,
+      root: root,
+      agent: snap.timeline.provider == 'codex' ? 'Codex' : 'Claude',
+    );
 
 /// Reads Claude Code transcripts (R10); replaced in tests.
 final transcriptReaderProvider = Provider<TranscriptReader>(
@@ -72,6 +81,40 @@ final replayOriginalsProvider =
       }
     });
 
+/// The restore points "Arquivo neste ponto" can start from (SPEC-110 R2),
+/// oldest first: the ones that know the message of their turn. A point
+/// recorded in the middle of a turn (a message that steered it) is not the
+/// start of one: the files were already half changed.
+Future<List<RestoreBase>> replayPoints(Ref ref, String sessionId) async {
+  final rows = await ref
+      .read(restorePointsRepoProvider)
+      .list(sessionId: sessionId);
+  final out = [
+    for (final p in rows.reversed)
+      if (p.eventSeq != null)
+        RestoreBase(
+          turn: p.turn,
+          seq: p.eventSeq!,
+          sha: p.startSha,
+          at: p.startedAt,
+        ),
+  ];
+  if (out.isEmpty) return out;
+  final steering = <int>{};
+  String? turn;
+  for (final i in ref.read(sessionTimelineProvider(sessionId)).items) {
+    if (i is! UserItem) continue;
+    if (i.agentTurnId != null && i.agentTurnId == turn && i.seq != null) {
+      steering.add(i.seq!);
+    }
+    turn = i.agentTurnId;
+  }
+  return [
+    for (final p in out)
+      if (!steering.contains(p.seq)) p,
+  ];
+}
+
 FileBaseResolver _resolver(Ref ref, ReplaySource src) {
   final git = ref.read(gitServiceFactoryProvider)(src.root);
   final base = src.session.baseBranch;
@@ -97,11 +140,49 @@ FileBaseResolver _resolver(Ref ref, ReplaySource src) {
             }
           },
     root: src.root,
+    points: () => replayPoints(ref, src.session.id),
     readFile: (path) async {
       final f = File(path);
       return await f.exists() ? await f.readAsString() : null;
     },
   );
+}
+
+/// The output of a command was cut, or kept apart by the agent (SPEC-110
+/// R4).
+bool replayOutputMissing(CommandEvent c) =>
+    c.provider == 'codex' &&
+    c.done &&
+    (c.outputCutLines > 0 || c.output == null);
+
+/// Why the whole output of [s] cannot be fetched (null = it can).
+String? replayFetchBlock(ReplayStep s, ProviderAvailability? codex) {
+  if (s.agentTurnId == null) {
+    return 'O turno deste comando não foi identificado.';
+  }
+  if (codex == null) return 'Verificando o Codex…';
+  if (codex.status == ProviderStatus.missing) {
+    return 'O Codex não está instalado.';
+  }
+  return codex.available ? null : codex.message;
+}
+
+/// "Buscar a saída completa" (SPEC-110 R4): one read by RPC, when asked.
+Future<String> fetchReplayOutput(
+  WidgetRef ref,
+  String sessionId,
+  ReplayStep step,
+) async {
+  final turnId = step.agentTurnId;
+  final tool = step.tool;
+  if (turnId == null || tool == null) {
+    throw const AgentUnavailable('O turno deste comando não foi identificado.');
+  }
+  final s = await ref.read(sessionsRepoProvider).getById(sessionId);
+  if (s == null) throw const AgentUnavailable('Sessão não encontrada.');
+  return ref
+      .read(codexConversationsProvider)
+      .itemOutput(s, turnId: turnId, itemId: tool.id);
 }
 
 /// The file of an edit step right after it (R7). Key: session id and the

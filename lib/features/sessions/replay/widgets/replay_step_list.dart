@@ -294,7 +294,8 @@ class _StepRow extends StatelessWidget {
     final s = step;
     final problem = s.isProblem;
     final label = replayStepLabel(s);
-    final name = s.toolName;
+    final name = s.tool == null ? null : s.verb;
+    final via = s.via ?? '';
     return Semantics(
       button: true,
       selected: selected,
@@ -351,6 +352,14 @@ class _StepRow extends StatelessWidget {
                                 : AppColors.textSecondary,
                           ),
                         ),
+                        if (via.isNotEmpty)
+                          TextSpan(
+                            text: ' · $via',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                       ] else
                         TextSpan(
                           text: label,
