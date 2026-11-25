@@ -8,6 +8,14 @@ Abertas pela engrenagem do pé da barra lateral. Têm busca ("Buscar configuraç
 
 Modelo (Sonnet, Opus, Haiku, Fable ou padrão do CLI) e esforço padrão para Sessões, Conversas do Prompt e Planner, e a compactação automática (`--autocompact`) para todas as execuções. Uma nova sessão começa com esses valores; um agente com `model` ou `effort` próprios usa os dele.
 
+O cartão **Provedor por tipo** aparece nas duas abas: "Seguir o rodapé" (padrão), Claude Code ou Codex, para "Planner e assistentes" e "Executar spec". O provedor do revisor automático vem da configuração do projeto.
+
+A aba **Codex** traz também:
+
+- **Modelo e esforço do Codex** por tipo de execução, com a lista lida do Codex instalado.
+- **Compactação automática do Codex**, separada da do Claude Code.
+- As capacidades do Codex.
+
 ### Execução de specs
 
 - **Etapas numa sessão só**: specs com até N requisitos rodam numa sessão (padrão 3).
@@ -32,9 +40,13 @@ Para desligar só numa execução, abra o app com `PROMPTORIUM_SEM_VIDRO=1`.
 
 Hooks gerenciados pelo app nas sessões: "Bloquear comandos perigosos", "Formatar ao editar" e "Registrar fim da sessão". Precisam de `python3`.
 
+Valem no Claude Code e no Codex, e nada é escrito em `~/.claude` nem em `~/.codex`. Quando o Codex não aceita os hooks do app, o substituto roda ao fim do turno e o bloqueio vai para o pedido de aprovação; no YOLO sem hooks, o bloqueio fica indisponível, com aviso antes de começar.
+
 ### Provedores
 
-Agentes ACP, um por linha, no formato `nome = comando` (por exemplo, `Gemini CLI = gemini --experimental-acp`). O Codex está desligado.
+- **Codex**: versão instalada, login, sandbox e os fluxos em que ele roda, com "Abrir terminal" e "Verificar de novo". **Desligar o Codex** é um interruptor de emergência que o esconde em todos os fluxos.
+- **Modelos equivalentes**: o modelo e o esforço do Codex usados para cada alias de agente (`opus`, `sonnet`, `haiku`…).
+- **Agentes ACP**, um por linha, no formato `nome = comando` (por exemplo, `Gemini CLI = gemini --experimental-acp`).
 
 ### Banco e backups
 
