@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Atalho em Ferramentas</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="tools" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Agentes</button><button class="tab">Skills</button><button class="tab">MCP</button><button class="tab on">Instruções</button></div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center">
+<div class="card" style="width:520px;padding:22px 24px;gap:12px"><span class="h">As instruções agora ficam no Projeto</span><span class="muted">Veja e edite o AGENTS.md e o CLAUDE.md, confira quem lê cada um e melhore o texto com IA.</span><div class="row"><span class="chip amber mono">AGENTS.md</span><span class="chip teal">Claude Code</span><span class="chip teal">Codex</span><button class="btn pri end">Abrir Projeto › Instruções</button></div></div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

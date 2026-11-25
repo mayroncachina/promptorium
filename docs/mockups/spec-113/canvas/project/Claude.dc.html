@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>CLAUDE.md só importa</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="body" style="grid-template-columns:230px 1fr 310px">
+<aside class="col br">
+<div class="sect">Arquivos</div>
+<button class="item"><span><span class="mono">AGENTS.md</span><br><span class="muted sm">raiz · 3,1 KB</span></span><span class="chip amber end">fonte</span></button>
+<button class="item on"><span><span class="mono">CLAUDE.md</span><br><span class="muted sm">raiz · 0,2 KB</span></span><span class="chip lilac end">importa</span></button>
+<div class="sect" style="margin-top:8px">Subpastas · só leitura</div>
+<button class="item"><span><span class="mono" style="font-size:12px">packages/api/AGENTS.md</span><br><span class="muted sm">1,2 KB</span></span></button>
+<div class="muted sm" style="margin-top:auto">Escreva uma vez no AGENTS.md. O CLAUDE.md só o importa.</div>
+</aside>
+<section class="col">
+<div class="row"><span class="h mono">CLAUDE.md</span><span class="chip">salvo</span><span class="end row"><button class="btn s">Texto</button><button class="btn s">Prévia</button><button class="btn s">Abrir no editor</button></span></div>
+<pre class="ed" style="flex:none"><span class="ln imp">@AGENTS.md</span></pre>
+<div class="row"><span class="muted sm">Linha do import. O Claude Code lê aqui o AGENTS.md inteiro.</span><button class="btn s end">Abrir o AGENTS.md</button></div>
+<div class="row" style="margin-top:10px"><span class="sect">Só para o Claude Code</span><span class="chip">opcional</span></div>
+<pre class="ed" style="flex:1"><b>## Só para o Claude Code</b>
+
+- Use o subagente `tester` depois de mudar `packages/api`.
+- Em mudança de banco, comece no modo plan.</pre>
+<div class="row"><span class="muted sm">O Codex não lê este trecho.</span><span class="end row"><button class="btn">Descartar</button><button class="btn pri">Salvar</button></span></div>
+</section>
+<aside class="col bl">
+<div class="warn"><b>Regra repetida?</b><br>Uma regra que vale para os dois agentes fica no AGENTS.md.<div class="row" style="margin-top:8px"><button class="btn s">Mover seleção para o AGENTS.md</button></div></div>
+<div class="sect" style="margin-top:4px">O que cada um recebe</div>
+<div class="card"><div class="row"><span class="chip claude">Claude Code</span><span class="muted sm end">3,3 KB</span></div><span class="sm"><span class="mono">AGENTS.md</span> + trecho só do Claude</span></div>
+<div class="card"><div class="row"><span class="chip codex">Codex</span><span class="muted sm end">3,1 KB</span></div><span class="sm"><span class="mono">AGENTS.md</span></span></div>
+<div class="sect" style="margin-top:4px">Se o import for apagado</div>
+<div class="card"><span class="sm muted">O app avisa que o Claude Code deixou de ler o AGENTS.md e oferece recolocar a linha.</span><button class="btn s" style="align-self:flex-start">Recolocar o import</button></div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
