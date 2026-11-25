@@ -175,6 +175,10 @@ abstract final class AppSettingKeys {
   /// Where the spec's current step was diverted to, JSON (R5, R14).
   static String specDivert(int specId) => 'spec.$specId.divert';
 
+  /// Permission mode chosen in Executar for a run in Automático, whatever
+  /// the provider of each step (R10).
+  static String specAutoMode(int specId) => 'spec.$specId.autoMode';
+
   /// Why the spec waits for quota, JSON (R8).
   static String specQuotaWait(int specId) => 'spec.$specId.quotaWait';
 

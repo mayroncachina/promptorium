@@ -19,6 +19,7 @@ import 'features/sessions/codex_workspace_release.dart';
 import 'features/activities/quota_forecast.dart';
 import 'features/cost/quota_ruler.dart';
 import 'features/board/autopilot.dart';
+import 'features/board/spec_runner.dart';
 import 'features/home/tray_radar.dart';
 import 'features/notifications/agent_alerts.dart';
 import 'features/repository/graph/commit_model_badge.dart';
@@ -122,6 +123,8 @@ Future<void> main() async {
     container.read(sessionManagerProvider.notifier).closeIdle();
     // Scheduled autopilots (F17).
     container.read(autopilotProvider.notifier).scheduleTick();
+    // "Retomar quando renovar" (SPEC-109 R8).
+    container.read(specRunnerProvider).resumeDue();
   });
   // PRs under "Acompanhar PR" (F16).
   Timer.periodic(
