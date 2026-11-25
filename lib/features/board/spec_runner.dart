@@ -27,6 +27,10 @@ import '../project/spec_auto_planner.dart';
 import '../project/project_config.dart';
 import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
+import '../debts/debt_files.dart';
+import '../debts/debt_reminder.dart';
+import '../debts/debt_table.dart';
+import '../debts/piggyback.dart';
 import '../review/ci_fixer.dart' show ciFixerProvider;
 import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
@@ -325,6 +329,7 @@ String specStepPrompt({
   String? previousAttemptHeading,
   String? context,
   String? memory,
+  String? debtReminder,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
   final now = [
@@ -422,6 +427,12 @@ String specStepPrompt({
         '${ProjectMemory.filePath}):',
       )
       ..writeln(memory.trim());
+  }
+  // SPEC-112 R17: the open debts of the files the spec cites.
+  if (debtReminder != null && debtReminder.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(debtReminder.trim());
   }
   _writePrototypes(b, specText, specTodo);
   final focused = focusedSpecText(
@@ -937,6 +948,7 @@ class SpecRunner {
           : config.worktree.basePort! + spec.worktreeIndex!,
     );
     if (spec.preparedAt == null) await _prepare(spec, ws, wt.path, config, env);
+    final debtReminder = await _debtReminder(ws.path, text, config);
     await _markStart(spec, wt.path, todo);
     // "Plano anterior" lasts until the spec starts (SPEC-037 R13).
     _ref.read(specAutoPlannerProvider.notifier).clearFailure(specId);
@@ -1053,6 +1065,7 @@ class SpecRunner {
         previousAttemptHeading: previousAttemptHeading,
         context: context,
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+        debtReminder: debtReminder,
       ),
       agent: runAgent,
       model: runModel,
@@ -1090,6 +1103,58 @@ class SpecRunner {
     );
     await record();
     return id;
+  }
+
+  /// SPEC-112 R17: the reminder line of the open debts of the files the
+  /// spec cites (null when `debitos.lembrar_na_execucao` is off). A file that
+  /// cannot be read leaves the prompt as before.
+  Future<String?> _debtReminder(
+    String root,
+    String specText,
+    ProjectConfig config,
+  ) async {
+    if (!config.debts.remindOnRun) return null;
+    try {
+      final doc = await DebtFiles.read(
+        root,
+        config.debts.debtsPath,
+        DebtKind.debt,
+      );
+      return debtReminderFor(
+        specText: specText,
+        open: doc.debts,
+        config: config.debts,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  /// SPEC-112 R17: "paguei o DT-05" in the answer of a step marks
+  /// "pago de carona?" on the open debt; the person confirms.
+  Future<void> _piggyback(Session s, int specId, String? answer) async {
+    if (answer == null ||
+        !answer.contains(RegExp('DT-', caseSensitive: false))) {
+      return;
+    }
+    try {
+      final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      if (ws == null) return;
+      final cfg = ProjectConfig.loadSync(ws.path).debts;
+      final doc = await DebtFiles.read(ws.path, cfg.debtsPath, DebtKind.debt);
+      await markPiggybacks(
+        _ref.read(debtLinksRepoProvider),
+        repoRoot: ws.path,
+        specId: specId,
+        answer: answer,
+        open: {
+          for (final d in doc.debts)
+            if (!d.paid) d.code,
+        },
+      );
+    } on Object catch (e) {
+      debugPrint('pago de carona: $e');
+    }
   }
 
   /// SPEC-101 R6: once per run, the timeline says that the spec's agent
@@ -1941,6 +2006,7 @@ class SpecRunner {
             steps: s.steps,
           );
     }
+    await _piggyback(s, specId, r.result);
     if (parseLearning(r.isSuccess ? r.result : null) case final l?) {
       final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
       if (ws != null) {
