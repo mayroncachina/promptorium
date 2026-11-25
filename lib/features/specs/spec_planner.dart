@@ -6,13 +6,11 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart' show ImagePart;
-import '../../core/claude/readonly_run.dart'
-    show PlannerException, runReadOnlyClaude, structuredOutput;
-import '../../core/providers/claude_code_provider.dart';
+import '../../core/providers/structured_run.dart';
 import '../../data/providers.dart';
+import '../debts/debt_interview.dart';
 import '../issues/issue_refine.dart';
 import '../project/project_plan.dart' show PlanQuestion;
 import '../project/project_planner.dart' show ProjectPlanner;
@@ -329,10 +327,47 @@ class SpecPlanner extends Notifier<Set<int>> {
     if (msg.isEmpty || state.contains(ws.id)) return;
     _busy(ws.id, true);
     try {
+      await _suggestDebts(ws, msg);
       await _change(ws.id, (d) => d.withUserMessage(msg));
       await _turn(ws);
     } finally {
       _busy(ws.id, false);
+    }
+  }
+
+  /// SPEC-112 R7, P2: an answer to the planner's questions that asks for a
+  /// debt or a decision ("5 - deixa simulado e cria um débito") becomes a
+  /// suggestion tied to the draft; nothing is written in a file.
+  Future<void> _suggestDebts(Workspace ws, String msg) async {
+    try {
+      final row = await ref.read(specDraftsRepoProvider).get(ws.id);
+      if (row == null) return;
+      final data = SpecDraftData.decode(row.data);
+      final i = data.messages.lastIndexWhere((m) => !m.fromUser);
+      var questions = i < 0
+          ? const <PlanQuestion>[]
+          : data.messages[i].questions;
+      if (questions.isEmpty) {
+        questions = [
+          for (final q in data.openQuestions)
+            PlanQuestion(text: q.text, options: const []),
+        ];
+      }
+      await ref
+          .read(debtInterviewProvider)
+          .suggestFromDraftReply(ws, questions, msg);
+    } catch (e) {
+      debugPrint('Sugestão de débito do rascunho: $e');
+    }
+  }
+
+  /// SPEC-112 P2: the spec of the draft got its number; the items of the
+  /// draft are written with it.
+  Future<void> _settleDebts(Workspace ws, Spec spec) async {
+    try {
+      await ref.read(debtInterviewProvider).settleDraft(ws, spec);
+    } catch (e) {
+      debugPrint('Débitos do rascunho na ${spec.code}: $e');
     }
   }
 
@@ -364,35 +399,43 @@ class SpecPlanner extends Notifier<Set<int>> {
       final resume = row.plannerSessionId;
       final sid = resume ?? ref.read(sessionIdGeneratorProvider)();
       // R6: the images go once; a resumed session already has them.
-      final withPrints = data.prints.isNotEmpty && !data.printsSent;
+      // SPEC-100 R6: "Enviar sem os prints" holds for this turn.
+      final drop =
+          ref
+              .read(structuredRunsProvider.notifier)
+              .peekOnce(specPlannerSlot(ws.id))
+              ?.dropImages ??
+          false;
+      final withPrints = data.prints.isNotEmpty && !data.printsSent && !drop;
       final images = withPrints
           ? await printImages(data.prints)
           : const <ImagePart>[];
-      final r = await runReadOnlyClaude(
+      final r = await runStructured(
         ref,
-        workspaceId: ws.id,
-        cwd: ws.path,
-        options: ClaudeOptions(
+        StructuredIntent(
+          workspaceId: ws.id,
+          cwd: ws.path,
           sessionId: resume == null ? sid : null,
           resumeId: resume,
-          permissionMode: ClaudePermissionMode.defaultMode,
-          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-          appendSystemPrompt: specPlannerSystemPrompt,
-          jsonSchema: jsonEncode(specPlannerSchema),
-          maxBudgetUsd: ProjectPlanner.budgetUsd,
-          includePartialMessages: false,
+          instructions: specPlannerSystemPrompt,
+          schema: specPlannerSchema,
+          claude: const ClaudeStructuredExtras(
+            maxBudgetUsd: ProjectPlanner.budgetUsd,
+          ),
+          slot: specPlannerSlot(ws.id),
+          label: 'a Nova spec',
+          prompt: specPlannerPrompt(
+            pending.join('\n\n'),
+            specs: specs,
+            first: resume == null,
+            fixedTitle: data.titleEdited ? data.title : null,
+            prints: withPrints ? data.prints : const [],
+          ),
+          images: images,
         ),
-        prompt: specPlannerPrompt(
-          pending.join('\n\n'),
-          specs: specs,
-          first: resume == null,
-          fixedTitle: data.titleEdited ? data.title : null,
-          prints: withPrints ? data.prints : const [],
-        ),
-        images: images,
       );
-      await repo.addCost(ws.id, r.totalCostUsd);
-      final out = parseSpecPlannerResult(r);
+      await repo.addCost(ws.id, r.costUsd ?? 0);
+      final out = parseSpecPlannerResult(r.raw);
       await _change(ws.id, (d) {
         final next = d.withAnswer(
           reply: out.reply,
@@ -402,7 +445,7 @@ class SpecPlanner extends Notifier<Set<int>> {
           knownSpecs: {for (final s in specs) s.code},
           printNotes: out.prints,
         );
-        return withPrints ? next.withPrintsSent() : next;
+        return withPrints || drop ? next.withPrintsSent() : next;
       }, sessionId: sid);
     } catch (e) {
       debugPrint('Planner da nova spec: $e');
@@ -438,6 +481,7 @@ class SpecPlanner extends Notifier<Set<int>> {
         ),
       ).withIssue(target.issue);
       final spec = await ref.read(specServiceProvider).save(ws, linked, text);
+      await _settleDebts(ws, spec);
       await repo.delete(ws.id);
       await deletePrintFiles(data.prints);
       ref.read(issueRefineProvider.notifier).clear(ws.id);
@@ -459,6 +503,7 @@ class SpecPlanner extends Notifier<Set<int>> {
               ? null
               : (code) => copyPrintsToMockups(ws.path, code, data.prints),
         );
+    await _settleDebts(ws, spec);
     await repo.delete(ws.id);
     await deletePrintFiles(data.prints);
     return spec;
@@ -470,11 +515,20 @@ class SpecPlanner extends Notifier<Set<int>> {
     final repo = ref.read(specDraftsRepoProvider);
     final row = await repo.get(ws.id);
     await repo.delete(ws.id);
+    // SPEC-112 P2: the suggestions of the draft go with it.
+    try {
+      await ref.read(debtInterviewProvider).discardDraft(ws);
+    } catch (e) {
+      debugPrint('Débitos do rascunho descartado: $e');
+    }
     if (row != null) {
       await deletePrintFiles(SpecDraftData.decode(row.data).prints);
     }
   }
 }
+
+/// Slot of the Nova spec's provider line (SPEC-100 R10).
+String specPlannerSlot(int workspaceId) => 'new-spec:$workspaceId';
 
 final specPlannerProvider = NotifierProvider<SpecPlanner, Set<int>>(
   SpecPlanner.new,

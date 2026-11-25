@@ -1,5 +1,13 @@
+import 'dart:io';
+
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/repos/debt_links_repo.dart';
+import '../../features/debts/debt_board.dart' show specLabel;
+import '../../features/debts/debt_files.dart';
+import '../../features/debts/debt_service.dart';
+import '../../features/debts/debt_table.dart';
 import '../../features/issues/issue_progress.dart';
 import '../../data/providers.dart';
 import '../../features/board/board_rules.dart' show stepsOf;
@@ -23,6 +31,16 @@ abstract final class AppMcpToolNames {
   static const createSpec = 'criar_spec';
   static const createChildren = 'criar_filhas';
   static const note = 'anotar_andamento';
+  static const registerDebt = 'registrar_debito';
+  static const listDebts = 'listar_debitos';
+}
+
+/// Keys the MCP adds to the body of a debt suggestion (SPEC-112 R11), next
+/// to the cells of [DebtDraft.toJson]: who suggested it (the label of the
+/// strip, "Codex · MCP") and the title of the session.
+abstract final class DebtSuggestionKeys {
+  static const provider = 'provedor';
+  static const sessionTitle = 'sessao_titulo';
 }
 
 /// Most children of one `criar_filhas` call (R4, P5).
@@ -105,6 +123,79 @@ const appMcpCatalog = <McpToolDef>[
     inputSchema: {
       'type': 'object',
       'properties': {},
+      'additionalProperties': false,
+    },
+  ),
+  McpToolDef(
+    name: AppMcpToolNames.listDebts,
+    summary: 'Débitos técnicos abertos e decisões pendentes, com ID e onde',
+    description:
+        'Lista os débitos técnicos abertos (DT-nn) e as decisões pendentes '
+        '(DP-nn) do projeto, com ID, título e onde estão no código, lidos de '
+        'DEBITO_TECNICO.md e DECISOES_PENDENTES.md (os da worktree da spec '
+        'desta execução vêm marcados "na spec"). Use antes de registrar_debito '
+        'para não repetir um que já existe, ou quando a pessoa perguntar o '
+        'que ficou provisório ou por decidir.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+      'additionalProperties': false,
+    },
+  ),
+  // Not a write (SPEC-112 R11): it only leaves a suggestion; the file is
+  // written by the app when the person accepts it in Débitos e decisões.
+  // So it is free in every mode and reaches the Codex too.
+  McpToolDef(
+    name: AppMcpToolNames.registerDebt,
+    summary: 'Sugere um débito ou decisão; você aceita na tela Débitos',
+    description:
+        'Sugere um débito técnico ou uma decisão pendente para o projeto. Use '
+        'quando a pessoa pedir para deixar algo simulado, provisório ou '
+        'incompleto e registrar como débito técnico (tipo "debito"), ou para '
+        'deixar uma decisão para depois (tipo "decisao", com a pergunta no '
+        'título e a sua recomendação). Também quando você mesmo deixar algo '
+        'simulado de propósito. Não grava nada no repositório: a sugestão '
+        'aparece para a pessoa na tela Débitos e decisões e só vira DT-nn / '
+        'DP-nn quando ela aceitar. Não escreva o débito à mão no '
+        'DEBITO_TECNICO.md nem no DECISOES_PENDENTES.md.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {
+        'tipo': {
+          'type': 'string',
+          'enum': ['debito', 'decisao'],
+          'description':
+              'debito: algo deixado simulado/provisório. decisao: uma '
+              'pergunta para a pessoa decidir depois.',
+        },
+        'titulo': {
+          'type': 'string',
+          'description':
+              'Débito: o que ficou provisório, curto (ex.: "Pagamento '
+              'simulado"). Decisão: a pergunta.',
+        },
+        'motivo': {
+          'type': 'string',
+          'description':
+              'Débito: o porquê ou o comportamento atual (ex.: "PIX e cartão '
+              'não chamam o gateway").',
+        },
+        'onde': {
+          'type': 'string',
+          'description':
+              'Arquivos ou símbolos do código, ex.: "PagarView.vue · '
+              'pagamentos_servico".',
+        },
+        'para_resolver': {
+          'type': 'string',
+          'description': 'Débito: o que falta fazer para pagar o débito.',
+        },
+        'recomendacao': {
+          'type': 'string',
+          'description': 'Decisão: a opção que você recomenda e por quê.',
+        },
+      },
+      'required': ['tipo', 'titulo'],
       'additionalProperties': false,
     },
   ),
@@ -287,6 +378,8 @@ class AppMcpTools implements McpToolbox {
       AppMcpToolNames.createSpec => _createSpec(ws, grant, args),
       AppMcpToolNames.createChildren => _createChildren(ws, grant, args),
       AppMcpToolNames.note => _note(ws, grant, args),
+      AppMcpToolNames.registerDebt => _registerDebt(ws, grant, args),
+      AppMcpToolNames.listDebts => _listDebts(ws, grant),
       _ => Future.value(
         McpToolOutcome.error('A ferramenta $tool ainda não responde.'),
       ),
@@ -705,6 +798,148 @@ class AppMcpTools implements McpToolbox {
         'nota': note.id,
         if (published != null) 'issue': issue,
         if (published != null) 'publicada': published.published,
+      },
+    );
+  }
+
+  // --- debts and decisions (SPEC-112 R11) ------------------------------------
+
+  /// The session row of the run (null in a conversation of the Prompt).
+  Future<Session?> _session(McpGrant grant) async =>
+      grant.conversationId != null
+      ? null
+      : await _ref.read(sessionsRepoProvider).getById(grant.sessionId);
+
+  /// The spec the session of the run works on, in [ws].
+  Future<Spec?> _specOf(Workspace ws, Session? session) async {
+    final id = session?.specId;
+    if (id == null) return null;
+    final spec = await _ref.read(specsRepoProvider).getById(id);
+    return spec == null || spec.workspaceId != ws.id ? null : spec;
+  }
+
+  /// `claude` / `codex`: the provider of the session or conversation.
+  Future<String> _provider(McpGrant grant, Session? session) async {
+    if (session != null) return session.provider;
+    final id = grant.conversationId;
+    if (id == null) return 'claude';
+    final c = await _ref.read(conversationsRepoProvider).getById(id);
+    return c?.provider ?? 'claude';
+  }
+
+  /// `registrar_debito`: a pending suggestion only (R11). Nothing goes to
+  /// the file: the app writes it when the person accepts.
+  Future<McpToolOutcome> _registerDebt(
+    Workspace ws,
+    McpGrant grant,
+    Map<String, Object?> args,
+  ) async {
+    final type = '${args['tipo'] ?? ''}'.trim();
+    if (type != DebtKind.debt.dbName && type != DebtKind.decision.dbName) {
+      return const McpToolOutcome.error(
+        'tipo deve ser "debito" ou "decisao". Nada foi registrado.',
+      );
+    }
+    final draft = DebtDraft.fromJson(args);
+    if (draft.title.isEmpty) {
+      return const McpToolOutcome.error(
+        'O título está vazio. Nada foi registrado.',
+      );
+    }
+    final session = await _session(grant);
+    final spec = await _specOf(ws, session);
+    final provider = await _provider(grant, session);
+    final id = await _ref
+        .read(debtServiceProvider)
+        .suggest(
+          ws.path,
+          draft,
+          source: DebtSuggestionSource.mcp,
+          extra: {
+            DebtSuggestionKeys.provider: provider,
+            if (session != null)
+              DebtSuggestionKeys.sessionTitle: sessionTitle(session),
+          },
+          link: DebtLinksCompanion(
+            originSessionId: Value(session?.id),
+            originSpecId: Value(spec?.id),
+          ),
+        );
+    final what = draft.kind == DebtKind.debt ? 'débito' : 'decisão pendente';
+    return McpToolOutcome(
+      'Sugestão de $what registrada: "${draft.title}". Ela espera a pessoa '
+      'aceitar na tela Débitos e decisões; só então o app grava a linha e dá '
+      'o código (${draft.kind.prefix}-nn). Não escreva no arquivo à mão.',
+      data: {
+        'sugestao': id,
+        'tipo': draft.kind.dbName,
+        'estado': DebtSuggestionState.pending,
+      },
+    );
+  }
+
+  /// `listar_debitos`: open debts and pending decisions of the main branch
+  /// and, when the run works on a spec with a worktree, of that worktree
+  /// too ("na spec").
+  Future<McpToolOutcome> _listDebts(Workspace ws, McpGrant grant) async {
+    final main = await DebtSnapshot.load(ws.path);
+    final spec = await _specOf(ws, await _session(grant));
+    final wt = spec?.worktreePath;
+    final DebtSnapshot? side =
+        wt != null && wt != ws.path && Directory(wt).existsSync()
+        ? await DebtSnapshot.load(wt)
+        : null;
+    final inSpec = spec == null ? null : specLabel(spec);
+    final debts = <Map<String, Object?>>[
+      for (final d in main.openDebts)
+        {'id': d.code, 'titulo': d.title, 'onde': d.where},
+      if (side != null)
+        for (final d in side.openDebts)
+          if (!main.debts.debts.any((m) => m.code == d.code))
+            {
+              'id': d.code,
+              'titulo': d.title,
+              'onde': d.where,
+              'na_spec': inSpec,
+            },
+    ];
+    final decisions = <Map<String, Object?>>[
+      for (final d in main.pendingDecisions)
+        {'id': d.code, 'titulo': d.title, 'origem': d.origin},
+      if (side != null)
+        for (final d in side.pendingDecisions)
+          if (!main.decisions.decisions.any((m) => m.code == d.code))
+            {
+              'id': d.code,
+              'titulo': d.title,
+              'origem': d.origin,
+              'na_spec': inSpec,
+            },
+    ];
+    final pending = [
+      for (final l in await _ref.read(debtLinksRepoProvider).forRepo(ws.path))
+        if (l.suggestionState == DebtSuggestionState.pending)
+          '${DebtLinksRepo.suggestionOf(l)['titulo'] ?? ''}',
+    ];
+    String line(Map<String, Object?> m, String key) =>
+        '- ${m['id']} · ${m['titulo']}'
+        '${'${m[key] ?? ''}'.isEmpty ? '' : ' · ${m[key]}'}'
+        '${m['na_spec'] == null ? '' : ' (na ${m['na_spec']})'}';
+    final text = [
+      'Débitos abertos (${debts.length})'
+          '${debts.isEmpty ? '' : ':\n${debts.map((d) => line(d, 'onde')).join('\n')}'}',
+      'Decisões pendentes (${decisions.length})'
+          '${decisions.isEmpty ? '' : ':\n${decisions.map((d) => line(d, 'origem')).join('\n')}'}',
+      if (pending.isNotEmpty)
+        'Sugestões esperando a pessoa aceitar (${pending.length}):\n'
+            '${pending.map((p) => '- $p').join('\n')}',
+    ].join('\n\n');
+    return McpToolOutcome(
+      text,
+      data: {
+        'debitos': debts,
+        'decisoes': decisions,
+        'sugestoes_pendentes': pending,
       },
     );
   }

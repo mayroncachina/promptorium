@@ -255,6 +255,7 @@ Future<List<McpLogEntry>> loadMcpLog(
   required int workspaceId,
   required String serverKey,
   int limit = 12,
+  String? provider,
 }) async {
   final repo = ref.read(sessionsRepoProvider);
   final prefix = 'mcp__${serverKey}__';
@@ -266,6 +267,8 @@ Future<List<McpLogEntry>> loadMcpLog(
       >{};
   final asked = <String>{};
   for (final (ev, s) in rows) {
+    // SPEC-105 R10: the Codex tab reads only the Codex sessions.
+    if (provider != null && s.provider != provider) continue;
     final Map<String, dynamic> json;
     try {
       json = jsonDecode(ev.json) as Map<String, dynamic>;
@@ -345,6 +348,23 @@ final mcpLogProvider = FutureProvider.autoDispose
         ),
       );
       return loadMcpLog(ref, workspaceId: key.$1, serverKey: key.$2);
+    });
+
+/// Recent calls of a server in the Codex sessions of a workspace
+/// (`mcpToolCall` items, stored as `mcp__srv__tool` uses; SPEC-105 R10).
+final codexMcpLogProvider = FutureProvider.autoDispose
+    .family<List<McpLogEntry>, (int, String)>((ref, key) {
+      ref.watch(
+        sessionManagerProvider.select(
+          (s) => (s.live.length, s.approvals.length),
+        ),
+      );
+      return loadMcpLog(
+        ref,
+        workspaceId: key.$1,
+        serverKey: key.$2,
+        provider: 'codex',
+      );
     });
 
 /// Rules of one server key. A future (not a drift stream) so nothing stays

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/codex/codex_probe.dart' show CodexModelInfo;
 import '../../../core/providers/agent_registry.dart';
+import '../../../core/providers/provider_preferences.dart';
+import '../../../core/providers/provider_availability.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
@@ -77,6 +83,9 @@ class PromptComposer extends ConsumerStatefulWidget {
     this.onToggleCompare,
     this.onCompareSend,
     this.sendLabel,
+    this.canSteer = false,
+    this.stopLabel = 'Parar',
+    this.effort,
   });
 
   final TextEditingController controller;
@@ -129,6 +138,16 @@ class PromptComposer extends ConsumerStatefulWidget {
   /// Label of Enviar when free ("Enviar os dois").
   final String? sendLabel;
 
+  /// A message during the turn directs it (Codex `turn/steer`, SPEC-096
+  /// R7): Enviar stays on while busy.
+  final bool canSteer;
+
+  /// "Parar" / "Interromper" (the Codex turn is interrupted, R7).
+  final String stopLabel;
+
+  /// Effort shown next to the model ("gpt-6.2-sol · medium", R4).
+  final String? effort;
+
   @override
   ConsumerState<PromptComposer> createState() => _PromptComposerState();
 }
@@ -171,6 +190,21 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
     }
     if (t == null && _trigger == null) return;
     setState(() => _trigger = t);
+  }
+
+  /// Models of the composer: the Codex catalog read from `model/list`
+  /// (SPEC-094 R8) — never the Claude aliases.
+  List<String> _models() {
+    if (widget.provider.id != ProviderCapabilities.codex.providerId) {
+      return widget.provider.models;
+    }
+    final cache = codexModelsCache(ref.watch(appSettingsProvider));
+    return [
+      'inherit',
+      for (final m in cache?.models ?? const <CodexModelInfo>[]) m.id,
+      if (widget.model != 'inherit' && !(cache?.has(widget.model) ?? false))
+        widget.model,
+    ];
   }
 
   List<String> _files() {
@@ -239,7 +273,9 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
 
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
-        if (!widget.busy && widget.blockedReason == null) widget.onSend();
+        if ((!widget.busy || widget.canSteer) && widget.blockedReason == null) {
+          widget.onSend();
+        }
       },
       if (widget.onCompareSend case final compare?)
         const SingleActivator(
@@ -350,10 +386,12 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           color: AppColors.text,
                         ),
                         decoration: InputDecoration.collapsed(
-                          hintText:
-                              widget.hintText ??
-                              'Pergunte qualquer coisa…  @ anexa arquivo  '
-                                  '/ usa um prompt salvo',
+                          hintText: widget.busy && widget.canSteer
+                              ? 'Mensagem com o turno rodando vai como '
+                                    'direcionamento (turn/steer)…'
+                              : widget.hintText ??
+                                    'Pergunte qualquer coisa…  @ anexa arquivo  '
+                                        '/ usa um prompt salvo',
                           hintStyle: const TextStyle(
                             fontSize: 14,
                             color: AppColors.textMuted,
@@ -407,8 +445,10 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                                 )
                               else ...[
                                 _ModelButton(
-                                  models: widget.provider.models,
+                                  models: _models(),
                                   model: widget.model,
+                                  effort: widget.effort,
+                                  raw: !isClaudeCode(widget.provider.id),
                                   onSelected: widget.onModel,
                                 ),
                                 _ModeSwitch(
@@ -451,7 +491,7 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                         if (widget.busy) ...[
                           SmallButton(
                             key: const ValueKey('prompt-stop'),
-                            label: 'Parar',
+                            label: widget.stopLabel,
                             color: AppColors.red,
                             border: SessionColors.stopBorder,
                             height: 32,
@@ -463,14 +503,18 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           message: widget.blockedReason ?? '',
                           child: AmberButton(
                             key: const ValueKey('prompt-send'),
-                            label: widget.busy
+                            label: widget.busy && widget.canSteer
+                                ? 'Direcionar'
+                                : widget.busy
                                 ? 'Respondendo…'
                                 : widget.sendLabel ??
                                       (widget.blockedReason != null
                                           ? 'Verificando…'
                                           : 'Enviar'),
                             height: 32,
-                            onTap: widget.busy || widget.blockedReason != null
+                            onTap:
+                                (widget.busy && !widget.canSteer) ||
+                                    widget.blockedReason != null
                                 ? null
                                 : widget.onSend,
                           ),
@@ -771,6 +815,18 @@ class _ProviderButton extends StatelessWidget {
     return Consumer(
       builder: (context, ref, _) {
         final all = ref.watch(agentProvidersProvider);
+        final flows = ref.watch(providerFlowsProvider);
+        // R11: a provider not released for the Prompt stays listed, locked.
+        // SPEC-096 R10a: the Codex without the sandbox stays listed, locked.
+        bool noSandbox(AgentProvider p) =>
+            p.id == ProviderCapabilities.codex.providerId &&
+            ref
+                    .watch(providerAvailabilityProvider(p.id))
+                    .value
+                    ?.sandboxWarning !=
+                null;
+        bool usable(AgentProvider p) =>
+            p.enabled && flows.allows(p.id, AppFlow.prompt) && !noSandbox(p);
         return PopupMenuButton<String>(
           key: const ValueKey('prompt-provider'),
           tooltip: 'Provedor',
@@ -782,27 +838,38 @@ class _ProviderButton extends StatelessWidget {
               PopupMenuItem<String>(
                 key: ValueKey('provider-${p.id}'),
                 value: p.id,
-                enabled: p.enabled,
+                enabled: usable(p),
                 height: 36,
                 child: Row(
                   children: [
-                    Dot(p.enabled ? AppColors.amber : AppColors.textMuted),
+                    if (hasProviderIdentity(p.id))
+                      ProviderLogo(p.id, size: 14)
+                    else
+                      Dot(usable(p) ? AppColors.amber : AppColors.textMuted),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         p.displayName,
                         style: TextStyle(
                           fontSize: 12,
-                          color: p.enabled
+                          color: usable(p)
                               ? AppColors.text
                               : AppColors.textSecondary,
                         ),
                       ),
                     ),
                     Text(
-                      p.id == active.id
+                      flows.isOff(p.id)
+                          ? providerOffLabel
+                          : p.id == active.id
                           ? 'ativo'
-                          : (p.enabled ? '' : 'em breve'),
+                          : !p.enabled
+                          ? 'em breve'
+                          : usable(p)
+                          ? ''
+                          : noSandbox(p)
+                          ? 'Sandbox do Codex indisponível'
+                          : 'Só Claude Code por enquanto',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -823,7 +890,10 @@ class _ProviderButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppIcon(active.icon, size: 14, color: AppColors.amber),
+                if (hasProviderIdentity(active.id))
+                  ProviderLogo(active.id, size: 14)
+                else
+                  AppIcon(active.icon, size: 14, color: AppColors.amber),
                 const SizedBox(width: 6),
                 Text(
                   active.displayName,
@@ -845,11 +915,20 @@ class _ModelButton extends StatelessWidget {
     required this.models,
     required this.model,
     required this.onSelected,
+    this.effort,
+    this.raw = false,
   });
 
   final List<String> models;
   final String model;
   final ValueChanged<String> onSelected;
+  final String? effort;
+
+  /// Codex ids are shown as they are ("gpt-6.2-sol", not "Gpt-6.2-sol").
+  final bool raw;
+
+  String _label(String m) =>
+      raw && m != 'inherit' && m.isNotEmpty ? m : modelLabel(m);
 
   @override
   Widget build(BuildContext context) {
@@ -864,7 +943,7 @@ class _ModelButton extends StatelessWidget {
           PopupMenuItem(
             value: m,
             height: 34,
-            child: Text(modelLabel(m), style: const TextStyle(fontSize: 12)),
+            child: Text(_label(m), style: const TextStyle(fontSize: 12)),
           ),
       ],
       child: Container(
@@ -878,7 +957,10 @@ class _ModelButton extends StatelessWidget {
         child: Center(
           widthFactor: 1,
           child: Text(
-            modelLabel(model),
+            effort == null || effort == 'default'
+                ? _label(model)
+                : '${_label(model)} · $effort',
+            key: const ValueKey('prompt-model-label'),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,

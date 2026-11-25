@@ -65,6 +65,17 @@ class SpecCostRanking extends ConsumerWidget {
         period: filter.period,
       )),
     );
+    // SPEC-097 R9: the specs with only tokens go apart, never as the
+    // cheapest.
+    final tokenOnly =
+        ref.watch(
+          specTokenOnlyRankingProvider((
+            workspaceId: workspace.id,
+            all: filter.all,
+            period: filter.period,
+          )),
+        ) ??
+        const <SpecCostRank>[];
     final dollars = ref.watch(costInDollarsProvider);
     final rows = list ?? const <SpecCostRank>[];
     final top = rows.isEmpty ? 0.0 : rankWeight(rows.first.cost);
@@ -179,7 +190,7 @@ class SpecCostRanking extends ConsumerWidget {
           const SizedBox(height: 12),
           if (list == null)
             const Text('Calculando…', style: TextStyle(fontSize: 12))
-          else if (rows.isEmpty)
+          else if (rows.isEmpty && tokenOnly.isEmpty)
             const Text(
               'Nenhum turno de spec no período.',
               key: ValueKey('spec-cost-ranking-empty'),
@@ -197,7 +208,8 @@ class SpecCostRanking extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _RankRow.header(dollars: dollars, all: filter.all),
+                    if (rows.isNotEmpty)
+                      _RankRow.header(dollars: dollars, all: filter.all),
                     for (final (i, r) in rows.indexed)
                       _RankRow(
                         key: ValueKey('spec-cost-rank-${r.spec.code}'),
@@ -208,6 +220,38 @@ class SpecCostRanking extends ConsumerWidget {
                         all: filter.all,
                         onOpen: () => openSpecCostInBoard(ref, r.spec),
                       ),
+                    if (tokenOnly.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Semantics(
+                        header: true,
+                        child: const Text(
+                          'SÓ COM TOKENS (CODEX)',
+                          key: ValueKey('spec-cost-token-only'),
+                          style: TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'Fora do ranking por custo: o Codex informa tokens, '
+                        'não US\$. Não são "as mais baratas".',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      for (final r in tokenOnly)
+                        _TokenOnlyRow(
+                          key: ValueKey('spec-cost-token-${r.spec.code}'),
+                          rank: r,
+                          all: filter.all,
+                          onOpen: () => openSpecCostInBoard(ref, r.spec),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -295,6 +339,8 @@ class _RankRow extends StatelessWidget {
         spokenFiveHour(c.fiveHour),
       ],
       spokenTokens(c.tokens),
+      if (c.hasUnpriced)
+        'mais ${spokenTokens(c.unpricedTokens)} do Codex, sem US\$',
       'mais pesou: $bestText',
     ].join(', ');
     return Semantics(
@@ -383,10 +429,19 @@ class _RankRow extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // SPEC-097 R9: "+" = and tokens of the Codex (no US\$).
                   if (dollars)
-                    _num(formatUsd(c.costUsd), 80, _mono)
+                    _num(
+                      '${formatUsd(c.costUsd)}${c.hasUnpriced ? ' +' : ''}',
+                      80,
+                      _mono,
+                    )
                   else ...[
-                    _num(formatQuota(c.week), 64, _mono),
+                    _num(
+                      '${formatQuota(c.week)}${c.hasUnpriced ? ' +' : ''}',
+                      64,
+                      _mono,
+                    ),
                     _num(formatFiveHour(c.fiveHour, short: true), 72, _mono),
                   ],
                   _num(formatTokens(c.tokens), 60, _mono),
@@ -400,6 +455,82 @@ class _RankRow extends StatelessWidget {
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A spec with only tokens (SPEC-097 R9): the code, the title and the
+/// tokens, with "custo indisponível".
+class _TokenOnlyRow extends StatelessWidget {
+  const _TokenOnlyRow({
+    super.key,
+    required this.rank,
+    required this.all,
+    required this.onOpen,
+  });
+
+  final SpecCostRank rank;
+  final bool all;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rank;
+    final tokens = r.cost.total.tokens;
+    return Semantics(
+      button: true,
+      label: [
+        r.spec.code,
+        r.spec.title,
+        if (all) r.workspace.name,
+        costUnavailable,
+        '${spokenTokens(tokens)} do Codex',
+      ].join(', '),
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onOpen,
+            borderRadius: BorderRadius.circular(6),
+            focusColor: AppColors.amberTint,
+            hoverColor: AppColors.surfaceRaised,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                spacing: 8,
+                children: [
+                  Text(
+                    r.spec.code,
+                    style: _mono.copyWith(color: AppColors.textSecondary),
+                  ),
+                  Expanded(
+                    child: Text(
+                      all
+                          ? '${r.spec.title} · ${r.workspace.name}'
+                          : r.spec.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const Text(
+                    costUnavailable,
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      formatTokenWords(tokens),
+                      textAlign: TextAlign.right,
+                      style: _mono,
                     ),
                   ),
                 ],

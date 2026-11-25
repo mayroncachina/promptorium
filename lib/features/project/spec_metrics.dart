@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/capabilities.dart';
 import '../../data/providers.dart';
 import '../board/board_rules.dart';
 import '../board/spec_runner.dart' show parseSessionSteps;
@@ -18,11 +19,21 @@ class SpecMetrics {
     required this.reviewerRounds,
     required this.humanRounds,
     required this.rejectedHunks,
-  });
+    int? pricedSessions,
+  }) : pricedSessions = pricedSessions ?? sessions;
+
+  /// Some session of the spec has a cost in US\$.
+  bool get hasCost => pricedSessions > 0;
 
   final Spec spec;
+
+  /// Cost in US\$ of the sessions of providers that report it; the Codex
+  /// ones are out (SPEC-097 R9, SPEC-101 R16), never a \$0.
   final double cost;
   final int sessions;
+
+  /// Sessions with a cost in US\$ (0 = the cost of the spec is unknown).
+  final int pricedSessions;
 
   /// Time of the sessions of each step (a session doing R1–R3 counts for
   /// each of them).
@@ -55,6 +66,12 @@ List<SpecMetrics> computeSpecMetrics({
           for (final s in sessions)
             if (s.specId == spec.id) s,
         ];
+        final priced = [
+          for (final s in mine)
+            if (capabilitiesFor(s.provider)
+                .supports(ProviderCapability.costUsd))
+              s,
+        ];
         final stepTime = <String, Duration>{};
         for (final s in mine) {
           final d = (s.endedAt ?? at).difference(s.startedAt);
@@ -68,8 +85,9 @@ List<SpecMetrics> computeSpecMetrics({
         };
         return SpecMetrics(
           spec: spec,
-          cost: mine.fold(0.0, (a, s) => a + s.costUsd),
+          cost: priced.fold(0.0, (a, s) => a + s.costUsd),
           sessions: mine.length,
+          pricedSessions: priced.length,
           stepTime: stepTime,
           gateResends: spec.gateResends,
           reviewerRounds: rounds('revisor').length,

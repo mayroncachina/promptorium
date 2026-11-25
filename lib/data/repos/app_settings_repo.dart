@@ -44,6 +44,13 @@ abstract final class AppSettingKeys {
   /// right after a restart (see `RateLimitController`).
   static const lastRateLimit = 'usage.rateLimit';
 
+  /// When and how [lastRateLimit] was read (JSON `at`, `via`; SPEC-097 R6).
+  static const lastRateLimitRead = 'usage.rateLimitRead';
+
+  /// Last Codex quota reading (`account/rateLimits/read` merged with the
+  /// updates; JSON of `QuotaSnapshot`, SPEC-097 R3).
+  static const codexLastRateLimit = 'codex.lastRateLimit';
+
   /// Divisions of the ruler of each window (rise of the use ÷ cost of the
   /// turns between two readings; JSON list, the last 20; SPEC-081 R3).
   static const quotaRulerFiveHour = 'quota.ruler.five_hour';
@@ -90,6 +97,10 @@ abstract final class AppSettingKeys {
 
   /// `--autocompact` of every run (`auto` or `100k`–`1M`).
   static const autocompact = 'claude.autocompact';
+
+  /// `model_auto_compact_token_limit` of every Codex run (`auto` = the
+  /// agent's default, or `100k`–`1M`; SPEC-107 P1): separate from Claude's.
+  static const codexAutocompact = 'codex.autocompact';
 
   /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
   static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';

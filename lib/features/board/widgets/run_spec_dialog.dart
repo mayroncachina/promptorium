@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../ui/providers/provider_logos.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +9,8 @@ import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/spec_steps_repo.dart';
-import '../../../core/providers/agent_registry.dart' show codexEnabledProvider;
+import '../../../core/providers/agent_registry.dart';
+import '../../../ui/widgets/only_provider_tag.dart';
 import '../../../core/providers/permission_policy.dart';
 import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/provider_preferences.dart';
@@ -16,8 +19,11 @@ import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../project/spec_auto_planner.dart';
 import '../../project/project_config.dart';
+import '../../review/widgets/reviewer_run_line.dart';
 import '../../review/auto_reviewer.dart' show reviewerApplies;
 import '../../settings/settings_sections.dart';
+import '../../agents/codex_agent.dart';
+import '../../agents/widgets/codex_agent_panel.dart' show CodexAgentSummary;
 import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/composer.dart' show uiPermissionModes;
@@ -31,7 +37,12 @@ import '../orchestrator/orchestrator_rules.dart';
 import '../orchestrator/step_classifier.dart';
 import '../orchestrator/step_plan.dart';
 import '../orchestrator/step_plan_list.dart';
+import '../../../core/codex/codex_probe.dart' show codexSandboxFixCommand;
+import '../../../core/providers/structured_run.dart'
+    show ProviderKind, providerForKind;
+import '../spec_run_provider.dart';
 import '../spec_runner.dart';
+import 'codex_subagents_dialog.dart';
 
 /// Options of a spec run chosen in [RunSpecDialog].
 ///
@@ -161,6 +172,32 @@ Future<void> runSpec(
     );
     if (o == null) return;
   }
+  // SPEC-106 R9: subagents do not run on the Codex — said before the run
+  // starts, with the choice for this run only (the provider of a begun run
+  // never changes, decision 4).
+  if (o != null &&
+      !isClaudeCode(o.provider) &&
+      recordedSpecProvider(ref.read(appSettingsProvider), data.spec.id) ==
+          null) {
+    final names = await specSubagentNames(ref, data.spec);
+    final agentLabel = names.isEmpty
+        ? null
+        : await codexAgentLabelFor(ref, data.spec, o);
+    if (!context.mounted) return;
+    if (names.isNotEmpty) {
+      final choice = await showAppDialog<CodexSubagentsChoice>(
+        context: context,
+        barrierColor: AppColors.scrim,
+        builder: (_) => CodexSubagentsDialog(
+          spec: data.spec,
+          subagents: names,
+          agentLabel: agentLabel,
+        ),
+      );
+      if (choice == null || !context.mounted) return;
+      if (choice == CodexSubagentsChoice.claude) o = claudeRunOptions(ref, o);
+    }
+  }
   try {
     if (o != null) {
       await storeRunPlan(ref.read(specStepsRepoProvider), data.spec.id, o);
@@ -214,6 +251,68 @@ Future<void> runSpec(
   }
 }
 
+/// Names of the subagents a run of [spec] would hand to the Claude Code:
+/// the spec's own plus the project's defaults (SPEC-106 R9).
+Future<List<String>> specSubagentNames(WidgetRef ref, Spec spec) async {
+  try {
+    final ws = await ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    if (ws == null) return const [];
+    final text = await ref.read(specServiceProvider).read(ws, spec);
+    final merged = mergeSubagents(
+      text == null ? const [] : SpecDocument.parse(text).subagents,
+      ProjectConfig.loadSync(ws.path).subagents,
+    );
+    return {for (final a in merged) a.agent}.toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// "flutter-dev · adaptado" of the run's agent on the Codex (null = none).
+Future<String?> codexAgentLabelFor(
+  WidgetRef ref,
+  Spec spec,
+  RunSpecOptions o,
+) async {
+  final name = o.agent;
+  if (name == null || name.isEmpty) return null;
+  try {
+    final ws = await ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    final agents = await ref.read(agentListProvider(ws?.path).future);
+    final file = agents.where((a) => a.name == name).firstOrNull?.file;
+    if (file == null) return name;
+    return codexAgentPlanFrom(
+      ref.read(appSettingsProvider),
+      file,
+      name: name,
+      access: AgentAccess.fromClaudeMode(o.mode) ?? AgentAccess.edit,
+      runModel: o.model,
+      runEffort: effortArg(o.effort),
+    ).label;
+  } catch (_) {
+    return name;
+  }
+}
+
+/// [o] moved to the Claude Code for this run ("Executar com o Claude
+/// Code", R9): the Claude defaults of model and effort, the same agent and
+/// mode.
+RunSpecOptions claudeRunOptions(WidgetRef ref, RunSpecOptions o) {
+  final prefs = ref.read(runPrefsProvider);
+  final settings = ref.read(appSettingsProvider);
+  const claude = 'claude';
+  return (
+    provider: claude,
+    agent: o.agent,
+    model: providerModelFrom(prefs, settings, claude, RunKind.session),
+    effort: providerEffortFrom(prefs, settings, claude, RunKind.session),
+    mode: o.mode,
+    auto: false,
+    plan: const <StepPlanEntry>[],
+    review: null,
+  );
+}
+
 /// Agent, model, effort and permission mode of the step sessions of a spec.
 /// In Automático (SPEC-035 R1), the plan of the Orquestrador takes the place
 /// of provider, model and effort.
@@ -228,34 +327,86 @@ class RunSpecDialog extends ConsumerStatefulWidget {
 }
 
 class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
+  late final Map<String, String> _settings = ref.read(appSettingsProvider);
+
+  /// SPEC-101 R1, R2: the run's provider (a spec already begun keeps it),
+  /// else the kind "Executar spec" > the footer > `claude`.
   late String _provider =
-      widget.previous?.provider ?? ref.read(activeAgentProvider);
+      widget.previous?.provider ??
+      specRunProviderFor(
+        _settings,
+        widget.spec.id,
+        workspaceId: widget.spec.workspaceId,
+        flows: ref.read(providerFlowsProvider),
+      );
   late final String _projectPath =
       ref.read(activeWorkspaceProvider)?.path ?? '';
   late String? _agent =
       widget.spec.agentName ?? ProjectConfig.loadSync(_projectPath).agent;
-  late String _model =
-      widget.previous?.model ??
-      (_provider == 'claude'
-          ? ref.read(runPrefsProvider).model(RunKind.session)
-          : 'inherit');
-  late String _effort =
-      widget.previous?.effort ??
-      (_provider == 'claude'
-          ? ref.read(runPrefsProvider).effort(RunKind.session)
-          : 'default');
-  late ClaudePermissionMode _mode = () {
-    final saved = ClaudePermissionMode.fromCli(
-      widget.previous?.permissionMode ??
-          ref
-              .read(appSettingsProvider.notifier)
-              .get(permissionModePreferenceKey(_provider)),
-    );
+  late String _model = _isCodex
+      ? codexRunModel(_settings, requested: widget.previous?.model)
+      : widget.previous?.model ??
+            providerModelFrom(
+              ref.read(runPrefsProvider),
+              _settings,
+              _provider,
+              RunKind.session,
+            );
+  late String _effort = _isCodex
+      ? codexRunEffort(_settings, _model, requested: widget.previous?.effort)
+      : widget.previous?.effort ??
+            providerEffortFrom(
+              ref.read(runPrefsProvider),
+              _settings,
+              _provider,
+              RunKind.session,
+            );
+  late ClaudePermissionMode _mode = _initialMode(
+    widget.previous?.permissionMode ??
+        ref
+            .read(appSettingsProvider.notifier)
+            .get(permissionModePreferenceKey(_provider)),
+  );
+  bool _fromAgent = false;
+
+  /// Not the Claude Code: the Codex rules of SPEC-101 (R3–R6).
+  bool get _isCodex => !isClaudeCode(_provider);
+
+  /// The OS sandbox of the Codex works on this machine (decision 15).
+  bool get _codexSandbox =>
+      ref.read(providerAvailabilityProvider(_provider)).value?.sandboxWarning ==
+      null;
+
+  ClaudePermissionMode _initialMode(String? stored) {
+    final saved = ClaudePermissionMode.fromCli(stored);
+    if (_isCodex) return codexRunMode(saved, sandbox: _codexSandbox);
     return saved != null && uiPermissionModes.contains(saved)
         ? saved
         : ClaudePermissionMode.defaultMode;
-  }();
-  bool _fromAgent = false;
+  }
+
+  void _setProvider(String v) {
+    _provider = v;
+    final prefs = ref.read(runPrefsProvider);
+    if (_isCodex) {
+      _model = codexRunModel(_settings);
+      _effort = codexRunEffort(_settings, _model);
+      // SPEC-106 R8: the spec's agent goes, translated.
+      _agent =
+          widget.spec.agentName ?? ProjectConfig.loadSync(_projectPath).agent;
+    } else {
+      _model = providerModelFrom(prefs, _settings, v, RunKind.session);
+      _effort = providerEffortFrom(prefs, _settings, v, RunKind.session);
+      _agent =
+          widget.spec.agentName ?? ProjectConfig.loadSync(_projectPath).agent;
+      _fromAgent = false;
+    }
+    _mode = _initialMode(
+      ref
+          .read(appSettingsProvider.notifier)
+          .get(permissionModePreferenceKey(v)),
+    );
+  }
 
   /// Automático / Manual (R1): Manual unless "Abrir Executar em Automático".
   late bool _auto = ref.read(orchestratorPrefsProvider).autoByDefault;
@@ -264,6 +415,10 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
   late final bool _reviewOn = reviewerApplies(
     ProjectConfig.loadSync(_projectPath),
   );
+
+  /// `revisor:` of the project: the line Revisão (SPEC-102 R3).
+  late final ReviewerConfig _reviewer = ProjectConfig.loadSync(_projectPath)
+      .reviewer;
 
   /// What the person chose in the lines of the plan, by step id
   /// ([StepPlanList.reviewStep] for the reviewer). A new classification
@@ -299,10 +454,13 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     _agent = name;
     final a = agents.where((x) => x.name == name).firstOrNull;
     final prefs = ref.read(runPrefsProvider);
-    _model = a?.model != null ? 'inherit' : prefs.model(RunKind.session);
-    _effort = ClaudeOptions.effortLevels.contains(a?.effort)
-        ? a!.effort!
-        : prefs.effort(RunKind.session);
+    // SPEC-106: on the Codex the table translates model and effort.
+    if (!_isCodex) {
+      _model = a?.model != null ? 'inherit' : prefs.model(RunKind.session);
+      _effort = ClaudeOptions.effortLevels.contains(a?.effort)
+          ? a!.effort!
+          : prefs.effort(RunKind.session);
+    }
     final mode = ClaudePermissionMode.fromCli(a?.permissionMode);
     if (mode != null &&
         mode != ClaudePermissionMode.skipPermissions &&
@@ -370,7 +528,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     final ws = ref.watch(activeWorkspaceProvider);
     final agents =
         ref.watch(agentListProvider(ws?.path)).value ?? const <AgentRef>[];
-    if (!_fromAgent && _agent != null && agents.isNotEmpty) {
+    if (!_isCodex && !_fromAgent && _agent != null && agents.isNotEmpty) {
       _fromAgent = true;
       _pick(_agent, agents);
     }
@@ -380,16 +538,18 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     final (:checking, :blocked) = _claudeStatus();
     // With Automático chosen, the dialog stays in it while the CLI is
     // checked (no Manual in between) and only falls back to Manual when the
-    // Claude Code is not available (R15).
-    final auto = _auto && blocked == null;
+    // Claude Code is not available (R15). SPEC-101 R5: with the Codex the
+    // steps run in Manual.
+    final auto = _auto && blocked == null && !_isCodex;
 
     Widget field<T>(
       String label,
       String key,
       T value,
       List<(T, String)> items,
-      ValueChanged<T> onChanged,
-    ) => Padding(
+      ValueChanged<T> onChanged, {
+      Widget? Function(T)? leading,
+    }) => Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -428,7 +588,17 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                 for (final (v, l) in items)
                   DropdownMenuItem(
                     value: v,
-                    child: Text(l, overflow: TextOverflow.ellipsis),
+                    child: Row(
+                      children: [
+                        if (leading?.call(v) case final w?) ...[
+                          w,
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(l, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => onChanged(v as T)),
@@ -438,13 +608,34 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       ),
     );
 
+    // SPEC-101 R4: Editar and YOLO (the spec has its worktree); without
+    // the OS sandbox only YOLO (decision 15).
+    final codexStatus = _isCodex
+        ? ref.watch(providerAvailabilityProvider(_provider)).value
+        : null;
+    final noSandbox = codexStatus?.sandboxWarning != null;
+    // SPEC-101 R1: the Codex runs when available and compatible (SPEC-094).
+    final codexUnavailable = codexStatus != null && !codexStatus.available;
+    // The sandbox check answers after the dialog opened: a mode that cannot
+    // run here becomes the one that can.
+    if (_isCodex && !codexRunModes(sandbox: !noSandbox).contains(_mode)) {
+      _mode = codexRunMode(_mode, sandbox: !noSandbox);
+    }
     Widget modeField(String provider) => field<ClaudePermissionMode>(
       'Modo de permissão',
       'run-spec-mode',
       _mode,
       [
-        for (final m in uiPermissionModes)
-          (m, permissionModeOption(m, provider: provider)),
+        for (final m
+            in isClaudeCode(provider)
+                ? uiPermissionModes
+                : codexRunModes(sandbox: !noSandbox))
+          (
+            m,
+            isClaudeCode(provider)
+                ? permissionModeOption(m, provider: provider)
+                : codexRunModeLabel(m),
+          ),
       ],
       (v) => _mode = v,
     );
@@ -460,67 +651,225 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           )
         : const SizedBox.shrink();
 
+    final caps = capabilitiesFor(_provider);
+    final settingsNow = ref.watch(appSettingsProvider);
+    final codexModels = codexCatalogModels(settingsNow);
+    final kindProvider = providerForKind(
+      settingsNow,
+      ProviderKind.runSpec,
+      workspaceId: widget.spec.workspaceId,
+      flows: ref.watch(providerFlowsProvider),
+    );
+    // R12: not released for "Executar spec" = does not start, says why.
+    final flowLocked =
+        widget.previous == null &&
+        !ref.watch(providerFlowsProvider).allows(_provider, AppFlow.runSpec);
     final manualFields = <Widget>[
       if (widget.previous != null)
-        Text('Provedor: ${_provider == 'codex' ? 'Codex' : 'Claude Code'}'),
+        Text(
+          'Provedor: ${caps.displayName}',
+          key: const ValueKey('run-spec-provider-fixed'),
+        ),
       if (widget.previous == null)
         field<String>(
           'Provedor',
           'run-spec-provider',
           _provider,
+          // R11: a provider not released here shows up with the tag.
           [
             ('claude', 'Claude Code'),
-            if (ref.watch(codexEnabledProvider) || _provider == 'codex')
-              ('codex', 'Codex'),
+            (
+              'codex',
+              ref.watch(providerFlowsProvider).allows('codex', AppFlow.runSpec)
+                  ? 'Codex'
+                  : flowLockedLabel('Codex'),
+            ),
           ],
-          (v) {
-            _provider = v;
-            _model = 'inherit';
-            _effort = 'default';
-            _agent = null;
-            _mode = ClaudePermissionMode.defaultMode;
-          },
+          _setProvider,
+          leading: (v) => hasProviderIdentity(v) ? ProviderLogo(v) : null,
         ),
-      field<String?>('Agente (--agent)', 'run-spec-agent', _agent, [
-        (null, 'nenhum'),
-        for (final a in agents)
-          (a.name, a.project ? '${a.name} · projeto' : a.name),
-        if (_agent != null && !agents.any((a) => a.name == _agent))
-          (_agent, _agent!),
-      ], (v) => _pick(v, agents)),
+      if (flowLocked)
+        Padding(
+          key: const ValueKey('run-spec-flow-locked'),
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ref
+                      .watch(providerFlowsProvider)
+                      .refusal(_provider, caps.displayName, AppFlow.runSpec),
+                  style: const TextStyle(fontSize: 12, color: AppColors.amber),
+                ),
+              ),
+              SmallButton(
+                key: const ValueKey('run-spec-use-claude'),
+                label: 'Usar Claude Code',
+                onTap: () => setState(() => _setProvider('claude')),
+              ),
+            ],
+          ),
+        ),
+      if (caps.supports(ProviderCapability.agentFiles)) ...[
+        field<String?>(
+          _isCodex ? 'Agente' : 'Agente (--agent)',
+          'run-spec-agent',
+          _agent,
+          [
+            (null, 'nenhum'),
+            for (final a in agents)
+              (a.name, a.project ? '${a.name} · projeto' : a.name),
+            if (_agent != null && !agents.any((a) => a.name == _agent))
+              (_agent, _agent!),
+          ],
+          (v) => _pick(v, agents),
+        ),
+        // SPEC-106 R8: the same translation as the session's.
+        if (_isCodex)
+          if (agents.where((a) => a.name == _agent).firstOrNull?.file
+              case final file?)
+            CodexAgentSummary(
+              codexAgentPlanFrom(
+                settingsNow,
+                file,
+                name: _agent!,
+                access: AgentAccess.fromClaudeMode(_mode) ?? AgentAccess.edit,
+                runModel: _model,
+                runEffort: effortArg(_effort),
+                sandboxAvailable: !noSandbox,
+              ),
+            ),
+      ] else
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            children: [
+              const Text(
+                'Agente',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              // SPEC-101 R6: the spec's agent, shown disabled.
+              if (widget.spec.agentName ??
+                      ProjectConfig.loadSync(_projectPath).agent
+                  case final a? when a.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  a,
+                  key: const ValueKey('run-spec-agent-disabled'),
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                    color: AppColors.textDisabled,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
+              Flexible(
+                child: OnlyProviderTag(
+                  key: const ValueKey('run-spec-agent-only'),
+                  provider: 'Claude Code',
+                  reason: caps.reasonFor(ProviderCapability.agentFiles),
+                ),
+              ),
+            ],
+          ),
+        ),
       Row(
         children: [
           Expanded(
-            child: field<String>('Modelo', 'run-spec-model', _model, [
-              for (final m in {
-                ...(_provider == 'codex' ? const ['inherit'] : sessionModels),
-                _model,
-              })
-                (m, m == 'inherit' ? 'inherit (padrão)' : m),
-            ], (v) => _model = v),
+            child: _isCodex
+                // SPEC-101 R3: the Codex catalog, never a Claude alias.
+                ? field<String>(
+                    'Modelo · catálogo do Codex',
+                    'run-spec-model',
+                    _model,
+                    [
+                      for (final m in {...codexModels, _model})
+                        (m, m == 'inherit' ? 'padrão do Codex' : m),
+                    ],
+                    (v) {
+                      _model = v;
+                      _effort = codexRunEffort(
+                        settingsNow,
+                        v,
+                        requested: _effort,
+                      );
+                    },
+                  )
+                : field<String>('Modelo', 'run-spec-model', _model, [
+                    for (final m in {...sessionModels, _model})
+                      (m, m == 'inherit' ? 'inherit (padrão)' : m),
+                  ], (v) => _model = v),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: field<String>('Esforço', 'run-spec-effort', _effort, [
-              for (final e in {...effortChoices, _effort}) (e, effortLabel(e)),
+              for (final e in {
+                ...(_isCodex
+                    ? codexModelEfforts(settingsNow, _model)
+                    : effortChoices),
+                _effort,
+              })
+                (e, effortLabel(e)),
             ], (v) => _effort = v),
           ),
         ],
       ),
       modeField(_provider),
       bypass(_provider),
+      if (codexUnavailable)
+        Padding(
+          key: const ValueKey('run-spec-codex-unavailable'),
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            '${caps.displayName} ${codexStatus.label}. ${codexStatus.message}',
+            style: const TextStyle(fontSize: 11, color: AppColors.amber),
+          ),
+        ),
+      if (noSandbox)
+        Padding(
+          key: const ValueKey('run-spec-no-sandbox'),
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Sandbox do Codex indisponível nesta máquina: só o YOLO roda, '
+            'no worktree da spec, e o app commita no fim do turno. Para '
+            'liberar: $codexSandboxFixCommand',
+            style: const TextStyle(fontSize: 11, color: AppColors.amber),
+          ),
+        ),
+      // SPEC-101 R2: the provider stays until Review.
+      if (_isCodex && !flowLocked)
+        _Notice(
+          key: const ValueKey('run-spec-fixed-provider'),
+          text: fixedProviderNotice(caps.displayName),
+        ),
+      // P4: begun on one provider, the kind now on another.
+      if (widget.previous != null && kindProvider != _provider)
+        _Notice(
+          key: const ValueKey('run-spec-running-on'),
+          text: runningOnNotice(caps.displayName),
+        ),
+      // SPEC-102 R3: who will review it.
+      if (_reviewOn)
+        ReviewerRunLine(
+          config: _reviewer,
+          executedBy: widget.previous?.provider ?? _provider,
+        ),
     ];
 
-    void submitManual() => Navigator.of(context).pop((
-      provider: _provider,
-      agent: _agent ?? '',
-      model: _model,
-      effort: _effort,
-      mode: _mode,
-      auto: false,
-      plan: const <StepPlanEntry>[],
-      review: null,
-    ));
+    void submitManual() => flowLocked || codexUnavailable
+        ? null
+        : Navigator.of(context).pop((
+            provider: _provider,
+            // SPEC-106 R8: the agent goes to the Codex too, translated.
+            agent: _agent ?? '',
+            model: _model,
+            effort: _effort,
+            mode: _mode,
+            auto: false,
+            plan: const <StepPlanEntry>[],
+            review: null,
+          ));
 
     // --- Automático ----------------------------------------------------------
     final orchestrator = ref.watch(orchestratorPrefsProvider);
@@ -669,10 +1018,15 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           ),
           StepClassifierStatus.ready => StepPlanList(
             entries: plan,
-            review: review,
+            // SPEC-102 R3: an explicit `provedor:` beats the plan's rule.
+            review: _reviewer.explicitProvider ? null : review,
             onPick: (step, rule) => setState(() => _picks[step] = rule),
           ),
         },
+        if (status == StepClassifierStatus.ready &&
+            _reviewOn &&
+            _reviewer.explicitProvider)
+          ReviewerRunLine(config: _reviewer, executedBy: 'claude', auto: true),
         modeField('claude'),
         bypass('claude'),
         if (status == StepClassifierStatus.ready && plan.isNotEmpty)
@@ -757,7 +1111,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: SizedBox(
-          width: auto ? 640 : 480,
+          width: auto ? 640 : (_isCodex ? 560 : 480),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -776,6 +1130,10 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                   auto
                       ? '$steps etapas no worktree da spec: cada etapa roda '
                             'com o modelo do plano, no Claude Code.'
+                      : _isCodex
+                      ? '$steps etapas no worktree da spec, no '
+                            '${caps.displayName}: etapas vizinhas seguem na '
+                            'mesma sessão enquanto o contexto deixar.'
                       : single
                       ? '$steps etapas: roda inteira numa sessão, no worktree '
                             'da spec.'
@@ -792,9 +1150,23 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                   children: [
                     _RunModeSwitch(
                       auto: auto,
-                      autoEnabled: !checking && blocked == null,
+                      autoEnabled: !checking && blocked == null && !_isCodex,
                       onChanged: _setAuto,
                     ),
+                    // SPEC-101 R5: until the multi-provider Orquestrador.
+                    if (_isCodex) ...[
+                      const SizedBox(width: 8),
+                      const Flexible(
+                        flex: 6,
+                        child: OnlyProviderTag(
+                          key: ValueKey('run-spec-auto-only'),
+                          provider: 'Claude Code',
+                          reason:
+                              'Só Claude Code até o Orquestrador '
+                              'multi-provedor.',
+                        ),
+                      ),
+                    ],
                     if (checking && !auto) ...[
                       const SizedBox(width: 10),
                       const Flexible(
@@ -821,6 +1193,18 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                       ),
                   ],
                 ),
+                if (_isCodex)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(
+                      autoOnlyClaudeHint,
+                      key: ValueKey('run-spec-auto-only-hint'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
                 if (blocked != null)
                   Container(
                     key: const ValueKey('run-spec-auto-blocked'),
@@ -871,6 +1255,36 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
       ),
     );
   }
+}
+
+/// A line of information under the form (SPEC-101 R2, P4).
+class _Notice extends StatelessWidget {
+  const _Notice({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.background,
+      border: Border.all(color: AppColors.border),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.info_outline,
+          size: 14,
+          color: AppColors.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+      ],
+    ),
+  );
 }
 
 /// Automático / Manual of [RunSpecDialog] (R1, R15).

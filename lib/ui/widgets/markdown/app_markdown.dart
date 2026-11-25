@@ -25,9 +25,14 @@ class AppMarkdown extends StatefulWidget {
     this.collapseLongCode = false,
     this.owner,
     this.imageDirectory,
+    this.onSelectionChanged,
   });
 
   final String data;
+
+  /// The text selected in the document (null = none), for actions on the
+  /// excerpt ("Virar débito", SPEC-112 R9).
+  final ValueChanged<SelectedContent?>? onSelectionChanged;
 
   /// Null = the theme's.
   final MarkdownStyleSheet? styleSheet;
@@ -68,6 +73,7 @@ class _AppMarkdownState extends State<AppMarkdown> {
     final owner = widget.owner;
     return SelectionArea(
       focusNode: _focus,
+      onSelectionChanged: widget.onSelectionChanged,
       child: SelectionContainer(
         delegate: _blocks,
         child: MarkdownBody(

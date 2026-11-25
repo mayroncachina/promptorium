@@ -15,6 +15,8 @@ import '../../issues/widgets/issue_import_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
+import '../../debts/debt_board.dart' show debtBoardProvider;
+import '../../debts/widgets/debts_screen.dart' show openDebtsScreen;
 
 /// The Bandeja of the Quadro (SPEC-068 R7, R8): specs that are not on the
 /// Quadro yet, drafts and approved ones that wait, grouped by the
@@ -118,6 +120,80 @@ Future<void> takeToBacklog(
         ),
       ),
     );
+}
+
+/// "Débitos · N" (SPEC-112 R14): the open debts of the main branch's file;
+/// opens the screen "Débitos e decisões". Without open debts it is gone.
+class BoardDebtsChip extends ConsumerWidget {
+  const BoardDebtsChip({
+    super.key,
+    required this.workspaceId,
+    required this.root,
+    this.compact = false,
+  });
+
+  final int workspaceId;
+  final String root;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final board = ref.watch(
+      debtBoardProvider((workspaceId: workspaceId, root: root)),
+    );
+    final n = board?.openCount ?? 0;
+    if (n == 0) return const SizedBox.shrink();
+    final label = n == 1 ? '1 débito aberto' : '$n débitos abertos';
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Semantics(
+        button: true,
+        label: 'Débitos, $label',
+        excludeSemantics: true,
+        child: Tooltip(
+          message: label,
+          child: Material(
+            key: const ValueKey('board-debts-chip'),
+            color: AppColors.amberTint,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: AppColors.amber.withValues(alpha: .7)),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => openDebtsScreen(ref),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.pending_actions,
+                      size: 15,
+                      color: AppColors.amber,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      compact ? '$n' : 'Débitos · $n',
+                      key: const ValueKey('board-debts-count'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The button that replaces "N em rascunho fora do quadro" (R7, R9).

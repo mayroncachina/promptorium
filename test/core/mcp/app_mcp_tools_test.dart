@@ -10,6 +10,11 @@ import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/core/git/gh_cli.dart' show cliRunnerProvider;
 import 'package:promptorium/features/issues/issue_availability.dart';
 
+import 'package:promptorium/core/codex/codex_mcp_overrides.dart'
+    show codexAppMcpTools;
+import 'package:promptorium/data/repos/debt_links_repo.dart';
+import 'package:promptorium/features/debts/debt_files.dart';
+
 import '../git/fake_issues.dart';
 
 import '../../helpers/test_db.dart';
@@ -527,6 +532,195 @@ void main() {
       final r = await note('Depois de fechada.');
       expect(r.text, contains('está fechada'));
       expect(gh.writes, isEmpty);
+    });
+  });
+
+  group('SPEC-112 R11 · registrar_debito and listar_debitos', () {
+    late Directory wt;
+    late Spec spec;
+
+    const decisions =
+        '# Decisões pendentes\n\n'
+        '| ID | Desde | Origem | Pergunta | Recomendação | Decisão |\n'
+        '|---|---|---|---|---|---|\n'
+        '| DP-01 | 2026-11-23 | spec 31, Q1 | **Quem cadastra as funções?** '
+        '| Importar. | **Decidido:** importar. |\n'
+        '| DP-02 | 2026-11-24 | spec 33, Q7 | **Limite do upload?** '
+        '| 20 MB. | |\n';
+
+    setUp(() async {
+      File('${root.path}/DEBITO_TECNICO.md').writeAsStringSync(
+        File('test/fixtures/debts/debitos.md').readAsStringSync(),
+      );
+      File('${root.path}/DECISOES_PENDENTES.md').writeAsStringSync(decisions);
+      wt = Directory.systemTemp.createTempSync('mcp-debts-wt-');
+      addTearDown(() => wt.deleteSync(recursive: true));
+      File('${wt.path}/DEBITO_TECNICO.md').writeAsStringSync(
+        '# Débitos técnicos\n\n'
+        '| ID | Desde | O quê | Onde | Para resolver |\n'
+        '|---|---|---|---|---|\n'
+        '| DT-01 | 2026-11-21 | **"Salvar em PDF" é simulado**. | `x.js` | y |\n'
+        '| DT-09 | 2026-11-24 | **Upload com limite fixo de 20 MB**: no '
+        'config depois. | `backend/app/arquivos.py` | ler do config |\n',
+      );
+      spec = (await c.read(specsRepoProvider).getByCode(ws.id, 'SPEC-002'))!;
+      await c
+          .read(specsRepoProvider)
+          .setWorktree(spec.id, path: wt.path, branch: 'spec/002');
+      final sessions = c.read(sessionsRepoProvider);
+      await sessions.insert(
+        id: 's-claude',
+        workspaceId: ws.id,
+        worktreePath: wt.path,
+        branch: 'spec/002',
+        model: 'inherit',
+        title: 'SPEC-002 · R1',
+        specId: spec.id,
+        steps: 'R1',
+      );
+      await sessions.insert(
+        id: 's-codex',
+        workspaceId: ws.id,
+        worktreePath: root.path,
+        branch: 'main',
+        model: 'gpt-5',
+        provider: 'codex',
+        title: 'Tela de comprovante',
+      );
+    });
+
+    String debtsFile() =>
+        File('${root.path}/DEBITO_TECNICO.md').readAsStringSync();
+
+    Future<List<DebtLink>> links() =>
+        c.read(debtLinksRepoProvider).forRepo(root.path);
+
+    test('both tools are reads: free in every mode, in the Claude Code '
+        'allowedTools and in the Codex enabled_tools', () {
+      for (final n in [
+        AppMcpToolNames.registerDebt,
+        AppMcpToolNames.listDebts,
+      ]) {
+        final t = appMcpCatalog.singleWhere((t) => t.name == n);
+        expect(t.write, isFalse);
+        expect(appMcpReadToolIds, contains(appMcpToolId(n)));
+        expect(codexAppMcpTools, contains(n));
+      }
+      final reg = appMcpCatalog.singleWhere(
+        (t) => t.name == AppMcpToolNames.registerDebt,
+      );
+      expect(reg.description, contains('simulado'));
+      expect(reg.description, contains('decisão para depois'));
+    });
+
+    test('Claude Code: registrar_debito only leaves a suggestion, with the '
+        'session, the spec and the provider; the file stays', () async {
+      final before = debtsFile();
+      final r = await call(AppMcpToolNames.registerDebt, {
+        'tipo': 'debito',
+        'titulo': 'Limite do upload fixo',
+        'motivo': 'não lê do config',
+        'onde': 'backend/app/arquivos.py',
+        'para_resolver': 'ler do config',
+      }, grant(sessionId: 's-claude'));
+      expect(r.error, isFalse);
+      expect(r.text, contains('espera a pessoa aceitar'));
+      expect(r.text, isNot(contains('DT-09')));
+      expect(debtsFile(), before);
+      expect(
+        File('${wt.path}/DEBITO_TECNICO.md').readAsStringSync(),
+        isNot(contains('Limite do upload fixo')),
+      );
+      final l = (await links()).single;
+      expect(l.code, isNull);
+      expect(l.kind, 'debito');
+      expect(l.suggestionState, DebtSuggestionState.pending);
+      expect(l.suggestionSource, DebtSuggestionSource.mcp);
+      expect(l.originSessionId, 's-claude');
+      expect(l.originSpecId, spec.id);
+      final body = DebtLinksRepo.suggestionOf(l);
+      expect(body['titulo'], 'Limite do upload fixo');
+      expect(body['para_resolver'], 'ler do config');
+      expect(body[DebtSuggestionKeys.provider], 'claude');
+      expect(body[DebtSuggestionKeys.sessionTitle], 'SPEC-002 · R1');
+    });
+
+    test('Codex, through the server: a decision suggestion, nothing in the '
+        'file; listar_debitos lists the open ones', () async {
+      final server = AppMcpServer(tools);
+      final port = await server.start();
+      addTearDown(server.stop);
+      server.issue(grant(token: 'cx', sessionId: 's-codex'));
+      final decisionsBefore = File('${root.path}/DECISOES_PENDENTES.md')
+          .readAsStringSync();
+      final r = await mcpCall(port, 'cx', AppMcpToolNames.registerDebt, {
+        'tipo': 'decisao',
+        'titulo': 'QR Code no comprovante?',
+        'recomendacao': 'Sim, com o código do pedido.',
+      });
+      expect(r['isError'], isNull);
+      expect(
+        File('${root.path}/DECISOES_PENDENTES.md').readAsStringSync(),
+        decisionsBefore,
+      );
+      final l = (await links()).single;
+      expect(l.kind, 'decisao');
+      expect(l.originSessionId, 's-codex');
+      expect(l.originSpecId, isNull);
+      final body = DebtLinksRepo.suggestionOf(l);
+      expect(body[DebtSuggestionKeys.provider], 'codex');
+      expect(body[DebtSuggestionKeys.sessionTitle], 'Tela de comprovante');
+      expect(body['para_resolver'], 'Sim, com o código do pedido.');
+
+      final list = await mcpCall(port, 'cx', AppMcpToolNames.listDebts);
+      final text = (list['content'] as List).single['text'] as String;
+      expect(text, contains('Débitos abertos (7)'));
+      expect(text, contains('DT-05 · Pagamento simulado · `PagarView.vue`'));
+      expect(text, isNot(contains('DT-02')));
+      expect(text, contains('Decisões pendentes (1)'));
+      expect(text, contains('DP-02 · Limite do upload?'));
+      expect(text, isNot(contains('DP-01')));
+      expect(text, contains('QR Code no comprovante?'));
+      expect(text, isNot(contains('na spec')));
+    });
+
+    test('listar_debitos in a spec with a worktree also lists its file, '
+        'marked "na spec"', () async {
+      final r = await call(
+        AppMcpToolNames.listDebts,
+        const {},
+        grant(sessionId: 's-claude'),
+      );
+      final debts = r.data!['debitos'] as List;
+      expect(debts, hasLength(8));
+      final nine = debts.cast<Map>().singleWhere((d) => d['id'] == 'DT-09');
+      expect(nine['na_spec'], 'spec 2');
+      expect(nine['onde'], '`backend/app/arquivos.py`');
+      expect(
+        debts.cast<Map>().where((d) => d['id'] == 'DT-01').single['na_spec'],
+        isNull,
+      );
+      expect(r.text, contains('DT-09 · Upload com limite fixo de 20 MB'));
+      expect(r.text, contains('(na spec 2)'));
+      expect(
+        [for (final d in (r.data!['decisoes'] as List).cast<Map>()) d['id']],
+        ['DP-02'],
+      );
+    });
+
+    test('a wrong type or an empty title records nothing', () async {
+      final a = await call(AppMcpToolNames.registerDebt, {
+        'tipo': 'tarefa',
+        'titulo': 'x',
+      });
+      final b = await call(AppMcpToolNames.registerDebt, {
+        'tipo': 'debito',
+        'titulo': '  ',
+      });
+      expect(a.error, isTrue);
+      expect(b.error, isTrue);
+      expect(await links(), isEmpty);
+      expect((await DebtSnapshot.load(root.path)).openDebts, hasLength(7));
     });
   });
 }

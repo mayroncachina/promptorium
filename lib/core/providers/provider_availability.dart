@@ -2,12 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/providers.dart';
+import '../update/update_check.dart' show appVersionProvider;
 
 import '../codex/codex_provider.dart';
 import '../codex/codex_cli.dart';
+import '../codex/codex_probe.dart';
 import '../process/process_runner.dart';
 import 'agent_registry.dart';
+import 'provider_preferences.dart';
 
 enum ProviderStatus { ready, missing, loginRequired, incompatible, unknown }
 
@@ -18,6 +24,8 @@ class ProviderAvailability {
     this.authVerified = true,
     this.version,
     this.subscriptionType,
+    this.warning,
+    this.sandboxWarning,
   });
   final ProviderStatus status;
   final String message;
@@ -29,6 +37,15 @@ class ProviderAvailability {
   /// `subscriptionType` of `claude auth status --json` (`pro`, `max`), null
   /// with an API key or an older CLI (SPEC-072 R8, P6).
   final String? subscriptionType;
+
+  /// Works, with a caveat: "versão mais nova que a testada (0.170)" (R10).
+  final String? warning;
+
+  /// Codex sandbox unavailable on this machine (R7a, decisão 15): only
+  /// YOLO in a worktree works. Null = the sandbox runs (or not checked).
+  final String? sandboxWarning;
+
+  bool get sandboxAvailable => sandboxWarning == null;
 
   /// Whether the CLI runs on a subscription plan (quota, not dollars).
   bool get subscription => subscriptionType != null;
@@ -44,10 +61,18 @@ class ProviderAvailability {
 }
 
 /// Only version/help/auth-status commands: never starts a conversation or login.
+///
+/// Codex (SPEC-094 R10, R7a): below [codexMinVersion] it is incompatible;
+/// above the tested version it works with a warning; [missingMethods] names
+/// App Server methods the installed version lacks (incompatible); and
+/// [sandbox] says whether its sandbox runs on this machine (no quota).
 Future<ProviderAvailability> inspectProvider(
   AgentProvider provider,
-  ProcessRunner run,
-) async {
+  ProcessRunner run, {
+  Future<List<String>> Function(String executable, String version)?
+  missingMethods,
+  Future<String?> Function(String executable)? sandbox,
+}) async {
   const missing = ProviderAvailability(
     ProviderStatus.missing,
     'CLI não encontrado. Instale o provedor e confira o PATH em Configurações → Provedores.',
@@ -92,6 +117,15 @@ Future<ProviderAvailability> inspectProvider(
       );
     }
     if (provider.id == 'codex') {
+      final v = semver.group(0)!;
+      if (compareVersions(v, codexMinVersion) < 0) {
+        return ProviderAvailability(
+          ProviderStatus.incompatible,
+          'Versão instalada $v, mínimo ${codexMinVersion.substring(0, 5)}. '
+          'Atualize o Codex CLI: codex update.',
+          version: v,
+        );
+      }
       final help = await probe(exe, ['app-server', '--help']);
       if (help.exitCode != 0) {
         return const ProviderAvailability(
@@ -99,13 +133,35 @@ Future<ProviderAvailability> inspectProvider(
           'Este Codex não suporta App Server. Atualize o CLI.',
         );
       }
-      final auth = await probe(exe, ['login', 'status']);
-      if (auth.exitCode != 0) {
-        return const ProviderAvailability(
-          ProviderStatus.loginRequired,
-          'Execute codex login no terminal e depois verifique novamente.',
+      final missing = missingMethods == null
+          ? const <String>[]
+          : await missingMethods(exe, v);
+      if (missing.isNotEmpty) {
+        return ProviderAvailability(
+          ProviderStatus.incompatible,
+          'O Codex $v não tem ${missing.length == 1 ? 'o método' : 'os métodos'} '
+          '${missing.join(', ')} do App Server usado${missing.length == 1 ? '' : 's'} '
+          'pelo app. Atualize o Codex CLI: codex update.',
+          version: v,
         );
       }
+      final auth = await probe(exe, ['login', 'status']);
+      if (auth.exitCode != 0) {
+        return ProviderAvailability(
+          ProviderStatus.loginRequired,
+          'Execute codex login no terminal e depois verifique novamente.',
+          version: v,
+        );
+      }
+      return ProviderAvailability(
+        ProviderStatus.ready,
+        'CLI instalado, autenticado e compatível.',
+        version: v,
+        warning: codexNewerThanTested(v)
+            ? 'versão mais nova que a testada ($codexTestedVersion)'
+            : null,
+        sandboxWarning: sandbox == null ? null : await sandbox(exe),
+      );
     } else {
       final help = await probe(exe, ['--help']);
       if (help.exitCode != 0 ||
@@ -219,5 +275,62 @@ final providerAvailabilityProvider =
         return call.future;
       }
 
-      return inspectProvider(provider, probe);
+      if (id != 'codex') return inspectProvider(provider, probe);
+      final settings = ref.read(appSettingsProvider.notifier);
+      final starter = ref.read(codexProcessStarterProvider);
+      // Tests inject the runner; the App Server is only started for real
+      // with the real runner, or with an injected starter.
+      final underTest = Platform.environment['FLUTTER_TEST'] == 'true';
+      final realRunner = identical(runner, defaultProcessRunner);
+      final canHandshake = starter != null || (realRunner && !underTest);
+      return inspectProvider(
+        provider,
+        probe,
+        // P3: the schema is generated once per version and kept.
+        missingMethods: (exe, version) async {
+          final key = 'codex.methods.$version';
+          if (realRunner && underTest) return const [];
+          final saved = settings.get(key);
+          if (saved != null) {
+            return [for (final m in jsonDecode(saved) as List) '$m'];
+          }
+          try {
+            final missing = await codexMissingMethods(exe, probe);
+            await settings.set(key, jsonEncode(missing));
+            return missing;
+          } catch (e) {
+            // Could not check: never block on the check itself.
+            debugPrint('codex: conferência de métodos falhou: $e');
+            return const [];
+          }
+        },
+        // R7a + R8: one handshake, no thread and no turn — sandbox and
+        // model catalog (cached with the version, P2).
+        sandbox: (exe) async {
+          if (!canHandshake || disposed) return null;
+          try {
+            final h = await codexHandshake(
+              executable: exe,
+              starter: starter,
+              workingDirectory: Directory.systemTemp.path,
+              clientVersion: ref.read(appVersionProvider).value ?? '0.0.0',
+            );
+            if (h.models.isNotEmpty) {
+              final info = await ref.read(codexCliInfoProvider.future);
+              await settings.set(
+                codexModelsCacheKey,
+                CodexModelsCache(
+                  version: info?.version,
+                  readAt: DateTime.now(),
+                  models: h.models,
+                ).encode(),
+              );
+            }
+            return h.sandboxWarning;
+          } catch (e) {
+            debugPrint('codex: handshake falhou: $e');
+            return null;
+          }
+        },
+      );
     });

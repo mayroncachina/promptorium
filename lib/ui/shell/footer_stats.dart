@@ -1,11 +1,16 @@
+import '../../core/providers/capabilities.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
+import '../../core/providers/quota_source.dart';
 import '../../data/providers.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../core/providers/acp_provider.dart';
+import '../../features/mcp/codex_mcp_state.dart' show codexMcpBoardProvider;
+import '../../features/mcp/mcp_cli.dart' show McpConnState;
 import '../../features/mcp/mcp_state.dart';
 import '../../features/sessions/session_manager.dart';
 
@@ -29,6 +34,7 @@ class FooterStats {
     this.mcpConnected,
     this.mcpTotal,
     this.mcpFailed,
+    this.mcpHint,
     this.usage5h,
     this.usage5hResetsAt,
     this.usageWeek,
@@ -36,6 +42,11 @@ class FooterStats {
     this.limitRejected = false,
     this.limitResetsAt,
     this.limitType,
+    this.limitWords,
+    this.usage5hTitle = 'Uso 5h',
+    this.usageWeekTitle = 'Semana',
+    this.quotaReadAt,
+    this.quotaError,
   });
 
   final CliStatus cliStatus;
@@ -50,6 +61,9 @@ class FooterStats {
   final int? mcpConnected;
   final int? mcpTotal;
   final int? mcpFailed;
+
+  /// Tooltip of the MCP counter: whose servers they are (SPEC-105 R11).
+  final String? mcpHint;
 
   /// 0–1+ (`rate_limit_info.unifiedWindows.five_hour.utilization`; above 1
   /// when the limit was passed). Null = unknown. Stored values outlive the
@@ -68,6 +82,19 @@ class FooterStats {
   final DateTime? limitResetsAt;
   final String? limitType;
 
+  /// The kind of limit in words ("limite do plano", SPEC-097 R7); null for
+  /// the Claude (its notice names the window).
+  final String? limitWords;
+
+  /// Titles of the two windows by their duration (SPEC-097 R5).
+  final String usage5hTitle;
+  final String usageWeekTitle;
+
+  /// When the quota shown was read (Codex) and, after a failed reading, why
+  /// (SPEC-097 R4).
+  final DateTime? quotaReadAt;
+  final String? quotaError;
+
   FooterStats copyWith({
     CliStatus? cliStatus,
     String? claudeVersion,
@@ -85,6 +112,7 @@ class FooterStats {
     mcpConnected: mcpConnected,
     mcpTotal: mcpTotal,
     mcpFailed: mcpFailed,
+    mcpHint: mcpHint,
     usage5h: usage5h,
     usage5hResetsAt: usage5hResetsAt,
     usageWeek: usageWeek,
@@ -92,6 +120,11 @@ class FooterStats {
     limitRejected: limitRejected,
     limitResetsAt: limitResetsAt,
     limitType: limitType,
+    limitWords: limitWords,
+    usage5hTitle: usage5hTitle,
+    usageWeekTitle: usageWeekTitle,
+    quotaReadAt: quotaReadAt,
+    quotaError: quotaError,
   );
 }
 
@@ -133,19 +166,55 @@ class FooterStatsController extends Notifier<FooterStats> {
             ).where((p) => p.id == providerId).firstOrNull?.name ??
             providerId,
     };
-    final rate = providerId == 'claude' ? ref.watch(rateLimitProvider) : null;
-    final mcp = ref.watch(mcpStatusBoardProvider);
+    // The Claude CLI's rate limits; the Codex quota of its own reading
+    // (SPEC-097 R5): each provider shows its own, never the other's.
+    final rate = isClaudeCode(providerId) ? ref.watch(rateLimitProvider) : null;
+    final codex = providerId == 'codex'
+        ? ref.watch(quotaSnapshotProvider('codex'))
+        : null;
+    // SPEC-105 R11: the servers of the provider in focus.
+    final mcp = providerId == 'codex'
+        ? ref.watch(codexMcpBoardProvider)
+        : ref.watch(mcpStatusBoardProvider);
+    final mcpHint = mcpBoardHint(name, mcp);
 
-    int? active;
-    if (sessions != null) {
-      active = sessions
-          .where(
-            (s) =>
-                manager.isAlive(s.id) &&
-                (s.status == SessionStatus.running ||
-                    s.status == SessionStatus.waitingApproval),
-          )
-          .length;
+    final active = _active(manager, sessions);
+    if (codex != null) {
+      final five = codex.window(300, fallbackId: 'primary');
+      final week = codex.window(10080, fallbackId: 'secondary');
+      final limit = codex.limit(DateTime.now());
+      double? frac(double? pct) => pct == null ? null : pct / 100;
+      return FooterStats(
+        cliStatus: cli,
+        providerId: providerId,
+        providerName: name,
+        claudeVersion: version,
+        sessionsActive: _active(manager, sessions),
+        sessionsTotal: sessions?.length,
+        sessionsWaiting: manager.approvals
+            .map((a) => a.sessionId)
+            .toSet()
+            .length,
+        subagentsRunning: manager.subagentsRunning,
+        mcpConnected: mcp.isEmpty ? null : mcp.connected,
+        mcpTotal: mcp.isEmpty ? null : mcp.total,
+        mcpFailed: mcp.isEmpty ? null : mcp.failed,
+        mcpHint: mcpHint,
+        usage5h: frac(five?.usedPercent),
+        usage5hResetsAt: five?.resetsAt,
+        usageWeek: frac(week?.usedPercent),
+        usageWeekResetsAt: week?.resetsAt,
+        usage5hTitle: quotaWindowTitle(five?.minutes ?? 300),
+        usageWeekTitle: quotaWindowTitle(week?.minutes ?? 10080),
+        limitRejected: limit != null,
+        limitResetsAt: limit?.resetsAt,
+        limitType: limit?.window != null && limit!.window == week
+            ? 'seven_day'
+            : 'five_hour',
+        limitWords: limit?.words,
+        quotaReadAt: codex.hasReading ? codex.readAt : null,
+        quotaError: codex.error,
+      );
     }
     return FooterStats(
       cliStatus: cli,
@@ -159,6 +228,7 @@ class FooterStatsController extends Notifier<FooterStats> {
       mcpConnected: mcp.isEmpty ? null : mcp.connected,
       mcpTotal: mcp.isEmpty ? null : mcp.total,
       mcpFailed: mcp.isEmpty ? null : mcp.failed,
+      mcpHint: mcpHint,
       usage5h: rate?.fiveHourUtilization,
       usage5hResetsAt: rate?.fiveHourResetsAt,
       usageWeek: rate?.sevenDayUtilization,
@@ -168,6 +238,16 @@ class FooterStatsController extends Notifier<FooterStats> {
       limitType: rate?.rateLimitType,
     );
   }
+
+  static int? _active(SessionManagerState manager, List<Session>? sessions) =>
+      sessions
+          ?.where(
+            (s) =>
+                manager.isAlive(s.id) &&
+                (s.status == SessionStatus.running ||
+                    s.status == SessionStatus.waitingApproval),
+          )
+          .length;
 
   void setCli(CliStatus status, {String? version}) =>
       ref.read(cliStatusProvider.notifier).set(status, version: version);
@@ -193,6 +273,23 @@ final footerDisplayStatsProvider = Provider<FooterStats>((ref) {
     ),
   );
 });
+
+/// "Servidores do Codex: github pronto, postgres-dev falhou" (R11).
+String mcpBoardHint(String providerName, McpStatusBoardState board) {
+  if (board.isEmpty) return 'Servidores do $providerName: ainda sem status.';
+  String word(McpConnState s) => switch (s) {
+    McpConnState.connected => 'pronto',
+    McpConnState.failed => 'falhou',
+    McpConnState.needsAuth => 'precisa entrar',
+    McpConnState.pending => 'aguardando aprovação',
+    McpConnState.disabled => 'desligado',
+    McpConnState.checking => 'iniciando',
+    McpConnState.unknown => 'sem status',
+  };
+  final names = board.byName.keys.toList()..sort();
+  return 'Servidores do $providerName: '
+      '${names.map((n) => '$n ${word(board.byName[n]!.state)}').join(', ')}';
+}
 
 /// Compact token count: 512k, 1.2M.
 String formatTokens(int? n) {

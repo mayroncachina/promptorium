@@ -129,7 +129,7 @@ lib/
   core/
     claude/                 eventos stream-json, processo, argumentos, uso, execuções somente leitura,
                             settings por execução (plugins/MCP desligados)
-    codex/                  integração Codex (desligada)
+    codex/                  Codex CLI: app-server, comandos, hooks, MCP, cota e tradução de agentes
     providers/              AgentProvider, Claude Code, ACP, registro e preferências
     git/                    worktrees, diff, merge
     process/, fs/           comandos curtos, arquivos

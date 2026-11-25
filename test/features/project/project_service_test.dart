@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/core/process/process_runner.dart';
+import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/cost_estimate.dart';
@@ -592,6 +593,34 @@ void main() {
     expect(out.files, hasLength(3));
     expect(File('${ws.path}/CLAUDE.md').existsSync(), isFalse);
     expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
+  });
+
+  test('SPEC-104 R3/R4: materialize writes the generated AGENTS.md and '
+      'commits it; an AGENTS.md of the person is kept', () async {
+    final ws = await service().createProject(parent: tmp.path, name: 'ag');
+    await c
+        .read(projectPlansRepoProvider)
+        .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
+    final out = await service().materialize(ws, writeAgentsMd: true);
+    expect(out.files, containsAll(['CLAUDE.md', 'AGENTS.md']));
+    final agents = File('${ws.path}/AGENTS.md').readAsStringSync();
+    final claude = File('${ws.path}/CLAUDE.md').readAsStringSync();
+    expect(agentsMdMarker(agents), claudeMdHash(claude));
+    expect(agents, contains('Edite o CLAUDE.md.'));
+    expect(await gitIn(ws.path, ['status', '--porcelain']), isEmpty);
+
+    final other = await service().createProject(parent: tmp.path, name: 'ag2');
+    File('${other.path}/AGENTS.md').writeAsStringSync('# meu\n');
+    await c
+        .read(projectPlansRepoProvider)
+        .update(other.id, ProjectPlansCompanion(data: Value(plan.encode())));
+    final out2 = await service().materialize(
+      other,
+      writeAgentsMd: true,
+      commit: false,
+    );
+    expect(out2.files, isNot(contains('AGENTS.md')));
+    expect(File('${other.path}/AGENTS.md').readAsStringSync(), '# meu\n');
   });
 
   test('deleteProject: worktrees removed, folder to the trash, everything '

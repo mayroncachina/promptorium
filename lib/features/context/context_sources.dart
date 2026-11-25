@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/claude/claude_event.dart';
+import '../../core/providers/context_events.dart';
 import 'context_snapshot.dart';
 
 /// Groups of the Fontes tab (SPEC-087 R4), in display order.
@@ -9,7 +10,10 @@ enum ContextSourceGroup {
   app('Spec e mensagens do app'),
   files('Arquivos lidos ou citados'),
   attachments('Anexos'),
-  tools('Ferramentas e MCP');
+  tools('Ferramentas e MCP'),
+
+  /// Subagents of the Codex (SPEC-107 R12): separate contexts.
+  subagents('Subagentes');
 
   const ContextSourceGroup(this.label);
 
@@ -30,6 +34,24 @@ enum ContextEvidence {
 
   /// The agent itself reported it (`system/init`, `get_context_usage`).
   agent,
+
+  /// The agent says it loaded the file (Codex `instructionSources`,
+  /// SPEC-107 R10).
+  loaded,
+
+  /// A command the agent classified as a read, search or listing (Codex
+  /// `commandActions`, SPEC-107 R11).
+  commandRead,
+
+  /// A call of an MCP tool (Codex `mcpToolCall`, R11).
+  mcpCall,
+
+  /// A subagent with its own window (R12): never part of the measurement.
+  separate,
+
+  /// Available by configuration, not loaded (R10: the Codex skills of
+  /// `skills/list`, SPEC-104).
+  config,
 }
 
 /// One observed source. [ref] is a workspace path (opens the file) or null;
@@ -109,6 +131,11 @@ class ContextSource {
       ContextEvidence.read => 'leitura observada · t$turn',
       ContextEvidence.edited => 'edição observada · t$turn',
       ContextEvidence.agent => 'informado pelo agente',
+      ContextEvidence.loaded => 'carregamento informado pelo agente',
+      ContextEvidence.commandRead => 'leitura observada (comando) · t$turn',
+      ContextEvidence.mcpCall => 'chamada MCP · t$turn',
+      ContextEvidence.separate => 'contexto separado · medição indisponível',
+      ContextEvidence.config => 'configuração',
     };
   }
 
@@ -144,7 +171,23 @@ class ContextSources {
   int get turn => _turn;
 
   static const _readTools = {'Read', 'NotebookRead'};
-  static const _editTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+
+  /// [path] edited, unless the agent read it already (a read says more).
+  void _edited(String path, int turn, int itemIndex) {
+    final old = _byKey['file:$path'];
+    if (old != null && old.evidence == ContextEvidence.read) return;
+    _put(
+      'file:$path',
+      ContextSource(
+        group: ContextSourceGroup.files,
+        label: path,
+        ref: path,
+        evidence: ContextEvidence.edited,
+        turn: turn,
+        itemIndex: itemIndex,
+      ),
+    );
+  }
 
   void apply(
     AgentEvent e, {
@@ -155,6 +198,11 @@ class ContextSources {
     switch (e) {
       case SystemInit():
         _mcp(e, itemIndex);
+      case AssistantMessage(parentToolUseId: null)
+          when e.json['provider'] == 'codex':
+        for (final b in e.blocks) {
+          if (b is ToolUseBlock) _codexTool(b, turn, itemIndex);
+        }
       case AssistantMessage(parentToolUseId: null):
         for (final b in e.blocks) {
           if (b is! ToolUseBlock) continue;
@@ -174,23 +222,63 @@ class ContextSources {
                 itemIndex: itemIndex,
               ),
             );
-          } else if (_editTools.contains(b.name)) {
-            final old = _byKey['file:$path'];
-            if (old != null && old.evidence == ContextEvidence.read) {
-              continue;
-            }
-            _put(
-              'file:$path',
-              ContextSource(
-                group: ContextSourceGroup.files,
-                label: path,
-                ref: path,
-                evidence: ContextEvidence.edited,
-                turn: turn,
-                itemIndex: itemIndex,
-              ),
-            );
+          } else if (b.fileChanges.isNotEmpty) {
+            _edited(path, turn, itemIndex);
           }
+        }
+      // SPEC-095 R9: files of any provider (Codex: file changes, and the
+      // files its commands read).
+      case FileChangeEvent(:final path) when path.isNotEmpty:
+        _edited(path, turn, itemIndex);
+      // SPEC-107 R11: the actions the Codex classified (P4: only known
+      // types; the command text is never parsed).
+      case CommandEvent(:final actions) when actions.isNotEmpty:
+        for (final a in actions) {
+          _commandAction(a, e.cwd, turn, itemIndex);
+        }
+      case CommandEvent(:final reads) when reads.isNotEmpty:
+        for (final path in reads) {
+          _put(
+            'file:$path',
+            ContextSource(
+              group: ContextSourceGroup.files,
+              label: path,
+              ref: path,
+              evidence: ContextEvidence.read,
+              turn: turn,
+              itemIndex: itemIndex,
+            ),
+          );
+        }
+      case UnknownEvent(:final json)
+          when json['type'] == ContextAppEvents.instructions:
+        _instructions(json, itemIndex);
+      // SPEC-104 R2: the instruction files the agent itself reported
+      // loading (Codex `instructionSources`, relative to the cwd). The
+      // SPEC-107 event above, when present, is the same proof: same key,
+      // and its row wins.
+      case UnknownEvent(:final json)
+          when json['type'] == 'promptorium_run' &&
+              json['instructionSources'] is List:
+        for (final s in json['instructionSources'] as List) {
+          final path = '$s';
+          if (path.isEmpty) continue;
+          if (_byKey['instr:$path']?.evidence == ContextEvidence.loaded) {
+            continue;
+          }
+          _put(
+            'instr:$path',
+            ContextSource(
+              group: ContextSourceGroup.instructions,
+              label: path,
+              ref: path,
+              evidence: ContextEvidence.agent,
+              turn: turn,
+              itemIndex: itemIndex,
+              detail:
+                  'carregado pelo ${json['provider'] == 'codex' ? 'Codex' : 'agente'}',
+            ),
+          );
         }
       case UnknownEvent(:final json) when json['type'] == 'promptorium_user':
         _turn = turn;
@@ -199,6 +287,100 @@ class ContextSources {
         _turn = turn;
       default:
         break;
+    }
+  }
+
+  /// Instruction files the Codex says it loaded (R10): proof of loading,
+  /// with no weight.
+  void _instructions(Map<String, dynamic> j, int itemIndex) {
+    final cwd = j['cwd'] as String?;
+    for (final path in j['sources'] as List? ?? const []) {
+      if (path is! String || path.isEmpty) continue;
+      // Same key as the SPEC-104 row (relative to the cwd): one file, one row.
+      _put(
+        'instr:${_relative(path, cwd)}',
+        ContextSource(
+          group: ContextSourceGroup.instructions,
+          label: _relative(path, cwd),
+          ref: path,
+          evidence: ContextEvidence.loaded,
+          turn: _turn,
+          itemIndex: itemIndex,
+          detail: 'instructionSources',
+        ),
+      );
+    }
+  }
+
+  void _commandAction(CommandAction a, String? cwd, int turn, int itemIndex) {
+    final path = a.path ?? cwd ?? '.';
+    final shown = _relative(path, cwd);
+    final (key, label) = switch (a.type) {
+      CommandAction.read => ('file:$path', shown),
+      CommandAction.search => (
+        'search:$path:${a.query ?? ''}',
+        a.query == null || a.query!.isEmpty ? shown : '$shown · "${a.query}"',
+      ),
+      _ => ('ls:$path', shown),
+    };
+    _put(
+      key,
+      ContextSource(
+        group: ContextSourceGroup.files,
+        label: label,
+        ref: a.path,
+        evidence: ContextEvidence.commandRead,
+        turn: turn,
+        itemIndex: itemIndex,
+        detail: a.type,
+      ),
+    );
+  }
+
+  /// [path] relative to [cwd] when inside it (the row stays readable).
+  static String _relative(String path, String? cwd) {
+    if (cwd == null || cwd.isEmpty) return path;
+    final base = cwd.endsWith('/') ? cwd : '$cwd/';
+    if (path == cwd) return '.';
+    return path.startsWith(base) ? path.substring(base.length) : path;
+  }
+
+  /// MCP calls and subagents of the Codex (R11, R12): evidence of a call
+  /// or of a separate context, never a weight.
+  void _codexTool(ToolUseBlock b, int turn, int itemIndex) {
+    if (b.name.startsWith('mcp__')) {
+      final parts = b.name.split('__');
+      final label = parts.length >= 3
+          ? '${parts[1]} · ${parts.sublist(2).join('__')}'
+          : b.name;
+      _put(
+        'mcpcall:${b.name}',
+        ContextSource(
+          group: ContextSourceGroup.tools,
+          label: label,
+          evidence: ContextEvidence.mcpCall,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
+    } else if (b.name == 'Agent') {
+      final threads = [
+        for (final t in b.input['threads'] as List? ?? const [])
+          if (t is String && t.isNotEmpty) t,
+      ];
+      final thread = threads.firstOrNull;
+      _put(
+        'agent:${b.id}',
+        ContextSource(
+          group: ContextSourceGroup.subagents,
+          label: thread == null
+              ? 'subagente'
+              : 'subagente (thread ${thread.length > 4 ? '${thread.substring(0, 4)}…' : thread})',
+          evidence: ContextEvidence.separate,
+          turn: turn,
+          itemIndex: itemIndex,
+        ),
+      );
     }
   }
 
@@ -368,7 +550,11 @@ class ContextSources {
   void compacted({int? turn}) {
     for (final k in _byKey.keys.toList()) {
       final s = _byKey[k]!;
-      if (s.evidence == ContextEvidence.agent) continue;
+      if (s.evidence == ContextEvidence.agent ||
+          s.evidence == ContextEvidence.loaded ||
+          s.evidence == ContextEvidence.separate) {
+        continue;
+      }
       if (turn != null &&
           s.evidence == ContextEvidence.sent &&
           s.turn >= turn &&

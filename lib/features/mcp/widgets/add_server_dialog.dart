@@ -8,12 +8,15 @@ import '../../agents/agent_repository.dart' show agentHomeProvider;
 import '../../agents/widgets/agent_style.dart'
     show FieldLabel, TogglePill, agentFieldDecoration;
 import '../../sessions/widgets/session_style.dart';
+import '../codex_mcp_cli.dart';
+import '../codex_mcp_state.dart';
 import '../mcp_cli.dart';
 import '../mcp_config.dart';
 import '../mcp_state.dart';
 
-/// "Adicionar servidor": runs `claude mcp add` (never edits the JSON files).
-/// Returns the new server's name.
+/// "Adicionar servidor": runs `claude mcp add` (never edits the JSON files),
+/// or `codex mcp add` when the MCP screen shows the Codex tab (SPEC-105 R4;
+/// never edits `config.toml`). Returns the new server's name.
 Future<String?> showAddMcpServerDialog(BuildContext context) =>
     showAppDialog<String>(
       context: context,
@@ -32,7 +35,10 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
   final _name = TextEditingController();
   final _target = TextEditingController();
   final _pairs = TextEditingController();
+  final _tokenVar = TextEditingController();
   McpScope _scope = McpScope.local;
+  late final bool _codex =
+      ref.read(mcpProviderTabProvider) == McpProviderTab.codex;
   McpTransport _transport = McpTransport.stdio;
   bool _busy = false;
   String? _error;
@@ -50,6 +56,7 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
   void dispose() {
     _name.dispose();
     _target.dispose();
+    _tokenVar.dispose();
     // Clear the secrets typed by the user before dropping the controller.
     _pairs
       ..clear()
@@ -80,7 +87,68 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
     );
   }
 
+  CodexMcpAddRequest _codexRequest() {
+    if (_stdio) {
+      final words = splitCommandLine(_target.text);
+      if (words.isEmpty) throw const McpException('Informe o comando.');
+      return CodexMcpAddRequest(
+        name: _name.text.trim(),
+        transport: McpTransport.stdio,
+        command: words.first,
+        args: words.skip(1).toList(),
+        env: parseKeyValues(_pairs.text),
+      );
+    }
+    final v = _tokenVar.text.trim();
+    return CodexMcpAddRequest(
+      name: _name.text.trim(),
+      transport: McpTransport.http,
+      url: _target.text.trim(),
+      bearerTokenEnvVar: v.isEmpty ? null : v,
+    );
+  }
+
+  /// The command the Codex will run, values masked (R4); null while the
+  /// fields are incomplete.
+  String? _codexPreview() {
+    try {
+      return codexMcpAddPreview(_codexRequest());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _submitCodex() async {
+    final ws = ref.read(activeWorkspaceProvider);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final req = _codexRequest();
+      final runCwd = ws?.path ?? ref.read(agentHomeProvider);
+      final r = await ref.read(codexMcpCliProvider).add(req, runCwd);
+      ref
+        ..invalidate(codexMcpListProvider(runCwd))
+        ..invalidate(codexMcpStatusProvider(runCwd));
+      ref
+          .read(selectedCodexMcpServerProvider.notifier)
+          .select('codex:${req.name}');
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(r.message)));
+      Navigator.of(context).pop(req.name);
+    } on McpException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _submit() async {
+    if (_codex) return _submitCodex();
     final ws = ref.read(activeWorkspaceProvider);
     setState(() {
       _busy = true;
@@ -135,14 +203,21 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Adicionar servidor MCP',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  Text(
+                    _codex
+                        ? 'Adicionar servidor MCP ao Codex'
+                        : 'Adicionar servidor MCP',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Executa claude mcp add — o Claude Code grava a configuração.',
-                    style: TextStyle(
+                  Text(
+                    _codex
+                        ? 'Executa codex mcp add — o Codex grava a configuração.'
+                        : 'Executa claude mcp add — o Claude Code grava a configuração.',
+                    style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                     ),
@@ -153,6 +228,7 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
                     key: const ValueKey('mcp-add-name'),
                     controller: _name,
                     autofocus: true,
+                    onChanged: _codex ? (_) => setState(() {}) : null,
                     style: const TextStyle(
                       fontFamily: AppFonts.mono,
                       fontSize: 13,
@@ -161,42 +237,55 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
                   ),
                   const SizedBox(height: 12),
                   const FieldLabel('Escopo'),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final s in McpScope.values)
-                        TogglePill(
-                          key: ValueKey('mcp-add-scope-${s.name}'),
-                          label: s.label,
-                          on: _scope == s,
-                          onTap: s != McpScope.user && ws == null
-                              ? null
-                              : () => setState(() => _scope = s),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _scope == McpScope.user
-                        ? 'Global · todos os workspaces (~/.claude.json)'
-                        : _scope == McpScope.project
-                        ? 'Projeto · ${ws?.name ?? '—'} (.mcp.json, versionado)'
-                        : 'Local · ${ws?.name ?? '—'} (privado, ~/.claude.json)',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
+                  if (_codex)
+                    const Text(
+                      'Global · todos os projetos (~/.codex/config.toml). O '
+                      'Codex desta versão não tem escopo de projeto para MCP.',
+                      key: ValueKey('mcp-add-codex-scope'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  else ...[
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final s in McpScope.values)
+                          TogglePill(
+                            key: ValueKey('mcp-add-scope-${s.name}'),
+                            label: s.label,
+                            on: _scope == s,
+                            onTap: s != McpScope.user && ws == null
+                                ? null
+                                : () => setState(() => _scope = s),
+                          ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _scope == McpScope.user
+                          ? 'Global · todos os workspaces (~/.claude.json)'
+                          : _scope == McpScope.project
+                          ? 'Projeto · ${ws?.name ?? '—'} (.mcp.json, versionado)'
+                          : 'Local · ${ws?.name ?? '—'} (privado, ~/.claude.json)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   const FieldLabel('Tipo'),
                   Wrap(
                     spacing: 6,
                     children: [
-                      for (final t in const [
+                      for (final t in [
                         McpTransport.stdio,
                         McpTransport.http,
-                        McpTransport.sse,
+                        // The Codex has no sse (R6).
+                        if (!_codex) McpTransport.sse,
                       ])
                         TogglePill(
                           key: ValueKey('mcp-add-type-${t.name}'),
@@ -211,6 +300,7 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
                   TextField(
                     key: const ValueKey('mcp-add-target'),
                     controller: _target,
+                    onChanged: _codex ? (_) => setState(() {}) : null,
                     style: const TextStyle(
                       fontFamily: AppFonts.mono,
                       fontSize: 13,
@@ -222,32 +312,87 @@ class _AddMcpServerDialogState extends ConsumerState<AddMcpServerDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  FieldLabel(
-                    _stdio
-                        ? 'Variáveis de ambiente (CHAVE=valor, uma por linha)'
-                        : 'Headers (Nome: valor, um por linha)',
-                  ),
-                  TextField(
-                    key: const ValueKey('mcp-add-pairs'),
-                    controller: _pairs,
-                    minLines: 2,
-                    maxLines: 4,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 12,
+                  if (_codex && !_stdio) ...[
+                    const FieldLabel('Variável do token (opcional)'),
+                    TextField(
+                      key: const ValueKey('mcp-add-token-var'),
+                      controller: _tokenVar,
+                      onChanged: (_) => setState(() {}),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 13,
+                      ),
+                      decoration: agentFieldDecoration('ex.: GITHUB_PAT'),
                     ),
-                    decoration: agentFieldDecoration(
-                      _stdio ? 'GITHUB_TOKEN=…' : 'Authorization: Bearer …',
+                    const SizedBox(height: 4),
+                    const Text(
+                      'O Codex lê o token dessa variável ao conectar; o valor '
+                      'não fica no config.toml. Sem variável, o servidor usa '
+                      'OAuth: depois de adicionar, use "Entrar".',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Os valores vão direto para o Claude Code; o Promptorium não '
-                    'os guarda nem os exibe depois.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                  ),
+                  ] else ...[
+                    FieldLabel(
+                      _stdio
+                          ? 'Variáveis de ambiente (CHAVE=valor, uma por linha)'
+                          : 'Headers (Nome: valor, um por linha)',
+                    ),
+                    TextField(
+                      key: const ValueKey('mcp-add-pairs'),
+                      controller: _pairs,
+                      onChanged: _codex ? (_) => setState(() {}) : null,
+                      minLines: 2,
+                      maxLines: 4,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 12,
+                      ),
+                      decoration: agentFieldDecoration(
+                        _stdio ? 'GITHUB_TOKEN=…' : 'Authorization: Bearer …',
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _codex
+                          ? 'Os valores vão direto para o Codex e ficam em texto '
+                                'no ~/.codex/config.toml; o Promptorium não os '
+                                'guarda nem os exibe depois.'
+                          : 'Os valores vão direto para o Claude Code; o '
+                                'Promptorium não os guarda nem os exibe depois.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                  if (_codex) ...[
+                    const SizedBox(height: 12),
+                    const FieldLabel('Comando que será executado'),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: SelectableText(
+                        _codexPreview() ?? 'codex mcp add …',
+                        key: const ValueKey('mcp-add-codex-preview'),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 8),
                     Text(

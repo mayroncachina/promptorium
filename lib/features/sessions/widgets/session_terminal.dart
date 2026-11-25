@@ -1,3 +1,5 @@
+import '../../../core/providers/capabilities.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -18,6 +20,8 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/shell_intents.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../../core/memory/ai_memory_state.dart';
+import '../handoff/handoff_wait.dart' show aiMemoryRunArgs;
 import '../session_manager.dart';
 import 'session_style.dart';
 
@@ -29,6 +33,9 @@ class SessionTerminal {
   /// Session id (Sessões) or worktree path (Código).
   final String sessionId;
   final terminal = Terminal(maxLines: 10000);
+
+  /// What runs, for the header (null = the agent's resume command).
+  String? title;
   final controller = TerminalController();
   Pty? pty;
   bool running = false;
@@ -102,9 +109,10 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
     final prefs = ref.read(runPrefsProvider);
     final effort = effortArg(
       s.effort ??
-          (s.provider == 'claude' ? prefs.effort(RunKind.session) : null),
+          (isClaudeCode(s.provider) ? prefs.effort(RunKind.session) : null),
     );
-    if (s.provider != 'claude' && s.provider != 'codex') {
+    // Only the CLIs with an interactive terminal (Claude, Codex).
+    if (!isClaudeCode(s.provider) && s.provider != 'codex') {
       throw AgentUnavailable('Terminal não disponível para ${s.provider}.');
     }
     final codex = s.provider == 'codex';
@@ -175,6 +183,48 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
     state = {...state, s.id: t};
   }
 
+  /// SPEC-099 R6: `ai-memory run <destino> --no-autowire` in the session's
+  /// worktree. Out of the timeline: the app opens the terminal and does not
+  /// follow nor record that conversation.
+  Future<void> openAiMemoryRun(
+    Session s, {
+    required String target,
+    bool yolo = false,
+  }) async {
+    final existing = state[s.id];
+    if (existing != null && existing.running) {
+      throw const AgentUnavailable(
+        'Feche o terminal interativo desta sessão antes.',
+      );
+    }
+    final exe = await ref.read(aiMemoryExecutableProvider.future);
+    if (exe == null) {
+      throw const AgentUnavailable('O ai-memory não foi encontrado.');
+    }
+    if (!ref.mounted) return;
+    final t = SessionTerminal(s.id)
+      ..title =
+          'ai-memory ${aiMemoryRunArgs(target, yolo: yolo).join(' ')} · fora '
+          'da timeline';
+    t.terminal.write(
+      '[ai-memory run ${aiMemoryRunArgs(target, yolo: yolo).skip(1).join(' ')}'
+      ' · fora da timeline]\r\n',
+    );
+    t.start(
+      executable: exe,
+      args: aiMemoryRunArgs(target, yolo: yolo),
+      cwd: s.worktreePath,
+      environment: switch (ref.read(worktreeEnvProvider)[s.worktreePath]) {
+        final env? => {...Platform.environment, ...env},
+        null => null,
+      },
+      onExit: () {
+        if (ref.mounted) state = {...state};
+      },
+    );
+    state = {...state, s.id: t};
+  }
+
   /// App closing: kills every PTY (`claude` interactive processes).
   void killAll() {
     for (final t in _all.values) {
@@ -231,6 +281,41 @@ class SessionTerminalView extends ConsumerWidget {
     final alive = ref.watch(
       sessionManagerProvider.select((s) => s.isAlive(session.id)),
     );
+    final busy = ref.watch(
+      sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
+    );
+    // SPEC-096 R13, P4: one writer per thread — with the Codex turn
+    // running, the terminal waits for "Interromper".
+    if (session.provider == 'codex' &&
+        alive &&
+        busy &&
+        (term == null || !term.running)) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                codexTerminalBusyMessage,
+                key: ValueKey('terminal-codex-busy'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              SmallButton(
+                key: const ValueKey('terminal-interrupt'),
+                label: 'Interromper',
+                color: AppColors.amber,
+                onTap: () => ref
+                    .read(sessionManagerProvider.notifier)
+                    .interrupt(session.id),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (term == null || (!term.running && alive)) {
       return Center(
         child: ConstrainedBox(
@@ -291,7 +376,7 @@ class SessionTerminalView extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${session.provider == 'codex' ? 'codex resume ${session.externalId}' : 'claude --resume ${session.id}'} · ${session.worktreePath}',
+                  '${ref.watch(sessionTerminalsProvider)[session.id]?.title ?? (session.provider == 'codex' ? 'codex resume ${session.externalId}' : 'claude --resume ${session.id}')} · ${session.worktreePath}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -398,3 +483,8 @@ class AppTerminalView extends StatelessWidget {
     },
   );
 }
+
+/// SPEC-096 P4: the App Server and the TUI never write the same thread.
+const codexTerminalBusyMessage =
+    'Pare o turno para abrir o terminal: um escritor por thread. O terminal '
+    'só abre com o turno parado.';

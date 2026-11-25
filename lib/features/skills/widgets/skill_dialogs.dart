@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../ui/widgets/run_provider_line.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -433,6 +436,12 @@ class _NewSkillDialogState extends ConsumerState<NewSkillDialog> {
             ),
           ],
         ),
+        // SPEC-100 R10, R11: provider, model and use of the generation.
+        if (_mode != NewSkillMode.blank)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: RunProviderLine(slot: skillWriterSlot, onRetry: _create),
+          ),
         _errorText(_error),
       ],
     );

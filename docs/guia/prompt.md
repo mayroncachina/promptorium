@@ -8,7 +8,14 @@ Conversas livres na raiz do workspace, sem worktree.
 - **Planejar**: modo `plan`. O plano pronto aparece num cartão com "Implementar como sessão", "Transformar em spec" e "Continuar planejando", e é salvo em `.promptorium/planos/`. O app nunca aprova o plano pelo agente.
 - **Editar**: `acceptEdits`.
 
-O menu do provedor lista Claude Code e os agentes ACP cadastrados; Codex aparece como "em breve". Trocar de modelo vale a partir da próxima mensagem.
+O menu do provedor lista Claude Code, Codex e os agentes ACP cadastrados. Trocar de modelo vale a partir da próxima mensagem.
+
+Com o **Codex**:
+
+- Perguntar e Planejar rodam em somente leitura, imposta pelo sandbox. Editar pede a sua confirmação.
+- O Codex não tem modo `plan`: no fim do turno, **Executar plano** abre um turno em Editar com o plano, na mesma conversa.
+- Trocar de provedor numa conversa com histórico abre uma conversa nova.
+- Sem o sandbox na máquina, o Codex fica bloqueado aqui, com "Sandbox do Codex indisponível" ([Provedores](como-funciona.md#provedores)).
 
 ## Composer
 

@@ -4,13 +4,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
-import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
-import '../../core/claude/readonly_run.dart'
-    show PlannerException, runReadOnlyClaude, structuredOutput;
+import '../../core/providers/structured_run.dart';
 import 'cost_estimate.dart';
 import 'project_plan.dart';
 import 'project_templates.dart' show CustomStack, templateClaudeMd;
@@ -455,6 +452,18 @@ class PlannerActivity {
 }
 
 /// Runs the planner and stores its output in `project_plans`, per workspace.
+/// One planner question: what [ProjectPlanner._run] asks (SPEC-100 R1).
+typedef _PlannerAsk = ({
+  String instructions,
+  Map<String, Object?> schema,
+  double budget,
+  String? sessionId,
+  String? resumeId,
+});
+
+/// Slot of the Projeto's provider line (SPEC-100 R10).
+String projectPlannerSlot(int workspaceId) => 'project:$workspaceId';
+
 class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   @override
   Map<int, PlannerActivity> build() => const {};
@@ -462,21 +471,18 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   static const budgetUsd = 0.5;
   static const roadmapBudgetUsd = 1.0;
 
-  ClaudeOptions _options(
+  _PlannerAsk _options(
     String systemPrompt,
     Map<String, Object?> schema, {
     double budget = budgetUsd,
     String? sessionId,
     String? resumeId,
-  }) => ClaudeOptions(
+  }) => (
+    instructions: systemPrompt,
+    schema: schema,
+    budget: budget,
     sessionId: sessionId,
     resumeId: resumeId,
-    permissionMode: ClaudePermissionMode.defaultMode,
-    disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-    appendSystemPrompt: systemPrompt,
-    jsonSchema: jsonEncode(schema),
-    maxBudgetUsd: budget,
-    includePartialMessages: false,
   );
 
   /// Workspaces running "Gerar proposta completa" ([proposeAll]).
@@ -521,20 +527,28 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   /// (SPEC-072 R8, R10), also when it fails.
   Future<Result> _run(
     Workspace ws,
-    ClaudeOptions options,
+    _PlannerAsk ask,
     String prompt, {
     required String kind,
   }) async {
     try {
-      final r = await runReadOnlyClaude(
+      final r = await runStructured(
         ref,
-        workspaceId: ws.id,
-        cwd: ws.path,
-        options: options,
-        prompt: prompt,
+        StructuredIntent(
+          workspaceId: ws.id,
+          cwd: ws.path,
+          sessionId: ask.sessionId,
+          resumeId: ask.resumeId,
+          instructions: ask.instructions,
+          schema: ask.schema,
+          claude: ClaudeStructuredExtras(maxBudgetUsd: ask.budget),
+          slot: projectPlannerSlot(ws.id),
+          label: 'o planner do Projeto',
+          prompt: prompt,
+        ),
       );
-      await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
-      return r;
+      await ref.read(projectPlansRepoProvider).addCost(ws.id, r.costUsd ?? 0);
+      return r.raw;
     } finally {
       await recordPlannerCalls(ref, ws.id, kind);
     }
