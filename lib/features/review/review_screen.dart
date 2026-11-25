@@ -12,6 +12,7 @@ import 'merge_readiness.dart';
 import '../board/widgets/spec_steps_panel.dart' show selectedStepProvider;
 import 'comment_anchor.dart';
 import '../debts/widgets/review_comment_debt.dart' show ReviewDebtScope;
+import '../debts/widgets/debt_file_chip.dart' show SpecReviewDebts;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
@@ -2057,7 +2058,15 @@ extension on _ReviewMainState {
       workspaceId: widget.workspaceId,
       merged: s.status == SessionStatus.merged || spec.stage == SpecStage.done,
       files: d?.files ?? const [],
-      child: child,
+      // SPEC-112 R15, R17: "pago de carona?" to confirm and what the spec
+      // pays.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SpecReviewDebts(spec: spec),
+          Expanded(child: child),
+        ],
+      ),
     );
   }
 
