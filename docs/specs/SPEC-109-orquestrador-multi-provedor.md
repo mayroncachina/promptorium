@@ -104,7 +104,7 @@ Quem não liga nada continua com o comportamento de hoje: as regras padrão são
 
 ### Migração
 
-**Sim** (P1): `spec_steps.plan_provider` (texto, nulo = `claude`); `step_runs.provider` (texto, padrão `claude`), `tokens_in`, `tokens_out` (inteiros, nulos) e `diverted` (texto, nulo, ou `quota`/`threshold`/`second_opinion`). Fica na próxima versão livre do schema na hora da implementação (hoje é a 33). As preferências novas ficam em `app_settings`, sem migração.
+**Sim** (P1): `spec_steps.plan_provider` (texto, nulo = `claude`); `step_runs.provider` (texto, padrão `claude`), `tokens_in`, `tokens_out` (inteiros, nulos) e `diverted` (texto, nulo, ou `quota`/`threshold`/`second_opinion`). Ficou na v38 (a main estava na v37). As preferências novas ficam em `app_settings`, sem migração.
 
 ### Dependências
 
@@ -135,21 +135,21 @@ Quem não liga nada continua com o comportamento de hoje: as regras padrão são
 
 ## Critérios de aceite
 
-- [ ] Cada regra escolhe provedor, modelo e esforço; os modelos do Codex vêm do `model/list`; o padrão continua todo no Claude [R1] verificar: flutter test test/features/settings/orchestrator_view_test.dart
-- [ ] Cada tipo tem uma reserva no outro provedor, e um tipo sem reserva não desvia [R2] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
-- [ ] A escalada sobe na escada do provedor da etapa; no Codex, por padrão, sobe o esforço [R3] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] Com a segunda opinião ligada, o topo de um provedor tenta o topo do outro, e isso conta como uma escalada [R4] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] Um limite de cota termina a sessão, volta ao início da etapa e abre uma sessão no outro provedor com o pacote; isso não conta como reprovação [R5] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] O desvio preventivo só olha a cota na fronteira de etapa e não desvia sem leitura [R6] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
-- [ ] Depois do `resetsAt`, a próxima etapa volta ao provedor do plano [R7] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
-- [ ] Sem cota nos dois provedores, a etapa espera com os horários de renovação e as três ações, sem cair em silêncio para outro provedor [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] O plano mostra o provedor por etapa, as cotas no cabeçalho e uma sessão nova a cada troca de provedor [R9] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] Etapas de provedores diferentes rodam na mesma worktree, com os commits marcados com o agente certo [R10] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] A classificação roda no modelo escolhido, inclusive no Codex, e mantém o cache [R11] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
-- [ ] O piloto segue as mesmas regras, e "Pausar automáticos" impede desvios e agendamentos [R12] verificar: flutter test test/features/board/autopilot_test.dart
-- [ ] O Histórico agrupa por tipo e provedor, conta os desvios e mostra tokens, sem US$ no Codex [R13] verificar: flutter test test/features/settings/orchestrator_history_test.dart
+- [x] Cada regra escolhe provedor, modelo e esforço; os modelos do Codex vêm do `model/list`; o padrão continua todo no Claude [R1] verificar: flutter test test/features/settings/orchestrator_view_test.dart
+- [x] Cada tipo tem uma reserva no outro provedor, e um tipo sem reserva não desvia [R2] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
+- [x] A escalada sobe na escada do provedor da etapa; no Codex, por padrão, sobe o esforço [R3] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] Com a segunda opinião ligada, o topo de um provedor tenta o topo do outro, e isso conta como uma escalada [R4] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] Um limite de cota termina a sessão, volta ao início da etapa e abre uma sessão no outro provedor com o pacote; isso não conta como reprovação [R5] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] O desvio preventivo só olha a cota na fronteira de etapa e não desvia sem leitura [R6] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
+- [x] Depois do `resetsAt`, a próxima etapa volta ao provedor do plano [R7] verificar: flutter test test/features/board/orchestrator/quota_divert_test.dart
+- [x] Sem cota nos dois provedores, a etapa espera com os horários de renovação e as três ações, sem cair em silêncio para outro provedor [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] O plano mostra o provedor por etapa, as cotas no cabeçalho e uma sessão nova a cada troca de provedor [R9] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] Etapas de provedores diferentes rodam na mesma worktree, com os commits marcados com o agente certo [R10] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] A classificação roda no modelo escolhido, inclusive no Codex, e mantém o cache [R11] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
+- [x] O piloto segue as mesmas regras, e "Pausar automáticos" impede desvios e agendamentos [R12] verificar: flutter test test/features/board/autopilot_test.dart
+- [x] O Histórico agrupa por tipo e provedor, conta os desvios e mostra tokens, sem US$ no Codex [R13] verificar: flutter test test/features/settings/orchestrator_history_test.dart
 - [ ] No app isolado, uma spec em Automático com a cota do Claude esgotando na R4 segue no Codex e volta ao Claude depois da renovação [R5–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, `fake_codex`, prints em `docs/mockups/spec-109/app/`)
-- [ ] O projeto compila, a migração tem teste e a análise estática passa [R1–R14] verificar: flutter analyze e flutter test test/data/migration_test.dart
+- [x] O projeto compila, a migração tem teste e a análise estática passa [R1–R14] verificar: flutter analyze e flutter test test/data/migration_test.dart
 
 ## Telas
 
@@ -162,3 +162,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/6eD6puW5gbjEXZqqXRD
 | `2-regras.png` | Configurações › Orquestrador: provedor por tipo, reserva "Se a cota acabar", escada do Codex por esforço, desvio por cota, desvio preventivo e segunda opinião | R1–R4, R6 |
 | `3-desvio-cota.png` | Linha do tempo da spec: a R4 interrompida pela cota do Claude, desviada para o Codex com o pacote e a volta ao Claude depois da renovação; o card do Quadro com o selo | R5, R7, R14 |
 | `4-estados.png` | Os dois provedores sem cota com os horários e "Retomar quando renovar", o Codex indisponível no plano e o Histórico por provedor com desvios e tokens | R8, R9, R13 |
+
+## Implementação
+
+- PR para a main com as tarefas T1–T5 (PRs filhos #432, #435, #437, #438, #439).
+- Decisões além da spec:
+  - Antes do rewind automático, o que a tentativa interrompida deixou (arquivos sem commit inclusive) fica guardado em `refs/promptorium/<spec>/<etapa>-cota`; o rewind só roda se o caminho for a raiz de uma worktree registrada do projeto, nunca a raiz do repositório.
+  - Um limite sem horário de renovação vale por 30 minutos.
+  - Com "Executar spec" no Codex e nenhuma regra no Codex, o piloto e o Executar continuam em Manual no Codex, como antes; com alguma regra no Codex, a spec nova vai para o Automático.
+  - Numa etapa planejada para o Codex o `--agent` não vai (R10 e "Fora do escopo"), embora a SPEC-106 traduza o agente nas execuções Manuais.
+  - O modo escolhido no Executar em Automático fica guardado por spec; o YOLO forçado do Codex sem sandbox nunca passa para uma etapa do Claude.
+  - Segunda opinião cortada pela cota espera a pessoa em vez de voltar ao plano que já reprovou.
+- O critério manual (E2E no app isolado) não foi feito: o lançamento do app de teste foi negado pelo sistema de permissões nesta sessão.
