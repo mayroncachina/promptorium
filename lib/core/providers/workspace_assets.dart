@@ -78,10 +78,12 @@ final _fence = RegExp(r'^ {0,3}(`{3,}|~{3,})');
 /// code block (R1), or null. The line may have up to three leading spaces
 /// (four is an indented code block) and trailing blanks.
 int? agentsImportLineIndex(String claude) {
-  final lines = const LineSplitter().convert(claude);
+  final lines = claude.split('\n');
   String? fence;
   for (var i = 0; i < lines.length; i++) {
-    final line = lines[i];
+    final line = lines[i].endsWith('\r')
+        ? lines[i].substring(0, lines[i].length - 1)
+        : lines[i];
     final m = _fence.firstMatch(line);
     if (fence != null) {
       final close = m?.group(1);

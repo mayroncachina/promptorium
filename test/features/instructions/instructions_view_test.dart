@@ -202,6 +202,46 @@ void main() {
     expect(key('instructions-generate-agents'), findsNothing);
   });
 
+  testWidgets('SPEC-113 R1: CLAUDE.md importing a person\'s AGENTS.md is the '
+      'single source, never "duas fontes"', (tester) async {
+    write('CLAUDE.md', '@AGENTS.md\n\n# só Claude\n');
+    write('AGENTS.md', '# meu\n');
+    await pump(tester);
+    expect(key('instructions-single-source'), findsOneWidget);
+    expect(key('instructions-two-sources'), findsNothing);
+    expect(find.textContaining('Duas fontes'), findsNothing);
+    expect(inRow('Codex', 'duas fontes'), findsNothing);
+    expect(inRow('Codex', 'AGENTS.md (fonte única)'), findsOneWidget);
+    expect(inRow('Codex', 'previsto'), findsOneWidget);
+    expect(key('instructions-generate-agents'), findsNothing);
+    expect(key('instructions-update-agents'), findsNothing);
+  });
+
+  test('SPEC-113 R1: single source is "carregado" only with the proof', () {
+    final file = InstructionFile(
+      path: 'AGENTS.md',
+      size: 6,
+      modified: DateTime(2026),
+      lines: 1,
+    );
+    final inv = InstructionsInventory(
+      root: '/r',
+      claude: file,
+      claudeText: '@AGENTS.md\n',
+      agents: file,
+      agentsText: '# meu\n',
+    );
+    expect(instructionsRows(inv, null, fallback: true)[1].state, 'previsto');
+    final proof = InstructionsProof(
+      sources: const ['AGENTS.md'],
+      at: DateTime.now(),
+      where: 'sessão',
+    );
+    final rows = instructionsRows(inv, proof, fallback: true);
+    expect(rows[1].state, 'carregado');
+    expect(rows[0].reads, 'CLAUDE.md + AGENTS.md (import)');
+  });
+
   testWidgets('R4: a generated, stale AGENTS.md shows the diff before '
       '"Atualizar AGENTS.md" writes', (tester) async {
     write('CLAUDE.md', '# a\n- Testes só nas telas principais.\n');
