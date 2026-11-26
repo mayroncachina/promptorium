@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 37;
+const appSchemaVersion = 38;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -298,6 +298,10 @@ class SpecSteps extends Table {
   TextColumn get planModel => text().nullable()();
   TextColumn get planEffort => text().nullable()();
 
+  /// Provider of the plan (schema v38, SPEC-109): `claude` or `codex`; null
+  /// = the Claude Code (the plans of before).
+  TextColumn get planProvider => text().nullable()();
+
   /// Hash of the step's text when it was classified (cache of R3).
   TextColumn get planHash => text().nullable()();
 
@@ -338,6 +342,20 @@ class StepRuns extends Table {
   /// session ran several steps).
   RealColumn get costUsd => real().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  // --- schema v38 (SPEC-109) --------------------------------------------------
+
+  /// Who ran the attempt (the ones of before are the Claude Code's).
+  TextColumn get provider => text().withDefault(const Constant('claude'))();
+
+  /// Share of the session's tokens (split like the cost).
+  IntColumn get tokensIn => integer().nullable()();
+  IntColumn get tokensOut => integer().nullable()();
+
+  /// Why the step was not on the provider of its plan: `quota` (the limit
+  /// was reached), `threshold` (preventive) or `second_opinion`; null = it
+  /// was.
+  TextColumn get diverted => text().nullable()();
 }
 
 /// Autopilot of the Quadro switched on for a workspace (schema v9): turned
@@ -1596,6 +1614,26 @@ class AppDatabase extends _$AppDatabase {
           },
           // v37: links of the debts and decisions (SPEC-112 R4). Nothing
           // is imported: the files are the source.
+          from37To38: (m, v) async {
+            // SPEC-109 P1: provider of the plan and of the attempts. Null /
+            // 'claude' = what every row of before was.
+            if (await _hasTable('spec_steps') &&
+                !await _hasColumn('spec_steps', 'plan_provider')) {
+              await m.addColumn(v.specSteps, v.specSteps.planProvider);
+            }
+            if (await _hasTable('step_runs')) {
+              for (final c in [
+                v.stepRuns.provider,
+                v.stepRuns.tokensIn,
+                v.stepRuns.tokensOut,
+                v.stepRuns.diverted,
+              ]) {
+                if (!await _hasColumn('step_runs', c.name)) {
+                  await m.addColumn(v.stepRuns, c);
+                }
+              }
+            }
+          },
           from36To37: (m, v) async {
             if (await _hasTable('debt_links')) return;
             await m.createTable(v.debtLinks);

@@ -42,6 +42,7 @@ import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../agents/codex_agent.dart';
+import '../board/orchestrator/quota_divert.dart' show QuotaHit;
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../prompt/conversation_manager.dart' show conversationManagerProvider;
@@ -789,6 +790,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..formatFiles.clear()
       ..seenNeutral.clear()
       ..limitNoted = false;
+    _quotaHits.remove(id);
     _publish();
     // SPEC-084 R1: the restore point of the turn, before the message goes
     // (the first one was recorded by [create]).
@@ -2630,6 +2632,7 @@ class SessionManager extends Notifier<SessionManagerState> {
                     )
               : null,
         );
+        _turnEnds[id] = turnEnd;
         // SPEC-111 R4: the panel reloads once the app's commit is done
         // (the reload above ran before it).
         if (codex) {
@@ -2665,6 +2668,18 @@ class SessionManager extends Notifier<SessionManagerState> {
         await ref.read(usageTrackerProvider).handle(e);
         // SPEC-099 R2: the session stops at the limit.
         if (e.status == 'rejected') {
+          // SPEC-109 R5: not while the extra usage goes on.
+          if (!e.isUsingOverage) {
+            _quotaHits[id] = QuotaHit(
+              provider: 'claude',
+              at: DateTime.now(),
+              minutes: switch (e.rateLimitType) {
+                'seven_day' || 'seven_day_opus' || 'seven_day_sonnet' => 10080,
+                _ => 300,
+              },
+              resetsAt: e.resetsAt ?? e.fiveHourResetsAt,
+            );
+          }
           await _noteLimit(
             id,
             p,
@@ -2681,6 +2696,12 @@ class SessionManager extends Notifier<SessionManagerState> {
         final w = e.windows
             .where((w) => (w.usedPercent ?? 0) >= 100)
             .firstOrNull;
+        _quotaHits[id] = QuotaHit(
+          provider: e.provider,
+          at: DateTime.now(),
+          minutes: w?.minutes ?? 300,
+          resetsAt: w?.resetsAt,
+        );
         await _noteLimit(
           id,
           p,
@@ -3002,6 +3023,25 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   /// "Limite de uso atingido" in the timeline, once per turn (SPEC-099 R2).
+  final Map<String, Future<void>> _turnEnds = {};
+
+  /// Waits for what the app does after the last turn of [id] (the commit of
+  /// a Codex turn, the end of its restore point): before its step is undone
+  /// by the app (SPEC-109 R5).
+  Future<void> turnSettled(String id) async {
+    try {
+      await _turnEnds[id];
+    } catch (_) {
+      // Already reported.
+    }
+  }
+
+  final Map<String, QuotaHit> _quotaHits = {};
+
+  /// The limit [id] reached in its current (or last) turn (SPEC-109 R5);
+  /// null = none.
+  QuotaHit? quotaHit(String id) => _quotaHits[id];
+
   Future<void> _noteLimit(
     String id,
     _Proc p, {

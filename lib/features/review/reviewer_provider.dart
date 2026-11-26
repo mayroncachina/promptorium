@@ -25,7 +25,7 @@ class ReviewerChoice {
   final bool fromConfig;
 
   /// The rule Revisão of the Orquestrador's plan decided it (Automático,
-  /// SPEC-035 R8): the Claude Code until the SPEC-109.
+  /// SPEC-035 R8, SPEC-109 R11).
   final bool fromPlan;
 
   /// The reviewer is not the provider that executed: "segunda opinião"
@@ -52,19 +52,20 @@ String otherReviewerProvider(String executedBy) =>
 
 /// Resolves `revisor: provedor:` (R2) for a spec executed by [executedBy]
 /// (for a PR without spec, the provider of its session). [auto] = the spec
-/// runs in Automático: the plan's rule (Claude Code) holds unless the
-/// config sets `provedor:` explicitly (R3).
+/// runs in Automático: the plan's rule ([planProvider], SPEC-109 R11) holds
+/// unless the config sets `provedor:` explicitly (R3).
 ReviewerChoice resolveReviewerChoice(
   ReviewerConfig config, {
   required String executedBy,
   bool auto = false,
+  String? planProvider,
 }) {
   final exec = executedBy.isEmpty
       ? ProviderCapabilities.claude.providerId
       : executedBy;
   if (auto && !config.explicitProvider) {
     return ReviewerChoice(
-      provider: ProviderCapabilities.claude.providerId,
+      provider: planProvider ?? ProviderCapabilities.claude.providerId,
       executedBy: exec,
       fromPlan: true,
     );

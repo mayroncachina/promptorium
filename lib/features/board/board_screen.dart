@@ -30,6 +30,7 @@ import '../activities/activities_screen.dart' show openActivities;
 import '../activities/activities_state.dart' show activitiesProvider;
 import '../activities/widgets/board_robots.dart';
 import 'autopilot.dart';
+import 'orchestrator/quota_diverter.dart' show specQuotaWaitProvider;
 import 'board_rules.dart';
 import '../vibe/widgets/vibe_card.dart' show VibeCard;
 import 'spec_runner.dart'
@@ -50,6 +51,7 @@ import 'widgets/gate_fix_badge.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
+import 'widgets/quota_widgets.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/autopilot_preview.dart';
 import 'widgets/spec_steps_panel.dart';
@@ -2070,6 +2072,8 @@ class SpecCard extends ConsumerWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                // SPEC-109 R5, R14: where the quota sent the step.
+                SpecDivertLine(specId: spec.id, step: current.id),
                 if (current.gate case final g?) ...[
                   const SizedBox(height: 4),
                   GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
@@ -2270,6 +2274,13 @@ class BoardSpecAction extends ConsumerWidget {
               label: 'Tentar de novo',
               onTap: () => runSpec(context, ref, data),
             ),
+          ] else if (waitingUser &&
+              !busy &&
+              ref.watch(specQuotaWaitProvider(spec.id))?.step ==
+                  current!.id) ...[
+            // SPEC-109 R8: nothing to answer, the quota ended.
+            const SizedBox(height: 8),
+            QuotaWaitPanel(specId: spec.id, compact: true),
           ] else if (waitingUser && !busy && current!.sessionId != null) ...[
             const SizedBox(height: 8),
             _ActionButton(

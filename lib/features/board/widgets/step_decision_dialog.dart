@@ -19,12 +19,14 @@ import '../step_decision.dart';
 import '../step_decision_apply.dart';
 import '../step_decision_choices.dart';
 import '../step_decision_compiler.dart';
+import '../orchestrator/quota_diverter.dart';
 import 'duel_dialog.dart' show openDuelsProvider, showDuelDialog;
 import 'spec_canvas.dart' show attentionPulsePeriod;
 import 'step_decision_chrome.dart';
 import 'step_decision_compile.dart';
 import 'step_decision_parts.dart';
 import 'step_decision_preview.dart';
+import 'quota_widgets.dart' show showQuotaWait;
 import 'step_live_dialog.dart';
 
 export 'step_decision_compile.dart'
@@ -83,6 +85,13 @@ Future<void> openStep(
       ?.where((d) => d.specId == spec.id && d.state == 'pronto')
       .firstOrNull;
   if (duel != null) return showDuelDialog(context, duel);
+  // SPEC-109 R8: a step that waits for quota has nothing to decide.
+  final wait = ProviderScope.containerOf(context, listen: false)
+      .read(quotaDiverterProvider)
+      .waitOf(spec.id);
+  if (wait != null && wait.step == step.id) {
+    return showQuotaWait(context, spec);
+  }
   return showStepDecision(
     context,
     spec,

@@ -401,19 +401,25 @@ class AutoReviewer {
         .existsSync();
     // SPEC-102 R2, R3: who reviews. In Automático (SPEC-035 R8: the steps
     // have a plan) the rule Revisão holds, unless `provedor:` is explicit.
-    final choice = resolveReviewerChoice(
-      config.reviewer,
-      executedBy: executionProviderOf(sessions.map((s) => s.provider)),
-      auto: runsInAuto(rows),
-    );
-    final provider = providerOnce ?? choice.provider;
-    final claude = isClaudeCode(provider);
-    final rule = choice.fromPlan && claude
+    final auto = runsInAuto(rows);
+    final planRule = auto
         ? reviewRuleOf(
             _ref.read(appSettingsProvider),
             specId,
             _ref.read(orchestratorPrefsProvider),
           )
+        : null;
+    final choice = resolveReviewerChoice(
+      config.reviewer,
+      executedBy: executionProviderOf(sessions.map((s) => s.provider)),
+      auto: auto,
+      planProvider: planRule?.provider,
+    );
+    final provider = providerOnce ?? choice.provider;
+    final claude = isClaudeCode(provider);
+    // SPEC-109 R11: the rule Revisão, on the provider it is for.
+    final rule = choice.fromPlan && planRule?.provider == provider
+        ? planRule
         : null;
     // R7: the project's own agent goes as `--agent` on the Claude Code;
     // on the Codex it is translated (SPEC-106 R10): its body before the
@@ -422,6 +428,8 @@ class AutoReviewer {
     final settings = _ref.read(appSettingsProvider);
     final codexModel = claude
         ? null
+        : rule != null && rule.model != 'inherit'
+        ? rule.model
         : reviewerCodexModel(config.reviewer, settings);
     final reviewerPlan =
         ownAgent && provider == ProviderCapabilities.codex.providerId
@@ -452,12 +460,14 @@ class AutoReviewer {
                 : null,
           ),
           // R4: `modelo-codex` / `codex.model.reviewer`; never a Claude alias.
-          modelOverride: reviewerPlan == null
+          modelOverride: reviewerPlan == null || rule != null
               ? codexModel
               : reviewerPlan.model == 'inherit'
               ? codexModel
               : reviewerPlan.model,
-          effortOverride: reviewerPlan == null
+          effortOverride: rule != null && !claude
+              ? rule.effort
+              : reviewerPlan == null
               ? null
               : reviewerPlan.effort ?? 'default',
           instructions: agent
@@ -550,7 +560,10 @@ class AutoReviewer {
         .read(specRunnerProvider)
         .runNext(
           specId,
-          mode: ClaudePermissionMode.fromCli(last?.permissionMode),
+          // In Automático each provider has its mode (SPEC-109 R10).
+          mode: runsInAuto(rows)
+              ? null
+              : ClaudePermissionMode.fromCli(last?.permissionMode),
           provider: choice.executedBy,
           model: last?.model,
           effort: last?.effort,

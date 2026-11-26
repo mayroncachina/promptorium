@@ -9,6 +9,7 @@ import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:promptorium/ui/theme/tokens.dart';
 
 import '../../helpers/test_db.dart';
+import '../board/orchestrator/orchestrator_fixture.dart' show codexCatalog;
 
 var _id = 0;
 
@@ -19,6 +20,10 @@ StepRun _run(
   int spec = 1,
   String model = 'sonnet',
   double cost = 0.1,
+  String provider = 'claude',
+  int? tokensIn,
+  int? tokensOut,
+  String? diverted,
   required DateTime at,
 }) => StepRun(
   id: ++_id,
@@ -28,6 +33,10 @@ StepRun _run(
   model: model,
   result: result,
   costUsd: cost,
+  provider: provider,
+  tokensIn: tokensIn,
+  tokensOut: tokensOut,
+  diverted: diverted,
   createdAt: at,
 );
 
@@ -114,6 +123,88 @@ void main() {
     );
   });
 
+  test('SPEC-109 R13: por tipo e provedor/modelo, com desvios e tokens; a '
+      'tentativa cortada pela cota não é reprovação nem escalada', () {
+    const impl = StepKind.implementacao;
+    const diverted = StepRunResult.diverted;
+    StepRun codex(
+      String step,
+      StepRunResult r,
+      int m, {
+      String? why,
+      int? tin,
+      int? tout,
+    }) => _run(
+      step,
+      impl,
+      r,
+      provider: 'codex',
+      model: 'gpt-6.2-sol',
+      cost: 0,
+      diverted: why,
+      tokensIn: tin,
+      tokensOut: tout,
+      at: at(m),
+    );
+    final runs = [
+      _run('R1', impl, passed, tokensIn: 1000, tokensOut: 10, at: at(0)),
+      // R2: cut by the quota on the Claude, passed on the Codex.
+      _run('R2', impl, diverted, diverted: 'quota', at: at(1)),
+      codex('R2', passed, 2, why: 'quota', tin: 900000, tout: 40000),
+      // R3: left before starting.
+      _run('R3', impl, diverted, diverted: 'threshold', at: at(3)),
+      codex('R3', passed, 4, why: 'threshold', tin: 300000),
+      // R4: Sonnet → Opus on the Claude.
+      _run('R4', impl, escalated, tokensIn: 500, tokensOut: 5, at: at(5)),
+      _run('R4', impl, passed, model: 'opus', cost: 0.5, at: at(6)),
+    ];
+    final rows = orchestratorHistory(runs, byModel: true);
+    expect(rows.map((h) => (h.provider, h.models.single)), [
+      ('claude', 'sonnet'),
+      ('claude', 'opus'),
+      ('codex', 'gpt-6.2-sol'),
+    ]);
+    final sonnet = rows[0], opus = rows[1], sol = rows[2];
+    expect(
+      (sonnet.steps, sonnet.firstPass, sonnet.escalated, sonnet.diverted),
+      (3, 1, 1, 2),
+    );
+    expect((sonnet.tokensIn, sonnet.tokensOut), (1500, 15));
+    expect((opus.steps, opus.firstPass, opus.diverted), (1, 0, 0));
+    expect((opus.tokensIn, opus.costUsd), (null, 0.5));
+    expect(
+      (sol.steps, sol.firstPass, sol.escalated, sol.diverted),
+      (2, 2, 0, 0),
+    );
+    expect((sol.tokensIn, sol.tokensOut), (1200000, 40000));
+    expect(sol.costUsd, isNull, reason: 'never US\$ on the Codex');
+    expect(historyTokens(1200000), '1,2 M');
+    expect(historyTokens(48000), '48 mil');
+    expect(historyTokens(950), '950');
+
+    // R18 by kind and provider.
+    final kinds = orchestratorHistory([
+      ...runs,
+      for (final s in ['A', 'B', 'C']) codex(s, passed, 20),
+      codex('D', escalated, 21),
+    ]);
+    expect(kinds.map((h) => h.id), ['implementacao', 'implementacao.codex']);
+    expect(kinds.first.needsStrongerRule, isFalse);
+    expect(kinds.last.needsStrongerRule, isFalse, reason: '1 de 6');
+    final more = orchestratorHistory([
+      ...runs,
+      for (final s in ['A', 'B']) codex(s, escalated, 20),
+      codex('C', passed, 21),
+    ]).last;
+    expect((more.steps, more.escalated), (5, 2));
+    expect(more.needsStrongerRule, isTrue);
+    final prefs = OrchestratorPrefs(codexCatalog());
+    expect(
+      historySuggestionText(more, 30, historyRule(more, prefs), prefs),
+      '2 de 5 etapas escalaram nos últimos 30 dias. Suba o esforço para high.',
+    );
+  });
+
   testWidgets('the Histórico reads step_runs of the period; "Ver regra" marks '
       'the rule and "Ignorar" hides the suggestion', (tester) async {
     tester.view.physicalSize = const Size(1200, 1600);
@@ -159,6 +250,19 @@ void main() {
       }
       // Only in 30 days.
       await add('R6', StepRunResult.passed, 20);
+      // SPEC-109 R13: one on the Codex.
+      await repo.add(
+        specId: spec.id,
+        step: 'R7',
+        kind: StepKind.mecanica.name,
+        model: 'gpt-6-luna',
+        effort: 'low',
+        provider: 'codex',
+        tokensIn: 1200000,
+        tokensOut: 48000,
+        result: StepRunResult.passed,
+        at: now.subtract(const Duration(days: 1)),
+      );
     });
     Future<void> settle() async {
       for (var i = 0; i < 5; i++) {
@@ -183,15 +287,17 @@ void main() {
     await settle();
     Finder key(String k) => find.byKey(ValueKey(k));
     Finder inRow(String text) => find.descendant(
-      of: key('orchestrator-history-altoRisco'),
+      of: key('orchestrator-history-altoRisco-claude-opus'),
       matching: find.text(text),
     );
     // 30 days by default: 6 steps, 2 escalated (33%).
     for (final h in [
       'Tipo de etapa',
-      'Modelo',
+      'Provedor · modelo',
       'Passou de primeira',
       'Escalou',
+      'Desviou',
+      'Tokens',
       'Estimativa',
     ]) {
       expect(
@@ -203,13 +309,26 @@ void main() {
       );
     }
     expect(find.text('Etapas'), findsNothing);
+    final codexRow = key('orchestrator-history-mecanica-codex-gpt-6-luna');
+    expect(
+      find.descendant(of: codexRow, matching: find.text('Codex')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: codexRow, matching: find.text('1,2 M → 48 mil')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: codexRow, matching: find.textContaining('US')),
+      findsNothing,
+    );
     expect(inRow('4 de 6'), findsOneWidget);
     expect(inRow('2'), findsOneWidget);
     expect(inRow('US\$ 6,00'), findsOneWidget);
     expect(
       tester
           .widget<LinearProgressIndicator>(
-            key('orchestrator-history-bar-altoRisco'),
+            key('orchestrator-history-bar-altoRisco-claude-opus'),
           )
           .value,
       closeTo(4 / 6, 1e-9),

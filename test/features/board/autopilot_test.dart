@@ -4,12 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/activities/automation_pause.dart';
 import 'package:promptorium/features/board/autopilot.dart';
+import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
+import 'package:promptorium/features/board/orchestrator/quota_divert.dart';
+import 'package:promptorium/features/board/orchestrator/quota_diverter.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
+import 'orchestrator/orchestrator_fixture.dart' as orq;
 
 Future<void> gitIn(String dir, List<String> args) async {
   final r = await Process.run('git', args, workingDirectory: dir);
@@ -208,6 +213,82 @@ void main() {
         now.values.where((s) => s.stage == SpecStage.running),
         hasLength(1),
       );
+    });
+  });
+
+  group('SPEC-109 R12: the autopilot with both providers', () {
+    late orq.OrchestratorFixture f;
+
+    tearDown(() => f.dispose());
+
+    Future<void> create() async {
+      f = await orq.OrchestratorFixture.create(
+        codex: true,
+        classifier: orq.FakeClassifier(
+          kinds: const {'R1': 'mecanica', 'R2': 'mecanica'},
+        ),
+      );
+      await f.prefs.setAutoByDefault(true);
+    }
+
+    final hit = QuotaHit(
+      provider: 'claude',
+      at: DateTime.now(),
+      minutes: 300,
+      resetsAt: DateTime.now().add(const Duration(hours: 2)),
+    );
+
+    test('the rules decide the provider of each step, also with "Executar '
+        'spec" on the Codex', () async {
+      await create();
+      await f.prefs.setRule(
+        StepKind.mecanica,
+        const StepRule('gpt-6-luna', 'low', provider: 'codex'),
+      );
+      await f.c
+          .read(appSettingsProvider.notifier)
+          .set('agent.provider.kind.runSpec', 'codex');
+      await f.c.read(autopilotProvider.notifier).start(f.ws.id);
+      await orq.waitFor(() async => f.servers.isNotEmpty);
+      final s = (await f.sessions()).single;
+      expect((s.provider, s.model, s.effort), ('codex', 'gpt-6-luna', 'low'));
+      expect((await f.row('R1')).planProvider, 'codex');
+      expect((await f.row('R3')).planProvider, isNull);
+    });
+
+    test('without quota on the Claude the spec starts with the reserve; '
+        'paused, nothing starts nor diverts', () async {
+      await create();
+      await f.prefs.setDivertOnQuota(true);
+      await f.c.read(quotaDiverterProvider).recordHit(hit);
+      await f.c.read(automationPausedProvider.notifier).set(true);
+      final pilot = f.c.read(autopilotProvider.notifier);
+      await pilot.start(f.ws.id);
+      await orq.settle();
+      expect(f.servers, isEmpty);
+      expect(f.cli.processes, isEmpty);
+
+      await f.c.read(automationPausedProvider.notifier).set(false);
+      await orq.waitFor(() async => f.servers.isNotEmpty);
+      final s = (await f.sessions()).single;
+      expect((s.provider, s.model, s.effort), ('codex', 'gpt-6.2-sol', 'low'));
+      expect(
+        (await f.notes(s.id)).first,
+        contains('R1 começou no Codex · gpt-6.2-sol · low'),
+      );
+    });
+
+    test('with the rules at the default and "Executar spec" on the Codex, it '
+        'runs in Manual there, as before', () async {
+      await create();
+      await f.c
+          .read(appSettingsProvider.notifier)
+          .set('agent.provider.kind.runSpec', 'codex');
+      await f.c.read(autopilotProvider.notifier).start(f.ws.id);
+      await orq.waitFor(() async => f.servers.isNotEmpty);
+      final s = (await f.sessions()).single;
+      expect(s.provider, 'codex');
+      expect((await f.row('R1')).planModel, isNull);
     });
   });
 }

@@ -20,6 +20,7 @@ class StepView {
     this.startSha,
     this.planModel,
     this.planEffort,
+    this.planProvider,
     this.escalations = 0,
   });
 
@@ -38,6 +39,9 @@ class StepView {
   /// Model and effort of the Orquestrador's plan (null = Manual, SPEC-035).
   final String? planModel;
   final String? planEffort;
+
+  /// Provider of the plan (null = the Claude Code, SPEC-109 P1).
+  final String? planProvider;
 
   /// Rungs of the ladder climbed after failed gates (SPEC-035 R9).
   final int escalations;
@@ -67,6 +71,7 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
     startSha: byStep[id]?.startSha,
     planModel: byStep[id]?.planModel,
     planEffort: byStep[id]?.planEffort,
+    planProvider: byStep[id]?.planProvider,
     escalations: byStep[id]?.escalations ?? 0,
   );
   // Steps added by the app (the reviewer's corrections), after the file's.

@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
 import '../../core/providers/permission_policy.dart';
+import '../../core/providers/quota_source.dart' show quotaSnapshotProvider;
 import '../../core/providers/provider_availability.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/claude/claude_event.dart';
@@ -21,6 +22,9 @@ import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
+import '../sessions/handoff/continue_link.dart';
+import '../sessions/handoff/session_summary.dart' show sessionSummary;
+import '../sessions/timeline_provider.dart';
 import '../sessions/restore/restore_service.dart' show restoreServiceProvider;
 import '../sessions/session_manager.dart';
 import '../project/spec_auto_planner.dart';
@@ -40,6 +44,8 @@ import 'duel_attempt.dart';
 import 'spec_run_provider.dart';
 import 'orchestrator/escalation.dart';
 import 'orchestrator/orchestrator_rules.dart';
+import 'orchestrator/quota_divert.dart';
+import 'orchestrator/quota_diverter.dart';
 import 'orchestrator/step_classifier.dart';
 import 'orchestrator/step_plan.dart';
 import 'step_gate.dart';
@@ -675,6 +681,19 @@ String checkpointRef(String specCode, String step) =>
 String checkpointStateRef(String specCode, String step) =>
     'refs/promptorium/$specCode/$step-estado';
 
+/// Ref that keeps what an attempt cut by the quota left (SPEC-109 R5).
+String quotaAttemptRef(String specCode, String step) =>
+    'refs/promptorium/$specCode/$step-cota';
+
+/// The package of a session that takes over another one's step (SPEC-109
+/// R5, SPEC-099): the link between the two, with its text.
+@immutable
+class SpecHandoff {
+  const SpecHandoff(this.record);
+
+  final ContinuationRecord record;
+}
+
 /// What [SpecRunner.rewind] would discard.
 @immutable
 class RewindPreview {
@@ -726,11 +745,13 @@ class SpecRunner {
   /// the prompt of the step: what the person decided (SPEC-033 R10).
   ///
   /// In Automático (the steps have a plan, SPEC-035 R8) the session runs
-  /// with the model and effort of the plan of its first step, always in the
-  /// Claude Code, and only neighbours with the same plan go with it; the
-  /// [model] / [effort] given are ignored, unless [keepModel] (the
-  /// escalation, "Refazer etapa"). A duel keeps the model the step used last
-  /// (R20). [previousAttemptHeading] replaces the line before the previous
+  /// with the provider, model and effort of the plan of its first step, or
+  /// with its reserve when the quota says so (SPEC-109 R5, R6), and only
+  /// neighbours with the same plan go with it; the [provider] / [model] /
+  /// [effort] given are ignored, unless [keepModel] (the escalation,
+  /// "Refazer etapa", "Executar agora com…"). A duel keeps the model the
+  /// step used last (R20). [divert] says why a [keepModel] session is not on
+  /// the provider of its plan; [handoff] is the package it receives. [previousAttemptHeading] replaces the line before the previous
   /// attempt in the prompt.
   Future<String> runNext(
     int specId, {
@@ -746,6 +767,8 @@ class SpecRunner {
     String? context,
     bool duel = false,
     bool keepModel = false,
+    SpecDivert? divert,
+    SpecHandoff? handoff,
   }) => _startOnce(
     specId,
     () => _runNext(
@@ -762,6 +785,8 @@ class SpecRunner {
       context: context,
       duel: duel,
       keepModel: keepModel,
+      divert: divert,
+      handoff: handoff,
     ),
   );
 
@@ -819,7 +844,10 @@ class SpecRunner {
     bool duel = false,
     DuelAttempts? attempts,
     bool keepModel = false,
+    SpecDivert? divert,
+    SpecHandoff? handoff,
   }) async {
+    final diverter = _ref.read(quotaDiverterProvider);
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
     if (spec == null) throw const SpecRunException('Spec não encontrada.');
@@ -918,8 +946,9 @@ class SpecRunner {
     final settingsMap = _ref.read(appSettingsProvider);
     // SPEC-101 R2: the provider chosen at the first Executar stays for the
     // whole run, whatever the footer or the kind say later.
-    // A plan stored by Automático (the dialog's choice) runs on the Claude
-    // Code, unless the run already has its provider (D5).
+    // A plan stored by Automático (the dialog's choice) says the provider
+    // of each step (SPEC-109 R10), unless the run already has its own (a
+    // Manual run on the Codex).
     final chosen =
         recordedSpecProvider(settingsMap, specId) == null && runsInAuto(rows)
         ? ProviderCapabilities.claude.providerId
@@ -931,8 +960,8 @@ class SpecRunner {
             workspaceId: ws.id,
             flows: _ref.read(providerFlowsProvider),
           );
-    // The Orquestrador only uses the Claude Code (D5, SPEC-101 R5): on
-    // another provider the steps run in Manual.
+    // A run recorded on another provider is a Manual one (SPEC-101 R5); the
+    // runs in Automático are recorded as `claude`, whatever the steps use.
     final claudeRun = isClaudeCode(chosen);
     final todo = nextSteps(
       steps,
@@ -946,6 +975,14 @@ class SpecRunner {
     }
     final plan = claudeRun ? stepRunPlan(todo.first, rows, orchestrator) : null;
     if (plan != null) await _freezePlan(specId, todo, rows, orchestrator);
+    // SPEC-109 R5–R8: what the quota says at the boundary of the step, never
+    // in the middle of one. Off (the default) = the plan.
+    final decision = plan == null || keepModel || duel
+        ? null
+        : await diverter.decide(plan);
+    if (decision != null && decision.waits) {
+      throw SpecRunException(await _waitForQuota(specId, todo, decision));
+    }
 
     if (agent != null) {
       await specs.setAgent(specId, agent);
@@ -971,18 +1008,53 @@ class SpecRunner {
     // "Plano anterior" lasts until the spec starts (SPEC-037 R13).
     _ref.read(specAutoPlannerProvider.notifier).clearFailure(specId);
     final settings = _ref.read(appSettingsProvider.notifier);
-    final String runProvider = plan != null ? 'claude' : chosen;
+    // R20: a duel keeps the provider and the model the step used last.
+    final used = plan == null || !duel
+        ? null
+        : sessions
+              .where(
+                (x) =>
+                    x.id ==
+                    rows
+                        .where((r) => r.step == todo.first)
+                        .firstOrNull
+                        ?.sessionId,
+              )
+              .firstOrNull;
+    final String runProvider = plan == null
+        ? chosen
+        : keepModel
+        ? provider ?? plan.rule.provider
+        : used?.provider ?? decision?.rule?.provider ?? plan.rule.provider;
+    final rule = decision?.rule ?? plan?.rule;
+    // SPEC-109 R1, R9: a planned step never goes to another provider in
+    // silence.
+    if (plan != null && !isClaudeCode(runProvider)) {
+      if (await diverter.blocked(runProvider) case final why?) {
+        throw SpecRunException(
+          '${todo.join(', ')} está no ${planProviderLabel(runProvider)}, que '
+          'não pode rodar agora: $why.',
+        );
+      }
+    }
     // Recorded once a session of the run exists (a failed start records
     // nothing, so the dialog can still pick another provider).
     Future<void> record() async {
       if (recordedSpecProvider(_ref.read(appSettingsProvider), specId) ==
           null) {
-        await settings.set(specProviderKey(specId), runProvider);
+        await settings.set(
+          specProviderKey(specId),
+          plan == null ? runProvider : chosen,
+        );
       }
     }
 
-    // Same provider as the last session: its model and effort go on.
-    final sameLast = last?.provider == runProvider ? last : null;
+    // Same provider as the last session: its model and effort go on. In
+    // Automático the providers alternate (SPEC-109 R10): the last session on
+    // this one.
+    final sameLast = plan == null
+        ? (last?.provider == runProvider ? last : null)
+        : sessions.where((x) => x.provider == runProvider).lastOrNull;
     String runModel;
     String? runEffort;
     if (!isClaudeCode(runProvider)) {
@@ -990,12 +1062,22 @@ class SpecRunner {
       // Claude alias.
       runModel = codexRunModel(
         settingsMap,
-        requested: model ?? sameLast?.model,
+        requested: plan == null
+            ? model ?? sameLast?.model
+            : keepModel
+            ? model
+            : used?.model ?? rule!.model,
       );
       runEffort = codexRunEffort(
         settingsMap,
         runModel,
-        requested: effort ?? sameLast?.effort,
+        requested: plan == null
+            ? effort ?? sameLast?.effort
+            : keepModel
+            ? effort
+            : used != null
+            ? used.effort
+            : rule!.effort,
       );
     } else if (plan == null) {
       runModel =
@@ -1013,15 +1095,11 @@ class SpecRunner {
       runEffort = effort;
     } else if (duel) {
       // R20: the model the step used last, else its plan.
-      final own = rows.where((r) => r.step == todo.first).firstOrNull;
-      final used = sessions
-          .where((x) => x.id == own?.sessionId && isClaudeCode(x.provider))
-          .firstOrNull;
       runModel = used?.model ?? plan.rule.model;
       runEffort = used == null ? plan.rule.effort : used.effort;
     } else {
-      runModel = plan.rule.model;
-      runEffort = plan.rule.effort;
+      runModel = rule!.model;
+      runEffort = rule.effort;
     }
     // SPEC-101 R6: subagents are only of the Claude Code; the agent goes
     // translated where the provider takes it (SPEC-106 R8).
@@ -1030,14 +1108,27 @@ class SpecRunner {
       SpecDocument.parse(text).subagents,
       config.subagents,
     );
-    final runAgent = caps.supports(ProviderCapability.agentFiles)
+    // SPEC-109 R10: in Automático the agent only goes on the Claude Code
+    // (decision 7), as the plan says.
+    final planOnCodex = plan != null && !isClaudeCode(runProvider);
+    final runAgent =
+        caps.supports(ProviderCapability.agentFiles) && !planOnCodex
         ? spec.agentName ?? config.agent
         : null;
+    final autoMode = plan == null
+        ? null
+        : settings.get(AppSettingKeys.specAutoMode(specId));
     final ClaudePermissionMode runMode;
     if (isClaudeCode(runProvider)) {
       runMode =
           mode ??
-          ClaudePermissionMode.fromCli(sameLast?.permissionMode) ??
+          // SPEC-109 R10: the YOLO a step on the Codex may be forced to
+          // (decision 15) never reaches the Claude Code (SPEC-108 too).
+          ClaudePermissionMode.fromCli(
+            plan == null || sameLast == last
+                ? sameLast?.permissionMode
+                : autoMode ?? sameLast?.permissionMode,
+          ) ??
           ClaudePermissionMode.fromCli(
             settings.get(permissionModePreferenceKey(runProvider)),
           ) ??
@@ -1053,7 +1144,12 @@ class SpecRunner {
           null;
       runMode = codexRunMode(
         mode ??
-            ClaudePermissionMode.fromCli(sameLast?.permissionMode) ??
+            // In Automático, the mode of the run whatever its provider.
+            ClaudePermissionMode.fromCli(
+              plan == null
+                  ? sameLast?.permissionMode
+                  : last?.permissionMode ?? autoMode,
+            ) ??
             ClaudePermissionMode.fromCli(
               settings.get(permissionModePreferenceKey(runProvider)),
             ),
@@ -1096,6 +1192,8 @@ class SpecRunner {
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
         debtReminder: debtReminder,
       ),
+      parentSessionId: handoff?.record.fromId,
+      startEvent: handoff?.record.toJson(),
       agent: capsOf(attempt).supports(ProviderCapability.agentFiles)
           ? runAgent
           : null,
@@ -1115,12 +1213,30 @@ class SpecRunner {
         request(path: wt.path, branch: wt.branch),
       );
       await record();
+      if (plan != null) {
+        await _noteDivert(
+          id,
+          specId,
+          todo,
+          runProvider: runProvider,
+          rule: StepRule(runModel, runEffort ?? '', provider: runProvider),
+          plan: plan.rule,
+          decision: decision,
+          divert: divert,
+        );
+      } else {
+        await diverter.setWait(specId, null);
+        if (diverter.divertOf(specId) != null) {
+          await diverter.setDivert(specId, null);
+        }
+      }
       await _claudeOnlyNote(
         id,
         spec,
         caps,
         agent: spec.agentName ?? config.agent,
         subagents: {for (final a in specSubagents) a.agent}.toList(),
+        planned: planOnCodex,
       );
       return id;
     }
@@ -1198,10 +1314,11 @@ class SpecRunner {
     ProviderCapabilities caps, {
     String? agent,
     required List<String> subagents,
+    bool planned = false,
   }) async {
     final hasAgent = agent != null && agent.isNotEmpty;
     final dropsAgent =
-        hasAgent && !caps.supports(ProviderCapability.agentFiles);
+        hasAgent && (planned || !caps.supports(ProviderCapability.agentFiles));
     final dropsSubs =
         subagents.isNotEmpty && !caps.supports(ProviderCapability.subagents);
     if (!dropsAgent && !dropsSubs) return;
@@ -1267,6 +1384,7 @@ class SpecRunner {
         kind: p.kind.name,
         model: p.rule.model,
         effort: p.rule.effort,
+        provider: p.rule.provider,
       );
     }
   }
@@ -1300,7 +1418,12 @@ class SpecRunner {
       workspaceId: spec.workspaceId,
       flows: _ref.read(providerFlowsProvider),
     );
-    if (!isClaudeCode(provider)) {
+    // SPEC-109 R12: with some rule on the Codex the Orquestrador uses both
+    // providers, so a spec that has not started yet goes in Automático.
+    final fresh =
+        sessions.isEmpty &&
+        recordedSpecProvider(_ref.read(appSettingsProvider), specId) == null;
+    if (!isClaudeCode(provider) && !(fresh && orchestrator.usesCodex)) {
       final id = await _runNext(
         specId,
         reviewUnblocks: reviewUnblocks,
@@ -1349,19 +1472,21 @@ class SpecRunner {
     }
     await clearStoredPlan(repo, specId);
     final prefs = _ref.read(runPrefsProvider);
+    final manualClaude = isClaudeCode(provider);
     final model = prefs.model(RunKind.session);
     final effort = prefs.effort(RunKind.session);
     final id = await _runNext(
       specId,
       reviewUnblocks: reviewUnblocks,
-      provider: 'claude',
-      model: model,
-      effort: effort.isEmpty ? null : effort,
+      provider: provider,
+      model: manualClaude ? model : null,
+      effort: !manualClaude || effort.isEmpty ? null : effort,
     );
     await _manager.note(
       id,
       'Orquestrador: não deu para classificar as etapas (${result.error}); '
-      'a spec roda com o modelo de Sessões ($model).',
+      'a spec roda com o modelo de Sessões'
+      '${manualClaude ? ' ($model)' : ' do ${planProviderLabel(provider)}'}.',
       error: true,
     );
     return id;
@@ -1935,6 +2060,8 @@ class SpecRunner {
     }
     // P1: the next Executar starts from the last session's provider.
     await _clearRunProvider(specId);
+    // SPEC-109 R8: the person acted (or the step goes on elsewhere).
+    await _ref.read(quotaDiverterProvider).setWait(specId, null);
   }
 
   /// "Refazer etapa": [rewind], then a new session for the step with the
@@ -1947,6 +2074,9 @@ class SpecRunner {
     final last =
         sessions.where((s) => s.id == row?.sessionId).firstOrNull ??
         sessions.lastOrNull;
+    final auto = runsInAuto(
+      await _ref.read(specStepsRepoProvider).bySpec(specId),
+    );
     await rewind(specId, step);
     // SPEC-101 R7: the same provider and, on the Codex, the step's model.
     return runNext(
@@ -1957,7 +2087,8 @@ class SpecRunner {
       effort: last?.effort,
       ignoreBlockers: true,
       previousAttempt: previous,
-      keepModel: last != null && isClaudeCode(last.provider),
+      // In Automático the provider goes too (SPEC-109 R10).
+      keepModel: last != null && (isClaudeCode(last.provider) || auto),
     );
   }
 
@@ -2140,6 +2271,7 @@ class SpecRunner {
       );
     }
     await _recordRuns(s, passed, StepRunResult.passed);
+    if (toVerify.isEmpty && await _quotaStop(s, result: r)) return;
     if (toVerify.isNotEmpty) {
       // Outside the session's event queue: the gate may take minutes and
       // its retry message goes through that queue.
@@ -2272,12 +2404,15 @@ class SpecRunner {
     final prefs = _ref.read(runPrefsProvider);
     final orchestrator = _ref.read(orchestratorPrefsProvider);
     final stored = await _ref.read(specStepsRepoProvider).bySpec(spec.id);
-    // The Orquestrador's plan is only of the Claude Code (SPEC-101 R5).
-    final claude = isClaudeCode(s.provider);
+    // A run recorded on another provider is a Manual one (SPEC-101 R5).
+    final planned = isClaudeCode(
+      recordedSpecProvider(_ref.read(appSettingsProvider), spec.id) ??
+          (runsInAuto(stored) ? 'claude' : s.provider),
+    );
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
-      plans: claude ? _plans(steps, stored, orchestrator) : const {},
+      plans: planned ? _plans(steps, stored, orchestrator) : const {},
     );
     if (todo.isEmpty) return false;
     final ids = todo.join(', ');
@@ -2296,15 +2431,24 @@ class SpecRunner {
     final rows = {for (final x in stored) x.step: x};
     // SPEC-035 R8 / R13: another model or effort is another session (an
     // escalated session goes back to the plan too).
-    final plan = claude
-        ? stepRunPlan(todo.first, stored, orchestrator)?.rule
-        : null;
-    final current = StepRule(s.model, s.effort ?? '');
+    final own = planned ? stepRunPlan(todo.first, stored, orchestrator) : null;
+    // SPEC-109 R6, R7: the boundary of the step. A step that has to wait
+    // for quota goes to [_advance], which says it.
+    final decision = own == null
+        ? null
+        : await _ref.read(quotaDiverterProvider).decide(own);
+    final plan = decision == null ? null : decision.rule ?? own!.rule;
+    final current = StepRule(s.model, s.effort ?? '', provider: s.provider);
     String k(int tokens) => '${(tokens / 1000).round()} mil';
     final why = [...todo, ...parseSessionSteps(s.steps)].any(isSubStep)
         ? 'cada subetapa roda numa sessão própria'
+        : decision != null && decision.waits
+        ? 'a cota acabou'
+        : decision != null && decision.diverted && plan != current
+        ? decision.why(own!.rule.provider)
         : plan != null && plan != current
-        ? 'o plano muda de ${current.label} para ${plan.label}'
+        ? 'o plano muda de ${current.labelBeside(plan)} para '
+              '${plan.labelBeside(current)}'
         : limit <= 0
         ? 'continuar na mesma sessão está desligado'
         : !_manager.isAlive(s.id)
@@ -2486,7 +2630,27 @@ class SpecRunner {
 
   /// Model and effort [s] runs with (the effort of [plan] when it has none).
   static StepRule _ruleOf(Session s, StepRule plan) =>
-      StepRule(s.model, s.effort ?? plan.effort);
+      StepRule(s.model, s.effort ?? plan.effort, provider: s.provider);
+
+  /// The rule a second opinion would run with (SPEC-109 R4): the reserve of
+  /// the kind, when it is on and the other provider can run the step.
+  Future<StepRule?> _opinionReserve(StepRunPlan plan) async {
+    final prefs = _ref.read(orchestratorPrefsProvider);
+    if (!prefs.secondOpinion) return null;
+    final reserve = prefs.fallback(plan.kind, from: plan.rule.provider);
+    if (reserve == null) return null;
+    final diverter = _ref.read(quotaDiverterProvider);
+    final out = quotaOut(
+      reserve.provider,
+      _ref.read(quotaSnapshotProvider(reserve.provider)),
+      DateTime.now(),
+      hit: diverter.hitOf(reserve.provider),
+    );
+    if (out != null || await diverter.blocked(reserve.provider) != null) {
+      return null;
+    }
+    return reserve;
+  }
 
   /// [steps] failed the gate with no resend left and wait for the person.
   /// In Automático, with a rung left, they go up the ladder (R9), or wait
@@ -2510,21 +2674,30 @@ class SpecRunner {
     final current = _ruleOf(session, plan.rule);
     final escalations =
         rows.where((r) => r.step == steps.first).firstOrNull?.escalations ?? 0;
-    final rung = nextRung(current, escalations, orchestrator);
+    final rung = nextRung(
+      current,
+      escalations,
+      orchestrator,
+      plan: plan.rule,
+      reserve: await _opinionReserve(plan),
+    );
     final ids = steps.join(', ');
     if (rung == null) {
       await _recordRuns(s, steps, StepRunResult.failed);
       await _manager.note(
         s.id,
-        '$ids aguarda você: ${escalationStopReason(current, escalations)}.',
+        '$ids aguarda você: '
+        '${escalationStopReason(current, escalations, orchestrator)}.',
       );
       return;
     }
     if (rung.ask) {
       await _manager.note(
         s.id,
-        '$ids aguarda você antes de escalar de ${current.label} para '
-        '${rung.rule.label} ("Escalar para Opus").',
+        '$ids aguarda você antes de escalar de '
+        '${current.labelBeside(rung.rule)} para '
+        '${rung.rule.labelBeside(current)} '
+        '("${rung.actionLabel}").',
       );
       return;
     }
@@ -2557,6 +2730,8 @@ class SpecRunner {
         _ruleOf(session, plan.rule),
         row.escalations,
         orchestrator,
+        plan: plan.rule,
+        reserve: await _opinionReserve(plan),
       );
     } catch (e) {
       debugPrint('spec $specId: escalada de $step não lida — $e');
@@ -2601,33 +2776,58 @@ class SpecRunner {
     for (final step in steps) {
       await repo.incrementEscalations(specId, step);
     }
-    final max = _ref.read(orchestratorPrefsProvider).maxEscalations;
+    final prefs = _ref.read(orchestratorPrefsProvider);
+    final max = prefs.maxEscalations;
     final row = await repo.byStep(specId, first);
     final plan = row?.planModel == null
         ? from
-        : StepRule(row!.planModel!, row.planEffort ?? from.effort);
+        : StepRule(
+            row!.planModel!,
+            row.planEffort ?? from.effort,
+            provider: row.planProvider ?? 'claude',
+          );
+    // Diverted by quota, the ladder is the one of the other provider.
     final trail = escalationTrailLabel(
-      escalationTrail(plan, row?.escalations ?? rung.number),
+      rung.secondOpinion || from.provider != plan.provider
+          ? [from, rung.rule]
+          : escalationTrail(plan, row?.escalations ?? rung.number, prefs),
     );
     final note =
-        'Escalada ${rung.number} de $max: '
-        '$first sobe de ${from.label} para ${rung.rule.label} ($trail), numa '
+        'Escalada ${rung.number} de $max'
+        '${rung.secondOpinion ? ' (segunda opinião)' : ''}: '
+        '$first sobe de ${from.labelBeside(rung.rule)} para '
+        '${rung.rule.labelBeside(from)} ($trail), numa '
         'sessão nova no início da etapa.';
+    // It stays where the quota sent it, or goes for a second opinion (R4).
+    final divert = rung.secondOpinion
+        ? SpecDivert(
+            step: first,
+            from: plan.provider,
+            to: rung.rule,
+            reason: DivertReason.secondOpinion,
+            why: 'Segunda opinião no topo da escada',
+          )
+        : _ref.read(quotaDiverterProvider).divertOf(specId);
     await _manager.note(failed.id, note);
     await rewind(specId, first);
     final id = await runNext(
       specId,
-      mode: ClaudePermissionMode.fromCli(failed.permissionMode),
+      mode: from.isClaude && rung.rule.isClaude
+          ? ClaudePermissionMode.fromCli(failed.permissionMode)
+          : null,
+      provider: rung.rule.provider,
       model: rung.rule.model,
       effort: rung.rule.effort,
       keepModel: true,
       ignoreBlockers: true,
+      divert: divert,
       previousAttempt: previous,
       previousAttemptHeading:
-          'Tentativa anterior desta etapa, com ${from.label}: a verificação '
+          'Tentativa anterior desta etapa, com ${from.labelBeside(rung.rule)}: '
+          'a verificação '
           'reprovou depois dos reenvios, o código voltou ao início da etapa e '
-          'ela passou para ${rung.rule.label}. Use o relatório e o diff como '
-          'informação, não como ponto de partida:',
+          'ela passou para ${rung.rule.labelBeside(from)}. Use o relatório e o '
+          'diff como informação, não como ponto de partida:',
     );
     await _manager.note(id, note);
     return id;
@@ -2639,8 +2839,9 @@ class SpecRunner {
   Future<void> _recordRuns(
     Session s,
     List<String> steps,
-    StepRunResult result,
-  ) async {
+    StepRunResult result, {
+    DivertReason? diverted,
+  }) async {
     if (steps.isEmpty) return;
     try {
       final specId = s.specId!;
@@ -2648,7 +2849,9 @@ class SpecRunner {
       final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
       final orchestrator = _ref.read(orchestratorPrefsProvider);
       final count = parseSessionSteps(session.steps).length;
-      final share = session.costUsd / (count < 1 ? 1 : count);
+      final parts = count < 1 ? 1 : count;
+      final share = session.costUsd / parts;
+      final stored = _ref.read(quotaDiverterProvider).divertOf(specId);
       for (final step in steps) {
         await _ref
             .read(stepRunsRepoProvider)
@@ -2660,7 +2863,20 @@ class SpecRunner {
               effort: session.effort,
               sessionId: session.id,
               result: result,
-              costUsd: share,
+              // Decision 5: the Codex has no cost in US\$.
+              costUsd: isClaudeCode(session.provider) ? share : null,
+              provider: session.provider,
+              tokensIn: session.tokensIn ~/ parts,
+              tokensOut: session.tokensOut ~/ parts,
+              // Why it did not run on its plan's provider (SPEC-109 R13).
+              diverted:
+                  (diverted ??
+                          (stored != null &&
+                                  stored.step == step &&
+                                  stored.to.provider == session.provider
+                              ? stored.reason
+                              : null))
+                      ?.stored,
             );
       }
     } catch (e) {
@@ -2882,7 +3098,505 @@ class SpecRunner {
                 : StepStatus.needsInput,
           );
         }
+        // SPEC-109 R5: the process died at the limit, without a result.
+        if (status == SessionStatus.failed) await _quotaStop(s);
       });
+
+  // --- desvio por cota (SPEC-109 R5–R8) --------------------------------------
+
+  /// The session [s] ended its turn at the limit of its provider ([result]
+  /// null = the process died): the step it was doing goes to the other one,
+  /// or waits for the renewals. False = nothing to do (the default: the
+  /// desvio is off), and the step waits as before.
+  Future<bool> _quotaStop(Session s, {Result? result}) async {
+    final diverter = _ref.read(quotaDiverterProvider);
+    if (!diverter.onQuota) return false;
+    final specId = s.specId!;
+    final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+    // Only in Automático: a Manual run stays on its provider (decision 4).
+    if (!runsInAuto(rows) ||
+        !isClaudeCode(
+          recordedSpecProvider(_ref.read(appSettingsProvider), specId) ??
+              'claude',
+        )) {
+      return false;
+    }
+    final seen = _manager.quotaHit(s.id);
+    final hit = result == null
+        ? seen
+        : await diverter.hitOfTurn(s.provider, result, seen);
+    if (hit == null) return false;
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (spec == null) return false;
+    final mine = parseSessionSteps(s.steps);
+    final open = [
+      for (final v in stepsOf(spec, rows))
+        if (mine.contains(v.id) && !v.isDone) v.id,
+    ];
+    if (open.isEmpty) return false;
+    await diverter.recordHit(hit);
+    if (_ref.read(pauseAfterTurnProvider.notifier).take(s.id)) return false;
+    // Outside the session's event queue, which ending it waits for.
+    unawaited(
+      Future<void>.microtask(() async {
+        try {
+          await _divert(s, spec, open);
+        } catch (e) {
+          debugPrint('${spec.code}: desvio por cota não feito — $e');
+          await _manager.note(
+            s.id,
+            '${open.join(', ')} aguarda você: o desvio por cota não foi feito '
+            '($e).',
+            error: true,
+          );
+          for (final step in open) {
+            await _ref
+                .read(specStepsRepoProvider)
+                .set(specId, step, StepStatus.needsInput);
+          }
+        }
+      }),
+    );
+    return true;
+  }
+
+  /// R5: [steps] of [s], cut by the quota, go back to their start and to a
+  /// new session on the other provider, with the package of SPEC-099. It is
+  /// neither a failure nor an escalation.
+  Future<void> _divert(Session s, Spec spec, List<String> steps) async {
+    final specId = spec.id;
+    final first = steps.first;
+    final repo = _ref.read(specStepsRepoProvider);
+    final diverter = _ref.read(quotaDiverterProvider);
+    final rows = await repo.bySpec(specId);
+    final plan = stepRunPlan(
+      first,
+      rows,
+      _ref.read(orchestratorPrefsProvider),
+    )!;
+    // What the app does at the end of the turn (the commit of a Codex turn,
+    // the restore point) lands before anything is undone.
+    await _manager.release(s.id);
+    await _manager.turnSettled(s.id);
+    final decision = await diverter.decide(plan);
+    final rule = decision.rule;
+    // A second opinion cut by the quota is not redone with the plan that
+    // already failed.
+    final opinion =
+        diverter.divertOf(specId)?.reason == DivertReason.secondOpinion &&
+        s.provider != plan.rule.provider;
+    if (rule == null || rule.provider == s.provider || opinion) {
+      final hit = diverter.hitOf(s.provider);
+      final message = await _waitForQuota(
+        specId,
+        steps,
+        rule == null
+            ? decision
+            : DivertDecision.wait([
+                QuotaBlock(
+                  s.provider,
+                  out: QuotaOut(
+                    s.provider,
+                    minutes: hit?.minutes,
+                    resetsAt: hit?.resetsAt,
+                  ),
+                ),
+              ]),
+        sessionId: s.id,
+      );
+      await _manager.note(s.id, message, error: true);
+      return;
+    }
+    final row = rows.where((r) => r.step == first).firstOrNull;
+    if (row?.startSha == null) {
+      throw SpecRunException('$first não tem ponto de início gravado');
+    }
+    // The rewind is automatic: only ever in the worktree of the spec.
+    final ws = await _ref
+        .read(workspacesRepoProvider)
+        .getById(spec.workspaceId);
+    final path = spec.worktreePath;
+    if (ws == null || path == null || s.worktreePath != path) {
+      throw const SpecRunException('a sessão não está no worktree da spec');
+    }
+    if (await diverter.notOwnWorktree(ws.path, path) case final why?) {
+      throw SpecRunException(why);
+    }
+    final from = _ruleOf(s, plan.rule);
+    final kept = await diverter.keepAttempt(
+      path,
+      row!.startSha!,
+      quotaAttemptRef(spec.code, first),
+      maxChars: escalationDiffChars,
+    );
+    final package = await _quotaPackage(s, spec, kept);
+    await _recordRuns(
+      s,
+      steps,
+      StepRunResult.diverted,
+      diverted: DivertReason.quota,
+    );
+    final why = decision.diverted
+        ? decision.why(plan.rule.provider)
+        : 'Cota do ${planProviderLabel(s.provider)} esgotada; a do '
+              '${planProviderLabel(rule.provider)} renovou';
+    final note =
+        '$why · $first seguiu no ${planProviderLabel(rule.provider)} · '
+        '${rule.label}. A tentativa interrompida não conta como reprovação '
+        'nem como escalada.';
+    await _manager.note(s.id, note);
+    await rewind(specId, first);
+    final id = await runNext(
+      specId,
+      provider: rule.provider,
+      model: rule.model,
+      effort: rule.effort,
+      keepModel: true,
+      ignoreBlockers: true,
+      divert: decision.diverted
+          ? SpecDivert(
+              step: first,
+              from: plan.rule.provider,
+              to: rule,
+              reason: decision.reason!,
+              why: why,
+              until: decision.until,
+            )
+          : null,
+      handoff: SpecHandoff(
+        ContinuationRecord(
+          fromId: s.id,
+          fromTitle: s.title ?? s.id,
+          fromProvider: s.provider,
+          toProvider: rule.provider,
+          path: ContinuePath.summary,
+          at: DateTime.now(),
+          text: package,
+        ),
+      ),
+      previousAttempt: package,
+      previousAttemptHeading:
+          'Tentativa anterior desta etapa, no '
+          '${planProviderLabel(s.provider)} (${from.label}), interrompida '
+          'porque a cota dele acabou (não foi reprovada). O código voltou ao '
+          'início da etapa. Use o pacote como informação, não como ponto de '
+          'partida:',
+    );
+    await _manager.note(id, note);
+    await _manager.note(
+      id,
+      'Voltou ao início de $first (worktree em '
+      '${checkpointRef(spec.code, first)}).'
+      '${kept.ref == null ? '' : ' O que a tentativa deixou está em ${kept.ref}.'}',
+    );
+  }
+
+  /// The package of "Passar o trabalho entre agentes" (SPEC-099) for the
+  /// new session: the summary of the one that stopped, the partial diff and
+  /// the state of git. The spec and the finished steps are in the prompt of
+  /// the step.
+  Future<String> _quotaPackage(
+    Session s,
+    Spec spec,
+    ({String diff, List<String> files, String? ref}) kept,
+  ) async {
+    final b = StringBuffer();
+    try {
+      final summary = sessionSummary(
+        title: s.title ?? s.id,
+        provider: s.provider,
+        items: _ref.read(sessionTimelineProvider(s.id)).items,
+        root: s.worktreePath,
+      );
+      b.writeln(
+        summary.replaceFirst(RegExp(r'\n*Continue a partir daqui\.\s*$'), ''),
+      );
+    } catch (e) {
+      debugPrint('sessão ${s.id}: resumo não montado — $e');
+    }
+    b
+      ..writeln()
+      ..writeln(
+        'Git: branch ${spec.branch ?? s.branch}, de volta ao início da etapa. '
+        '${kept.files.isEmpty ? 'A tentativa não deixou alterações.' : 'A tentativa mexeu em ${kept.files.length} '
+                  '${kept.files.length == 1 ? 'arquivo' : 'arquivos'}: '
+                  '${kept.files.take(20).join(', ')}.'}',
+      );
+    if (kept.ref case final ref?) {
+      b.writeln('O estado dela está guardado em $ref.');
+    }
+    if (kept.diff.isNotEmpty) {
+      b
+        ..writeln()
+        ..writeln('Diff parcial (contra o início da etapa):')
+        ..writeln('```diff')
+        ..writeln(kept.diff)
+        ..writeln('```');
+    }
+    return b.toString().trim();
+  }
+
+  /// R8: [steps] wait for the person with the renewals; nothing goes to
+  /// another provider by itself. Returns the text of the reason.
+  Future<String> _waitForQuota(
+    int specId,
+    List<String> steps,
+    DivertDecision decision, {
+    String? sessionId,
+  }) async {
+    final wait = SpecQuotaWait(
+      step: steps.first,
+      blocks: decision.blocks,
+      sessionId: sessionId,
+    );
+    for (final step in steps) {
+      await _ref
+          .read(specStepsRepoProvider)
+          .set(specId, step, StepStatus.needsInput);
+    }
+    await _ref.read(quotaDiverterProvider).setWait(specId, wait);
+    final message =
+        '${steps.join(', ')} aguarda você: '
+        '${wait.title[0].toLowerCase()}${wait.title.substring(1)} '
+        '(${wait.detail()}).';
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    unawaited(
+      _ref
+          .read(appNotifierProvider)
+          .show('Aguardando você', '${spec?.code ?? 'Spec'}: $message')
+          .catchError((_) => null),
+    );
+    return message;
+  }
+
+  /// The timeline and the card of a session that started in Automático: a
+  /// diversion (R5, R6) or the way back to the plan (R7).
+  Future<void> _noteDivert(
+    String id,
+    int specId,
+    List<String> todo, {
+    required String runProvider,
+    required StepRule rule,
+    required StepRule plan,
+    DivertDecision? decision,
+    SpecDivert? divert,
+  }) async {
+    final diverter = _ref.read(quotaDiverterProvider);
+    await diverter.setWait(specId, null);
+    final before = diverter.divertOf(specId);
+    if (decision != null && decision.diverted) {
+      final why = decision.why(plan.provider);
+      await diverter.setDivert(
+        specId,
+        SpecDivert(
+          step: todo.first,
+          from: plan.provider,
+          to: rule,
+          reason: decision.reason!,
+          why: why,
+          until: decision.until,
+        ),
+      );
+      if (decision.reason == DivertReason.threshold) {
+        // The plan's provider never ran it: the Histórico counts that it
+        // left (R13).
+        await _recordLeft(specId, todo, plan);
+      }
+      final until = decision.until;
+      await _manager.note(
+        id,
+        '$why · ${todo.join(', ')} começou no '
+        '${planProviderLabel(rule.provider)} · ${rule.label}'
+        '${until == null ? '' : ' · o desvio vale até ${quotaClock(until)}'}.',
+      );
+      return;
+    }
+    if (divert != null && runProvider != plan.provider) {
+      await diverter.setDivert(
+        specId,
+        SpecDivert(
+          step: todo.first,
+          from: divert.from,
+          to: rule,
+          reason: divert.reason,
+          why: divert.why,
+          until: divert.until,
+        ),
+      );
+      return;
+    }
+    if (before == null) return;
+    await diverter.setDivert(specId, null);
+    if (runProvider == plan.provider &&
+        before.to.provider != runProvider &&
+        before.reason != DivertReason.secondOpinion) {
+      await _manager.note(
+        id,
+        'Cota do ${planProviderLabel(runProvider)} renovou · '
+        '${todo.join(', ')} volta ao plano: ${rule.fullLabel}.',
+      );
+    }
+  }
+
+  /// One `step_runs` row per step that left [plan] before starting (R6).
+  Future<void> _recordLeft(
+    int specId,
+    List<String> steps,
+    StepRule plan,
+  ) async {
+    try {
+      final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+      final prefs = _ref.read(orchestratorPrefsProvider);
+      for (final step in steps) {
+        await _ref
+            .read(stepRunsRepoProvider)
+            .add(
+              specId: specId,
+              step: step,
+              kind: stepRunPlan(step, rows, prefs)?.kind.name,
+              model: plan.model,
+              effort: plan.effort,
+              provider: plan.provider,
+              result: StepRunResult.diverted,
+              diverted: DivertReason.threshold.stored,
+            );
+      }
+    } catch (e) {
+      debugPrint('spec $specId: desvio não gravado — $e');
+    }
+  }
+
+  /// "Retomar quando renovar" (R8, P5): scheduled for the first renewal
+  /// known; null = cancel. Refused with "Pausar automáticos" (R12).
+  Future<void> scheduleResume(int specId, {bool on = true}) async {
+    final diverter = _ref.read(quotaDiverterProvider);
+    final wait = diverter.waitOf(specId);
+    if (wait == null) return;
+    if (!on) return diverter.setWait(specId, wait.withResume(null));
+    if (automationPaused(_ref)) {
+      throw const SpecRunException(
+        '"Pausar automáticos" está ligado: nada é agendado.',
+      );
+    }
+    final at = wait.firstRenewal;
+    if (at == null) {
+      throw const SpecRunException('Nenhuma renovação com horário conhecido.');
+    }
+    await diverter.setWait(specId, wait.withResume(at));
+  }
+
+  /// Every minute (`main.dart`): the specs whose scheduled renewal came go
+  /// on, unless the person acted before or the automatics are paused.
+  Future<void> resumeDue({DateTime? now}) async {
+    if (automationPaused(_ref)) return;
+    final at = now ?? DateTime.now();
+    final diverter = _ref.read(quotaDiverterProvider);
+    for (final MapEntry(key: specId, value: wait) in diverter.waits.entries) {
+      final due = wait.resumeAt;
+      if (due == null || due.isAfter(at)) continue;
+      await diverter.setWait(specId, null);
+      final row = await _ref
+          .read(specStepsRepoProvider)
+          .byStep(specId, wait.step);
+      final spec = await _ref.read(specsRepoProvider).getById(specId);
+      if (row?.status != StepStatus.needsInput ||
+          spec == null ||
+          spec.stage == SpecStage.review ||
+          spec.stage == SpecStage.done) {
+        continue;
+      }
+      try {
+        await _resumeWaiting(spec, wait);
+      } catch (e) {
+        debugPrint('${spec.code}: retomada agendada não feita — $e');
+      }
+    }
+  }
+
+  /// The step that waited goes on from its start: what a cut attempt left
+  /// is undone first (kept in its ref), in the worktree of the spec only.
+  Future<String> _resumeWaiting(
+    Spec spec,
+    SpecQuotaWait wait, {
+    StepRule? rule,
+  }) async {
+    final step = wait.step;
+    final diverter = _ref.read(quotaDiverterProvider);
+    final row = await _ref.read(specStepsRepoProvider).byStep(spec.id, step);
+    final session = wait.sessionId == null
+        ? null
+        : await _ref.read(sessionsRepoProvider).getById(wait.sessionId!);
+    String? package, heading;
+    // A step that never started has nothing to undo.
+    if (session != null &&
+        row?.startSha != null &&
+        spec.worktreePath != null &&
+        session.worktreePath == spec.worktreePath) {
+      final ws = await _ref
+          .read(workspacesRepoProvider)
+          .getById(spec.workspaceId);
+      final why = ws == null
+          ? 'workspace não encontrado'
+          : await diverter.notOwnWorktree(ws.path, spec.worktreePath!);
+      if (why != null) throw SpecRunException(why);
+      await _manager.release(session.id);
+      await _manager.turnSettled(session.id);
+      final kept = await diverter.keepAttempt(
+        spec.worktreePath!,
+        row!.startSha!,
+        quotaAttemptRef(spec.code, step),
+        maxChars: escalationDiffChars,
+      );
+      package = await _quotaPackage(session, spec, kept);
+      heading =
+          'Tentativa anterior desta etapa, no '
+          '${planProviderLabel(session.provider)}, interrompida porque a cota '
+          'acabou (não foi reprovada). O código voltou ao início da etapa. '
+          'Use o pacote como informação, não como ponto de partida:';
+      await rewind(spec.id, step);
+    } else {
+      await _ref
+          .read(specStepsRepoProvider)
+          .set(spec.id, step, StepStatus.pending);
+      await diverter.setWait(spec.id, null);
+    }
+    return runNext(
+      spec.id,
+      provider: rule?.provider,
+      model: rule?.model,
+      effort: rule?.effort,
+      keepModel: rule != null,
+      ignoreBlockers: true,
+      previousAttempt: package,
+      previousAttemptHeading: heading,
+    );
+  }
+
+  /// "Executar agora com…" (R8): the step that waits runs with [rule], an
+  /// explicit choice of the person (the quota is not asked again).
+  Future<String> runNow(int specId, StepRule rule) async {
+    final wait = _ref.read(quotaDiverterProvider).waitOf(specId);
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (wait == null || spec == null) {
+      throw const SpecRunException('A etapa não aguarda mais a cota.');
+    }
+    return _resumeWaiting(spec, wait, rule: rule);
+  }
+
+  /// The choices of "Executar agora com…": the plan of the step and its
+  /// reserve.
+  Future<List<StepRule>> runNowChoices(int specId) async {
+    final wait = _ref.read(quotaDiverterProvider).waitOf(specId);
+    if (wait == null) return const [];
+    final prefs = _ref.read(orchestratorPrefsProvider);
+    final plan = stepRunPlan(
+      wait.step,
+      await _ref.read(specStepsRepoProvider).bySpec(specId),
+      prefs,
+    );
+    if (plan == null) return const [];
+    return [plan.rule, ?prefs.fallback(plan.kind, from: plan.rule.provider)];
+  }
 
   /// Next session of the spec, with the same mode / model / effort; the
   /// finished one's idle process is closed first.
@@ -2910,7 +3624,10 @@ class SpecRunner {
       final other = recorded != null && recorded != done.provider;
       await runNext(
         done.specId!,
-        mode: other ? null : ClaudePermissionMode.fromCli(done.permissionMode),
+        // The mode of each provider (SPEC-109 R10, SPEC-108 R11).
+        mode: auto || other
+            ? null
+            : ClaudePermissionMode.fromCli(done.permissionMode),
         model: auto || other ? null : done.model,
         effort: auto || other ? null : done.effort,
         // Already started (maybe with a dependency still in Review).
@@ -2918,6 +3635,11 @@ class SpecRunner {
       );
     } catch (e) {
       debugPrint('spec ${done.specId}: próxima etapa não iniciada — $e');
+      // SPEC-109 R8: why the next step waits.
+      if (e is SpecRunException &&
+          _ref.read(quotaDiverterProvider).waitOf(done.specId!) != null) {
+        await _manager.note(done.id, e.message, error: true);
+      }
     }
   }
 

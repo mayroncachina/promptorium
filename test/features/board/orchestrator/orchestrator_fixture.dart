@@ -3,6 +3,12 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/codex/codex_cli.dart';
+import 'package:promptorium/core/codex/codex_probe.dart' show CodexModelInfo;
+import 'package:promptorium/core/git/agent_trailer.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
+import 'package:promptorium/core/providers/provider_preferences.dart';
+import 'package:promptorium/core/providers/quota_source.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
@@ -11,6 +17,7 @@ import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart' show AppEventTypes;
 import 'package:promptorium/features/specs/spec_service.dart';
 
+import '../../../core/codex/fake_codex.dart';
 import '../../../core/git/git_test_utils.dart';
 import '../../../helpers/test_db.dart';
 import '../../sessions/session_test_utils.dart';
@@ -33,6 +40,23 @@ status: aprovada
 - R3 · Extrair generators
 - R4 · Ligar na CLI
 ''';
+
+/// The cached `model/list` (SPEC-109): the strong model has `ultra`, the
+/// light one does not.
+Map<String, String> codexCatalog() => {
+  codexModelsCacheKey: CodexModelsCache(
+    version: '0.170.0',
+    readAt: DateTime(2026, 11, 20),
+    models: const [
+      CodexModelInfo(
+        'gpt-6.2-sol',
+        ['low', 'medium', 'high', 'xhigh', 'ultra'],
+        ['text'],
+      ),
+      CodexModelInfo('gpt-6-luna', ['low', 'medium', 'high'], ['text']),
+    ],
+  ).encode(),
+};
 
 /// `result` line of the fixture with [text] as the final answer.
 String resultLine(String text, {double cost = 0.01}) {
@@ -99,11 +123,25 @@ class OrchestratorFixture {
   late final Workspace ws;
   late final Spec spec;
 
+  /// The App Servers started (with `codex: true`), and their cwd and env.
+  late final List<FakeCodex> servers;
+  late final List<String?> codexCwds;
+  late final List<Map<String, String>?> codexEnvs;
+
   static Future<OrchestratorFixture> create({
     String specText = orchestratorSpec,
     String? config,
     FakeClassifier? classifier,
+    bool codex = false,
+    ProviderAvailability codexStatus = const ProviderAvailability(
+      ProviderStatus.ready,
+      'ok',
+    ),
+    Map<String, dynamic>? codexQuotaRead,
   }) async {
+    final servers = <FakeCodex>[];
+    final codexCwds = <String?>[];
+    final codexEnvs = <Map<String, String>?>[];
     final tmp = Directory.systemTemp.createTempSync('promptorium-orq-');
     final repo = await createRepo(tmp);
     Directory('$repo/specs').createSync();
@@ -124,11 +162,67 @@ class OrchestratorFixture {
         ),
         if (classifier != null)
           stepClassifierProvider.overrideWith(() => classifier),
+        if (codex) ...[
+          agentGitHooksProvider.overrideWithValue(
+            AgentGitHooks('${tmp.path}/ganchos'),
+          ),
+          providerAvailabilityProvider.overrideWith(
+            (ref, id) async => id == 'codex'
+                ? codexStatus
+                : const ProviderAvailability(ProviderStatus.ready, 'ok'),
+          ),
+          if (codexQuotaRead != null)
+            codexQuotaReaderProvider.overrideWithValue(
+              () async => codexQuotaRead,
+            ),
+          codexProcessStarterProvider.overrideWithValue((
+            exe,
+            args, {
+            workingDirectory,
+            environment,
+          }) async {
+            final server = FakeCodex(
+              threadId: 'thread-${servers.length}',
+              models: const [
+                {
+                  'id': 'gpt-6.2-sol',
+                  'supportedReasoningEfforts': [
+                    {'reasoningEffort': 'low'},
+                    {'reasoningEffort': 'medium'},
+                    {'reasoningEffort': 'high'},
+                    {'reasoningEffort': 'ultra'},
+                  ],
+                  'inputModalities': ['text'],
+                },
+                {
+                  'id': 'gpt-6-luna',
+                  'supportedReasoningEfforts': [
+                    {'reasoningEffort': 'low'},
+                    {'reasoningEffort': 'medium'},
+                  ],
+                  'inputModalities': ['text'],
+                },
+              ],
+            );
+            servers.add(server);
+            codexCwds.add(workingDirectory);
+            codexEnvs.add(environment);
+            return server;
+          }),
+        ],
       ],
     );
     c.listen(sessionManagerProvider, (_, _) {});
-    final f = OrchestratorFixture._(tmp, repo, cli, c);
+    final f = OrchestratorFixture._(tmp, repo, cli, c)
+      ..servers = servers
+      ..codexCwds = codexCwds
+      ..codexEnvs = codexEnvs;
     await c.read(appSettingsProvider.notifier).load();
+    if (codex) {
+      for (final MapEntry(:key, :value) in codexCatalog().entries) {
+        await c.read(appSettingsProvider.notifier).set(key, value);
+      }
+    }
     f.ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'repo');
     await c.read(specServiceProvider).sync(f.ws);
     f.spec = (await c.read(specsRepoProvider).getByCode(f.ws.id, 'SPEC-001'))!;
@@ -153,6 +247,43 @@ class OrchestratorFixture {
             effort: value.$3,
           );
     }
+  }
+
+  /// Stores the plan with the provider of each rule (SPEC-109).
+  Future<void> planRules(Map<String, (StepKind, StepRule)> rules) async {
+    for (final MapEntry(:key, value: (kind, rule)) in rules.entries) {
+      await c
+          .read(specStepsRepoProvider)
+          .setPlan(
+            spec.id,
+            key,
+            kind: kind.name,
+            model: rule.model,
+            effort: rule.effort,
+            provider: rule.provider,
+          );
+    }
+  }
+
+  OrchestratorPrefsController get prefs =>
+      c.read(orchestratorPrefsProvider.notifier);
+
+  /// Text of the last turn sent to [s].
+  String codexPrompt(FakeCodex s) {
+    final turn = s.writtenJson.lastWhere((m) => m['method'] == 'turn/start');
+    return ((turn['params'] as Map)['input'] as List).first['text'] as String;
+  }
+
+  /// `model` and `effort` of the last turn of [s].
+  (String?, String?) codexModel(FakeCodex s) {
+    final thread = s.writtenJson.lastWhere(
+      (m) => '${m['method']}'.startsWith('thread/'),
+    );
+    final turn = s.writtenJson.lastWhere((m) => m['method'] == 'turn/start');
+    return (
+      (thread['params'] as Map)['model'] as String?,
+      (turn['params'] as Map)['effort'] as String?,
+    );
   }
 
   Future<Map<String, StepStatus>> states() async {
@@ -203,6 +334,68 @@ class OrchestratorFixture {
     return (after('--model'), after('--effort'));
   }
 }
+
+/// `rate_limit_event` of the Claude Code; `rejected` = the plan quota ended.
+String rateLimitLine(
+  DateTime resetsAt, {
+  String status = 'rejected',
+  double used = 1,
+  bool overage = false,
+}) {
+  final at = resetsAt.millisecondsSinceEpoch ~/ 1000;
+  return jsonEncode({
+    'type': 'rate_limit_event',
+    'rate_limit_info': {
+      'status': status,
+      'rateLimitType': 'five_hour',
+      'resetsAt': at,
+      'isUsingOverage': overage,
+      'unifiedWindows': {
+        'five_hour': {'utilization': used, 'resetsAt': at},
+      },
+    },
+  });
+}
+
+/// The `result` of a turn that could not go on (is_error).
+String failedLine(String text) {
+  final j = jsonDecode(resultLine(text)) as Map<String, dynamic>;
+  j['is_error'] = true;
+  return jsonEncode(j);
+}
+
+/// `account/rateLimits/updated` of the Codex.
+String codexRateLine(DateTime resetsAt, {int used = 100, String? reached}) =>
+    jsonEncode({
+      'method': 'account/rateLimits/updated',
+      'params': {
+        'rateLimits': {
+          'limitId': 'codex',
+          'primary': {
+            'usedPercent': used,
+            'windowDurationMins': 300,
+            'resetsAt': resetsAt.millisecondsSinceEpoch ~/ 1000,
+          },
+          'rateLimitReachedType': reached,
+        },
+      },
+    });
+
+/// `turn/completed` of a Codex turn that hit the usage limit.
+String codexLimitTurn(String thread) => jsonEncode({
+  'method': 'turn/completed',
+  'params': {
+    'threadId': thread,
+    'turn': {
+      'id': 'turn-1',
+      'status': 'failed',
+      'error': {
+        'message': 'You have hit your usage limit.',
+        'codexErrorInfo': 'usageLimitExceeded',
+      },
+    },
+  },
+});
 
 /// Waits (up to 60 s) for [cond]: the gate runs real git / bash, slow with
 /// the full suite in parallel.

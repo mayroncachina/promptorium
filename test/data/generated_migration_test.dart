@@ -3,6 +3,8 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
 import 'package:promptorium/data/repos/review_comments_repo.dart';
+import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
+import 'package:promptorium/features/board/orchestrator/step_plan.dart';
 
 import '../generated_migrations/schema.dart';
 
@@ -531,6 +533,52 @@ void main() {
     expect(
       (row.code, row.originSpecId, row.originQuestion),
       ('DT-09', 1, 'Q5'),
+    );
+    await db.close();
+  });
+  test('v37 → v38 (SPEC-109 P1): the plans and attempts of before are the '
+      "Claude Code's, with nothing lost", () async {
+    final schema = await verifier.schemaAt(37);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-073', 'x', 'specs/x.md')",
+      )
+      ..execute(
+        'INSERT INTO spec_steps (spec_id, step, status, gate_attempts, kind, '
+        'plan_model, plan_effort, escalations, user_picked) VALUES '
+        "(1, 'R1', 'done', 1, 'altoRisco', 'opus', 'high', 1, 1)",
+      )
+      ..execute(
+        'INSERT INTO step_runs (spec_id, step, kind, model, effort, result, '
+        "cost_usd) VALUES (1, 'R1', 'altoRisco', 'opus', 'high', 'passed', 4.2)",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final step = await db.select(db.specSteps).getSingle();
+    expect(step.planProvider, null, reason: 'null = the Claude Code');
+    expect(
+      (step.status, step.kind, step.planModel, step.planEffort),
+      (StepStatus.done, 'altoRisco', 'opus', 'high'),
+    );
+    expect((step.escalations, step.userPicked), (1, true));
+    final run = await db.select(db.stepRuns).getSingle();
+    expect(
+      (run.provider, run.tokensIn, run.tokensOut, run.diverted),
+      ('claude', null, null, null),
+    );
+    expect((run.model, run.costUsd), ('opus', 4.2));
+    // What the app makes of it: a plan on the Claude Code.
+    expect(
+      stepRunPlan('R1', [step], const OrchestratorPrefs({}))?.rule,
+      const StepRule('opus', 'high'),
+    );
+    expect(
+      (await db.customSelect('PRAGMA user_version').getSingle())
+          .data
+          .values
+          .single,
+      appSchemaVersion,
     );
     await db.close();
   });

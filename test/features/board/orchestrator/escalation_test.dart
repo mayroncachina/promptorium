@@ -98,6 +98,125 @@ void main() {
     });
   });
 
+  group('SPEC-109: ladder per provider', () {
+    OrchestratorPrefs prefs([Map<String, String> extra = const {}]) =>
+        OrchestratorPrefs({...codexCatalog(), ...extra});
+    StepRule sol(String effort) =>
+        StepRule('gpt-6.2-sol', effort, provider: 'codex');
+
+    test('R3: on the Codex the same model climbs by effort, up to what the '
+        'catalog gives', () {
+      final p = prefs();
+      expect(
+        nextRung(sol('low'), 0, p),
+        EscalationRung(sol('medium'), number: 1),
+      );
+      expect(nextRung(sol('medium'), 1, p)?.rule, sol('high'));
+      expect(nextRung(sol('high'), 0, p)?.rule, sol('ultra'));
+      expect(nextRung(sol('ultra'), 0, p), isNull);
+      // An effort between two rungs goes to the next one.
+      expect(nextRung(sol('xhigh'), 0, p)?.rule, sol('ultra'));
+      // Luna has no `ultra`.
+      const luna = StepRule('gpt-6-luna', 'high', provider: 'codex');
+      expect(nextRung(luna, 0, p), isNull);
+      expect(
+        escalationStopReason(luna, 0, p),
+        'gpt-6-luna · high é o topo da escada',
+      );
+      // Without the catalog (or with the default effort) there is no ladder.
+      expect(nextRung(sol('low'), 0, const OrchestratorPrefs({})), isNull);
+      expect(nextRung(sol('default'), 0, p), isNull);
+      expect(nextRung(sol('low'), 2, p), isNull, reason: 'the limit holds');
+    });
+
+    test('R3: "Perguntar antes do degrau mais alto" on both ladders', () {
+      final p = prefs({AppSettingKeys.orchestratorAskBeforeOpus: '1'});
+      expect(nextRung(sol('medium'), 0, p)?.ask, isFalse);
+      expect(nextRung(sol('high'), 0, p)?.ask, isTrue);
+      expect(nextRung(const StepRule('sonnet', 'medium'), 0, p)?.ask, isTrue);
+      expect(nextRung(const StepRule('haiku', 'low'), 0, p)?.ask, isFalse);
+    });
+
+    test('R3: the list of models the person ordered', () {
+      final p = prefs({
+        AppSettingKeys.orchestratorCodexLadder: 'models',
+        AppSettingKeys.orchestratorCodexLadderModels:
+            'gpt-6-luna,sumiu,gpt-6.2-sol',
+      });
+      const luna = StepRule('gpt-6-luna', 'high', provider: 'codex');
+      expect(nextRung(luna, 0, p)?.rule, sol('high'));
+      expect(nextRung(sol('high'), 0, p), isNull);
+    });
+
+    test('R4: the second opinion is off by default; on, the top of one tries '
+        'the top of the other, once, as an escalation', () {
+      const opus = StepRule('opus', 'high');
+      final reserve = sol('high');
+      expect(nextRung(opus, 0, prefs(), plan: opus, reserve: reserve), isNull);
+      final p = prefs({AppSettingKeys.orchestratorSecondOpinion: '1'});
+      expect(
+        nextRung(opus, 1, p, plan: opus, reserve: reserve),
+        EscalationRung(sol('ultra'), number: 2, secondOpinion: true),
+      );
+      // Not at the top yet: its own ladder first.
+      expect(
+        nextRung(
+          const StepRule('sonnet', 'medium'),
+          0,
+          p,
+          reserve: reserve,
+        )?.rule,
+        opus,
+      );
+      // It counts: with the escalations used up there is none.
+      expect(nextRung(opus, 2, p, plan: opus, reserve: reserve), isNull);
+      // On the other provider already: it never bounces back.
+      expect(nextRung(sol('ultra'), 1, p, plan: opus, reserve: opus), isNull);
+      // Sem reserva = no second opinion.
+      expect(nextRung(opus, 0, p, plan: opus), isNull);
+      // From the Codex to the top of the Claude ladder.
+      expect(
+        nextRung(
+          sol('ultra'),
+          0,
+          p,
+          plan: sol('low'),
+          reserve: const StepRule('sonnet', 'medium'),
+        )?.rule,
+        opus,
+      );
+    });
+
+    test('the trail says the efforts on the Codex and the providers of a '
+        'second opinion', () {
+      final p = prefs({AppSettingKeys.orchestratorSecondOpinion: '1'});
+      expect(
+        escalationTrailLabel(escalationTrail(sol('low'), 2, p)),
+        'gpt-6.2-sol · low → medium → high',
+      );
+      const sonnet = StepRule('sonnet', 'medium');
+      expect(
+        escalationTrailLabel(escalationTrail(sonnet, 2, p, sol('medium'))),
+        'Claude · Sonnet · medium → Claude · Opus · high → '
+        'Codex · gpt-6.2-sol · ultra',
+      );
+      expect(
+        stepLadderLabel(
+          const StepView(
+            id: 'R1',
+            text: 'x',
+            planModel: 'gpt-6.2-sol',
+            planEffort: 'low',
+            planProvider: 'codex',
+            escalations: 1,
+          ),
+          p,
+        ),
+        'gpt-6.2-sol · low → medium',
+      );
+    });
+  });
+
   group('escalation in the runner (temporary repo, fake CLI)', () {
     late OrchestratorFixture f;
 

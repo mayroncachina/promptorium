@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../data/db/app_database.dart';
 import '../../../data/repos/spec_steps_repo.dart';
 import '../board_rules.dart';
+import 'escalation.dart' show codexLadderEfforts;
 import 'orchestrator_rules.dart';
 import 'step_classifier.dart';
 
@@ -121,9 +122,34 @@ int planSessions(Iterable<StepRule> rules) {
 }
 
 /// "3 sessões: etapas vizinhas com o mesmo modelo seguem na mesma sessão".
-String planSessionsLabel(int sessions) =>
-    '${sessions == 1 ? '1 sessão' : '$sessions sessões'}: etapas vizinhas '
-    'com o mesmo modelo seguem na mesma sessão';
+/// With [rules] on both providers (SPEC-109 R9), "5 sessões · 2 no Codex, 3
+/// no Claude · uma nova a cada troca de provedor".
+String planSessionsLabel(
+  int sessions, {
+  Iterable<StepRule> rules = const [],
+  bool divert = false,
+}) {
+  final total = sessions == 1 ? '1 sessão' : '$sessions sessões';
+  final tail = divert
+      ? ' · desvio por cota ligado: reserva do outro provedor'
+      : '';
+  final providers = {for (final r in rules) r.provider};
+  if (providers.length < 2) {
+    return '$total: etapas vizinhas com o mesmo modelo seguem na mesma '
+        'sessão$tail';
+  }
+  final by = <String, int>{};
+  StepRule? last;
+  for (final r in rules) {
+    if (r != last) by[r.provider] = (by[r.provider] ?? 0) + 1;
+    last = r;
+  }
+  final each = [
+    for (final p in const ['codex', 'claude'])
+      if (by[p] case final n?) '$n no ${planProviderLabel(p)}',
+  ].join(', ');
+  return '$total · $each · uma nova a cada troca de provedor$tail';
+}
 
 /// The three rungs of the ladder offered in a line of the plan (mockup):
 /// Haiku · low, Sonnet · medium, Opus · high.
@@ -136,9 +162,44 @@ const stepPlanRungs = [
 /// Choices of the selector of a line: the [stepPlanRungs], plus the rule
 /// [suggested] by the preferences and the [current] choice when they are
 /// another combination (a rule changed in Configurações), so the selector
-/// never misses its value.
-List<StepRule> stepPlanChoices({StepRule? suggested, StepRule? current}) =>
-    {...stepPlanRungs, ?suggested, ?current}.toList();
+/// never misses its value. On the Codex ([current] there), each model of
+/// the catalog with the efforts of the ladder it takes (SPEC-109 R9).
+List<StepRule> stepPlanChoices({
+  StepRule? suggested,
+  StepRule? current,
+  OrchestratorPrefs prefs = const OrchestratorPrefs({}),
+}) {
+  if (current == null || current.isClaude) {
+    return {
+      ...stepPlanRungs,
+      if (suggested != null && suggested.isClaude) suggested,
+      ?current,
+    }.toList();
+  }
+  return {
+    for (final m in prefs.codexModels)
+      for (final e in codexLadderEfforts)
+        if (prefs.codexEfforts(m).contains(e))
+          StepRule(m, e, provider: current.provider),
+    if (suggested != null && suggested.provider == current.provider) suggested,
+    current,
+  }.toList();
+}
+
+/// The rule of a line moved to [provider] by the person (SPEC-109 R9): the
+/// reserve of its kind there.
+StepRule stepPlanOn(
+  String provider,
+  StepPlanEntry entry,
+  OrchestratorPrefs prefs,
+) {
+  if (entry.suggested.provider == provider) return entry.suggested;
+  final reserve = prefs.fallback(entry.kind, from: entry.rule.provider);
+  if (reserve != null && reserve.provider == provider) return reserve;
+  return provider == 'claude'
+      ? OrchestratorPrefs.defaultRules[entry.kind]!
+      : prefs.codexRule(effort: entry.rule.effort);
+}
 
 /// Kind and rule a step runs with in Automático (SPEC-035 R8).
 typedef StepRunPlan = ({StepKind kind, StepRule rule});
@@ -154,7 +215,11 @@ StepRunPlan? _own(SpecStep? r, OrchestratorPrefs prefs) {
   final kind = StepKind.parse(r!.kind);
   return (
     kind: kind,
-    rule: StepRule(model, r.planEffort ?? prefs.rule(kind).effort),
+    rule: StepRule(
+      model,
+      r.planEffort ?? prefs.rule(kind).effort,
+      provider: r.planProvider ?? 'claude',
+    ),
   );
 }
 
@@ -200,6 +265,7 @@ Future<void> storePlanEntries(
       kind: e.kind.name,
       model: e.rule.model,
       effort: e.rule.effort,
+      provider: e.rule.provider,
       hash: e.hash,
       reason: e.classReason,
       userPicked: e.userPicked,
