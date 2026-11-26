@@ -298,6 +298,13 @@ class CodexRun implements ManagedAgentRun {
   Map<String, dynamic> _lastUsage = const {};
   Map<String, dynamic> _baselineUsage = const {};
   Map<String, dynamic> _totalUsage = const {};
+
+  /// SPEC-110: the conversation went back, and the totals of the thread with
+  /// it: the next turn counts from its own first call.
+  bool _rebaseline = false;
+
+  /// The conversation of this thread went back (`thread/revert`).
+  void conversationReverted() => _rebaseline = true;
   ClaudePermissionMode? _permissionMode;
 
   /// Model of the thread (for the context readings, SPEC-095 R3).
@@ -710,6 +717,12 @@ class CodexRun implements ManagedAgentRun {
         ? m['params'] as Map<String, dynamic>
         : <String, dynamic>{};
     if (p['threadId'] != null && p['threadId'] != _thread) return;
+    // SPEC-110: the copy of the conversation made by `thread/fork` in this
+    // connection announces itself (`thread/started`): not this run's.
+    if (_thread != null && p['thread'] is Map) {
+      final other = (p['thread'] as Map)['id'];
+      if (other != null && other != _thread) return;
+    }
     final method = m['method'];
     if (m['id'] != null) {
       _request(m['id']!, '$method', p);
@@ -718,6 +731,13 @@ class CodexRun implements ManagedAgentRun {
     switch (method) {
       case 'turn/started':
         _turn = (p['turn'] as Map?)?['id'] as String?;
+        // SPEC-110 R6: the turn's id right after its message.
+        if (_turn != null) {
+          _emit({'type': 'system', 'subtype': codexTurnStartedSubtype});
+        }
+      case 'turn/plan/updated':
+        final plan = codexTurnPlan(p);
+        if (plan != null) _emit(plan);
       case 'item/agentMessage/delta':
         final id = '${p['itemId']}';
         final text = '${p['delta'] ?? ''}';
@@ -750,6 +770,14 @@ class CodexRun implements ManagedAgentRun {
         }
         final usage = p['tokenUsage'] as Map?;
         _totalUsage = Map<String, dynamic>.from(usage?['total'] as Map? ?? {});
+        if (_rebaseline && usage?['last'] is Map) {
+          _rebaseline = false;
+          final call = usage!['last'] as Map;
+          _baselineUsage = {
+            for (final MapEntry(:key, :value) in _totalUsage.entries)
+              if (value is num) key: value - (call[key] as num? ?? 0),
+          };
+        }
         _lastUsage = {
           for (final k in [
             'inputTokens',
@@ -933,6 +961,25 @@ class CodexRun implements ManagedAgentRun {
       case 'contextCompaction':
         _compaction(id, complete: complete);
         return;
+    }
+    // SPEC-110 R1: the reasoning the App Server sends as text is a step of
+    // the conversation (empty in most models: nothing to show).
+    if (type == 'reasoning' && complete) {
+      final text = codexReasoningText(item);
+      if (text != null && _finishedItems.add(id)) {
+        _emit({
+          'type': 'assistant',
+          'item_id': id,
+          'message': {
+            'id': id,
+            'role': 'assistant',
+            'content': [
+              {'type': 'thinking', 'thinking': text},
+            ],
+          },
+        });
+      }
+      return;
     }
     if (codexSilentItems.contains(type)) return;
     final name = switch (type) {

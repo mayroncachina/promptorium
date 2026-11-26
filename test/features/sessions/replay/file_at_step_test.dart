@@ -209,4 +209,236 @@ void main() {
       expect(who!.edit!.parent, same(steps.single));
     });
   });
+
+  group('SPEC-110 · base pelo ponto de restauração (R2)', () {
+    const before = 'l1\nl2\nl3\nl4\n';
+    late TimelineBuilder b;
+    final shown = <String>[];
+
+    setUp(() {
+      shown.clear();
+      b = TimelineBuilder();
+    });
+
+    Future<String?> show(String rev, String path) async {
+      shown.add('$rev:$path');
+      return switch ('$rev:$path') {
+        'p1:lib/f.dart' => before,
+        'p2:lib/f.dart' => 'l1\nL2\nl3\nl4\n',
+        'p1:lib/velho.dart' => 'um\ndois\n',
+        _ => null,
+      };
+    }
+
+    FileBaseResolver resolver(
+      List<RestoreBase> points, {
+      Map<String, String> originals = const {},
+    }) => FileBaseResolver(
+      originalFiles: () async => originals,
+      showAt: show,
+      startSha: 'abcdef1234',
+      root: '/w',
+      points: () async => points,
+    );
+
+    Future<FileAtStep> at(
+      FileBaseResolver r,
+      String path,
+      bool Function(ReplayStep) pick,
+    ) async {
+      final steps = replaySteps(b.items, root: '/w');
+      final edits = editsOf(steps, path, root: '/w');
+      final target = edits.firstWhere(pick);
+      final base = await r.resolve(path, edits, target);
+      return fileAtStep(base: base, edits: edits, target: target);
+    }
+
+    test('usa o ponto do turno do passo e aplica os hunks em ordem', () async {
+      b.user('um');
+      final s1 = b.seq;
+      b.turn('t-1');
+      b.patch('e1', [update('/w/lib/f.dart', '@@ -2,1 +2,1 @@\n-l2\n+L2\n')]);
+      b.endTurn();
+      b.user('dois');
+      final s2 = b.seq;
+      b.turn('t-2');
+      b.patch('e2', [
+        update('/w/lib/f.dart', '@@ -3,1 +3,2 @@\n-l3\n+L3\n+extra\n'),
+      ]);
+      b.patch('e3', [update('/w/lib/f.dart', '@@ -5,1 +5,1 @@\n-l4\n+L4\n')]);
+      final points = [
+        RestoreBase(turn: 1, seq: s1, sha: 'p1'),
+        RestoreBase(
+          turn: 2,
+          seq: s2,
+          sha: 'p2',
+          at: DateTime(2026, 11, 25, 14, 30),
+        ),
+      ];
+      final r = await at(
+        resolver(points),
+        '/w/lib/f.dart',
+        (s) => s.tool!.id == 'e3',
+      );
+      expect(r.text, 'l1\nL2\nL3\nextra\nL4\n');
+      expect(r.highlighted, {5});
+      expect(shown, ['p2:lib/f.dart']);
+      expect(r.base!.label, 'ponto de restauração do turno 2 (14:30)');
+      final first = await at(
+        resolver(points),
+        '/w/lib/f.dart',
+        (s) => s.tool!.id == 'e1',
+      );
+      expect(first.text, 'l1\nL2\nl3\nl4\n');
+      expect(first.base!.label, 'ponto de restauração do turno 1');
+    });
+
+    test('um hunk que não se aplica diz o passo, o ponto e a linha', () async {
+      b.user('um');
+      final s1 = b.seq;
+      b.turn('t-1');
+      b.patch('e1', [
+        update('/w/lib/f.dart', '@@ -2,2 +2,2 @@\n l2\n-outra\n+x\n'),
+      ]);
+      final r = await at(
+        resolver([RestoreBase(turn: 3, seq: s1, sha: 'p1')]),
+        '/w/lib/f.dart',
+        (_) => true,
+      );
+      expect(r.ok, isFalse);
+      expect(
+        r.reason,
+        'O diff do passo 2 não se aplica sobre a base (ponto do turno 3): a '
+        'linha 3 já era diferente. O diff do passo continua abaixo.',
+      );
+    });
+
+    test('arquivo movido: a base é o nome antigo, no ponto', () async {
+      b.user('um');
+      final s1 = b.seq;
+      b.turn('t-1');
+      b.patch('e1', [update('/w/lib/velho.dart', '@@ -1 +1 @@\n-um\n+UM\n')]);
+      b.patch('e2', [
+        update(
+          '/w/lib/velho.dart',
+          '@@ -2 +2 @@\n-dois\n+DOIS\n',
+          move: '/w/lib/novo.dart',
+        ),
+      ]);
+      final r = await at(
+        resolver([RestoreBase(turn: 1, seq: s1, sha: 'p1')]),
+        '/w/lib/novo.dart',
+        (s) => s.tool!.id == 'e2',
+      );
+      expect(r.text, 'UM\nDOIS\n');
+      expect(shown, ['p1:lib/velho.dart']);
+    });
+
+    test('arquivo criado no turno: não existe no ponto', () async {
+      b.user('um');
+      final s1 = b.seq;
+      b.turn('t-1');
+      b.patch('e1', [
+        {
+          'path': '/w/lib/n.dart',
+          'kind': {'type': 'add'},
+          'diff': 'a\n',
+        },
+      ]);
+      b.patch('e2', [update('/w/lib/n.dart', '@@ -1 +1 @@\n-a\n+b\n')]);
+      final r = await at(
+        resolver([RestoreBase(turn: 1, seq: s1, sha: 'p1')]),
+        '/w/lib/n.dart',
+        (s) => s.tool!.id == 'e2',
+      );
+      expect(r.text, 'b\n');
+      expect(r.base!.source, FileBaseSource.restorePoint);
+    });
+
+    test(
+      'o ponto não tem o arquivo (ignorado pelo git): a próxima base',
+      () async {
+        b.user('um');
+        final s1 = b.seq;
+        b.turn('t-1');
+        b.patch('e1', [update('/w/lib/x.dart', '@@ -1 +1 @@\n-a\n+b\n')]);
+        final steps = replaySteps(b.items, root: '/w');
+        final edits = editsOf(steps, '/w/lib/x.dart', root: '/w');
+        final base = await resolver([RestoreBase(turn: 1, seq: s1, sha: 'p1')])
+            .resolve('/w/lib/x.dart', edits, edits.single);
+        expect(base!.source, FileBaseSource.startSha);
+      },
+    );
+
+    test('P6: no Claude o ponto vem antes do originalFile', () async {
+      b.user('um');
+      final s1 = b.seq;
+      final id = b.edit('/w/lib/f.dart', 'l2', 'L2');
+      final r = await at(
+        resolver(
+          [RestoreBase(turn: 1, seq: s1, sha: 'p1')],
+          originals: {id: 'da transcrição\nl2\n'},
+        ),
+        '/w/lib/f.dart',
+        (_) => true,
+      );
+      expect(r.base!.source, FileBaseSource.restorePoint);
+      expect(r.text, 'l1\nL2\nl3\nl4\n');
+    });
+
+    test('Claude: um formatador no meio do turno quebra a sequência, e o '
+        'originalFile da edição resolve', () async {
+      b.user('um');
+      final s1 = b.seq;
+      b.bash('dart format lib/f.dart');
+      final id = b.edit('/w/lib/f.dart', 'formatado', 'F');
+      final r = await at(
+        resolver(
+          [RestoreBase(turn: 1, seq: s1, sha: 'p1')],
+          originals: {id: 'formatado\n'},
+        ),
+        '/w/lib/f.dart',
+        (_) => true,
+      );
+      expect(r.base!.source, FileBaseSource.transcript);
+      expect(r.text, 'F\n');
+    });
+  });
+
+  group('SPEC-110 R3 · quem escreveu, pelos diffs', () {
+    test('acha a última edição do Codex que adicionou a linha', () {
+      final b = TimelineBuilder()..user('x');
+      b.turn('t-1');
+      b.patch('e1', [update('/w/f.dart', '@@ -1 +1 @@\n-a\n+nova\n')]);
+      b.patch('e2', [
+        update('/w/f.dart', '@@ -1,1 +1,2 @@\n nova\n+mais\n'),
+        update('/w/g.dart', '@@ -1 +1 @@\n-a\n+nova\n'),
+      ]);
+      final steps = replaySteps(b.items);
+      expect(whoWroteLine(steps, '/w/f.dart', '  nova')!.edit!.tool!.id, 'e1');
+      expect(whoWroteLine(steps, '/w/f.dart', 'mais')!.edit!.tool!.id, 'e2');
+    });
+
+    test('nenhuma edição escreveu: o último Rodar antes de a linha aparecer '
+        '(uma leitura por comando não conta)', () {
+      final b = TimelineBuilder()..user('x');
+      b.turn('t-1');
+      final unknown = {'type': 'unknown', 'command': 'x'};
+      b.command('c1', 'dart run gera.dart', [unknown]);
+      b.command('c2', 'cat f.dart', [readAction('/w/f.dart')]);
+      b.patch('e1', [
+        update('/w/f.dart', '@@ -1,1 +1,2 @@\n gerada\n+depois\n'),
+      ]);
+      b.command('c3', 'dart test', [unknown]);
+      final steps = replaySteps(b.items);
+      final who = whoWroteLine(steps, '/w/f.dart', 'gerada')!;
+      expect(who.fromCommand, isTrue);
+      expect(who.command!.tool!.id, 'c1');
+      // Nenhum diff a mostra: o último Rodar.
+      expect(
+        whoWroteLine(steps, '/w/f.dart', 'só no fim')!.command!.tool!.id,
+        'c3',
+      );
+    });
+  });
 }

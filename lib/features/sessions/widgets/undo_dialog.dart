@@ -5,16 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/git/git_service.dart' show TreeChangeKind;
 import '../../../data/providers.dart';
+import '../../../ui/providers/provider_logos.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../conversation_events.dart';
 import '../restore/restore_service.dart';
 import '../session_changes.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
 
 /// What the person chose in the [UndoDialog].
-typedef UndoChoice = ({Set<String> paths, bool filesOnly});
+typedef UndoChoice = ({
+  Set<String> paths,
+  bool filesOnly,
+
+  /// The agent's conversation goes back too (SPEC-110 R7).
+  bool revertConversation,
+});
 
 /// The window of "Desfazer o último turno" / "Voltar a antes deste turno…"
 /// / "Refazer" (SPEC-084 R6, R7, R12, R16): what goes back, what the person
@@ -66,6 +74,12 @@ class _UndoDialogState extends State<UndoDialog> {
   bool _showAll = false;
   bool _showDiff = false;
   String? _error;
+
+  /// "Voltar também a conversa" (SPEC-110 R7, P2: checked).
+  bool _conversation = true;
+
+  bool _revertsConversation(UndoPlan plan) =>
+      !widget.redo && _conversation && (plan.conversation?.available ?? false);
 
   @override
   void initState() {
@@ -120,6 +134,7 @@ class _UndoDialogState extends State<UndoDialog> {
       await widget.onConfirm((
         paths: {...?_selected},
         filesOnly: plan.filesOnly,
+        revertConversation: _revertsConversation(plan),
       ));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -232,17 +247,36 @@ class _UndoDialogState extends State<UndoDialog> {
   Widget _actions(UndoPlan? plan) {
     final n = _selected?.length ?? 0;
     final commits = plan == null || plan.filesOnly ? 0 : plan.commits.length;
+    // SPEC-110 R7: what the agent forgets is in the button.
+    final back = plan != null && _revertsConversation(plan);
+    final c = plan?.conversation;
+    final turns = c == null
+        ? ''
+        : '${c.lastTurn > c.firstTurn ? 'os' : 'o'} '
+              '${turnsLabel(c.firstTurn, c.lastTurn)} da conversa';
     final String label;
     if (plan != null && plan.filesOnly && !widget.redo) {
-      label = 'Desfazer só os arquivos';
+      label = back
+          ? 'Desfazer os arquivos e $turns'
+          : 'Desfazer só os arquivos';
     } else {
       final verb = widget.redo ? 'Refazer' : 'Desfazer';
       final files = '$n arquivo${n == 1 ? '' : 's'}';
-      label = commits == 0
-          ? '$verb $files'
-          : '$verb $files e $commits commit${commits == 1 ? '' : 's'}';
+      final parts = [
+        if (n > 0 || (commits == 0 && !back)) files,
+        if (commits > 0) '$commits commit${commits == 1 ? '' : 's'}',
+        if (back) turns,
+      ];
+      label = parts.length == 1
+          ? '$verb ${parts.single}'
+          : '$verb ${parts.sublist(0, parts.length - 1).join(', ')} e '
+                '${parts.last}';
     }
-    final canGo = plan != null && !_working && !_busy && (n > 0 || commits > 0);
+    final canGo =
+        plan != null &&
+        !_working &&
+        !_busy &&
+        (n > 0 || commits > 0 || back || (widget.redo && c?.copyAt != null));
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -266,16 +300,19 @@ class _UndoDialogState extends State<UndoDialog> {
             onTap: _working ? null : _stop,
           )
         else
-          SmallButton(
-            key: const ValueKey('undo-confirm'),
-            label: _working ? 'Aplicando…' : label,
-            icon: widget.redo ? Icons.redo_rounded : Icons.undo_rounded,
-            height: 34,
-            color: AppColors.onAmber,
-            border: AppColors.amber,
-            background: AppColors.amber,
-            fontWeight: FontWeight.w600,
-            onTap: canGo ? () => _confirm(plan) : null,
+          // A long label (files, commits and turns) shrinks before it overflows.
+          Flexible(
+            child: SmallButton(
+              key: const ValueKey('undo-confirm'),
+              label: _working ? 'Aplicando…' : label,
+              icon: widget.redo ? Icons.redo_rounded : Icons.undo_rounded,
+              height: 34,
+              color: AppColors.onAmber,
+              border: AppColors.amber,
+              background: AppColors.amber,
+              fontWeight: FontWeight.w600,
+              onTap: canGo ? () => _confirm(plan) : null,
+            ),
           ),
       ],
     );
@@ -409,6 +446,10 @@ class _UndoDialogState extends State<UndoDialog> {
                   'os arquivos dela podem voltar junto: ${o.files.join(', ')}.',
             ),
           ],
+        if (plan.conversation case final c?) ...[
+          const SizedBox(height: 14),
+          _conversationSection(c),
+        ],
         if (!widget.redo) ...[
           const SizedBox(height: 12),
           _Callout(
@@ -418,6 +459,150 @@ class _UndoDialogState extends State<UndoDialog> {
             text: _keptText(plan),
           ),
         ],
+      ],
+    );
+  }
+
+  /// "Conversa do agente" (SPEC-110 R7, R9).
+  Widget _conversationSection(ConversationPlan c) {
+    final on = c.available;
+    const muted = TextStyle(fontSize: 12, color: AppColors.textSecondary);
+    final head = Row(
+      children: [
+        const Expanded(
+          child: Text('CONVERSA DO AGENTE', style: sectionTitleStyle),
+        ),
+        ProviderChip(
+          c.provider,
+          key: const ValueKey('undo-conversation-agent'),
+          dense: true,
+        ),
+      ],
+    );
+    if (widget.redo) {
+      return Column(
+        key: const ValueKey('undo-conversation'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          head,
+          const SizedBox(height: 8),
+          Text(
+            c.copyAt == null
+                ? (c.reason ?? '')
+                : 'A sessão volta para a cópia da conversa de '
+                      '${formatClock(c.copyAt)}: o ${c.agent} lembra de novo '
+                      '${c.lastTurn > c.firstTurn ? 'dos' : 'do'} '
+                      '${turnsLabel(c.firstTurn, c.lastTurn)}.',
+            key: const ValueKey('undo-conversation-redo'),
+            style: muted,
+          ),
+        ],
+      );
+    }
+    final label = on
+        ? 'Voltar também a conversa do ${c.agent} para antes do turno '
+              '${c.firstTurn}'
+        : 'Voltar também a conversa';
+    final many = c.lastTurn > c.firstTurn;
+    final effect =
+        'O ${c.agent} esquece ${many ? 'os' : 'o'} '
+        '${turnsLabel(c.firstTurn, c.lastTurn)}. A timeline do app continua '
+        'mostrando ${many ? 'os turnos, marcados como revertidos' : 'o turno, marcado como revertido'}.';
+    final why = c.onlyCodex ? 'Só Codex: ${c.reason}' : (c.reason ?? '');
+    final checked = on && _conversation;
+    final toggle = on && !_working
+        ? () => setState(() => _conversation = !_conversation)
+        : null;
+    Widget box = Semantics(
+      key: const ValueKey('undo-conversation-box'),
+      container: true,
+      checked: checked,
+      enabled: on,
+      label: on ? '$label. $effect' : '$label. $why',
+      onTap: toggle,
+      excludeSemantics: true,
+      child: InkWell(
+        key: const ValueKey('undo-conversation-toggle'),
+        onTap: toggle,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  key: const ValueKey('undo-conversation-check'),
+                  value: checked,
+                  activeColor: AppColors.amber,
+                  checkColor: AppColors.onAmber,
+                  side: const BorderSide(color: AppColors.inputBorder),
+                  onChanged: toggle == null ? null : (_) => toggle(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: on ? AppColors.text : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      on ? effect : why,
+                      key: const ValueKey('undo-conversation-text'),
+                      style: muted,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!on) box = Tooltip(message: why, child: box);
+    return Column(
+      key: const ValueKey('undo-conversation'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        head,
+        const SizedBox(height: 8),
+        _Box(
+          children: [
+            box,
+            if (checked)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 2, 4, 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      size: 14,
+                      color: AppColors.teal,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Antes de reverter, o app guarda uma cópia da '
+                        'conversa (thread/fork) para o Refazer. Não chama o '
+                        'modelo.',
+                        key: ValueKey('undo-conversation-copy'),
+                        style: muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -773,22 +958,6 @@ class _Callout extends StatelessWidget {
 
 // --- wiring -------------------------------------------------------------------
 
-/// Text of the timeline after an undo: "Turno 4 desfeito: 41 arquivos,
-/// 1 commit (wip)." (R8).
-String undoneNote(UndoOutcome o) {
-  final files = '${o.files} arquivo${o.files == 1 ? '' : 's'}';
-  final commits = o.commits.isEmpty
-      ? ''
-      : ', ${o.commits.length} commit${o.commits.length == 1 ? '' : 's'} '
-            '(${o.commits.first.split(':').first})';
-  return 'Turno ${o.turn} desfeito: $files$commits.';
-}
-
-/// What the agent hears after a redo (with the next message).
-String redoNotice(int turn) =>
-    'O usuário refez o turno $turn; os arquivos voltaram ao estado de depois '
-    'do turno. Releia antes de alterar.';
-
 /// Opens the [UndoDialog] for [point] of [session] and applies the choice
 /// (R5, R8, R9, R10, R11). [redo] = "Refazer".
 Future<void> openUndoDialog(
@@ -853,23 +1022,13 @@ Future<void> openUndoDialog(
         final fresh =
             await ref.read(restorePointsRepoProvider).byId(point.id) ?? current;
         if (redo) {
-          final out = await restore.redo(fresh, choice.paths);
-          await manager.note(
-            session.id,
-            'Turno ${out.turn} refeito: ${out.files} arquivo'
-            '${out.files == 1 ? '' : 's'}.',
-          );
-          await manager.queueNotice(session.id, redoNotice(out.turn));
+          await restore.redoTurn(fresh, choice.paths);
         } else {
-          final out = await restore.undo(
+          await restore.undoTurn(
             fresh,
             choice.paths,
             filesOnly: choice.filesOnly,
-          );
-          await manager.note(session.id, undoneNote(out));
-          await manager.queueNotice(
-            session.id,
-            SessionManager.undoNotice(out.turn),
+            revertConversation: choice.revertConversation,
           );
         }
         ref.invalidate(sessionChangesProvider(session.id));

@@ -14,6 +14,7 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/codex/codex_hooks.dart';
 import '../../core/codex/codex_provider.dart' show CodexRun;
+import '../../core/codex/codex_rpc.dart' show CodexRpc;
 import '../../core/git/worktree_roots.dart';
 import '../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
 import '../../core/providers/provider_availability.dart';
@@ -749,6 +750,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   }) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
+    await _whileHeld(id);
     // SPEC-069 R7: the Review talks to a VIBE in its conversation.
     if (id.startsWith(vibeSessionPrefix)) {
       final s = await _repo.getById(id);
@@ -815,6 +817,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// process (resumed when closed), one request at a time. The session's
   /// permissions stay as they are; a failure keeps the history.
   Future<void> compactNow(String id, {String? focus}) async {
+    await _whileHeld(id);
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não existe.');
     // SPEC-107 R8: decided by the capability, not by the provider name.
@@ -870,6 +873,82 @@ class SessionManager extends Notifier<SessionManagerState> {
     return p is! CodexRun || p.supportsImages;
   }
 
+  /// Conversations going back or being adopted now (SPEC-110 R8, R9): no
+  /// turn starts until they end.
+  final Map<String, Future<void>> _held = {};
+
+  Future<void> _whileHeld(String id) async {
+    while (_held[id] != null) {
+      await _held[id];
+    }
+  }
+
+  /// Runs [job] with no turn of [id] running nor starting: messages sent
+  /// meanwhile wait. Throws when the session is in a turn.
+  Future<T> holdConversation<T>(String id, Future<T> Function() job) async {
+    while (true) {
+      final wait = _held[id] ?? _resuming[id];
+      if (wait == null) break;
+      try {
+        await wait;
+      } catch (_) {
+        // A resume that failed: there is no process.
+      }
+    }
+    final done = Completer<void>();
+    _held[id] = done.future;
+    try {
+      final leaving = _procs[id];
+      if (leaving != null &&
+          (leaving.stopping ||
+              leaving.released ||
+              !leaving.process.isRunning)) {
+        // On its way out: it still holds the thread.
+        await leaving.exited.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {},
+        );
+      }
+      final p = _procs[id];
+      if (p != null && (p.busy || p.compacting || p.pending.isNotEmpty)) {
+        throw const SessionException(
+          'A sessão está no meio de um turno: espere terminar ou pare a '
+          'sessão.',
+        );
+      }
+      return await job();
+    } finally {
+      _held.remove(id);
+      done.complete();
+    }
+  }
+
+  /// The conversation of [id] went back (SPEC-110 R8): what was measured of
+  /// it no longer holds.
+  void conversationReverted(String id) {
+    final p = _procs[id];
+    if (p == null) return;
+    p.contextTokens = null;
+    final run = p.process;
+    if (run is CodexRun) run.conversationReverted();
+  }
+
+  /// Appends an app event to the session's timeline (SPEC-110).
+  Future<void> appEvent(String id, Map<String, dynamic> json) =>
+      _appEvent(id, json);
+
+  /// Connection of the live Codex process of [id] (SPEC-110): the only one
+  /// that may write its thread. Null without one (or on its way out).
+  CodexRpc? codexRpc(String id) {
+    final p = _procs[id];
+    final run = p?.process;
+    return p == null || p.stopping || p.released || run is! CodexRun
+        ? null
+        : run.isRunning
+        ? run.rpc
+        : null;
+  }
+
   /// Restore point of the start of a turn (SPEC-084 R1–R4): a failure or
   /// files left out only become a line in the timeline; the turn goes on.
   Future<RestorePoint?> _checkpoint(String id, String text) async {
@@ -913,6 +992,20 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (list.contains(text)) return;
     list.add(text);
     await _durable((r) => r.addNotice(id, text));
+  }
+
+  /// Takes [text] back, not delivered yet (SPEC-110: the conversation went
+  /// back after all).
+  Future<void> cancelNotice(String id, String text) async {
+    final list = _notices[id];
+    if (list == null || !list.remove(text)) return;
+    if (list.isEmpty) _notices.remove(id);
+    await _durable((r) async {
+      await r.clearNotices(id);
+      for (final n in list) {
+        await r.addNotice(id, n);
+      }
+    });
   }
 
   /// Line of the app in the session's timeline (gate results, hooks…).
@@ -1101,6 +1194,7 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Starts `claude --resume <id>` in the session's worktree (no message).
   Future<void> resume(String id) async {
+    await _whileHeld(id);
     if (await _liveProc(id) != null) return;
     return _resuming[id] ??= _resume(id).whenComplete(() {
       // Block body: returning the removed Future would await itself.
@@ -2697,10 +2791,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       if (st != null &&
           st.planned.contains(ManagedHook.end) &&
           st.whenOf(ManagedHook.end) == HookWhen.afterTurn) {
-        final why = p.stopping
-            ? 'parada pelo usuário'
-            : p.released
+        // A release also sets `stopping`: nobody stopped the session.
+        final why = p.released
             ? 'suspensa'
+            : p.stopping
+            ? 'parada pelo usuário'
             : 'processo encerrou, código $code';
         final a = HookActivity(
           hook: ManagedHook.end,
