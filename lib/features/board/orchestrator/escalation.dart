@@ -99,6 +99,12 @@ class EscalationRung {
   /// The top of the other provider's ladder (SPEC-109 R4).
   final bool secondOpinion;
 
+  /// `Escalar para Opus`, `Tentar no Codex` (the second opinion).
+  String get actionLabel => secondOpinion
+      ? 'Tentar no ${planProviderLabel(rule.provider)}'
+      : 'Escalar para '
+            '${rule.isClaude ? orchestratorModelLabel(rule.model) : rule.label}';
+
   @override
   bool operator ==(Object other) =>
       other is EscalationRung &&

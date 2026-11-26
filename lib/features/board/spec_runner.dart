@@ -1189,6 +1189,11 @@ class SpecRunner {
           decision: decision,
           divert: divert,
         );
+      } else {
+        await diverter.setWait(specId, null);
+        if (diverter.divertOf(specId) != null) {
+          await diverter.setDivert(specId, null);
+        }
       }
       await _claudeOnlyNote(
         id,
@@ -2591,7 +2596,7 @@ class SpecRunner {
         '$ids aguarda você antes de escalar de '
         '${current.labelBeside(rung.rule)} para '
         '${rung.rule.labelBeside(current)} '
-        '("Escalar para ${orchestratorModelLabel(rung.rule.model)}").',
+        '("${rung.actionLabel}").',
       );
       return;
     }

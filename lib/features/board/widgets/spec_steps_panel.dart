@@ -16,7 +16,9 @@ import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
 import '../orchestrator/escalation.dart';
+import '../orchestrator/orchestrator_rules.dart' show orchestratorPrefsProvider;
 import '../spec_runner.dart';
+import 'quota_widgets.dart';
 import 'gate_report_view.dart';
 import 'subagent_status.dart';
 import '../board_screen.dart';
@@ -320,6 +322,11 @@ class SpecStepsPanel extends ConsumerWidget {
             ),
           ),
         ],
+        if (steps.any((x) => x.status == StepStatus.needsInput))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: QuotaWaitPanel(specId: spec.id),
+          ),
         const SizedBox(height: 10),
         Expanded(
           flex: 1,
@@ -585,7 +592,8 @@ class _StepRow extends ConsumerWidget {
                 color: step.isDone ? AppColors.textSecondary : AppColors.text,
               ),
             ),
-            if (stepLadderLabel(step) case final ladder?) ...[
+            if (stepLadderLabel(step, ref.watch(orchestratorPrefsProvider))
+                case final ladder?) ...[
               const SizedBox(height: 2),
               Text(
                 ladder,
@@ -596,6 +604,10 @@ class _StepRow extends ConsumerWidget {
                 ),
               ),
             ],
+            // SPEC-109 R14: where the quota sent it, else the Codex of its
+            // plan.
+            SpecDivertLine(specId: spec.id, step: step.id, provider: true),
+            StepPlanLine(step: step, specId: spec.id),
             if (step.gate case final g?) ...[
               const SizedBox(height: 4),
               GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),

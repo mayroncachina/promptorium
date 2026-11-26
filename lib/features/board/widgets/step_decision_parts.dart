@@ -7,7 +7,6 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../board_rules.dart';
 import '../orchestrator/escalation.dart';
-import '../orchestrator/orchestrator_rules.dart';
 import '../step_decision.dart';
 import '../step_gate.dart';
 import 'spec_canvas.dart' show DashedBorderPainter;
@@ -886,8 +885,7 @@ class StepDecisionEscalateRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   /// `Escalar para Opus`.
-  static String labelOf(EscalationRung rung) =>
-      'Escalar para ${orchestratorModelLabel(rung.rule.model)}';
+  static String labelOf(EscalationRung rung) => rung.actionLabel;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -904,7 +902,8 @@ class StepDecisionEscalateRow extends StatelessWidget {
         Expanded(
           child: Text(
             'A verificação reprovou depois dos reenvios. Subir para '
-            '${rung.rule.label} abre uma sessão nova no início da etapa.',
+            '${rung.rule.isClaude && !rung.secondOpinion ? rung.rule.label : rung.rule.fullLabel} '
+            'abre uma sessão nova no início da etapa.',
             style: const TextStyle(fontSize: 12, color: AppColors.text),
           ),
         ),

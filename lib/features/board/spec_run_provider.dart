@@ -181,16 +181,19 @@ String codexSubagentsNotice(List<String> names) {
       'sessão principal faz o trabalho ${n == 1 ? 'dele' : 'deles'}.';
 }
 
-/// Timeline note when "Abrir Executar em Automático" meets a spec on the
-/// Codex (R5).
+/// Timeline note when "Abrir Executar em Automático" meets a spec whose
+/// run is on the Codex and no rule of the Orquestrador uses it (SPEC-101
+/// R5, SPEC-109 R12).
 const autoOnlyClaudeNote =
-    'Automático é só do Claude Code: o Orquestrador escolhe modelos do '
-    'Claude; com o Codex, as etapas rodam no modo Manual.';
+    'Esta spec roda no Codex em Manual: nenhuma regra do Orquestrador usa o '
+    'Codex. Para o Automático usar os dois provedores, mude as regras em '
+    'Configurações › Orquestrador.';
 
-/// Hint of the Automático segment with the Codex selected (R5).
-const autoOnlyClaudeHint =
-    'o Orquestrador escolhe modelos do Claude; com o Codex, as etapas rodam '
-    'no modo Manual';
+/// Why Automático is off in a run begun in Manual on the Codex (SPEC-101
+/// R2).
+const autoFixedManualHint =
+    'Automático fica para a próxima execução: esta começou em Manual no Codex '
+    'e segue nele até o Review.';
 
 /// The run's provider fixed until Review (R2). SPEC-099 ("Passar para
 /// outro agente") is not in this version: stopping is the way to switch.
