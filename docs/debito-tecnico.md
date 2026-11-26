@@ -15,7 +15,7 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-05 | **Central de notificações** e **folha de atalhos** | Média | Histórico de "sessão terminou", "aprovação pendente" |
 | DT-06 | **Checkpoints** — voltar o worktree para antes de uma alteração do agente | Média | |
 | ~~DT-07~~ | ~~Uso do plano (5h / semanal) no rodapé~~ | — | **Resolvido na pesquisa:** vem no evento `rate_limit_event` do stream-json. Entra na Fase 5 |
-| DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Codex: ver [DT-56](#dt-56--integracao-codex). Fase 6: interface `AgentProvider` + registro com Codex/Gemini CLI como "em breve" (desabilitados); ícone do botão segue o provedor ativo. Falta a implementação: cada provedor precisa traduzir sua saída para `ClaudeEvent` (vocabulário da timeline) e ter sua própria noção de modo somente leitura |
+| DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Codex: resolvido na 0.27.0, ver [DT-56](#dt-56--integracao-codex). Gemini CLI continua pendente. Fase 6: interface `AgentProvider` + registro com Codex/Gemini CLI como "em breve" (desabilitados); ícone do botão segue o provedor ativo. Falta a implementação: cada provedor precisa traduzir sua saída para `ClaudeEvent` (vocabulário da timeline) e ter sua própria noção de modo somente leitura |
 | DT-09 | **Ícone: arte vetorial / bordas** | Baixa | Fase 1 gerou os PNGs recortando `icon.webp` (1254px) com máscara de cantos arredondados aproximada via ffmpeg (raio ≈ 200px). Ideal: SVG de origem + ícone simbólico para o painel |
 | ~~DT-10~~ | ~~Instalação desktop (`.desktop` + ícones hicolor)~~ | — | **Resolvido na Fase 12:** `scripts/install.sh` (bundle em `~/.local/share/promptorium/app/`, link `~/.local/bin/promptorium`, `.desktop` com `Exec` absoluto, ícones hicolor 32–512, caches; idempotente, nunca toca o banco) e `scripts/uninstall.sh`. `desktop-file-validate` OK. Falta: pacote do sistema (deb/Flatpak/AppImage) e ícone simbólico (DT-09) |
 | DT-11 | **Splash em janela própria** (720×440, sem decoração) | Baixa | Fase 2 desenha o cartão 720×440 dentro da janela 1440×900. Redimensionar via `window_manager` (`setSize`/`setTitleBarStyle`) exige mexer também no runner GTK, que já abre em 1440×900 |
@@ -138,7 +138,9 @@ A sondagem de `glab` 1.36.0 registrou token inválido em gitlab.com e ausência 
 
 ## DT-56 — Integração Codex
 
-**Prioridade: baixa. Desligada em 22/10/2026 por decisão de escopo: foco no Claude Code.**
+**Resolvido na 0.27.0 (26/11/2026).** O Codex foi religado pelo [épico #332](https://github.com/mayroncachina/promptorium/issues/332) (SPEC-093 a SPEC-110, da 0.23 à 0.27) e roda em todos os fluxos: Prompt, Sessões, execução de specs, review automático e Comparar. O interruptor de emergência agora é "Desligar o Codex", em Configurações → Provedores (SPEC-096 P1). O texto abaixo é o registro do desligamento de 22/10/2026.
+
+~~Prioridade: baixa. Desligada em 22/10/2026 por decisão de escopo: foco no Claude Code.~~
 
 O adaptador do Codex App Server (`lib/core/codex/`), o contrato `AgentProvider`/`AgentEvent`, as políticas de permissão e o YOLO continuam no código, mas `codexEnabledProvider` (`lib/core/providers/agent_registry.dart`) vale `false`. Com isso o registro lista Codex como “em breve” (`ComingSoonProvider`), os seletores de Nova sessão, Executar spec e rodapé mostram só Claude Code e os agentes ACP, a disponibilidade não sonda o CLI e um padrão `codex` salvo resolve para Claude. Sessões Codex já salvas não retomam e informam que o Codex está indisponível. Os testes do adaptador ligam o interruptor e continuam na suíte.
 

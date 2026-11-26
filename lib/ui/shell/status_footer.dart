@@ -15,6 +15,7 @@ import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../data/providers.dart';
 import '../widgets/app_dialog.dart';
+import '../../features/settings/settings_sections.dart';
 import 'navigation.dart';
 import 'footer_stats.dart';
 import 'quota_detail.dart';
@@ -494,6 +495,9 @@ class _ProviderSelector extends ConsumerWidget {
                 ),
                 TextButton(
                   onPressed: () {
+                    ref
+                        .read(selectedSettingsSectionProvider.notifier)
+                        .select(SettingsSection.providers);
                     ref
                         .read(navigationProvider.notifier)
                         .go(AppSection.settings);

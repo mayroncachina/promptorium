@@ -353,7 +353,7 @@ const providerOffLabel = 'Desligado nas Configurações';
 String providerOffMessage(String displayName) =>
     'O $displayName está desligado nas Configurações '
     '(Desligar o $displayName). Escolha o Claude Code ou religue o '
-    '$displayName em Configurações → Consumo.';
+    '$displayName em Configurações → Provedores.';
 
 /// "Codex · Só Claude Code por enquanto" (R11): label of a provider not
 /// released in a flow.

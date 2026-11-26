@@ -11,9 +11,9 @@ As specs do próprio Promptorium ficam em [`specs/`](specs/), a pasta configurad
 | Spec | Assunto | Status |
 |---|---|---|
 | [SPEC-001](specs/SPEC-001-scroll-vertical-no-quadro.md) | Scroll vertical no Quadro | concluída |
-| [SPEC-002](specs/SPEC-002-integracao-codex.md) – [SPEC-005](specs/SPEC-005-codex-em-todos-os-fluxos.md) | Integração Codex | adiadas (Codex desligado) |
+| [SPEC-002](specs/SPEC-002-integracao-codex.md) – [SPEC-005](specs/SPEC-005-codex-em-todos-os-fluxos.md) | Integração Codex (plano de 10/2026) | substituídas pelas SPEC-093 a 110 ([épico #332](https://github.com/mayroncachina/promptorium/issues/332)) |
 | [SPEC-006](specs/SPEC-006-seletor-de-provedor-no-rodape.md) | Seletor de provedor no rodapé | concluída |
-| [SPEC-007](specs/SPEC-007-modo-yolo-do-codex.md) | Modo YOLO do Codex | concluída (inativa) |
+| [SPEC-007](specs/SPEC-007-modo-yolo-do-codex.md) | Modo YOLO do Codex | concluída |
 | [SPEC-008](specs/SPEC-008-canvas-do-quadro.md) | Canvas do Quadro | concluída |
 | [SPEC-009](specs/SPEC-009-comentarios-do-revisor-e-do-pr-no-diff.md) | Comentários do revisor e do PR no diff | concluída |
 | [SPEC-010](specs/SPEC-010-diff-desde-a-ultima-rodada-do-review.md) | Diff desde a última rodada | concluída |
@@ -31,7 +31,7 @@ As specs do próprio Promptorium ficam em [`specs/`](specs/), a pasta configurad
 | [SPEC-022](specs/SPEC-022-prototipo-de-telas-da-spec.md) | Protótipo de telas da spec | aprovada (verificação manual pendente) |
 | [SPEC-023](specs/SPEC-023-specs-mais-rigorosas.md) | Specs mais rigorosas | aprovada (verificação manual pendente) |
 
-Também em `specs/`: [README](specs/README.md) (Claude Code e Codex, ordem das SPEC-002 a 007) e as notas de implementação [008–013](specs/IMPLEMENTACAO-008-013.md) e [014–015](specs/IMPLEMENTACAO-014-015.md).
+Também em `specs/`: [README](specs/README.md) (o plano antigo do Codex, SPEC-002 a 007; o atual é o épico #332, SPEC-093 a 110) e as notas de implementação [008–013](specs/IMPLEMENTACAO-008-013.md) e [014–015](specs/IMPLEMENTACAO-014-015.md).
 
 ## Planos
 

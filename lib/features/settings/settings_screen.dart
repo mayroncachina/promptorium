@@ -212,8 +212,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.providers => const _Page(
                   title: 'Provedores',
                   intro:
-                      'O Claude Code e o Codex (Prompt e Sessões) e os agentes '
-                      'que falam o Agent Client Protocol, no seletor do Prompt.',
+                      'O Claude Code, o Codex e os agentes que falam o Agent '
+                      'Client Protocol, no seletor do Prompt.',
                   children: [
                     CodexStatusCard(),
                     CodexAgentModelsCard(),
