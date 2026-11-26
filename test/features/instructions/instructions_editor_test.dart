@@ -8,6 +8,10 @@ import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/instructions/instructions_view.dart';
+import 'package:promptorium/features/project/widgets/project_widgets.dart'
+    show NoticeBox;
+import 'package:promptorium/features/sessions/widgets/session_style.dart'
+    show SmallButton;
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -380,8 +384,29 @@ void main() {
     write('CLAUDE.md', '# a\n');
     await pump(tester);
     expect(key('instructions-unify-card'), findsOneWidget);
+    expect(
+      tester.widget<SmallButton>(key('instructions-unify')).onTap,
+      isNotNull,
+    );
+    // No warning on opening an old project: only the button (R3).
+    for (final k in [
+      'instructions-two-sources',
+      'instructions-plan-b',
+      'instructions-stale',
+      'instructions-no-import',
+      'instructions-external',
+    ]) {
+      expect(key(k), findsNothing, reason: k);
+    }
+    expect(find.byType(NoticeBox), findsNothing);
     expect(File('${tmp.path}/AGENTS.md').existsSync(), isFalse);
     expect(read('CLAUDE.md'), '# a\n');
+    expect(tmp.listSync(recursive: true).map((e) => e.path.split('/').last), [
+      'CLAUDE.md',
+    ]);
+    // The button opens the dialog of the unification (T4).
+    await tap(tester, 'instructions-unify');
+    await waitFor(tester, key('unify-dialog'));
   });
 
   test('R3: instructionsNeedUnify', () {
