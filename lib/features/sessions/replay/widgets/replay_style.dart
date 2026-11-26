@@ -53,9 +53,11 @@ abstract final class ReplayColors {
 
   static Color markColor(ReplayMarkKind? m) => switch (m) {
     ReplayMarkKind.gatePassed => AppColors.teal,
-    ReplayMarkKind.gateFailed || ReplayMarkKind.error => error,
+    ReplayMarkKind.gateFailed ||
+    ReplayMarkKind.error ||
+    ReplayMarkKind.reverted => error,
     ReplayMarkKind.compaction => AppColors.blue,
-    ReplayMarkKind.resume => AppColors.amber,
+    ReplayMarkKind.resume || ReplayMarkKind.interrupted => AppColors.amber,
     _ => AppColors.textMuted,
   };
 }
@@ -79,7 +81,7 @@ class ReplayKindBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(3),
       ),
       child: Text(
-        step.kind.letter,
+        replayLetter(step),
         style: TextStyle(
           fontFamily: AppFonts.mono,
           fontSize: size * .62,
@@ -92,6 +94,10 @@ class ReplayKindBadge extends StatelessWidget {
   }
 }
 
+/// Letter of the badge: the Codex answers with "X" (its mark in the app).
+String replayLetter(ReplayStep s) =>
+    s.kind == ReplayKind.assistant && s.agent == 'Codex' ? 'X' : s.kind.letter;
+
 /// One-line label of a step: "Edit ci_fixer.dart +6 −2", "Bash flutter
 /// test", "pensando", the start of a message.
 String replayStepLabel(ReplayStep s) {
@@ -100,7 +106,12 @@ String replayStepLabel(ReplayStep s) {
     final path = s.filePath;
     final target = path == null ? s.target : baseName(path);
     final stats = s.added == null ? '' : ' ${s.statsLabel}';
-    return '${t.name} $target$stats';
+    if (s.kind == ReplayKind.read && s.reads.isNotEmpty) {
+      return '${s.verb} ${s.target}';
+    }
+    final kind = s.changeLabel;
+    final mark = kind == null || kind == 'alterado' ? '' : ' · $kind';
+    return '${s.verb} $target$stats$mark';
   }
   return switch (s.kind) {
     ReplayKind.thinking => 'pensando',
@@ -115,24 +126,48 @@ String replayStepTip(ReplayStep s, {String? root}) {
   final t = s.tool;
   final body = t == null
       ? replayStepLabel(s)
-      : '${t.name} ${path == null ? s.target : relativePath(path, root)}'
-            '${s.added == null ? '' : ' ${s.statsLabel}'}';
+      : s.kind == ReplayKind.read && s.reads.isNotEmpty
+      ? '${replayStepLabel(s)}${_via(s)}'
+      : '${s.verb} ${path == null ? s.target : relativePath(path, root)}'
+            '${s.added == null ? '' : ' ${s.statsLabel}'}'
+            '${s.changeLabel == null ? '' : ' · ${s.changeLabel}'}';
   final at = clock(s.at);
-  return '${s.index + 1} · $body${at.isEmpty ? '' : ' · $at'}';
+  final gone = s.reverted == null
+      ? ''
+      : ' · revertido às ${clock(s.reverted!.at)}';
+  return '${s.index + 1} · $body${at.isEmpty ? '' : ' · $at'}$gone';
 }
+
+String _via(ReplayStep s) => (s.via ?? '').isEmpty ? '' : ' · ${s.via}';
 
 /// Screen reader value of the scrubber (R13): "Passo 42 de 180, Editar
 /// ci_fixer.dart, mais 6 menos 2, 14:32".
 String replaySemanticValue(ReplayStep s, int total) {
-  final parts = <String>['Passo ${s.index + 1} de $total', s.kind.label];
-  final path = s.filePath;
+  final kind = s.kind == ReplayKind.assistant
+      ? s.agent
+      : s.kind == ReplayKind.read && s.reads.isNotEmpty
+      ? s.verb
+      : s.kind.label;
+  final parts = <String>['Passo ${s.index + 1} de $total', kind];
+  final path = s.reads.isNotEmpty ? null : s.filePath;
   final what = path == null ? s.target : baseName(path);
-  if (what.isNotEmpty) parts[1] = '${s.kind.label} $what';
+  if (what.isNotEmpty) parts[1] = '$kind $what';
+  // SPEC-110 R11: where a read by command came from.
+  if (s.kind == ReplayKind.read && s.reads.isNotEmpty) {
+    final program = s.reads.first.program;
+    if (program.isNotEmpty) parts.add('pelo comando $program');
+  }
+  final change = s.changeLabel;
+  if (change != null && change != 'alterado') parts.add(change);
   if (s.added != null) {
     parts.add('mais ${s.added} menos ${s.removed ?? 0}');
   }
   if (s.outcome == ReplayOutcome.error) parts.add('com erro');
   if (s.outcome == ReplayOutcome.denied) parts.add('negado');
+  // SPEC-110 R11.
+  if (s.reverted case final r?) {
+    parts.add('revertido às ${r.at.hour} e ${r.at.minute}');
+  }
   final at = clock(s.at);
   if (at.isNotEmpty) parts.add(at);
   return parts.join(', ');

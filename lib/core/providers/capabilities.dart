@@ -151,7 +151,11 @@ class ProviderCapabilities {
       ProviderCapability.nativeReview: CapabilityValue.unsupported(
         'O Claude Code não tem review nativo pelo app.',
       ),
-      ProviderCapability.revertConversation: CapabilityValue.supported(),
+      // SPEC-110 R7: the CLI has no way back in the stream-json mode.
+      ProviderCapability.revertConversation: CapabilityValue.unsupported(
+        'o Claude Code não volta a conversa no modo do app; o agente recebe '
+        'o aviso.',
+      ),
       ProviderCapability.instructionsFallback: CapabilityValue.supported(
         'nativo',
       ),
@@ -212,8 +216,10 @@ class ProviderCapabilities {
       ProviderCapability.nativeReview: CapabilityValue.unsupported(
         'O review nativo do Codex não foi testado.',
       ),
-      ProviderCapability.revertConversation: CapabilityValue.unsupported(
-        'Desfazer turnos no Codex não foi testado.',
+      // SPEC-110: `thread/revert` (and `thread/fork` for the copy), checked
+      // on the 0.170 App Server without a model call.
+      ProviderCapability.revertConversation: CapabilityValue.supported(
+        'thread/revert',
       ),
       // SPEC-093 R10 and the SPEC-104 probe (`skills.jsonl`): both work by
       // override of the run, nothing written in ~/.codex.

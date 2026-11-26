@@ -98,6 +98,44 @@ class OtherSession {
   final List<String> files;
 }
 
+/// The agent's conversation in the undo window (SPEC-110 R7, R9).
+@immutable
+class ConversationPlan {
+  const ConversationPlan({
+    required this.provider,
+    required this.agent,
+    this.firstTurn = 0,
+    this.lastTurn = 0,
+    this.beforeTurnId,
+    this.onlyCodex = false,
+    this.reason,
+    this.copyAt,
+  });
+
+  /// `codex`, `claude`…
+  final String provider;
+
+  /// "Codex", "Claude Code".
+  final String agent;
+
+  /// Turns the agent forgets.
+  final int firstTurn;
+  final int lastTurn;
+
+  /// The agent's turn it goes back to before; null = it cannot ([reason]).
+  final String? beforeTurnId;
+
+  /// The agent has no way back ("Só Codex: …").
+  final bool onlyCodex;
+  final String? reason;
+
+  /// Redo: when the copy the session goes on in was made; null = there is
+  /// none ([reason]).
+  final DateTime? copyAt;
+
+  bool get available => beforeTurnId != null;
+}
+
 /// What going back to the start of a turn would do, worked out from the
 /// two points of the turn and the current state (SPEC-084 R6, R7, R12,
 /// R16).
@@ -114,7 +152,12 @@ class UndoPlan {
     this.startBranch,
     this.currentBranch,
     this.startHead = '',
+    this.conversation,
   });
+
+  /// The agent's conversation (SPEC-110); null = not offered (a VIBE, or a
+  /// redo of an undo that kept it).
+  final ConversationPlan? conversation;
 
   /// Files the agent changed in the turn(s): they go back (checked).
   final List<UndoFile> restore;
@@ -187,6 +230,7 @@ UndoPlan buildUndoPlan({
   String? startBranch,
   String? currentBranch,
   String startHead = '',
+  ConversationPlan? conversation,
 }) {
   final afterPaths = {for (final c in after) c.path};
   final restore = <UndoFile>[];
@@ -241,5 +285,6 @@ UndoPlan buildUndoPlan({
     startBranch: startBranch,
     currentBranch: currentBranch,
     startHead: startHead,
+    conversation: conversation,
   );
 }

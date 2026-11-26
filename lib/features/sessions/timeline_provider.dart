@@ -59,7 +59,7 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
     var maxSeq = 0;
     try {
       for (final r in await loadStored()) {
-        _t.applyStored(r.json, at: r.at);
+        _t.applyStored(r.json, at: r.at, seq: r.seq);
         if (r.seq > maxSeq) maxSeq = r.seq;
       }
     } catch (e) {
@@ -68,7 +68,7 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
     _loaded = true;
     _storedMax = maxSeq;
     for (final (seq, e) in _pending) {
-      if (seq == null || seq > _storedMax) _t.apply(e);
+      if (seq == null || seq > _storedMax) _t.apply(e, seq: seq);
     }
     _pending.clear();
     _emit();
@@ -82,7 +82,7 @@ abstract class StoredTimelineNotifier extends Notifier<TimelineSnapshot> {
       return;
     }
     if (seq != null && seq <= _storedMax) return;
-    _t.apply(e);
+    _t.apply(e, seq: seq);
     _emit();
   }
 

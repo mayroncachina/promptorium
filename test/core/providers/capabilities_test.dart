@@ -48,7 +48,8 @@ void main() {
         ProviderCapability.quota: supported,
         ProviderCapability.costUsd: no,
         ProviderCapability.nativeReview: no,
-        ProviderCapability.revertConversation: no,
+        // SPEC-110: thread/revert.
+        ProviderCapability.revertConversation: supported,
       };
       expected.forEach((c, s) => expect(caps[c].support, s, reason: c.name));
       expect(caps.reasonFor(ProviderCapability.budgetUsd), contains('US\$'));

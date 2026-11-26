@@ -27,6 +27,7 @@ class ContextReading {
     this.live = true,
     this.turnEnd = false,
     this.source = ContextReadingSource.claudeUsage,
+    this.window,
   });
 
   /// `input + cacheWrite + cacheRead` of the call (output is not context
@@ -63,6 +64,9 @@ class ContextReading {
   /// `usage` of a Claude call) or `codex-tokenUsage` (`tokenUsage.last`).
   final String source;
 
+  /// Capacity of the model reported with this reading (Codex, SPEC-110 R5).
+  final int? window;
+
   /// The parts are measured in the same call and do not overlap.
   bool get hasComposition => input + cacheWrite + cacheRead + output == tokens;
 
@@ -83,6 +87,7 @@ class ContextReading {
     live: live ?? this.live,
     turnEnd: turnEnd ?? this.turnEnd,
     source: source,
+    window: window,
   );
 }
 
