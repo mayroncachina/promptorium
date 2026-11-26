@@ -829,6 +829,40 @@ void main() {
     expect((conv.provider, conv.claudeSessionId), ('claude', 'orig'));
   });
 
+  test('SPEC-108 R8, R10: the readings of before are saved at once; one '
+      'lost with the app is read again when a side is resumed', () async {
+    final id = await withHistory();
+    await startCompare(id, a: claudeAsk, b: codexAsk);
+    await wait();
+    final stored = CompareRun.fromJson(
+      jsonDecode((await repo().events(id)).last.json) as Map<String, dynamic>,
+      conversationId: id,
+    )!;
+    expect(stored.before.keys, unorderedEquals(['claude', 'codex']));
+    await ctl().shutdown();
+    // An event saved without the readings (the app closed first).
+    final row = (await repo().events(id)).last;
+    final j = jsonDecode(row.json) as Map<String, dynamic>..remove('before');
+    await repo().updateEvent(id, row.seq, jsonEncode(j));
+    c.dispose();
+    usages = [usage(40, 61), usage(46, 62), usage(46, 62)];
+    codexUsages = [codexLimits(12, 30), codexLimits(15, 31)];
+    c = container();
+    await c.read(appSettingsProvider.notifier).load();
+    await c.read(providerAvailabilityProvider('codex').future);
+    await ctl().restore(id);
+    await ctl().resume(id, 'B');
+    await wait();
+    expect(view(id).before['codex']!.five, 0.12);
+    await ctl().resume(id, 'A');
+    await wait();
+    codexFinish(servers.last, 'x');
+    provider.runs.last.emit(resultOf());
+    await wait();
+    expect(view(id).b.weight!.five, closeTo(0.03, 1e-9));
+    expect(view(id).a.weight!.five, closeTo(0.06, 1e-9));
+  });
+
   test('SPEC-108 R2: an unavailable Codex is refused with the reason, before '
       'anything is stored', () async {
     codexStatus = const ProviderAvailability(ProviderStatus.missing, 'x');

@@ -256,6 +256,8 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     // R8: the quota of each provider involved, before the sides start.
     final before = await _readUsages(run.providers);
     live.run = live.run.copyWith(before: before);
+    // Kept now: an app closed before the first event still has it (R10).
+    await _save(id);
     await Future.wait([
       for (final s in run.sides) _startSide(c, workspace, live, s.letter, msg),
     ]);
@@ -823,6 +825,17 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       }
     }
     _publish();
+    // A reading lost with the app (closed before it was saved) is read
+    // again, so the weight can still be measured (SPEC-108 R8, R10).
+    final missing = [
+      for (final p in live.run.providers)
+        if (!live.run.before.containsKey(p)) p,
+    ];
+    if (missing.isNotEmpty) {
+      live.run = live.run.copyWith(
+        before: {...live.run.before, ...await _readUsages(missing)},
+      );
+    }
     await _startSide(
       conv,
       ws,

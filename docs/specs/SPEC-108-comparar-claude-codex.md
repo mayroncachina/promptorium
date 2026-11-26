@@ -1,6 +1,6 @@
 ---
 id: SPEC-108
-status: em implementação
+status: concluida
 versao: 0.27.0
 tipo: recurso
 epico: 332
@@ -140,20 +140,20 @@ Não. O provedor e o esforço de cada lado vão no JSON do evento `compare` (`co
 
 ## Critérios de aceite
 
-- [ ] Cada lado escolhe provedor, modelo e esforço; os modelos do Codex vêm do `model/list`; o chip "Claude × Codex" preenche os lados e lados iguais (com provedor) não são enviados [R1, R2] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
-- [ ] Com o Codex indisponível, o chip e a opção ficam desabilitados com o motivo [R2] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
-- [ ] O lado Codex roda em `read-only` com aprovação `never` em Perguntar e Planejar, e o Planejar termina em "plano pronto" [R3] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart (fake_codex)
-- [ ] Numa conversa com histórico, o lado do mesmo provedor faz fork e o outro recebe o pacote revisável; com "Mesmo resumo nos dois lados", os dois recebem o pacote [R4] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] A linha de peso mostra as janelas de cada provedor envolvido e fica âmbar com 80% em qualquer uma [R5] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
-- [ ] As colunas mostram o selo do provedor, as leituras do Codex como leituras e os pedidos só no lado que pediu [R6] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
-- [ ] Tempo, tokens (com o raciocínio do Codex) e chamadas aparecem nos dois lados, sem US$, com as razões de tempo e tokens [R7] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
-- [ ] Com provedores diferentes, cada lado recebe a variação inteira da própria cota e não há razão de peso; com o mesmo provedor, vale a regra da SPEC-079 (no Codex, por tokens) [R8] verificar: flutter test test/features/prompt/compare/compare_weight_test.dart
-- [ ] Escolher o lado de outro provedor troca o provedor, a sessão, o modelo, o esforço e o modo da conversa, grava a nota e guarda o outro lado no cartão [R9] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] Um evento `compare` antigo, sem provedor, abre com o provedor da conversa; um lado Codex interrompido é retomado; descartar volta ao provedor de antes [R10] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] O Comparar A/B do Quadro aceita um provedor por tentativa e mostra o provedor, o gate, o diff, o tempo e os tokens de cada uma [R11] verificar: flutter test test/features/board/duel_start_dialog_test.dart
-- [ ] O leitor de tela anuncia o provedor das colunas e o nome da cota de cada peso [R12] verificar: flutter test test/features/prompt/compare/compare_view_test.dart (semantics)
-- [ ] No app isolado, uma conversa Claude com histórico compara Opus × Codex, mostra o aviso do pacote, as métricas e o peso de cada cota, e a conversa continua no Codex depois da escolha [R1–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, prints em `docs/mockups/spec-108/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
+- [x] Cada lado escolhe provedor, modelo e esforço; os modelos do Codex vêm do `model/list`; o chip "Claude × Codex" preenche os lados e lados iguais (com provedor) não são enviados [R1, R2] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
+- [x] Com o Codex indisponível, o chip e a opção ficam desabilitados com o motivo [R2] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
+- [x] O lado Codex roda em `read-only` com aprovação `never` em Perguntar e Planejar, e o Planejar termina em "plano pronto" [R3] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart (fake_codex)
+- [x] Numa conversa com histórico, o lado do mesmo provedor faz fork e o outro recebe o pacote revisável; com "Mesmo resumo nos dois lados", os dois recebem o pacote [R4] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] A linha de peso mostra as janelas de cada provedor envolvido e fica âmbar com 80% em qualquer uma [R5] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
+- [x] As colunas mostram o selo do provedor, as leituras do Codex como leituras e os pedidos só no lado que pediu [R6] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
+- [x] Tempo, tokens (com o raciocínio do Codex) e chamadas aparecem nos dois lados, sem US$, com as razões de tempo e tokens [R7] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
+- [x] Com provedores diferentes, cada lado recebe a variação inteira da própria cota e não há razão de peso; com o mesmo provedor, vale a regra da SPEC-079 (no Codex, por tokens) [R8] verificar: flutter test test/features/prompt/compare/compare_weight_test.dart
+- [x] Escolher o lado de outro provedor troca o provedor, a sessão, o modelo, o esforço e o modo da conversa, grava a nota e guarda o outro lado no cartão [R9] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] Um evento `compare` antigo, sem provedor, abre com o provedor da conversa; um lado Codex interrompido é retomado; descartar volta ao provedor de antes [R10] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] O Comparar A/B do Quadro aceita um provedor por tentativa e mostra o provedor, o gate, o diff, o tempo e os tokens de cada uma [R11] verificar: flutter test test/features/board/duel_start_dialog_test.dart
+- [x] O leitor de tela anuncia o provedor das colunas e o nome da cota de cada peso [R12] verificar: flutter test test/features/prompt/compare/compare_view_test.dart (semantics)
+- [x] No app isolado, uma conversa Claude com histórico compara Opus × Codex, mostra o aviso do pacote, as métricas e o peso de cada cota, e a conversa continua no Codex depois da escolha [R1–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, prints em `docs/mockups/spec-108/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
 
 ## Telas
 
@@ -166,3 +166,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9iNV7WHKi4USJtoQuLs
 | `2-lado-a-lado.png` | Opus × Codex prontos: selo do provedor, leituras do Codex como leituras, tempo, tokens com raciocínio, peso em cada cota, "cotas diferentes · sem razão" e o aviso dos tokenizadores | R6–R8, R12 |
 | `3-escolhida-codex.png` | Depois de ficar com o lado Codex: a nota "A conversa passou para o Codex", o cartão recolhido com "Abrir no terminal" e o rodapé no Codex | R9, R10 |
 | `4-duelo-quadro.png` | Comparar A/B do Quadro: o diálogo de início com um provedor por tentativa e o resultado com gate, diff, tempo e tokens | R11 |
+
+No app (build da branch, dados isolados, Claude e Codex falsos, sem turno pago), em `docs/mockups/spec-108/app/`: `1-faixa-provedores`, `2-o-que-o-b-recebe`, `3-rodando`, `4-reaberto-interrompido`, `5-lado-a-lado`, `6-escolhida-codex`, `7-duelo-inicio`, `8-duelo-resultado` e `9-duelo-escolhido`.
+
+### Notas da implementação
+
+- O esforço trazido pelo lado escolhido fica em `app_settings` (`prompt.esforco.<conversa>`), sem migração; some quando a pessoa troca o modelo da conversa.
+- O rodapé continua mostrando o provedor padrão do workspace, que vale para as próximas execuções; a conversa, o composer e a lista mostram o provedor novo depois da escolha (R9).
+- A leitura de comando como "Ler/Buscar/Listar" vale nas colunas e no cartão do Comparar; as Sessões continuam com o cartão de comando da SPEC-095.
+- No duelo, a execução da spec segue no provedor dela depois da escolha; a próxima etapa não herda o modelo, o esforço nem o modo da tentativa de outro provedor.
