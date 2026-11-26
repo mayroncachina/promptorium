@@ -13,7 +13,7 @@ import '../specs/spec_file.dart';
 /// the plan exists (workspace picker → "Novo projeto…").
 enum ProjectStep {
   vision('Visão', 'O que é e para quem'),
-  stack('Stack e convenções', 'Tecnologias e CLAUDE.md'),
+  stack('Stack e convenções', 'Tecnologias e instruções'),
   roadmap('Roadmap', 'Specs e dependências'),
   create('Revisar e criar', 'Arquivos, quadro e 1ª sessão');
 

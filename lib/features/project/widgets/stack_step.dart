@@ -121,8 +121,8 @@ class StackStep extends ConsumerWidget {
                     : StepEmpty(
                         title: busy == null ? 'Sem proposta ainda' : '',
                         text: busy == null
-                            ? 'O planner sugere as tecnologias e escreve o '
-                                  'CLAUDE.md do projeto a partir da visão.'
+                            ? 'O planner sugere as tecnologias e escreve as '
+                                  'instruções do projeto a partir da visão.'
                             : '',
                       ),
               ),
@@ -130,7 +130,7 @@ class StackStep extends ConsumerWidget {
           ),
         ),
         SidePanel(
-          title: 'CLAUDE.md',
+          title: 'AGENTS.md',
           width: 380,
           trailing: const InfoTag('editável'),
           footer: StepNav(
@@ -154,8 +154,8 @@ class StackStep extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: NoticeBox.warning(
                     text:
-                        'Uma escolha ou um comando mudou depois que o '
-                        'CLAUDE.md foi escrito.',
+                        'Uma escolha ou um comando mudou depois que as '
+                        'instruções foram escritas.',
                     action: SmallButton(
                       key: const ValueKey('project-claudemd-refresh'),
                       label: 'Atualizar',
@@ -372,7 +372,9 @@ class _ClaudeMdEditorState extends State<_ClaudeMdEditor> {
       decoration: const InputDecoration(
         border: InputBorder.none,
         contentPadding: EdgeInsets.all(12),
-        hintText: 'O CLAUDE.md aparece aqui quando o planner propõe a stack.',
+        hintText:
+            'As instruções (AGENTS.md) aparecem aqui quando o planner propõe '
+            'a stack. O CLAUDE.md as importa.',
         hintStyle: TextStyle(color: AppColors.textMuted),
       ),
     ),

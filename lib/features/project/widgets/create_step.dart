@@ -14,7 +14,6 @@ import '../../board/board_screen.dart' show SpecCardData;
 import '../../board/widgets/run_spec_dialog.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
-import '../../../core/providers/capabilities.dart';
 import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/workspace_assets.dart';
 import '../cost_estimate.dart';
@@ -22,6 +21,8 @@ import '../project_config.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
 import '../project_service.dart';
+import '../project_templates.dart'
+    show InstructionFileOwner, InstructionFiles, claudeImportMd;
 import '../spec_auto_planner.dart';
 import '../spec_metrics.dart';
 import '../stack_commands.dart';
@@ -48,22 +49,19 @@ class CreateStep extends ConsumerStatefulWidget {
 }
 
 class _CreateStepState extends ConsumerState<CreateStep> {
-  late final bool _claudeMdExists = ref
+  /// The AGENTS.md and the CLAUDE.md already there (SPEC-113 R2): a file
+  /// of the person's is never overwritten.
+  late final InstructionFiles _existing = ref
       .read(projectServiceProvider)
-      .hasClaudeMd(widget.workspace);
-  // The template's minimal CLAUDE.md is replaced by default (R23); only a
-  // CLAUDE.md of the user's starts off.
+      .instructionFiles(
+        widget.workspace,
+        text: '${widget.data.stack.claudeMd.trim()}\n',
+      );
+  // The template's minimal instructions are replaced (R23).
   late final bool _templateClaudeMd = ref
       .read(projectServiceProvider)
       .hasTemplateClaudeMd(widget.workspace);
-  late bool _writeClaudeMd = !_claudeMdExists || _templateClaudeMd;
-
-  /// SPEC-104 R3 (plano B): the Codex does not read the CLAUDE.md, so the
-  /// option comes checked.
-  late final bool _codexNeedsAgentsMd = !ref
-      .read(codexCapabilitiesProvider)
-      .supports(ProviderCapability.instructionsFallback);
-  late bool _writeAgentsMd = _codexNeedsAgentsMd;
+  late bool _writeClaudeMd = !_existing.blocked;
   bool _commit = true;
   bool _configOpen = false;
   bool _runFirst = true;
@@ -73,6 +71,13 @@ class _CreateStepState extends ConsumerState<CreateStep> {
   String? _commitError;
 
   Roadmap get _roadmap => widget.data.roadmap.normalized();
+
+  /// Whether [file] already exists (an instruction file the app replaces).
+  bool _modified(String file) => switch (file) {
+    agentsMdName => _existing.agents != InstructionFileOwner.none,
+    claudeMdName => _existing.claude != InstructionFileOwner.none,
+    _ => false,
+  };
 
   Future<void> _create() async {
     if (_busy) return;
@@ -88,8 +93,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
           .read(projectServiceProvider)
           .materialize(
             widget.workspace,
-            writeClaudeMd: _writeClaudeMd,
-            writeAgentsMd: _codexNeedsAgentsMd && _writeAgentsMd,
+            writeInstructions: _writeClaudeMd && !_existing.blocked,
             commit: _commit,
           );
     } catch (e) {
@@ -110,7 +114,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
           widget.workspace,
           out.specs,
           commit: _commit,
-          wroteClaudeMd: out.files.contains('CLAUDE.md'),
+          wroteClaudeMd: out.files.contains(agentsMdName),
           initialCommitError: out.commitError,
           firstRunSpecId: _runFirst ? out.firstSpec?.id : null,
         ),
@@ -151,11 +155,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
         .value;
     final first = roadmap.firstSpec;
     final hasClaudeMd = widget.data.stack.claudeMd.trim().isNotEmpty;
-    final offerAgentsMd =
-        !done &&
-        _codexNeedsAgentsMd &&
-        ((hasClaudeMd && _writeClaudeMd) || _claudeMdExists);
-    final agentsMd = offerAgentsMd && _writeAgentsMd;
+    final writeInstructions =
+        hasClaudeMd && _writeClaudeMd && !_existing.blocked;
     // The stack's commands merged into the config.yml (SPEC-072 R13).
     final merge = mergeStackCommands(
       ProjectConfig.loadSync(widget.workspace.path),
@@ -163,8 +164,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
     );
     final files = [
       if (!done && merge.changed) ProjectConfig.filePath,
-      if (hasClaudeMd && _writeClaudeMd) 'CLAUDE.md',
-      if (agentsMd) agentsMdName,
+      if (writeInstructions) ...[agentsMdName, claudeMdName],
       for (final s in roadmap.specs)
         'specs/SPEC-…-${slugify(s.title, maxLength: 40)}.md',
     ];
@@ -216,10 +216,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                                   TextSpan(
                                     children: [
                                       TextSpan(
-                                        text:
-                                            f == 'CLAUDE.md' && _claudeMdExists
-                                            ? 'M  '
-                                            : 'A  ',
+                                        text: _modified(f) ? 'M  ' : 'A  ',
                                         style: const TextStyle(
                                           color: AppColors.teal,
                                         ),
@@ -234,39 +231,35 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                                   ),
                                 ),
                               ),
-                          if (!done && hasClaudeMd)
+                          if (!done && hasClaudeMd && !_existing.blocked)
                             _Check(
                               key: const ValueKey('project-write-claudemd'),
                               value: _writeClaudeMd,
                               label: _templateClaudeMd
-                                  ? 'Substituir o CLAUDE.md mínimo do modelo'
-                                  : _claudeMdExists
-                                  ? 'Substituir o CLAUDE.md que já existe'
-                                  : 'Gravar o CLAUDE.md',
+                                  ? 'Substituir as instruções mínimas do modelo'
+                                  : 'Gravar as instruções no AGENTS.md',
+                              hint:
+                                  'O texto vai para o AGENTS.md, que o Codex '
+                                  'lê, e o CLAUDE.md recebe a linha '
+                                  '${claudeImportMd.trim()} para o Claude Code ler o mesmo texto.',
                               onChanged: (v) =>
                                   setState(() => _writeClaudeMd = v),
                             ),
-                          if (offerAgentsMd) ...[
-                            _Check(
-                              key: const ValueKey('project-write-agentsmd'),
-                              value: _writeAgentsMd,
-                              label:
-                                  'Gravar também o AGENTS.md (o Codex não lê '
-                                  'o CLAUDE.md)',
-                              hint:
-                                  'O Codex não lê o CLAUDE.md nesta versão. O '
-                                  'AGENTS.md é uma cópia com aviso no topo: '
-                                  'edite sempre o CLAUDE.md.',
-                              onChanged: (v) =>
-                                  setState(() => _writeAgentsMd = v),
-                            ),
-                            if (_writeAgentsMd)
-                              _AgentsHeader(
-                                claudeMd: hasClaudeMd && _writeClaudeMd
-                                    ? '${widget.data.stack.claudeMd.trim()}\n'
-                                    : null,
+                          if (!done && hasClaudeMd && _existing.blocked)
+                            Padding(
+                              key: const ValueKey('project-instructions-kept'),
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                '${_existing.personal.join(' e ')} já '
+                                '${_existing.personal.length == 1 ? 'existe' : 'existem'} '
+                                'e não ${_existing.personal.length == 1 ? 'é sobrescrito' : 'são sobrescritos'}: '
+                                'as instruções do plano não são gravadas.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                          ],
+                            ),
                           if (!done)
                             _Check(
                               key: const ValueKey('project-commit'),
@@ -275,8 +268,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                                   'Commitar em ${branch ?? 'na branch atual'} '
                                   'como “$planCommitMessage”',
                               hint:
-                                  'Sem o commit, as sessões não enxergam o '
-                                  'CLAUDE.md nem as specs.',
+                                  'Sem o commit, as sessões não enxergam as '
+                                  'instruções nem as specs.',
                               onChanged: (v) => setState(() => _commit = v),
                             ),
                         ],
@@ -423,7 +416,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
               ? PlanQueueSteps(
                   rows: planQueuePreview(
                     specs: roadmap.specs.length,
-                    writeClaudeMd: hasClaudeMd && _writeClaudeMd,
+                    writeClaudeMd: writeInstructions,
                     commit: _commit,
                     firstRun: _runFirst && first != null,
                     refineTime: QueueEstimate(ref.watch(refineRoundsProvider))
@@ -432,7 +425,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                 )
               : _Steps(
                   done: done,
-                  writeClaudeMd: hasClaudeMd && _writeClaudeMd,
+                  writeClaudeMd: writeInstructions,
                   commit: _commit,
                   specs: roadmap.specs.length,
                   first: _runFirst ? first : null,
@@ -823,42 +816,6 @@ class _Check extends StatelessWidget {
   );
 }
 
-/// Header of the `AGENTS.md` to be generated (SPEC-104 R3, mock 3).
-class _AgentsHeader extends StatelessWidget {
-  const _AgentsHeader({required this.claudeMd});
-
-  /// The CLAUDE.md to be written (null = the one already on disk).
-  final String? claudeMd;
-
-  @override
-  Widget build(BuildContext context) {
-    final source = claudeMd;
-    final head = source == null
-        ? agentsMdHeader('<hash do CLAUDE.md>')
-        : agentsMdHeader(claudeMdHash(source));
-    final first = source?.split('\n').take(2).join('\n') ?? '# …';
-    return Container(
-      key: const ValueKey('project-agentsmd-header'),
-      margin: const EdgeInsets.only(left: 32, bottom: 6, top: 2),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: SessionColors.terminalPanel,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$head$first\n…',
-        style: const TextStyle(
-          fontFamily: AppFonts.mono,
-          fontSize: 11,
-          height: 1.5,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
 class _Steps extends StatelessWidget {
   const _Steps({
     required this.done,
@@ -877,7 +834,12 @@ class _Steps extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = <(String, String, bool)>[
-      if (writeClaudeMd) ('Gravar o CLAUDE.md', 'na raiz do repositório', true),
+      if (writeClaudeMd)
+        (
+          'Gravar as instruções',
+          'no AGENTS.md, com o CLAUDE.md importando',
+          true,
+        ),
       ('Gravar $specs specs', 'em specs/, já aprovadas', true),
       if (commit) ('Commit “$planCommitMessage”', 'na branch atual', true),
       ('Colocar as specs no Quadro', 'no Backlog, com as dependências', true),

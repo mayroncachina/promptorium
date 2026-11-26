@@ -508,7 +508,7 @@ void main() {
     expect(
       tester.widget<Text>(key('start-template-summary')).data,
       'Definida com o Claude: Go 1.23 · Fiber v2 · goose · testes: '
-      'go test ./... · CLAUDE.md base; o planner só ajusta.',
+      'go test ./... · AGENTS.md base; o planner só ajusta.',
     );
     expect(
       tester.widget<Text>(key('start-step-2')).data,

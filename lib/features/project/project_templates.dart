@@ -2,14 +2,17 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/providers/workspace_assets.dart'
+    show agentsMdMarker, agentsMdName, claudeMdName;
 import 'project_config.dart';
 import 'project_plan.dart' show StackCommands, StackDecision;
 import 'stack_commands.dart';
 
 /// Starting points of "Novo projeto" (UX v2, U7; docs/mockups/v2/
 /// NovoProjeto.dc.html): a template fills the stack, the test / lint /
-/// format commands and a minimal CLAUDE.md; the planner only adjusts. "Vazio"
-/// leaves everything to the planner.
+/// format commands and minimal instructions (the `AGENTS.md`, imported by the
+/// `CLAUDE.md`, SPEC-113 R2); the planner only adjusts. "Vazio" leaves
+/// everything to the planner.
 @immutable
 class ProjectTemplate {
   const ProjectTemplate({
@@ -42,7 +45,9 @@ class ProjectTemplate {
   /// Stack decisions pinned for the planner (kept as they are).
   final List<StackDecision> decisions;
 
-  /// `CLAUDE.md` written at creation (null = none; the planner proposes).
+  /// Instructions written at creation (null = none; the planner proposes).
+  /// They go to the `AGENTS.md`, and the `CLAUDE.md` gets the import
+  /// (SPEC-113 R2, [writeInstructionFiles]).
   final String? claudeMd;
 
   /// The skeleton command of a custom stack (empty for the built-in ones).
@@ -58,7 +63,7 @@ class ProjectTemplate {
       : [
           for (final d in decisions) d.choice,
           if (config.testCommand != null) 'testes: ${config.testCommand}',
-          if (isCustom && claudeMd != null) 'CLAUDE.md base',
+          if (isCustom && claudeMd != null) 'AGENTS.md base',
         ].join(' · ');
 }
 
@@ -161,25 +166,126 @@ ProjectTemplate templateById(String? id) =>
     projectTemplates.where((t) => t.id == id).firstOrNull ??
     projectTemplates.first;
 
-/// The `CLAUDE.md` of [workspacePath] when it is still the minimal one a
-/// template wrote at creation (SPEC-071 R23): the plan's CLAUDE.md replaces
-/// it, and the planner starts from it. Null when absent or edited.
+/// The minimal instructions a template wrote at creation, when they are
+/// still as written (SPEC-071 R23): the plan's instructions replace them, and
+/// the planner starts from them. Read from the `AGENTS.md` (SPEC-113 R2) or,
+/// in a project created before it, from the `CLAUDE.md`. Null when absent or
+/// edited.
 String? templateClaudeMd(String workspacePath) {
-  final f = File('$workspacePath/CLAUDE.md');
+  for (final name in [agentsMdName, claudeMdName]) {
+    final text = _read('$workspacePath/$name');
+    if (text == null) continue;
+    final mine = text.trim();
+    for (final t in projectTemplates) {
+      if (t.claudeMd?.trim() == mine && mine.isNotEmpty) return text;
+    }
+    // The base of an "Outro…" stack, still as written (SPEC-072).
+    if (isCustomClaudeMd(text)) return text.substring(text.indexOf('\n') + 1);
+  }
+  return null;
+}
+
+String? _read(String path) {
+  final f = File(path);
   if (!f.existsSync()) return null;
-  final String text;
   try {
-    text = f.readAsStringSync();
+    return f.readAsStringSync();
   } on FileSystemException {
     return null;
   }
+}
+
+// TODO(SPEC-113 T1): trocar pela constante do import de workspace_assets.dart
+// (claudeImportLine) quando a T1 entrar na branch pai.
+const _claudeImportLine = '@AGENTS.md';
+
+/// The `CLAUDE.md` of a new project: only the import (SPEC-113 R2).
+const claudeImportMd = '$_claudeImportLine\n';
+
+/// Who wrote an instruction file at the root of a project being created.
+enum InstructionFileOwner {
+  /// The file does not exist.
+  none,
+
+  /// The app: a template's minimal text, an unedited "Outro…" base, an
+  /// `AGENTS.md` generated from the `CLAUDE.md` (SPEC-104), a `CLAUDE.md`
+  /// with only the import, or exactly what would be written now.
+  app,
+
+  /// The person: never overwritten.
+  person,
+}
+
+/// The two instruction files of a project root, as "Criar projeto" sees
+/// them (SPEC-113 R2).
+@immutable
+class InstructionFiles {
+  const InstructionFiles({required this.agents, required this.claude});
+
+  final InstructionFileOwner agents;
+  final InstructionFileOwner claude;
+
+  /// A file of the person's is there: nothing is written, not even the
+  /// other file (one alone would make two sources).
+  bool get blocked =>
+      agents == InstructionFileOwner.person ||
+      claude == InstructionFileOwner.person;
+
+  /// The person's files, by name (for the "kept" notice).
+  List<String> get personal => [
+    if (agents == InstructionFileOwner.person) agentsMdName,
+    if (claude == InstructionFileOwner.person) claudeMdName,
+  ];
+}
+
+bool _isTemplateText(String text) {
   final mine = text.trim();
-  for (final t in projectTemplates) {
-    if (t.claudeMd?.trim() == mine && mine.isNotEmpty) return text;
+  if (mine.isEmpty) return false;
+  if (isCustomClaudeMd(text)) return true;
+  return projectTemplates.any((t) => t.claudeMd?.trim() == mine);
+}
+
+bool _isImportOnly(String text) {
+  final mine = text.trim();
+  return mine == _claudeImportLine || mine == '@./AGENTS.md';
+}
+
+/// Who wrote the `AGENTS.md` and the `CLAUDE.md` of [path]. [text] is what
+/// would go to the `AGENTS.md` now: a file already equal to it is the app's
+/// (a retry after a failure halfway).
+InstructionFiles instructionFilesOf(String path, {String? text}) {
+  InstructionFileOwner owner(String name, bool Function(String) isApp) {
+    final f = File('$path/$name');
+    if (!f.existsSync()) return InstructionFileOwner.none;
+    final current = _read(f.path);
+    if (current == null) return InstructionFileOwner.person;
+    return isApp(current)
+        ? InstructionFileOwner.app
+        : InstructionFileOwner.person;
   }
-  // The CLAUDE.md base of an "Outro…" stack, still as written (SPEC-072).
-  if (isCustomClaudeMd(text)) return text.substring(text.indexOf('\n') + 1);
-  return null;
+
+  return InstructionFiles(
+    agents: owner(
+      agentsMdName,
+      (c) =>
+          _isTemplateText(c) ||
+          agentsMdMarker(c) != null ||
+          (text != null && c == text),
+    ),
+    claude: owner(claudeMdName, (c) => _isImportOnly(c) || _isTemplateText(c)),
+  );
+}
+
+/// Writes [text] to the `AGENTS.md` of [path] and the import to its
+/// `CLAUDE.md` (SPEC-113 R2). Returns the two names, or nothing when [text]
+/// is empty or a file of the person's is there ([InstructionFiles.blocked]):
+/// then neither file is touched.
+Future<List<String>> writeInstructionFiles(String path, String text) async {
+  if (text.trim().isEmpty) return const [];
+  if (instructionFilesOf(path, text: text).blocked) return const [];
+  await File('$path/$agentsMdName').writeAsString(text);
+  await File('$path/$claudeMdName').writeAsString(claudeImportMd);
+  return const [agentsMdName, claudeMdName];
 }
 
 /// Id of the "Outro…" template.

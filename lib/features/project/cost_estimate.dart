@@ -219,5 +219,5 @@ List<String> startSteps(QueueEstimate queue, {int customCalls = 0}) => [
       '${customCalls > 0 ? ' · +${callsLabel(customCalls)} (a stack do Outro…)' : ''}',
   'Fila de refino: 1 rodada por spec · ${queue.perSpec} cada'
       '${queue.basis == null ? '' : ' (${queue.basis})'}',
-  'Revisar e criar: CLAUDE.md, config.yml, specs e Quadro',
+  'Revisar e criar: AGENTS.md, CLAUDE.md, config.yml, specs e Quadro',
 ];

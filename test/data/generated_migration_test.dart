@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
+import 'package:promptorium/data/repos/instruction_interviews_repo.dart';
 import 'package:promptorium/data/repos/review_comments_repo.dart';
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
 import 'package:promptorium/features/board/orchestrator/step_plan.dart';
@@ -573,6 +574,40 @@ void main() {
       stepRunPlan('R1', [step], const OrchestratorPrefs({}))?.rule,
       const StepRule('opus', 'high'),
     );
+    expect(
+      (await db.customSelect('PRAGMA user_version').getSingle())
+          .data
+          .values
+          .single,
+      appSchemaVersion,
+    );
+    await db.close();
+  });
+  test('v38 → v39 (SPEC-113 R18): instruction_interviews is created empty, '
+      'one per workspace, and goes with the workspace', () async {
+    final schema = await verifier.schemaAt(38);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db.customStatement('PRAGMA foreign_keys = ON');
+    expect(await db.select(db.instructionInterviews).get(), isEmpty);
+    final repo = InstructionInterviewsRepo(db);
+    await repo.start(1, provider: 'codex', data: '{"rounds":[]}');
+    await repo.update(
+      1,
+      const InstructionInterviewsCompanion(
+        threadId: Value('th-1'),
+        filesHash: Value('abc'),
+        model: Value('gpt-test'),
+      ),
+    );
+    // Starting again replaces it: one interview per workspace.
+    await repo.start(1, provider: 'claude');
+    final row = await db.select(db.instructionInterviews).getSingle();
+    expect((row.provider, row.threadId, row.tokens), ('claude', null, 0));
+    await (db.delete(db.workspaces)..where((w) => w.id.equals(1))).go();
+    expect(await db.select(db.instructionInterviews).get(), isEmpty);
     expect(
       (await db.customSelect('PRAGMA user_version').getSingle())
           .data
