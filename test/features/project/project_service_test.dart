@@ -152,8 +152,9 @@ void main() {
     expect(Directory('${tmp.path}/vazia/.git').existsSync(), isTrue);
   });
 
-  test('createProject with a template commits config.yml and CLAUDE.md; '
-      'plan: false starts no plan (UX v2, U7)', () async {
+  test('createProject with a template commits config.yml, the AGENTS.md '
+      'with the text and the CLAUDE.md with the import; plan: false starts '
+      'no plan (UX v2, U7; SPEC-113 R2)', () async {
     final ws = await service().createProject(
       parent: tmp.path,
       name: 'app',
@@ -166,12 +167,18 @@ void main() {
       ProjectConfig.loadSync(path).worktree.prepare,
       'test ! -f pubspec.yaml || flutter pub get',
     );
-    expect(File('$path/CLAUDE.md').readAsStringSync(), contains('Flutter'));
-    // Both files are in the initial commit.
     expect(
-      await gitIn(path, ['ls-tree', '--name-only', '-r', 'HEAD']),
-      contains('.promptorium/config.yml'),
+      File('$path/AGENTS.md').readAsStringSync(),
+      templateById('flutter').claudeMd,
     );
+    expect(File('$path/CLAUDE.md').readAsStringSync(), '@AGENTS.md\n');
+    // All of them are in the initial commit.
+    expect(
+      (await gitIn(path, ['ls-tree', '--name-only', '-r', 'HEAD'])).split('\n'),
+      containsAll(['.promptorium/config.yml', 'AGENTS.md', 'CLAUDE.md']),
+    );
+    expect(await gitIn(path, ['status', '--porcelain']), '');
+    expect(service().hasTemplateClaudeMd(ws), isTrue);
     expect(await c.read(projectPlansRepoProvider).get(ws.id), isNull);
 
     // With a plan: the template's choices are pinned for the planner.
@@ -193,6 +200,7 @@ void main() {
       plan: false,
     );
     expect(File('${tmp.path}/vazio2/CLAUDE.md').existsSync(), isFalse);
+    expect(File('${tmp.path}/vazio2/AGENTS.md').existsSync(), isFalse);
   });
 
   test('createProject starts on the chosen branch and writes branch-base: '
@@ -357,7 +365,9 @@ void main() {
     // What an older failure left: .git without commits and template files.
     final left = '${tmp.path}/sobra';
     await gitIn(tmp.path, ['init', '-q', left]);
-    File('$left/CLAUDE.md').writeAsStringSync('# modelo\n');
+    File('$left/AGENTS.md')
+        .writeAsStringSync(templateById('dart-cli').claudeMd!);
+    File('$left/CLAUDE.md').writeAsStringSync('@AGENTS.md\n');
     await ProjectConfig.save(left, templateById('flutter').config);
     final ws = await service().createProject(
       parent: tmp.path,
@@ -366,6 +376,28 @@ void main() {
     );
     expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
     expect(await gitIn(ws.path, ['branch', '--show-current']), 'main\n');
+    // The app's leftovers are replaced by the chosen template (SPEC-113 R2).
+    expect(
+      File('$left/AGENTS.md').readAsStringSync(),
+      templateById('flutter').claudeMd,
+    );
+
+    // A CLAUDE.md of the person's left in the folder is kept, and no
+    // AGENTS.md is written next to it (it would make two sources).
+    final mine = '${tmp.path}/minha';
+    await gitIn(tmp.path, ['init', '-q', mine]);
+    File('$mine/CLAUDE.md').writeAsStringSync('# minhas regras\n');
+    final ws2 = await service().createProject(
+      parent: tmp.path,
+      name: 'minha',
+      template: templateById('flutter'),
+    );
+    expect(File('$mine/CLAUDE.md').readAsStringSync(), '# minhas regras\n');
+    expect(File('$mine/AGENTS.md').existsSync(), isFalse);
+    expect(
+      await gitIn(ws2.path, ['show', 'HEAD:CLAUDE.md']),
+      '# minhas regras\n',
+    );
 
     // A folder with a real repository (commits) is still refused.
     await expectLater(
@@ -418,7 +450,7 @@ void main() {
   });
 
   test('createProject with an "Outro…" stack: commands in the config.yml, '
-      'the CLAUDE.md base, pinned decisions and the modal calls counted '
+      'the AGENTS.md base, pinned decisions and the modal calls counted '
       '(SPEC-072 R18, R19)', () async {
     final stack = parseCustomStackResult(customResult(goFiber()));
     final ws = await service().createProject(
@@ -433,9 +465,10 @@ void main() {
     expect(config.formatCommand, 'gofmt -w {arquivo}');
     expect(config.baseBranch, 'main');
     expect(
-      File('${ws.path}/CLAUDE.md').readAsStringSync(),
+      File('${ws.path}/AGENTS.md').readAsStringSync(),
       contains('Esqueleto (scaffold)'),
     );
+    expect(File('${ws.path}/CLAUDE.md').readAsStringSync(), '@AGENTS.md\n');
     expect(service().hasTemplateClaudeMd(ws), isTrue);
     final data = ProjectPlanData.decode(
       (await c.read(projectPlansRepoProvider).get(ws.id))!.data,
@@ -451,8 +484,9 @@ void main() {
     expect(c.read(plannerCallsProvider(ws.id)).detail, 'stack do Outro… 2');
   });
 
-  test('materialize: CLAUDE.md, approved specs with translated '
-      'dependencies and one commit with exactly those files', () async {
+  test('materialize: AGENTS.md with the text, CLAUDE.md with the import '
+      '(SPEC-113 R2), approved specs with translated dependencies and one '
+      'commit with exactly those files', () async {
     final ws = await service().createProject(
       parent: tmp.path,
       name: 'receitas',
@@ -465,15 +499,17 @@ void main() {
     final out = await service().materialize(ws);
     expect(out.commitError, isNull);
     expect(out.files, [
+      'AGENTS.md',
       'CLAUDE.md',
       'specs/SPEC-001-esqueleto-do-projeto.md',
       'specs/SPEC-002-ci.md',
       'specs/SPEC-003-receitas.md',
     ]);
     expect(
-      File('${ws.path}/CLAUDE.md').readAsStringSync(),
+      File('${ws.path}/AGENTS.md').readAsStringSync(),
       '# Receitas\n\nUse SQLite.\n',
     );
+    expect(File('${ws.path}/CLAUDE.md').readAsStringSync(), '@AGENTS.md\n');
     SpecDocument read(String name) => SpecDocument.parse(
       File('${ws.path}/specs/$name.md').readAsStringSync(),
     );
@@ -580,47 +616,121 @@ void main() {
     );
   });
 
-  test('materialize without CLAUDE.md and without commit', () async {
+  test('materialize without instructions and without commit', () async {
     final ws = await service().createProject(parent: tmp.path, name: 'x');
     await c
         .read(projectPlansRepoProvider)
         .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
     final out = await service().materialize(
       ws,
-      writeClaudeMd: false,
+      writeInstructions: false,
       commit: false,
     );
     expect(out.files, hasLength(3));
     expect(File('${ws.path}/CLAUDE.md').existsSync(), isFalse);
+    expect(File('${ws.path}/AGENTS.md').existsSync(), isFalse);
     expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
   });
 
-  test('SPEC-104 R3/R4: materialize writes the generated AGENTS.md and '
-      'commits it; an AGENTS.md of the person is kept', () async {
-    final ws = await service().createProject(parent: tmp.path, name: 'ag');
-    await c
-        .read(projectPlansRepoProvider)
-        .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
-    final out = await service().materialize(ws, writeAgentsMd: true);
-    expect(out.files, containsAll(['CLAUDE.md', 'AGENTS.md']));
-    final agents = File('${ws.path}/AGENTS.md').readAsStringSync();
-    final claude = File('${ws.path}/CLAUDE.md').readAsStringSync();
-    expect(agentsMdMarker(agents), claudeMdHash(claude));
-    expect(agents, contains('Edite o CLAUDE.md.'));
-    expect(await gitIn(ws.path, ['status', '--porcelain']), isEmpty);
+  group('SPEC-113 R2: a file of the person is never overwritten', () {
+    Future<Workspace> planned(String name, {Map<String, String>? files}) async {
+      final ws = await service().createProject(parent: tmp.path, name: name);
+      for (final MapEntry(:key, :value) in (files ?? {}).entries) {
+        File('${ws.path}/$key').writeAsStringSync(value);
+      }
+      await c
+          .read(projectPlansRepoProvider)
+          .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
+      return ws;
+    }
 
-    final other = await service().createProject(parent: tmp.path, name: 'ag2');
-    File('${other.path}/AGENTS.md').writeAsStringSync('# meu\n');
-    await c
-        .read(projectPlansRepoProvider)
-        .update(other.id, ProjectPlansCompanion(data: Value(plan.encode())));
-    final out2 = await service().materialize(
-      other,
-      writeAgentsMd: true,
-      commit: false,
+    test('an AGENTS.md of the person: neither file is written', () async {
+      final ws = await planned('a1', files: {'AGENTS.md': '# meu\n'});
+      expect(service().instructionFiles(ws).personal, ['AGENTS.md']);
+      final out = await service().materialize(ws);
+      expect(out.commitError, isNull);
+      expect(out.files, isNot(contains('AGENTS.md')));
+      expect(out.files, isNot(contains('CLAUDE.md')));
+      expect(File('${ws.path}/AGENTS.md').readAsStringSync(), '# meu\n');
+      expect(File('${ws.path}/CLAUDE.md').existsSync(), isFalse);
+    });
+
+    test('a CLAUDE.md of the person: neither file is written', () async {
+      final ws = await planned('a2', files: {'CLAUDE.md': '# minhas\n'});
+      expect(service().instructionFiles(ws).personal, ['CLAUDE.md']);
+      final out = await service().materialize(ws);
+      expect(out.files.where((f) => !f.startsWith('specs/')), isEmpty);
+      expect(File('${ws.path}/CLAUDE.md').readAsStringSync(), '# minhas\n');
+      expect(File('${ws.path}/AGENTS.md').existsSync(), isFalse);
+    });
+
+    test('both of the person (even with the import): both kept', () async {
+      final ws = await planned(
+        'a3',
+        files: {'AGENTS.md': '# meu\n', 'CLAUDE.md': '@AGENTS.md\n'},
+      );
+      final owners = service().instructionFiles(ws);
+      expect(owners.agents, InstructionFileOwner.person);
+      expect(owners.claude, InstructionFileOwner.app);
+      expect(owners.blocked, isTrue);
+      await service().materialize(ws, commit: false);
+      expect(File('${ws.path}/AGENTS.md').readAsStringSync(), '# meu\n');
+    });
+
+    test('the template\'s minimal AGENTS.md and the import are replaced and '
+        'committed with the plan', () async {
+      final ws = await service().createProject(
+        parent: tmp.path,
+        name: 'a4',
+        template: templateById('flutter'),
+      );
+      await c
+          .read(projectPlansRepoProvider)
+          .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
+      final out = await service().materialize(ws);
+      expect(out.files, containsAll(['AGENTS.md', 'CLAUDE.md']));
+      expect(
+        await gitIn(ws.path, ['show', 'HEAD:AGENTS.md']),
+        '# Receitas\n\nUse SQLite.\n',
+      );
+      expect(await gitIn(ws.path, ['show', 'HEAD:CLAUDE.md']), '@AGENTS.md\n');
+      expect(await gitIn(ws.path, ['status', '--porcelain']), '');
+    });
+
+    test('a CLAUDE.md of an older template creation and an AGENTS.md '
+        'generated from it (SPEC-104) are the app\'s: replaced', () async {
+      final md = templateById('nextjs').claudeMd!;
+      final ws = await planned(
+        'a5',
+        files: {
+          'CLAUDE.md': md,
+          'AGENTS.md': '${agentsMdHeader(claudeMdHash(md))}$md',
+        },
+      );
+      expect(service().instructionFiles(ws).blocked, isFalse);
+      await service().materialize(ws);
+      expect(
+        File('${ws.path}/AGENTS.md').readAsStringSync(),
+        '# Receitas\n\nUse SQLite.\n',
+      );
+      expect(File('${ws.path}/CLAUDE.md').readAsStringSync(), '@AGENTS.md\n');
+    });
+
+    test(
+      'a retry finds its own AGENTS.md and still writes and commits it',
+      () async {
+        final ws = await planned(
+          'a6',
+          files: {
+            'AGENTS.md': '# Receitas\n\nUse SQLite.\n',
+            'CLAUDE.md': '@AGENTS.md\n',
+          },
+        );
+        final out = await service().materialize(ws);
+        expect(out.files, containsAll(['AGENTS.md', 'CLAUDE.md']));
+        expect(await gitIn(ws.path, ['status', '--porcelain']), '');
+      },
     );
-    expect(out2.files, isNot(contains('AGENTS.md')));
-    expect(File('${other.path}/AGENTS.md').readAsStringSync(), '# meu\n');
   });
 
   test('deleteProject: worktrees removed, folder to the trash, everything '

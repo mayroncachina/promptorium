@@ -138,8 +138,9 @@ class RepoSetup {
   }
 
   /// Whether [folder] holds only what a failed "Novo projeto" left behind: a
-  /// `.git` without commits, plus the template files (`CLAUDE.md`,
-  /// `.promptorium/config.yml`). Creating again there is safe (R21).
+  /// `.git` without commits, plus the template files (`AGENTS.md`,
+  /// `CLAUDE.md`, `.promptorium/config.yml`). Creating again there is safe
+  /// (R21); the instruction files of the person's are kept (SPEC-113 R2).
   Future<bool> isCreationLeftover(String folder) async {
     final entries = Directory(folder).listSync();
     var hasGit = false;
@@ -148,7 +149,7 @@ class RepoSetup {
       switch (name) {
         case '.git' when e is Directory:
           hasGit = true;
-        case 'CLAUDE.md' when e is File:
+        case 'CLAUDE.md' || 'AGENTS.md' when e is File:
           break;
         case '.promptorium' when e is Directory:
           final inside = e.listSync();

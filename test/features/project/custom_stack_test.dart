@@ -184,7 +184,7 @@ void main() {
     expect(
       t.summary,
       'Go 1.23 · Fiber v2 · GORM · testes: go test ./... · '
-      'CLAUDE.md base',
+      'AGENTS.md base',
     );
     // The scaffold goes in the commands section.
     expect(
