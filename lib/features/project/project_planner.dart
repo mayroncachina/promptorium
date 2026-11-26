@@ -111,11 +111,13 @@ const stackSystemPrompt =
     'Autenticação, Testes, Deploy) com choice, why (uma frase ligando a '
     'escolha à visão) e até 2 alternatives. Se a escolha depender de '
     'informação que falta, use choice "${StackDecision.undecided}". Mantenha '
-    'exatamente as escolhas indicadas como fixadas. Em claudeMd, escreva o '
-    'CLAUDE.md do projeto em Markdown: título e resumo, stack, comandos '
+    'exatamente as escolhas indicadas como fixadas. Em claudeMd, escreva as '
+    'instruções do projeto em Markdown, que vão para o AGENTS.md (o Codex o '
+    'lê, e o CLAUDE.md o importa com @AGENTS.md para o Claude Code): título '
+    'e resumo, stack, comandos '
     '(instalar, rodar, testar, lint — os que a stack terá) e convenções de '
     'código e de commits. Seja conciso: ele é lido no início de toda sessão '
-    'de agente. Em commands, os mesmos comandos que o CLAUDE.md lista, para '
+    'de agente. Em commands, os mesmos comandos que as instruções listam, para '
     'o .promptorium/config.yml: install (dependências; protegido pela '
     'existência do manifesto, porque o projeto começa vazio, ex.: '
     '"test ! -f pubspec.yaml || flutter pub get"), run (roda o app), dev '
@@ -136,7 +138,8 @@ const customStackSystemPrompt =
     'mod download"), run, dev, test, lint e format (formata um arquivo, com '
     '{arquivo} no lugar do caminho); texto vazio quando não se aplica. Em '
     'scaffold, o comando que cria o esqueleto do projeto (vazio se não '
-    'houver). Em claudeMd, um CLAUDE.md base conciso em Markdown: título, '
+    'houver). Em claudeMd, instruções base concisas em Markdown (vão para o '
+    'AGENTS.md, que o CLAUDE.md importa): título, '
     'stack, uma seção "## Comandos" com os comandos e o scaffold, e '
     'convenções de código e de commits. Num pedido de ajuste, devolva a '
     'proposta COMPLETA atualizada.';
@@ -193,12 +196,12 @@ String stackPrompt(
     ..writeln(_json(vision.toJson()));
   final base = baseClaudeMd?.trim();
   if (base != null && base.isNotEmpty) {
-    // The template's minimal CLAUDE.md (R23): the plan's one replaces it.
+    // The template's minimal instructions (R23): the plan's replace them.
     b
       ..writeln()
       ..writeln(
-        'CLAUDE.md mínimo do modelo de partida (use como base e amplie; o '
-        'seu claudeMd vai substituí-lo):',
+        'Instruções mínimas do modelo de partida, no AGENTS.md (use como '
+        'base e amplie; o seu claudeMd vai substituí-las):',
       )
       ..writeln(base);
   }
@@ -621,7 +624,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
     String? request,
   }) => _guarded(
     ws,
-    keepChoices ? 'Atualizando o CLAUDE.md…' : 'Propondo a stack…',
+    keepChoices ? 'Atualizando as instruções…' : 'Propondo a stack…',
     () async {
       final (_, data) = await _load(ws);
       final fixed = [

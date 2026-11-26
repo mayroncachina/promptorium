@@ -103,7 +103,7 @@ class _CustomStackDialogState extends State<CustomStackDialog> {
               SizedBox(height: 4),
               Text(
                 'Descreva a stack. O Claude propõe as decisões, os comandos e '
-                'um CLAUDE.md base. Ele só lê: nada é gravado até você criar '
+                'as instruções base (AGENTS.md). Ele só lê: nada é gravado até você criar '
                 'o projeto.',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
@@ -343,7 +343,7 @@ class _CustomStackDialogState extends State<CustomStackDialog> {
           const SizedBox(height: 4),
           Row(
             children: [
-              Text('CLAUDE.md base · $lines linhas', style: label),
+              Text('AGENTS.md base · $lines linhas', style: label),
               TextButton(
                 key: const ValueKey('custom-stack-claudemd'),
                 onPressed: () => setState(() => _showClaudeMd = !_showClaudeMd),

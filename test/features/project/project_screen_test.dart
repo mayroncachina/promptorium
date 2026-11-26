@@ -12,7 +12,6 @@ import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:promptorium/core/claude/readonly_run.dart'
     show PlannerException;
 import 'package:promptorium/core/git/git_service.dart';
-import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
@@ -1085,11 +1084,10 @@ void main() {
       expect(q.designer.calls, isEmpty);
     });
 
-    testWidgets('SPEC-071 R23: the template\'s minimal CLAUDE.md starts '
-        'with "Gravar CLAUDE.md" on; the user\'s own starts off', (
-      tester,
-    ) async {
-      bool writeClaudeMd(QueueScreen q) => tester
+    testWidgets('SPEC-071 R23 / SPEC-113 R2: the template\'s minimal '
+        'instructions are replaced; a file of the person\'s is kept, with no '
+        'option to overwrite it', (tester) async {
+      bool writeInstructions(QueueScreen q) => tester
           .widget<CheckboxListTile>(
             find.descendant(
               of: q.key('project-write-claudemd'),
@@ -1098,59 +1096,52 @@ void main() {
           )
           .value!;
 
-      File('${tmp.path}/CLAUDE.md')
+      File('${tmp.path}/AGENTS.md')
           .writeAsStringSync(templateById('flutter').claudeMd!);
+      File('${tmp.path}/CLAUDE.md').writeAsStringSync('@AGENTS.md\n');
       var q = QueueScreen(tester, tmp);
       await q.pump();
-      expect(writeClaudeMd(q), isTrue);
+      expect(writeInstructions(q), isTrue);
       expect(
-        find.text('Substituir o CLAUDE.md mínimo do modelo'),
+        find.text('Substituir as instruções mínimas do modelo'),
         findsOneWidget,
       );
+      expect(find.text('M  AGENTS.md'), findsOneWidget);
       expect(find.text('M  CLAUDE.md'), findsOneWidget);
       await unmount(tester, q.c);
 
-      File('${tmp.path}/CLAUDE.md').writeAsStringSync('# Meu projeto\n');
+      File('${tmp.path}/AGENTS.md').writeAsStringSync('# Meu projeto\n');
       q = QueueScreen(tester, tmp);
       await q.pump();
-      expect(writeClaudeMd(q), isFalse);
-      expect(find.text('Substituir o CLAUDE.md que já existe'), findsOneWidget);
+      expect(q.key('project-write-claudemd'), findsNothing);
+      expect(q.key('project-instructions-kept'), findsOneWidget);
+      expect(
+        find.textContaining('AGENTS.md já existe e não é sobrescrito'),
+        findsOneWidget,
+      );
+      expect(find.text('M  AGENTS.md'), findsNothing);
+      await tester.tap(q.key('project-auto-plan'));
+      await tester.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      await q.create();
+      await q.until(() => find.text('Ver quadro').evaluate().isNotEmpty);
+      expect(
+        File('${tmp.path}/AGENTS.md').readAsStringSync(),
+        '# Meu projeto\n',
+      );
     });
 
-    testWidgets('SPEC-104 R3: with the Codex reading the CLAUDE.md there is '
-        'no AGENTS.md option; without it, Criar offers it checked and writes '
-        'the header and the marker', (tester) async {
-      var q = QueueScreen(tester, tmp);
+    testWidgets('SPEC-113 R2: a new folder gets the text in the AGENTS.md '
+        'and the import in the CLAUDE.md, with no generated copy', (
+      tester,
+    ) async {
+      final q = QueueScreen(tester, tmp);
       await q.pump();
       expect(q.key('project-write-agentsmd'), findsNothing);
-      await unmount(tester, q.c);
-
-      q = QueueScreen(tester, tmp);
-      await q.pump(
-        size: const Size(1440, 1600),
-        overrides: [
-          codexCapabilitiesProvider.overrideWithValue(
-            const ProviderCapabilities(
-              providerId: 'codex',
-              displayName: 'Codex',
-              values: {},
-            ),
-          ),
-        ],
-      );
-      expect(
-        tester
-            .widget<CheckboxListTile>(
-              find.descendant(
-                of: q.key('project-write-agentsmd'),
-                matching: find.byType(CheckboxListTile),
-              ),
-            )
-            .value,
-        isTrue,
-      );
-      expect(q.key('project-agentsmd-header'), findsOneWidget);
+      expect(find.text('Gravar as instruções no AGENTS.md'), findsOneWidget);
       expect(find.text('A  AGENTS.md'), findsOneWidget);
+      expect(find.text('A  CLAUDE.md'), findsOneWidget);
       await tester.tap(q.key('project-auto-plan'));
       await tester.pump();
       await tester.tap(q.key('project-run-first'));
@@ -1158,15 +1149,9 @@ void main() {
       await q.create();
       await q.until(() => find.text('Ver quadro').evaluate().isNotEmpty);
       final agents = File('${tmp.path}/AGENTS.md').readAsStringSync();
-      final claude = File('${tmp.path}/CLAUDE.md').readAsStringSync();
-      expect(
-        agents,
-        startsWith(
-          '<!-- Gerado do CLAUDE.md pelo Promptorium. Edite o CLAUDE.md.',
-        ),
-      );
-      expect(agentsMdMarker(agents), claudeMdHash(claude));
-      expect(agentsMdBody(agents), claude);
+      expect(agentsMdMarker(agents), isNull);
+      expect(agents.trim(), isNotEmpty);
+      expect(File('${tmp.path}/CLAUDE.md').readAsStringSync(), '@AGENTS.md\n');
     });
 
     testWidgets('R8: the progress stays right after leaving the screen and '

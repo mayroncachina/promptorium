@@ -86,7 +86,7 @@ class ProjectScreen extends ConsumerWidget {
           title: 'Planejar ${ws.name}',
           text:
               'Converse com o planner sobre o projeto. Ele monta a visão, '
-              'propõe a stack e o CLAUDE.md e divide o trabalho em specs e '
+              'propõe a stack e as instruções e divide o trabalho em specs e '
               'tarefas. Nada é gravado no repositório até você confirmar.',
           action: Wrap(
             alignment: WrapAlignment.center,
@@ -227,7 +227,7 @@ class _Stepper extends ConsumerWidget {
           plan.materializedAt == null
               ? 'A conversa, a stack e o roadmap deste workspace serão '
                     'apagados. Nada no repositório muda.'
-              : 'Só o rascunho do planejamento é apagado. O CLAUDE.md, as '
+              : 'Só o rascunho do planejamento é apagado. As instruções, as '
                     'specs e as tarefas já criadas ficam.',
           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),

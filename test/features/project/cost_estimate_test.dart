@@ -47,7 +47,10 @@ void main() {
     expect(steps[1], contains('3 chamadas (visão, stack e roadmap)'));
     expect(steps[1], contains('cada mensagem a mais na Visão é mais uma'));
     expect(steps[2], 'Fila de refino: 1 rodada por spec · 1–3 min cada');
-    expect(steps[3], 'Revisar e criar: CLAUDE.md, config.yml, specs e Quadro');
+    expect(
+      steps[3],
+      'Revisar e criar: AGENTS.md, CLAUDE.md, config.yml, specs e Quadro',
+    );
 
     final known = startSteps(QueueEstimate(List.filled(14, 120)));
     expect(

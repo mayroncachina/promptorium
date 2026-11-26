@@ -56,7 +56,7 @@ enum PlanStepState { pending, running, done, alert }
 typedef PlanStepRow = ({String title, PlanStepState state});
 
 String _writeTitle(bool claudeMd, int specs) =>
-    claudeMd ? 'Grava o CLAUDE.md e $specs specs' : 'Grava $specs specs';
+    claudeMd ? 'Grava as instruções e $specs specs' : 'Grava $specs specs';
 
 /// The steps before "Criar projeto", none of them done; [refineTime] is the
 /// estimate of the queue (SPEC-072 R10).
