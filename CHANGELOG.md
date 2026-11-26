@@ -2,6 +2,56 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.27.0] - 2026-11-26
+
+### Funcionalidades
+
+- **orquestrador:** Provedor nas regras, reservas, escada do Codex e schema v38 (SPEC-109 T1) (e057c97)
+- **orquestrador:** Desvio por cota entre provedores, com volta ao plano e retomada agendada (SPEC-109 T2) (f6b325c)
+- **orquestrador:** Provedor por etapa no Executar e nas Configurações, e a espera por cota (SPEC-109 T3) (e9d8e27)
+- **orquestrador:** Classificação e Revisão no Codex, agente só no Claude (SPEC-109 T4) (dcc4ab9)
+- **orquestrador:** Histórico por provedor e modelo, com desvios e tokens (SPEC-109 T5) (4eab996)
+- **replay:** Passos do Codex, base pelo ponto de restauração e saída completa pela RPC (SPEC-110 T1–T3) (4e7c0a6)
+- **restauracao:** Desfazer também a conversa do Codex, com cópia para o Refazer (SPEC-110 T4) (450b89e)
+- **sessoes:** Turnos revertidos esmaecidos na timeline e no Replay (SPEC-110 T5) (97a0527)
+- **prompt:** Comparar com provedor, esforço e peso por lado (SPEC-108 T1, T2) (a8e643c)
+- **prompt:** Faixa, colunas e pacote de partida do Comparar por provedor (SPEC-108 T3) (28455b5)
+- **quadro:** Comparar A/B com provedor, modelo e esforço por tentativa (SPEC-108 T5) (6462845)
+
+### Correções
+
+- **comparar:** Ajustes vistos no app isolado e guia (SPEC-108 T4) (21672de)
+- **inicio:** A sessão substituída por um desvio por cota não aparece para retomar (SPEC-109 R5) (ff3149a)
+- **orquestrador:** A etapa desviada mantém o selo do provedor no painel (SPEC-109 R14) (2cc77c4)
+- **orquestrador:** O selo da etapa desviada não deixa timer do banco pendente (c9b235a)
+
+### Documentação
+
+- **spec:** SPEC-109 Orquestrador multi-provedor (3e7c385)
+- **spec:** SPEC-109 aponta a issue #344 (94f548e)
+- **spec:** SPEC-109 vai para a 0.26.0 (753ab79)
+- **spec:** SPEC-109 arquiva o canvas no repositório (548320d)
+- **spec:** SPEC-109 em implementação na 0.27.0, com as decisões fechadas (fa04d8e)
+- **spec:** SPEC-110 Replay e restauração com o Codex (2063475)
+- **spec:** SPEC-110 aponta a issue #350 (2cc81f6)
+- **spec:** SPEC-110 vai para a 0.26.0 (700c35d)
+- **spec:** SPEC-110 arquiva o canvas no repositório (40411fa)
+- **spec:** SPEC-110 em implementação, com as decisões P1–P6 fechadas (ee514fe)
+- **spec:** SPEC-108 Comparar Claude × Codex (5066482)
+- **spec:** SPEC-108 aponta a issue #336 (107e14a)
+- **spec:** SPEC-108 vai para a 0.26.0 (c742ee9)
+- **spec:** SPEC-108 arquiva o canvas no repositório (06ce81b)
+- **spec:** SPEC-108 em implementação, decisões P1–P6 fechadas (51eb9a8)
+- **spec:** SPEC-108 concluída, prints do app e leitura de antes guardada na hora (cb00803)
+- **spec:** SPEC-109 com as decisões além da spec e o E2E pendente (95a667b)
+- **spec:** SPEC-109 concluída, E2E no app e prints (27c6b22)
+
+### Testes
+
+- **restauracao:** Ponta a ponta no app compilado, sonda do App Server e ajustes (SPEC-110 T5) (0b88528)
+- O Codex roda no Comparar (SPEC-108) (965ce05)
+- O Codex roda no Comparar (SPEC-108) (b2a7358)
+
 ## [0.26.0] - 2026-11-25
 
 ### Funcionalidades
