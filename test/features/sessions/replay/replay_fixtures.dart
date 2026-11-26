@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:promptorium/core/claude/claude_event.dart';
+import 'package:promptorium/core/codex/codex_neutral.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 
 /// Builds a session timeline for the replay tests: each call adds one
@@ -24,7 +25,7 @@ class TimelineBuilder {
     now = now.add(gap);
     final json = jsonEncode(j);
     rows.add((json: json, at: now));
-    t.applyStored(json, at: now);
+    t.applyStored(json, at: now, seq: rows.length);
   }
 
   void user(String text, {Duration gap = const Duration(seconds: 1)}) {
@@ -32,7 +33,7 @@ class TimelineBuilder {
     final j = AppEventTypes.userMessage(text, now);
     final json = jsonEncode(j);
     rows.add((json: json, at: now));
-    t.applyStored(json, at: now);
+    t.applyStored(json, at: now, seq: rows.length);
   }
 
   void say(String text, {int? contextTokens, String? parent}) => _add({
@@ -140,14 +141,112 @@ class TimelineBuilder {
     final j = AppEventTypes.noteMessage(text, error: error, at: now);
     final json = jsonEncode(j);
     rows.add((json: json, at: now));
-    t.applyStored(json, at: now);
+    t.applyStored(json, at: now, seq: rows.length);
   }
 
   void compact() => _add({'type': 'system', 'subtype': 'compact_boundary'});
 
   void pause(Duration d) => now = now.add(d);
 
+  // --- Codex (SPEC-110) -------------------------------------------------------
+
+  String? turnId;
+
+  Map<String, dynamic> _codex(Map<String, dynamic> j) => {
+    ...j,
+    'provider': 'codex',
+    'session_id': 'thread-1',
+    'turn_id': ?turnId,
+  };
+
+  /// `seq` of the last row.
+  int get seq => rows.length;
+
+  /// A `turn/started`, after its message.
+  void turn(String id) {
+    turnId = id;
+    _add(_codex({'type': 'system', 'subtype': codexTurnStartedSubtype}));
+  }
+
+  void endTurn({String status = 'success'}) {
+    _add(
+      _codex({
+        'type': 'result',
+        'subtype': status,
+        'is_error': status == 'error_during_execution',
+        'num_turns': 1,
+        'result': '',
+      }),
+    );
+    turnId = null;
+  }
+
+  /// A `commandExecution` item of the App Server, started and completed.
+  String command(
+    String id,
+    String command,
+    List<Map<String, dynamic>> actions, {
+    String? output = 'ok',
+    int exit = 0,
+    String status = 'completed',
+    String cwd = '/w',
+  }) {
+    final item = {
+      'id': id,
+      'type': 'commandExecution',
+      'command': command,
+      'cwd': cwd,
+      'commandActions': actions,
+    };
+    _add(_codex(codexCommand({...item, 'status': 'inProgress'})));
+    _add(
+      _codex(
+        codexCommand({
+          ...item,
+          'status': status,
+          'aggregatedOutput': output,
+          'exitCode': exit,
+          'durationMs': 1000,
+        }),
+      ),
+    );
+    return id;
+  }
+
+  /// A `fileChange` item: one event per change.
+  String patch(
+    String id,
+    List<Map<String, dynamic>> changes, {
+    String status = 'completed',
+  }) {
+    for (var i = 0; i < changes.length; i++) {
+      final f = codexFileChange(
+        changes[i],
+        toolUseId: id,
+        index: i,
+        status: status,
+      );
+      _add(_codex({...f.json, 'diff': ?f.diff}));
+    }
+    return id;
+  }
+
+  void codexEvent(Map<String, dynamic> j) => _add(_codex(j));
+
   List<TimelineItem> get items => t.items;
 }
+
+Map<String, dynamic> readAction(String path, {String? command}) => {
+  'type': 'read',
+  'command': command ?? 'cat $path',
+  'name': path.split('/').last,
+  'path': path,
+};
+
+Map<String, dynamic> update(String path, String diff, {String? move}) => {
+  'path': path,
+  'kind': {'type': 'update', 'move_path': ?move},
+  'diff': diff,
+};
 
 ClaudeEvent ev(Map<String, dynamic> j) => ClaudeEvent.fromJson(j);

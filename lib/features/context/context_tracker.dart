@@ -1,6 +1,7 @@
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/context_usage.dart';
 import '../../core/providers/context_events.dart';
+import '../sessions/conversation_events.dart';
 import 'context_snapshot.dart';
 import 'context_sources.dart';
 
@@ -177,6 +178,14 @@ class ContextTracker {
             }
           case ContextAppEvents.agentConfig:
             _agentConfig(json);
+          // SPEC-110: the conversation went back (or the copy was adopted):
+          // the last reading is of another history until the next call.
+          case AgentConversationEvents.reverted ||
+              AgentConversationEvents.restored:
+            _current = null;
+            _pending = false;
+            _armed = true;
+            _warning = null;
         }
       default:
         break;
@@ -228,6 +237,7 @@ class ContextTracker {
       itemIndex: itemIndex,
       live: live,
       source: u.source,
+      window: u.window,
     );
     final last = _readings.lastOrNull;
     if (last != null &&

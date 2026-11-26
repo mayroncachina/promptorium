@@ -7,6 +7,7 @@ import '../../core/providers/context_events.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/secrets/secret_scanner.dart';
 import '../context/context_tracker.dart';
+import 'conversation_events.dart';
 
 /// Event types written by the app itself into `session_events` (they never
 /// come from the CLI; `ClaudeEvent.fromJson` turns them into [UnknownEvent]).
@@ -161,6 +162,28 @@ sealed class TimelineItem {
 
   /// Non-null ⇒ produced inside a subagent (nested under its Task card).
   final String? parentToolUseId;
+
+  /// `seq` of the stored event that created it (top-level items only; null
+  /// = not stored yet).
+  int? seq;
+
+  /// The agent's turn it belongs to (Codex, SPEC-110 R1); null = unknown.
+  String? agentTurnId;
+
+  /// It left the agent's conversation (SPEC-110 R10); null = it is in it.
+  RevertMark? reverted;
+}
+
+/// The revert of the conversation an item left with (SPEC-110 R10).
+class RevertMark {
+  const RevertMark({required this.key, required this.at, required this.turn});
+
+  /// `ConversationRevert.key`.
+  final String key;
+  final DateTime at;
+
+  /// Restore point turn the conversation went back to before.
+  final int turn;
 }
 
 class UserItem extends TimelineItem {
@@ -339,6 +362,22 @@ class CompareItem extends NoticeItem {
   final Map<String, dynamic> data;
 }
 
+/// What an undo did to the agent's conversation (SPEC-110 R8). A
+/// [NoticeItem] for every view that does not know it: its text is the note.
+class ConversationItem extends NoticeItem {
+  ConversationItem(this.data, {super.at})
+    : super(
+        data.note,
+        level: data.ok ? NoticeLevel.info : NoticeLevel.error,
+      );
+
+  final ConversationRevert data;
+
+  /// The newest one of its restore point ("Refazer" and "Tentar voltar a
+  /// conversa" show only there).
+  bool current = true;
+}
+
 /// The card of a commit, push or PR blocked by the Vigia de segredos
 /// (SPEC-085 R7). A [NoticeItem] for every reader that does not know it
 /// (replay, search): its text is the title.
@@ -465,6 +504,12 @@ class Timeline {
   final Map<String, List<ToolItem>> _groups = {};
   final Map<String, SecretBlockItem> _secretBlocks = {};
 
+  /// Reverts of the conversation in effect, by restore point (SPEC-110 R9),
+  /// and every copy made of it (`thread/fork`).
+  final Map<int, ConversationRevert> conversationReverts = {};
+  final List<String> conversationCopies = [];
+  final Map<int, ConversationItem> _conversationItems = {};
+
   /// A block of the Vigia de segredos by its id (SPEC-085).
   SecretBlockItem? secretBlock(String id) => _secretBlocks[id];
 
@@ -473,6 +518,14 @@ class Timeline {
 
   /// Number of events applied (persisted or live).
   int applied = 0;
+
+  /// Provider named by the neutral and app events (null = Claude Code).
+  String? provider;
+
+  /// The agent's turn of the last event that brought one (SPEC-110 R1), and
+  /// the first item not looked at by [_noteTurn].
+  String? _turnId;
+  int _turnScan = 0;
 
   /// Context tokens of each top-level answer (SPEC-082 R6): `items` is the
   /// length of [items] once the answer was applied.
@@ -486,7 +539,7 @@ class Timeline {
   }
 
   /// Applies one stored row (`session_events.json`).
-  void applyStored(String json, {DateTime? at}) {
+  void applyStored(String json, {DateTime? at, int? seq}) {
     final Object? decoded;
     try {
       decoded = jsonDecode(json);
@@ -495,18 +548,26 @@ class Timeline {
     }
     if (decoded is! Map<String, dynamic>) return;
     for (final e in ClaudeEvent.expand(decoded)) {
-      apply(e, at: at, stored: true);
+      apply(e, at: at, stored: true, seq: seq);
     }
   }
 
   /// Context window of this history (SPEC-087).
   final ContextTracker context = ContextTracker();
 
-  /// [stored] = rebuilt from a persisted row (not a live reading).
-  void apply(ClaudeEvent e, {DateTime? at, bool stored = false}) {
+  /// [stored] = rebuilt from a persisted row (not a live reading); [seq] =
+  /// its row in `session_events`.
+  void apply(ClaudeEvent e, {DateTime? at, bool stored = false, int? seq}) {
     applied++;
     final now = at ?? DateTime.now();
+    final before = items.length;
     _applyItems(e, now);
+    if (seq != null) {
+      for (var i = before; i < items.length; i++) {
+        items[i].seq ??= seq;
+      }
+    }
+    _noteTurn(e.json, before);
     context.apply(e, at: now, itemIndex: items.length, live: !stored);
   }
 
@@ -644,6 +705,36 @@ class Timeline {
       default:
         break;
     }
+  }
+
+  /// SPEC-110 R1: the events of a Codex turn bring its id. A message comes
+  /// before the `turn/started` it causes: the newest one without a turn
+  /// opened this one (an older one had its process die before the turn); a
+  /// message sent during the turn belongs to it.
+  void _noteTurn(Map<String, dynamic> json, int before) {
+    final p = json['provider'];
+    if (p is String && p.isNotEmpty) provider = p;
+    final id = json['turn_id'];
+    if (id is! String || id.isEmpty) return;
+    final same = id == _turnId;
+    _turnId = id;
+    // What the event itself created (the note of the end of the turn); the
+    // notes of the app in between are not of the agent.
+    for (var i = before; i < items.length; i++) {
+      items[i].agentTurnId ??= id;
+    }
+    UserItem? last;
+    for (var i = _turnScan; i < items.length; i++) {
+      final item = items[i];
+      if (item is UserItem) {
+        if (same) item.agentTurnId ??= id;
+        last = item;
+      } else if (item is! NoticeItem) {
+        item.agentTurnId ??= id;
+      }
+    }
+    if (!same) last?.agentTurnId ??= id;
+    _turnScan = items.length;
   }
 
   /// The card of [id] (a neutral event), created at the end when new.
@@ -799,6 +890,18 @@ class Timeline {
             at: at,
           ),
         );
+      case AgentConversationEvents.reverted || AgentConversationEvents.failed:
+        final r = ConversationRevert.fromJson(j);
+        if (r != null) _applyRevert(r, at);
+      case AgentConversationEvents.restored:
+        conversationReverts.removeWhere((_, r) => r.key == j['revert']);
+        for (final i in items) {
+          if (i.reverted?.key == j['revert']) i.reverted = null;
+          if (i is ConversationItem && i.data.key == j['revert']) {
+            i.current = false;
+          }
+        }
+        items.add(NoticeItem(conversationRestoredNote(j), at: at));
       case AppEventTypes.secrets:
         final block = '${j['block'] ?? ''}';
         final item = SecretBlockItem(
@@ -824,6 +927,36 @@ class Timeline {
           items.add(NoticeItem(text, at: at));
         }
     }
+  }
+
+  /// SPEC-110 R8, R10: the items of the turns the agent forgot are marked,
+  /// from the message that opened the first of them to the end.
+  void _applyRevert(ConversationRevert r, DateTime at) {
+    if (r.copyId case final copy? when !conversationCopies.contains(copy)) {
+      conversationCopies.add(copy);
+    }
+    if (r.ok) {
+      conversationReverts[r.pointId] = r;
+      var from = r.fromSeq == null
+          ? -1
+          : items.indexWhere((i) => i is UserItem && i.seq == r.fromSeq);
+      if (from < 0) {
+        from = items.indexWhere((i) => i.agentTurnId == r.beforeTurnId);
+      }
+      if (from >= 0) {
+        final mark = RevertMark(key: r.key, at: at, turn: r.turn);
+        for (var i = from; i < items.length; i++) {
+          final item = items[i];
+          // A note of the app was never in the agent's conversation.
+          if (item is NoticeItem && item.agentTurnId == null) continue;
+          item.reverted ??= mark;
+        }
+      }
+    }
+    final item = ConversationItem(r, at: at);
+    _conversationItems[r.pointId]?.current = false;
+    _conversationItems[r.pointId] = item;
+    items.add(item);
   }
 
   /// The prompt, the card and the note of the chosen side (SPEC-079 R11).

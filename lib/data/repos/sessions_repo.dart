@@ -270,6 +270,56 @@ class SessionsRepo {
   Stream<List<SessionEvent>> watchEvents(String sessionId) =>
       _events(sessionId).watch();
 
+  /// Up to [limit] events after [seq], oldest first (SPEC-110 R6).
+  Future<List<SessionEvent>> eventsAfter(
+    String sessionId,
+    int seq, {
+    int limit = 200,
+  }) =>
+      (_events(sessionId)
+            ..where((e) => e.seq.isBiggerThanValue(seq))
+            ..limit(limit))
+          .get();
+
+  /// The newest event before [seq] whose JSON contains [needle].
+  Future<SessionEvent?> lastEventBefore(
+    String sessionId,
+    int seq,
+    String needle,
+  ) =>
+      (_db.select(_e)
+            ..where(
+              (e) =>
+                  e.sessionId.equals(sessionId) &
+                  e.seq.isSmallerThanValue(seq) &
+                  e.json.contains(needle),
+            )
+            ..orderBy([(e) => OrderingTerm.desc(e.seq)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  /// Events of [types], oldest first; null [sessionId] = every session.
+  Future<List<SessionEvent>> eventsOfTypes(
+    Set<String> types, {
+    String? sessionId,
+  }) =>
+      (_db.select(_e)
+            ..where(
+              (e) => sessionId == null
+                  ? e.type.isIn(types)
+                  : e.type.isIn(types) & e.sessionId.equals(sessionId),
+            )
+            ..orderBy([(e) => OrderingTerm.asc(e.id)]))
+          .get();
+
+  /// Whether [thread] is the conversation of some session.
+  Future<bool> hasExternalId(String thread) async =>
+      (await (_db.select(_t)
+                ..where((s) => s.externalId.equals(thread))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
+
   /// Newest-first events of the workspace's sessions whose JSON contains
   /// [needle] (exact substring: `%`, `_` and `\\` are escaped), with their
   /// session. Used by the MCP log (Fase 11).

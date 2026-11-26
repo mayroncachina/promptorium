@@ -8,6 +8,9 @@ import 'replay_step.dart';
 
 /// Where the text before the edits came from (SPEC-082 R7, P2).
 enum FileBaseSource {
+  /// The restore point of the start of the turn (SPEC-110 R2): the exact
+  /// file before the turn, for any provider.
+  restorePoint('ponto de restauração'),
   transcript('jsonl do Claude Code'),
   startSha('início da etapa'),
 
@@ -40,8 +43,43 @@ class FileBase {
   /// "a1b2c3d", "main"…
   final String? detail;
 
-  String get label =>
-      detail == null ? source.label : '${source.label} ($detail)';
+  String get label => switch (source) {
+    // "ponto de restauração do turno 3 (14:30)"
+    FileBaseSource.restorePoint when detail != null =>
+      '${source.label} do $detail',
+    _ => detail == null ? source.label : '${source.label} ($detail)',
+  };
+
+  /// Short name inside a message: "ponto do turno 3".
+  String get shortLabel => switch (source) {
+    FileBaseSource.restorePoint when detail != null =>
+      'ponto do ${detail!.split(' (').first}',
+    _ => label,
+  };
+}
+
+/// A restore point the base can come from (SPEC-110 R2): the start of the
+/// turn [turn], taken before the event [seq] of the session.
+@immutable
+class RestoreBase {
+  const RestoreBase({
+    required this.turn,
+    required this.seq,
+    required this.sha,
+    this.at,
+  });
+
+  final int turn;
+
+  /// `seq` of the message that opened the turn.
+  final int seq;
+
+  /// Commit with the whole working tree at the start of the turn.
+  final String sha;
+  final DateTime? at;
+
+  String get detail =>
+      'turno $turn${at == null ? '' : ' (${clock(at!.toLocal())})'}';
 }
 
 /// The file as it was right after a step (R7).
@@ -67,16 +105,20 @@ class FileAtStep {
 }
 
 /// Edit steps of [path] (subagents included), in order, with their flat
-/// position.
+/// position. A moved file (Codex `move_path`) keeps the edits it had under
+/// the old name.
 List<ReplayStep> editsOf(List<ReplayStep> steps, String path, {String? root}) {
-  final key = absolutePath(path, root);
-  return [
-    for (final s in flattenSteps(steps))
-      if (s.kind == ReplayKind.edit &&
-          s.filePath != null &&
-          absolutePath(s.filePath!, root) == key)
-        s,
-  ];
+  var key = absolutePath(path, root);
+  final out = <ReplayStep>[];
+  for (final s in flattenSteps(steps).toList().reversed) {
+    final p = s.filePath;
+    if (s.kind != ReplayKind.edit || p == null) continue;
+    if (absolutePath(p, root) != key) continue;
+    out.add(s);
+    final from = s.tool?.change?.fromPath;
+    if (from != null && editApplied(s.tool!)) key = absolutePath(from, root);
+  }
+  return out.reversed.toList();
 }
 
 /// Rebuilds [path] right after the edit [target], applying [edits] (from
@@ -135,6 +177,9 @@ FileAtStep fileAtStep({
     before = text;
     final after = applyToolEdit(t, text);
     if (after == null) {
+      if (t.change != null) {
+        return FileAtStep.failed(_diffFailure(s, text, base), base: base);
+      }
       return FileAtStep.failed(
         'A edição do passo ${_stepLabel(s)} não se aplica: o trecho antigo '
         'não está no arquivo (outro comando pode tê-lo mudado).',
@@ -145,6 +190,22 @@ FileAtStep fileAtStep({
     known = true;
   }
   return FileAtStep.ok(text!, _addedLines(before ?? '', text), base: base);
+}
+
+/// Why the diff of [s] does not apply over [text] (SPEC-110 R2).
+String _diffFailure(ReplayStep s, String? text, FileBase? base) {
+  final change = s.tool!.change!;
+  final no = _stepLabel(s);
+  if (change.isCut) {
+    return 'O diff do passo $no foi cortado ao ser guardado '
+        '(${change.cutLabel}): não dá para aplicar. O diff do passo '
+        'continua abaixo.';
+  }
+  final where = base == null ? '' : ' (${base.shortLabel})';
+  final line = applyHunks(text, parseHunks(change.unifiedDiff ?? '')).line;
+  final why = line == null ? '' : ': a linha $line já era diferente';
+  return 'O diff do passo $no não se aplica sobre a base$where$why. O diff '
+      'do passo continua abaixo.';
 }
 
 String _stepLabel(ReplayStep s) => s.parent == null
@@ -229,7 +290,37 @@ WhoWrote? whoWroteLine(
     if (!s.isAppliedEdit) continue;
     if (_newLines(s).any((l) => l.trim() == wanted)) return WhoWrote(edit: s);
   }
-  return WhoWrote(command: _likelyCommand(steps, path));
+  return WhoWrote(
+    command: flattenSteps(steps).any((s) => s.tool?.isNeutral ?? false)
+        ? _commandBefore(steps, edits, wanted)
+        : _likelyCommand(steps, path),
+  );
+}
+
+/// Codex (SPEC-110 R3): the last command (Rodar) before the line shows up —
+/// an edit whose diff already has it as context (or removes it) came after.
+/// No such edit: the last command of the session.
+ReplayStep? _commandBefore(
+  List<ReplayStep> steps,
+  List<ReplayStep> edits,
+  String wanted,
+) {
+  ReplayStep? showsUp;
+  for (final s in edits) {
+    final diff = s.tool?.change?.unifiedDiff;
+    if (diff == null) continue;
+    if (parseHunks(diff)
+        .any((h) => h.oldLines.any((l) => l.trim() == wanted))) {
+      showsUp = s;
+      break;
+    }
+  }
+  ReplayStep? last;
+  for (final s in flattenSteps(steps)) {
+    if (identical(s, showsUp)) break;
+    if (s.kind == ReplayKind.run && s.outcome != ReplayOutcome.denied) last = s;
+  }
+  return last;
 }
 
 final _rewriters = RegExp(
@@ -253,9 +344,10 @@ ReplayStep? _likelyCommand(List<ReplayStep> steps, String path) {
   return runs.last;
 }
 
-/// Looks up the base text of a file for "Arquivo neste ponto" (P2): the
-/// `originalFile` of the transcript, then the commit where the step
-/// started, then the session's base branch.
+/// Looks up the base text of a file for "Arquivo neste ponto" (P2, SPEC-110
+/// R2): the restore point of the start of the turn, the `originalFile` of
+/// the transcript (Claude), the commit where the step started, then the
+/// session's base branch.
 class FileBaseResolver {
   FileBaseResolver({
     required this.originalFiles,
@@ -265,7 +357,11 @@ class FileBaseResolver {
     this.baseBranch,
     this.root,
     this.readFile,
+    this.points,
   });
+
+  /// Restore points of the session, oldest first (SPEC-110 R2).
+  final Future<List<RestoreBase>> Function()? points;
 
   /// The file as it is now (absolute path; null when missing), for the
   /// Codex diffs undone (P4).
@@ -298,7 +394,18 @@ class FileBaseResolver {
   ) async {
     final stop = edits.indexOf(target);
     if (stop < 0) return null;
-    // 1. Transcript: the latest edit up to the target with its originalFile
+    // 1. The restore point of the start of the turn (SPEC-110 R2, P6).
+    final point = await _fromPoint(path, edits, stop);
+    if (point != null) {
+      // Claude: a command that rewrote the file inside the turn (a
+      // formatter) breaks the sequence; the `originalFile` of the edit
+      // itself is exact there.
+      if (edits[stop].tool?.change != null ||
+          fileAtStep(base: point, edits: edits, target: target).ok) {
+        return point;
+      }
+    }
+    // 2. Transcript: the latest edit up to the target with its originalFile
     // (exact even when a command changed the file in between).
     Map<String, String> originals;
     try {
@@ -317,13 +424,14 @@ class FileBaseResolver {
         );
       }
     }
-    // 2. Codex (SPEC-095 P4): the file now with the diffs from the last
+    if (point != null) return point;
+    // Codex (SPEC-095 P4), without a point: the file now with the diffs from the last
     // edit back to the target undone.
     final reversed = await _reverse(path, edits, stop);
     if (reversed != null) return reversed;
     final rel = relativePath(absolutePath(path, root), root);
     if (rel.startsWith('/')) return null;
-    // 2. The commit where the step started.
+    // 3. The commit where the step started.
     if (startSha != null) {
       final text = await showAt(startSha!, rel);
       return FileBase(
@@ -332,7 +440,7 @@ class FileBaseResolver {
         detail: _short(startSha!),
       );
     }
-    // 3. The base branch.
+    // 4. The base branch.
     if (baseBranch != null) {
       final rev = await baseRef?.call() ?? baseBranch!;
       final text = await showAt(rev, rel);
@@ -347,6 +455,55 @@ class FileBaseResolver {
 }
 
 extension on FileBaseResolver {
+  /// The file in the newest point taken before edit [stop] (its turn's
+  /// start), with the edits of the file from that point on to apply. Null
+  /// without a point, or when the point does not have the file and the
+  /// first edit does not create it (ignored by git, too big: left out).
+  Future<FileBase?> _fromPoint(
+    String path,
+    List<ReplayStep> edits,
+    int stop,
+  ) async {
+    final load = points;
+    if (load == null) return null;
+    int? seqOf(ReplayStep s) => (s.parent ?? s).item.seq;
+    final seq = seqOf(edits[stop]);
+    if (seq == null) return null;
+    final List<RestoreBase> all;
+    try {
+      all = await load();
+    } catch (_) {
+      return null;
+    }
+    RestoreBase? point;
+    for (final p in all) {
+      if (p.seq < seq && (point == null || p.seq > point.seq)) point = p;
+    }
+    if (point == null) return null;
+    var from = stop;
+    while (from > 0 && (seqOf(edits[from - 1]) ?? -1) > point.seq) {
+      from--;
+    }
+    // The name the file had at the point (it may have been moved since).
+    final first = edits[from];
+    final name = first.tool?.change?.fromPath ?? first.filePath ?? path;
+    final rel = relativePath(absolutePath(name, root), root);
+    if (rel.startsWith('/')) return null;
+    String? text;
+    try {
+      text = await showAt(point.sha, rel);
+    } catch (_) {
+      return null;
+    }
+    if (text == null && !createsFile(first.tool!)) return null;
+    return FileBase(
+      text: text,
+      source: FileBaseSource.restorePoint,
+      detail: point.detail,
+      fromStep: from,
+    );
+  }
+
   /// The text before edit [stop] rebuilt from the current file, when every
   /// edit of the file from it on is a Codex diff that undoes cleanly.
   Future<FileBase?> _reverse(
