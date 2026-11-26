@@ -128,7 +128,7 @@ class ProjectService {
     if (t != null && !t.isEmpty) {
       // The text in the AGENTS.md, the import in the CLAUDE.md (SPEC-113
       // R2); a file left in the folder that is the person's is kept.
-      if (t.claudeMd case final md?) await writeInstructionFiles(path, md);
+      if (t.claudeMd case final md?) await writeNewProjectInstructions(path, md);
     }
     try {
       await setup.init(path, remoteUrl: remoteUrl, branch: b);
@@ -268,7 +268,7 @@ class ProjectService {
     final files = <String>[];
     final claudeMd = data.stack.claudeMd.trim();
     if (writeInstructions && claudeMd.isNotEmpty) {
-      files.addAll(await writeInstructionFiles(ws.path, '$claudeMd\n'));
+      files.addAll(await writeNewProjectInstructions(ws.path, '$claudeMd\n'));
     }
 
     // The stack's commands fill the empty keys of the config.yml
