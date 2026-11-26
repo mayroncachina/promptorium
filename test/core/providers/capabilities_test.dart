@@ -91,9 +91,9 @@ void main() {
   });
 
   group('providerFlows (R3)', () {
-    test('SPEC-096 R1, SPEC-100 R8, SPEC-101 R1, SPEC-102: o Codex roda em '
-        'Prompt, Sessões, execuções estruturadas, Executar spec e no revisor '
-        'automático', () {
+    test('SPEC-096 R1, SPEC-100 R8, SPEC-101 R1, SPEC-102, SPEC-108: o Codex roda em '
+        'Prompt, Sessões, execuções estruturadas, Executar spec, no revisor '
+        'automático e no Comparar', () {
       for (final f in AppFlow.values) {
         expect(
           ProviderFlows.defaults.allows('codex', f),
@@ -101,7 +101,8 @@ void main() {
               f == AppFlow.sessions ||
               f == AppFlow.structured ||
               f == AppFlow.runSpec ||
-              f == AppFlow.autoReview,
+              f == AppFlow.autoReview ||
+              f == AppFlow.compare,
           reason: f.name,
         );
         expect(ProviderFlows.defaults.allows('claude', f), isTrue);
@@ -111,7 +112,7 @@ void main() {
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.structured)));
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.runSpec)));
       expect(codexFlowSpecs.keys, isNot(contains(AppFlow.autoReview)));
-      expect(codexFlowSpecs[AppFlow.compare], 'SPEC-108');
+      expect(codexFlowSpecs.keys, isNot(contains(AppFlow.compare)));
       expect(flowLockedLabel('Codex'), 'Codex · Só Claude Code por enquanto');
     });
 
@@ -133,7 +134,7 @@ void main() {
       expect(all.whereType<CodexProvider>(), hasLength(1));
       final probe = Provider(
         (ref) =>
-            () => agentProviderForFlow(ref, 'codex', AppFlow.compare),
+            () => agentProviderForFlow(ref, 'codex', AppFlow.prototype),
       );
       expect(
         () => c.read(probe)(),
@@ -141,7 +142,7 @@ void main() {
           isA<AgentUnavailable>().having(
             (e) => e.message,
             'message',
-            allOf(contains('Comparar'), contains('Claude Code')),
+            allOf(contains('Protótipo'), contains('Claude Code')),
           ),
         ),
       );

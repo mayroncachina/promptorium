@@ -63,7 +63,7 @@ O início de cada etapa é guardado numa ref (`refs/promptorium/SPEC-x/Rn-inicio
 
 ## A/B
 
-"Executar em dobro (A/B)" roda a spec duas vezes, em worktrees separados. Depois, "Comparar A/B" mostra as duas e você escolhe uma ou descarta as duas.
+"Executar em dobro (A/B)" roda a próxima etapa duas vezes, em worktrees separados. Antes de começar, um diálogo deixa escolher o provedor, o modelo e o esforço de cada tentativa, com o atalho "Claude × Codex"; o padrão é a configuração atual nas duas. Depois, "Comparar A/B" mostra o provedor, o gate, os arquivos, o tempo e os tokens de cada uma, e você escolhe uma ou descarta as duas. A execução da spec continua no provedor dela.
 
 ## Canvas
 

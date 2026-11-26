@@ -459,7 +459,12 @@ class _CodexFlows extends ConsumerWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        for (final f in [AppFlow.prompt, AppFlow.sessions, AppFlow.runSpec])
+        for (final f in [
+          AppFlow.prompt,
+          AppFlow.sessions,
+          AppFlow.runSpec,
+          AppFlow.compare,
+        ])
           chip(
             f.label,
             on: flows.allows('codex', f),

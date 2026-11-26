@@ -1,8 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/features/prompt/compare/compare_controller.dart';
+import 'package:promptorium/core/providers/agent_provider.dart' show PromptMode;
+import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/compare/compare_run.dart';
+import 'package:promptorium/features/prompt/compare/widgets/compare_card.dart';
+import 'package:promptorium/ui/providers/provider_logos.dart';
 
+import '../../../core/codex/fake_codex.dart';
 import '../prompt_screen_test.dart' show field, fieldText, pumpFor;
 import '../prompt_test_utils.dart';
 import 'compare_controller_test.dart' show resultOf, toolLine;
@@ -79,8 +86,16 @@ void main() {
     expect(key('compare-ratio-B'), findsOneWidget);
     expect(
       tester.widget<Text>(key('compare-ratio-B')).data,
-      'B pesou 4,0× o A   ·   levou 2,9× o tempo',
+      'B pesou 4,0× o A',
     );
+    // SPEC-108 R7: time and tokens between the sides; same provider, so no
+    // notice of tokenizers or quotas.
+    expect(
+      tester.widget<Text>(key('compare-time-tokens')).data,
+      'B levou 2,9× o tempo · usou 2,2× os tokens',
+    );
+    expect(key('compare-no-ratio'), findsNothing);
+    expect(key('compare-tokenizers'), findsNothing);
     // P2: no US\$ anywhere in the comparison.
     expect(
       find.descendant(
@@ -92,7 +107,9 @@ void main() {
     // R15: the region of each column.
     expect(
       find.bySemanticsLabel(
-        RegExp(r'^Resposta A, Sonnet, Perguntar, pronta em 38 segundos'),
+        RegExp(
+          r'^Resposta A, Claude, Sonnet, Perguntar, pronta em 38 segundos',
+        ),
       ),
       findsOneWidget,
     );
@@ -271,5 +288,191 @@ void main() {
     );
     // The CLI was asked for each side's threshold before closing.
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SPEC-108 R6–R9, R12: Opus × Codex, with the badges, the reads '
+      'of the Codex as reads, metrics, the weight in each quota and the '
+      'conversation moving to the Codex', (tester) async {
+    final servers = <FakeCodex>[];
+    final p = CompareFakeProvider();
+    final (_, c) = await pumpCompare(
+      tester,
+      provider: p,
+      codex: servers,
+      usages: [usageText(38, 61), usageText(44, 62)],
+      codexUsages: [codexLimits(12, 30), codexLimits(15, 31)],
+    );
+    await tester.enterText(field, 'por que o cupom passa?');
+    await tester.tap(key('prompt-compare'));
+    await pumpFor(tester);
+    await tester.tap(key('compare-claude-codex'));
+    await pumpFor(tester);
+    await tester.tap(key('prompt-send'));
+    await drain(tester);
+    final a = p.runs.single, f = servers.single;
+    expect(find.text('Comparando · Claude × Codex'), findsOneWidget);
+    expect(
+      tester.widget<ProviderChip>(key('compare-chip-B')).provider,
+      'codex',
+    );
+    expect(
+      find.descendant(of: key('compare-chip-B'), matching: find.text('Codex')),
+      findsOneWidget,
+    );
+    codexCommandItem(f, 'c1', 'sed -n 1,80p lib/cupom.dart', [
+      {'type': 'read', 'command': 'sed', 'path': '/work/repo/lib/cupom.dart'},
+    ]);
+    codexCommandItem(f, 'c2', 'rg primeiraCompra lib', [
+      {'type': 'search', 'command': 'rg', 'query': 'primeira', 'path': 'lib'},
+    ]);
+    // A question of the Codex shows only in its column.
+    f.emit(
+      jsonEncode({
+        'id': 77,
+        'method': 'item/tool/requestUserInput',
+        'params': {
+          'threadId': f.threadId,
+          'turnId': 'turn-1',
+          'itemId': 'q1',
+          'questions': [
+            {
+              'id': 'q',
+              'header': 'Qual',
+              'question': 'Qual regra?',
+              'options': [
+                {'label': 'Uma', 'description': ''},
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    await drain(tester);
+    final live = c.read(compareProvider(1))!;
+    expect(live.liveOf('A').approvals, isEmpty);
+    expect(live.liveOf('B').approvals.single.requestId, 'codex-77');
+    expect(key('compare-approval-B-codex-77'), findsOneWidget);
+    await tester.runAsync(
+      () => c.read(compareControllerProvider.notifier).deny(1, 'B', 'codex-77'),
+    );
+    // R6: what the commands did, not a generic command.
+    expect(find.text('Ler'), findsOneWidget);
+    expect(find.text('lib/cupom.dart · sed -n'), findsOneWidget);
+    expect(find.text('Buscar'), findsOneWidget);
+    expect(find.text('"primeira" lib · rg'), findsOneWidget);
+
+    codexFinish(f, 'O filtro compara com pago.');
+    a.emit(initLine(a.options.sessionId!));
+    a.emit(textLine('São duas causas.'));
+    a.emit(resultOf(cost: 9, ms: 112000, input: 31400, output: 2400));
+    await drain(tester);
+    // R7.
+    expect(find.text('18,4 mil → 1,6 mil'), findsOneWidget);
+    expect(find.text('raciocínio 2,1 mil'), findsOneWidget);
+    expect(find.text('1 leitura · 1 busca'), findsOneWidget);
+    expect(find.text('1 min 8 s'), findsOneWidget);
+    expect(
+      tester.widget<Text>(key('compare-time-tokens')).data,
+      'B levou 0,6× o tempo · usou 0,7× os tokens',
+    );
+    expect(
+      tester.widget<Text>(key('compare-tokenizers')).data,
+      'tokenizadores diferentes: os tokens servem de ordem de grandeza',
+    );
+    // R8: each weight in its own quota, without a ratio nor US$.
+    expect(find.text('Claude · janela de 5 h'), findsOneWidget);
+    expect(find.text('≈ 6,0%'), findsOneWidget);
+    expect(find.text('Codex · janela de 5 h'), findsOneWidget);
+    expect(find.text('≈ 3,0%'), findsOneWidget);
+    expect(
+      tester.widget<Text>(key('compare-no-ratio')).data,
+      'cotas diferentes · sem razão de peso',
+    );
+    expect(key('compare-ratio-A'), findsNothing);
+    expect(key('compare-ratio-B'), findsNothing);
+    expect(
+      find.descendant(
+        of: key('compare-panel-1'),
+        matching: find.textContaining('\$'),
+      ),
+      findsNothing,
+    );
+    // R12.
+    expect(
+      find.bySemanticsLabel(
+        RegExp(
+          r'^Resposta B, Codex, Padrão, Perguntar, pronta em 1 minuto e 8 '
+          r'segundos',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'peso na janela de 5 horas do Codex, cerca de 3,0 por cento'),
+      ),
+      findsOneWidget,
+    );
+
+    // R9.
+    await tester.tap(key('compare-choose-B'));
+    await drain(tester);
+    expect(key('compare-card'), findsOneWidget);
+    expect(
+      find.text(
+        'A conversa passou para o Codex · Padrão · Perguntar (escolhida '
+        'entre 2)',
+      ),
+      findsOneWidget,
+    );
+    expect(key('compare-card-terminal'), findsOneWidget);
+    final conv = (await tester.runAsync(
+      () => c.read(conversationsRepoProvider).getById(1),
+    ))!;
+    expect(conv.provider, 'codex');
+    // The composer is on the Codex.
+    expect(
+      find.descendant(of: key('prompt-provider'), matching: find.text('Codex')),
+      findsOneWidget,
+    );
+    // The answer of before keeps its author.
+    expect(find.textContaining('Claude Code · Sonnet'), findsWidgets);
+    for (final s in servers) {
+      await tester.runAsync(s.finish);
+    }
+  });
+
+  test('SPEC-108 R9: the terminal command of the side that was not chosen', () {
+    const a = CompareSide(
+      letter: 'A',
+      model: 'opus',
+      mode: PromptMode.ask,
+      sessionId: 'sid',
+      started: true,
+    );
+    expect(
+      compareTerminalCommand(a, claude: '/bin/claude', codex: 'codex'),
+      "'/bin/claude' '--resume' 'sid'",
+    );
+    const b = CompareSide(
+      letter: 'B',
+      provider: 'codex',
+      model: 'gpt-6.2-sol',
+      mode: PromptMode.ask,
+      sessionId: 'thr',
+      started: true,
+    );
+    expect(
+      compareTerminalCommand(b, claude: 'claude', codex: 'codex'),
+      allOf(startsWith("'codex' 'resume' 'thr'"), contains("'read-only'")),
+    );
+    expect(
+      compareTerminalCommand(
+        const CompareSide(letter: 'A', model: 'opus', mode: PromptMode.ask),
+        claude: 'claude',
+        codex: 'codex',
+      ),
+      isNull,
+    );
   });
 }

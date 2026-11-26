@@ -13,6 +13,7 @@ import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/board/duel_attempt.dart';
 import 'package:promptorium/features/board/spec_run_provider.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/orchestrator/step_classifier.dart';
@@ -25,6 +26,7 @@ import '../../core/codex/fake_codex.dart';
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
+import 'orchestrator/orchestrator_fixture.dart' show resultLine;
 
 const _specText = '''---
 id: SPEC-031
@@ -433,5 +435,104 @@ void main() {
       ),
       'claude',
     );
+  });
+
+  test(
+    'SPEC-108 R11: Comparar A/B with a provider per attempt: each one in '
+    'its worktree, the Codex with its model, effort and sandbox; choosing '
+    'the Codex brings its work and the run goes on with its provider',
+    () async {
+      final runner = c.read(specRunnerProvider);
+      await c
+          .read(appSettingsProvider.notifier)
+          .set(providerPreferenceKey(ws.id), 'claude');
+      await runner.runDuel(spec.id, (
+        a: const DuelAttempt(provider: 'claude', model: 'haiku'),
+        b: const DuelAttempt(
+          provider: 'codex',
+          model: 'gpt-6.1-terra',
+          effort: 'low',
+        ),
+      ));
+      await settle();
+      final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.map((s) => s.provider), ['claude', 'codex']);
+      expect(sessions.map((s) => s.model), ['haiku', 'gpt-6.1-terra']);
+      expect(sessions.last.effort, 'low');
+      expect(
+        sessions.last.permissionMode,
+        ClaudePermissionMode.acceptEdits.cliValue,
+      );
+      expect(sessions.map((s) => s.worktreePath), [
+        duel.worktreeA,
+        duel.worktreeB,
+      ]);
+      expect(claude.processes, hasLength(1));
+      final turn =
+          servers.single.writtenJson.lastWhere(
+                (m) => m['method'] == 'turn/start',
+              )['params']
+              as Map;
+      expect((turn['sandboxPolicy'] as Map)['type'], 'workspaceWrite');
+      // SPEC-101: the slice of the git common dir of that worktree.
+      expect((turn['sandboxPolicy'] as Map)['writableRoots'], isNotEmpty);
+      // The run keeps the provider of the spec.
+      expect(
+        recordedSpecProvider(c.read(appSettingsProvider), spec.id),
+        'claude',
+      );
+
+      File('${duel.worktreeA}/claude.txt').writeAsStringSync('a');
+      await gitIn(duel.worktreeA, ['add', '.']);
+      await gitIn(duel.worktreeA, ['commit', '-q', '-m', 'a']);
+      claude.processes.single.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      File('${duel.worktreeB}/b.txt').writeAsStringSync('b');
+      usage(servers.single, 1200, 258400);
+      await finishTurn(servers.single, 'ETAPA CONCLUÍDA: R1');
+      await until(
+        () async =>
+            (await c.read(specDuelsRepoProvider).getById(duel.id))!.state ==
+            'pronto',
+      );
+      // The app committed what the Codex left in its worktree.
+      await until(
+        () async =>
+            (await notes(sessions.last.id))
+                .any((n) => n.startsWith('O app commitou')),
+      );
+      final sub = c.listen(duelStatsProvider(duel.sessionB!), (_, _) {});
+      final stats = (await c.read(duelStatsProvider(duel.sessionB!).future))!;
+      sub.close();
+      expect((stats.provider, stats.model), ('codex', 'gpt-6.1-terra'));
+      expect(stats.tokensIn, 1200);
+
+      await runner.chooseDuel(duel.id, 'B');
+      await until(() async => claude.processes.length == 2);
+      final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(File('${row.worktreePath}/b.txt').existsSync(), isTrue);
+      expect(File('${row.worktreePath}/claude.txt').existsSync(), isFalse);
+      // Next step: on the Claude of the run, never with the Codex model.
+      final next = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+      expect(next.provider, 'claude');
+      expect(next.model, isNot('gpt-6.1-terra'));
+    },
+  );
+
+  test('SPEC-108 R11: attempts of the current configuration run both on the '
+      'provider of the run, as before', () async {
+    final runner = c.read(specRunnerProvider);
+    await runner.runDuel(spec.id, (
+      a: const DuelAttempt(provider: 'codex'),
+      b: const DuelAttempt(provider: 'codex'),
+    ));
+    await settle();
+    final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+    expect(sessions.map((s) => (s.provider, s.model, s.effort)), [
+      ('codex', 'gpt-6.1-terra', 'medium'),
+      ('codex', 'gpt-6.1-terra', 'medium'),
+    ]);
+    final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+    await runner.discardDuel(duel.id);
   });
 }

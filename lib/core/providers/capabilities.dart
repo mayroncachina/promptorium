@@ -284,8 +284,8 @@ class ProviderFlows {
   };
 
   /// Codex runs in Prompt, Sessões (SPEC-096 R1), the structured runs
-  /// (SPEC-100 R8), Executar spec (SPEC-101 R1) and the automatic reviewer
-  /// (SPEC-102); the other flows wait for their specs (108).
+  /// (SPEC-100 R8), Executar spec (SPEC-101 R1), the automatic reviewer
+  /// (SPEC-102) and Comparar (SPEC-108).
   static const defaults = ProviderFlows({
     'claude': {...AppFlow.values},
     'codex': codexFlows,
@@ -299,6 +299,7 @@ class ProviderFlows {
     AppFlow.structured,
     AppFlow.runSpec,
     AppFlow.autoReview,
+    AppFlow.compare,
   };
 
   bool allows(String provider, AppFlow flow) =>
@@ -333,7 +334,7 @@ class ProviderFlows {
 const codexKillSwitchKey = 'codex.desligado';
 
 /// The spec that releases each flow still locked for the Codex (mock 4).
-const codexFlowSpecs = {AppFlow.compare: 'SPEC-108'};
+const codexFlowSpecs = <AppFlow, String>{};
 
 /// The flow registry (tests override it to turn Codex flows on). The
 /// emergency switch removes every Codex flow (P1).

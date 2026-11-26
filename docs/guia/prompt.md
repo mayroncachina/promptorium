@@ -36,3 +36,11 @@ Prompts salvos de fábrica: `/explicar`, `/testes`, `/revisar-seguranca`, `/spec
 "Refinar com IA" (em Specs) e "Aplicar" numa sugestão do cartão (no Quadro) abrem uma conversa de refino: cada edição do agente na spec pede a sua aprovação.
 
 O botão **Voltar à spec SPEC-x** leva você de volta para a tela de origem (Specs ou o cartão no Quadro), com o arquivo recarregado. Se houver edição esperando aprovação, o app avisa antes ("Voltar mesmo assim" ou "Ficar na conversa"). A conversa continua na lista e pode ser retomada.
+
+## Comparar respostas
+
+**Comparar** envia a mesma pergunta para dois lados. Cada lado tem o seu provedor, modelo, esforço e modo (Perguntar ou Planejar). O atalho **Claude × Codex** põe o provedor da conversa no lado A e o outro no B.
+
+- O lado do mesmo provedor continua a sessão da conversa. O outro começa uma sessão nova com um resumo montado pelo app: as últimas mensagens, os arquivos citados, o plano vigente e o estado do git, com os segredos mascarados. "Ver o que o B recebe" mostra o texto e deixa editar. "Mesmo resumo nos dois lados" faz os dois partirem do mesmo texto.
+- No fim aparecem o tempo, os tokens (com o raciocínio do Codex à parte), as chamadas e o peso na cota de cada provedor. Com provedores diferentes não há razão de peso, porque as cotas são diferentes. US$ não aparece.
+- **Continuar com esta** leva a conversa para o lado escolhido, que pode ser do outro provedor. O lado que ficou de fora continua no cartão, com "Ver a resposta" e "Abrir no terminal".
