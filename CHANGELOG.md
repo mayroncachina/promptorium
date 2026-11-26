@@ -2,6 +2,12 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.27.1] - 2026-11-26
+
+### Correções
+
+- **provedores:** Codex ligado na documentação e aviso apontando para Provedores (b795041)
+
 ## [0.27.0] - 2026-11-26
 
 ### Funcionalidades
