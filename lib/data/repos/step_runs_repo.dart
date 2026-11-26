@@ -69,10 +69,13 @@ class StepRunsRepo {
 
   Stream<List<StepRun>> watchSince(DateTime from) => _since(from).watch();
 
+  SimpleSelectStatement<$StepRunsTable, StepRun> _bySpec(int specId) =>
+      _db.select(_t)
+        ..where((r) => r.specId.equals(specId))
+        ..orderBy([(r) => OrderingTerm.asc(r.id)]);
+
   /// Attempts of [specId], oldest first.
-  Future<List<StepRun>> bySpec(int specId) =>
-      (_db.select(_t)
-            ..where((r) => r.specId.equals(specId))
-            ..orderBy([(r) => OrderingTerm.asc(r.id)]))
-          .get();
+  Future<List<StepRun>> bySpec(int specId) => _bySpec(specId).get();
+
+  Stream<List<StepRun>> watchBySpec(int specId) => _bySpec(specId).watch();
 }

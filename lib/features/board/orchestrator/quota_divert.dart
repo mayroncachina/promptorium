@@ -174,6 +174,17 @@ enum DivertReason {
       values.where((r) => r.stored == v).firstOrNull;
 }
 
+/// `cota do Claude`, `Claude perto do limite`, `segunda opinião`: why a step
+/// left [from], the provider of its plan (R14).
+String divertReasonWords(DivertReason reason, String from) {
+  final name = planProviderLabel(from);
+  return switch (reason) {
+    DivertReason.quota => 'cota do $name',
+    DivertReason.threshold => '$name perto do limite',
+    DivertReason.secondOpinion => 'segunda opinião',
+  };
+}
+
 /// Why a provider cannot take the step (R8).
 @immutable
 class QuotaBlock {
@@ -373,12 +384,7 @@ class SpecDivert {
 
   /// `desviada: cota do Claude · volta às 18:00`.
   String cardText({DateTime? now}) {
-    final name = planProviderLabel(from);
-    final what = switch (reason) {
-      DivertReason.quota => 'cota do $name',
-      DivertReason.threshold => '$name perto do limite',
-      DivertReason.secondOpinion => 'segunda opinião',
-    };
+    final what = divertReasonWords(reason, from);
     return 'desviada: $what'
         '${until == null ? '' : ' · volta ${quotaClockWords(until!, now: now)}'}';
   }
