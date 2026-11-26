@@ -20,6 +20,7 @@ import '../sessions/widgets/session_style.dart';
 import 'instructions_editor.dart';
 import 'interview_controller.dart' show InstructionProposal;
 import 'interview_view.dart';
+import 'proposal_view.dart';
 import 'unify_dialog.dart';
 import 'unify_service.dart' show canUnify;
 
@@ -178,7 +179,7 @@ class InstructionsModeController extends Notifier<InstructionsMode> {
   InstructionsMode build() => InstructionsMode.editor;
 
   /// The proposal the interview handed over (R16), shown by
-  /// [InstructionsMode.proposal] (T6).
+  /// [InstructionsMode.proposal] in `InstructionsProposalView` (T6).
   InstructionProposal? proposal;
 
   void show(InstructionsMode mode) => state = mode;
@@ -557,20 +558,21 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
           ),
         );
       case InstructionsMode.proposal:
-        // TODO(SPEC-113 T6): InstructionsProposalView(workspace: ws,
-        // proposal: modes.proposal!, onDone: modes.backToEditor).
+        final proposal = modes.proposal;
+        if (proposal == null) break;
+        // T6: the trechos of the interview; "Concluir" goes back to the
+        // editor, which reads the files again.
         return ColoredBox(
           color: AppColors.background,
-          child: StepEmpty(
-            key: const ValueKey('instructions-proposal-pending'),
-            title: 'Proposta pronta',
-            text:
-                'A tela da proposta ainda não está nesta versão. Nada foi '
-                'gravado nos arquivos.',
-            action: SmallButton(
-              label: 'Voltar ao editor',
-              onTap: modes.backToEditor,
-            ),
+          child: InstructionsProposalView(
+            key: ValueKey('instructions-proposal-${ws.id}'),
+            workspace: ws,
+            proposal: proposal,
+            onDone: () {
+              modes.backToEditor();
+              _refresh(ws.path);
+            },
+            onBackToInterview: () => modes.show(InstructionsMode.interview),
           ),
         );
     }
