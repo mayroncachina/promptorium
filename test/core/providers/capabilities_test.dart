@@ -148,4 +148,12 @@ void main() {
       );
     });
   });
+
+  test('providerOffMessage points to Configurações → Provedores, where '
+      '"Desligar o Codex" lives', () {
+    expect(
+      providerOffMessage('Codex'),
+      contains('religue o Codex em Configurações → Provedores.'),
+    );
+  });
 }

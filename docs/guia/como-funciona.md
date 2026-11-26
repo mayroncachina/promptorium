@@ -25,10 +25,11 @@ O **Codex** é opcional: instale o Codex CLI 0.170 ou mais novo e rode `codex lo
 |---|---|
 | Prompt e Sessões | sim |
 | Planner e assistentes (Projeto, Nova spec, Dividir, Perguntas, Design, Verificar, Nova skill, Decidir na etapa) | sim |
-| Executar spec, gate, Executar tudo e Autopilot | sim, no modo Manual |
+| Executar spec, gate, Executar tudo e Autopilot | sim, no Manual e no Automático |
 | Revisor automático | sim |
 | Comparar (um provedor por lado) e Executar em dobro (A/B, um provedor por tentativa) | sim |
-| Automático do Orquestrador e Protótipo de telas | só Claude Code |
+| Automático do Orquestrador | sim: provedor por etapa nas regras, com reserva e desvio por cota |
+| Protótipo de telas | só Claude Code |
 
 O que muda com o Codex:
 
@@ -38,6 +39,8 @@ O que muda com o Codex:
 - **Custo**: o Codex informa só tokens, e o app mostra "custo indisponível". Não há limite em US$ nem de turnos.
 - **Hooks do app**: entram como hooks da sessão, e o app confere se o Codex os aceitou ([Automações](configuracoes.md#automações-hooks)).
 - **Sandbox**: quando o sandbox do Codex não sobe na máquina (comum no Ubuntu 24.04), ele só roda em worktree, com acesso total, e o app commita no fim do turno. O Prompt mostra "Sandbox do Codex indisponível".
+
+No **Automático**, as regras do Orquestrador (Configurações › Orquestrador) dizem o provedor de cada tipo de etapa, com uma reserva no outro. Com o desvio por cota ligado, quando a cota de um provedor acaba no meio da etapa, ela volta ao início e segue no outro; depois da renovação, as etapas seguintes voltam ao plano. O painel da spec mostra o selo do provedor de cada etapa, e o Histórico separa uso e tokens por provedor e modelo.
 
 Em **Continuar no Codex** / **Continuar no Claude**, no cabeçalho da sessão, o trabalho passa para uma sessão nova do outro provedor, no mesmo worktree.
 
