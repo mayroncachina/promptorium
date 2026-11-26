@@ -10,6 +10,7 @@ import '../board/board_rules.dart';
 import '../home/home_inbox.dart' show approvalVerb, stepRef;
 import '../project/project_planner.dart' show PlannerActivity;
 import '../prompt/compare/compare_controller.dart' show CompareView;
+import '../prompt/compare/compare_run.dart' show compareProviderLabel;
 import '../prompt/conversation_manager.dart';
 import '../repository/releases/release_dispatcher.dart';
 import '../review/ci_fixer.dart';
@@ -918,7 +919,10 @@ List<Activity> _ofWorkspace(
           column: columnOf(null),
           pose: pose,
           title: c.title,
-          subtitle: 'Prompt · comparando ${side.letter}',
+          // SPEC-108 R6: each side with its provider.
+          subtitle:
+              'Prompt · comparando ${side.letter}'
+              '${cv.run.crossProvider ? ' · ${compareProviderLabel(side.provider)}' : ''}',
           status: ask != null
               ? 'quer ${approvalVerb(ask.request.toolName)}'
               : poseLabel(pose, tool: l.tool),
@@ -946,6 +950,7 @@ List<Activity> _ofWorkspace(
           // The conversation's robot, with the letter of the side.
           seed: 'conv:${c.id}',
           robotLabel: side.letter,
+          provider: side.provider,
           model: side.model,
           mode: side.mode.name,
           recent: _recent(l.recent, ws.path),

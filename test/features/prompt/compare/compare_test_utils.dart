@@ -5,11 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/usage_poller.dart';
 import 'package:promptorium/core/codex/codex_provider.dart';
+import 'package:promptorium/core/codex/codex_probe.dart' show CodexModelInfo;
 import 'package:promptorium/core/providers/agent_registry.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
+import 'package:promptorium/core/providers/provider_preferences.dart';
+import 'package:promptorium/core/providers/quota_source.dart';
 import 'package:promptorium/data/providers.dart';
 
 import '../../../core/codex/fake_codex.dart';
-import '../prompt_screen_test.dart' show pumpPrompt;
+import '../prompt_screen_test.dart' show pumpFor, pumpPrompt;
 import '../prompt_test_utils.dart';
 
 /// Claude with the models of the comparison.
@@ -51,18 +55,62 @@ Future<(AppDatabase, ProviderContainer)> pumpCompare(
   required CompareFakeProvider provider,
   List<String> usages = const [],
   Size size = const Size(1900, 1000),
+  List<FakeCodex>? codex,
+  ProviderAvailability codexStatus = const ProviderAvailability(
+    ProviderStatus.ready,
+    'ok',
+  ),
+  List<Map<String, dynamic>> codexUsages = const [],
+  ProviderFlows? flows,
 }) async {
   final queue = [...usages];
+  final codexQueue = [...codexUsages];
   final (db, _, c) = await pumpPrompt(
     tester,
     size: size,
     overrides: [
-      agentProvidersProvider.overrideWithValue([provider]),
+      agentProvidersProvider.overrideWithValue([
+        provider,
+        if (codex != null) fakeCodexProvider(codex),
+      ]),
+      if (codex != null)
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async => codexStatus,
+        ),
+      if (flows != null) providerFlowsProvider.overrideWithValue(flows),
+      codexQuotaReaderProvider.overrideWithValue(
+        () async => codexQueue.isEmpty
+            ? throw StateError('sem leitura')
+            : codexQueue.removeAt(0),
+      ),
       usageRunnerProvider.overrideWithValue(
         () async => queue.isEmpty ? null : queue.removeAt(0),
       ),
     ],
   );
+  if (codex != null) {
+    // The `model/list` cached by the handshake (R1).
+    await tester.runAsync(
+      () => c
+          .read(appSettingsProvider.notifier)
+          .set(
+            codexModelsCacheKey,
+            CodexModelsCache(
+              version: '0.170.0',
+              readAt: DateTime.now(),
+              models: const [
+                CodexModelInfo(
+                  'gpt-6.2-sol',
+                  ['low', 'medium', 'high'],
+                  ['text'],
+                ),
+                CodexModelInfo('gpt-6.2-mini', ['low'], ['text']),
+              ],
+            ).encode(),
+          ),
+    );
+    await pumpFor(tester);
+  }
   return (db, c);
 }
 
