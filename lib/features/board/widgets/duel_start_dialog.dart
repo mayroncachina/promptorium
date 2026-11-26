@@ -234,8 +234,11 @@ class _DuelStartDialogState extends ConsumerState<DuelStartDialog> {
         : codex
         ? m
         : m[0].toUpperCase() + m.substring(1);
-    String effortLabelOf(String? e) =>
-        e == null || e == defaultEffort ? 'esforço padrão' : e;
+    String effortLabelOf(String? e) => e != null && e != defaultEffort
+        ? e
+        : e == null && v.provider == base.provider
+        ? 'esforço da etapa'
+        : 'esforço padrão';
     Widget menu<T>(
       String keyName,
       String tooltip,

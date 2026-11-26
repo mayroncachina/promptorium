@@ -159,7 +159,9 @@ List<String> citedFiles(List<TimelineItem> items, {String? root}) {
   final out = <String>[];
   void add(String? path) {
     if (path == null || path.isEmpty) return;
-    var p = path;
+    // "@lib/a.dart?" at the end of a question.
+    var p = path.replaceAll(RegExp(r'[?!]+$'), '');
+    if (p.isEmpty) return;
     if (p.startsWith('/')) {
       if (root == null || !p.startsWith('$root/')) return;
       p = p.substring(root.length + 1);

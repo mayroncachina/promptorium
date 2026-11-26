@@ -487,7 +487,7 @@ class _Header extends StatelessWidget {
             dense: true,
           ),
           const SizedBox(width: 8),
-          Flexible(
+          Expanded(
             child: Text.rich(
               TextSpan(
                 children: [
@@ -512,7 +512,7 @@ class _Header extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           CompareTicker(
             active: s.state == CompareSideState.running,
             builder: (_) {
