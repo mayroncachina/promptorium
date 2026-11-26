@@ -196,7 +196,7 @@ class _CompareCardState extends ConsumerState<CompareCard> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Flexible(
+                    Expanded(
                       child: Text(
                         '· escolhida ${chosen.letter} · '
                         '${cross ? chosen.fullLabel : chosen.label}',
@@ -207,7 +207,6 @@ class _CompareCardState extends ConsumerState<CompareCard> {
                         ),
                       ),
                     ),
-                    const Spacer(),
                     if (command != null)
                       TextButton(
                         key: const ValueKey('compare-card-terminal'),
@@ -239,12 +238,12 @@ class _CompareCardState extends ConsumerState<CompareCard> {
                   ],
                 ),
                 Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(2.2),
-                    1: FlexColumnWidth(1.2),
-                    2: FlexColumnWidth(2),
-                    3: FlexColumnWidth(1.2),
-                    4: FlexColumnWidth(1),
+                  columnWidths: {
+                    0: FlexColumnWidth(cross ? 3.2 : 2.2),
+                    1: const FlexColumnWidth(1.2),
+                    2: const FlexColumnWidth(2),
+                    3: const FlexColumnWidth(1.2),
+                    4: const FlexColumnWidth(1),
                   },
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   children: [

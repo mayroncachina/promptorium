@@ -16,7 +16,7 @@ void main() {
       changed: 0,
       items: [
         for (var i = 0; i < 4; i++) ...[
-          UserItem('pergunta $i @lib/cupons/a$i.dart'),
+          UserItem('pergunta $i @lib/cupons/a$i.dart?'),
           AssistantTextItem('resposta $i'),
         ],
         read('/work/repo/lib/checkout.dart'),
@@ -34,6 +34,8 @@ void main() {
     expect(h.text, contains('Resposta: resposta 3'));
     expect(h.text, contains('Plano vigente:\n1. Trocar o filtro'));
     expect(h.files, contains('lib/checkout.dart'));
+    // Without the question mark of the sentence.
+    expect(h.files, contains('lib/cupons/a3.dart'));
     // Nothing outside of the project.
     expect(h.text, isNot(contains('/etc/passwd')));
     expect(h.git, 'main · limpo');

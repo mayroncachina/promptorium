@@ -27,7 +27,8 @@ O **Codex** é opcional: instale o Codex CLI 0.170 ou mais novo e rode `codex lo
 | Planner e assistentes (Projeto, Nova spec, Dividir, Perguntas, Design, Verificar, Nova skill, Decidir na etapa) | sim |
 | Executar spec, gate, Executar tudo e Autopilot | sim, no modo Manual |
 | Revisor automático | sim |
-| Automático do Orquestrador, Comparar e Protótipo de telas | só Claude Code |
+| Comparar (um provedor por lado) e Executar em dobro (A/B, um provedor por tentativa) | sim |
+| Automático do Orquestrador e Protótipo de telas | só Claude Code |
 
 O que muda com o Codex:
 
