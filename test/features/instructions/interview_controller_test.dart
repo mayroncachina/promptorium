@@ -433,6 +433,21 @@ void main() {
       expect(st().data.rounds, hasLength(2));
       expectClean();
     });
+    test('a round that did not come shows the error, and "Tentar de novo" '
+        'runs it again', () async {
+      final started = ctl().start(ws);
+      await until(() async => cli.processes.isNotEmpty);
+      await cli.processes.first.finish(1);
+      await started;
+      expect(st().error, contains('encerrou antes de responder'));
+      expect(st().data.needsRun, isTrue);
+      final again = ctl().retry(ws);
+      await answerClaude(2, round1);
+      expect(await again, isNull);
+      expect(st().error, isNull);
+      expect(st().data.current!.questions, hasLength(3));
+      expectClean();
+    });
   });
 
   group('Codex', () {

@@ -323,7 +323,7 @@ class _InstructionsInterviewViewState
         action: SmallButton(
           key: const ValueKey('interview-retry'),
           label: 'Tentar de novo',
-          onTap: s.busy ? null : () => _c.retry(ws),
+          onTap: s.busy ? null : () => _propose(() => _c.retry(ws)),
         ),
       );
     }

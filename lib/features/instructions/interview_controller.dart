@@ -554,15 +554,16 @@ class InterviewController extends Notifier<InterviewState> {
     await _round(ws);
   }
 
-  /// "Tentar de novo" / "Continuar" after a round that did not come.
-  Future<void> retry(Workspace ws) async {
-    if (state.busy) return;
-    if (state.data.needsRun) {
-      await _round(ws);
-    } else if (state.data.stage == InterviewStage.proposal ||
-        state.error != null && state.data.stage == InterviewStage.summary) {
-      await propose(ws);
+  /// "Tentar de novo": the round, or the proposal, that did not come.
+  Future<InstructionProposal?> retry(Workspace ws) async {
+    if (state.busy) return null;
+    final data = state.data;
+    // The proposal failed (after the summary or "Encerrar"): ask again.
+    if (data.endedEarly || data.stage != InterviewStage.asking) {
+      return propose(ws);
     }
+    if (data.needsRun) await _round(ws);
+    return null;
   }
 
   /// "Pausar" (R18): everything is already stored; a round on the way is
