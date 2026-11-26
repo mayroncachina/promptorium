@@ -1,6 +1,6 @@
 ---
 id: SPEC-113
-status: aprovada
+status: em implementação
 versao: 0.28.0
 tipo: recurso
 issue: 429
@@ -86,7 +86,7 @@ Nenhuma.
 - `lib/features/project/`: aba e botão em `project_screen.dart`; `project_service.dart`, `project_templates.dart`, `widgets/create_step.dart` e os textos do planner que hoje citam só o `CLAUDE.md`.
 - `lib/core/git/repo_setup.dart`: o `AGENTS.md` entra nos arquivos aceitos do modelo de partida.
 - Entrevista: `runStructured` (SPEC-100) com um schema por rodada (achados, perguntas, rascunho, fim) e outro para a proposta (arquivo, seção, texto antigo, texto novo, perguntas). A IA nunca grava; o app aplica os trechos.
-- Banco: tabela `InstructionInterviews`, uma linha por workspace (JSON das rodadas, provedor, id da thread, hash dos arquivos e datas). Migração v38, a renumerar se as SPECs 108–110 usarem a v38 antes.
+- Banco: tabela `InstructionInterviews`, uma linha por workspace (JSON das rodadas, provedor, id da thread, hash dos arquivos e datas). Migração v39 (a v38 ficou com a SPEC-109).
 
 ## Tarefas
 
