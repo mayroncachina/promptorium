@@ -21414,6 +21414,620 @@ class DebtLinksCompanion extends UpdateCompanion<DebtLink> {
   }
 }
 
+class $InstructionInterviewsTable extends InstructionInterviews
+    with TableInfo<$InstructionInterviewsTable, InstructionInterview> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InstructionInterviewsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _threadIdMeta = const VerificationMeta(
+    'threadId',
+  );
+  @override
+  late final GeneratedColumn<String> threadId = GeneratedColumn<String>(
+    'thread_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _filesHashMeta = const VerificationMeta(
+    'filesHash',
+  );
+  @override
+  late final GeneratedColumn<String> filesHash = GeneratedColumn<String>(
+    'files_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tokensMeta = const VerificationMeta('tokens');
+  @override
+  late final GeneratedColumn<int> tokens = GeneratedColumn<int>(
+    'tokens',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _pausedAtMeta = const VerificationMeta(
+    'pausedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> pausedAt = GeneratedColumn<DateTime>(
+    'paused_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    workspaceId,
+    data,
+    provider,
+    model,
+    threadId,
+    filesHash,
+    tokens,
+    createdAt,
+    updatedAt,
+    pausedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'instruction_interviews';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InstructionInterview> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_providerMeta);
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('thread_id')) {
+      context.handle(
+        _threadIdMeta,
+        threadId.isAcceptableOrUnknown(data['thread_id']!, _threadIdMeta),
+      );
+    }
+    if (data.containsKey('files_hash')) {
+      context.handle(
+        _filesHashMeta,
+        filesHash.isAcceptableOrUnknown(data['files_hash']!, _filesHashMeta),
+      );
+    }
+    if (data.containsKey('tokens')) {
+      context.handle(
+        _tokensMeta,
+        tokens.isAcceptableOrUnknown(data['tokens']!, _tokensMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('paused_at')) {
+      context.handle(
+        _pausedAtMeta,
+        pausedAt.isAcceptableOrUnknown(data['paused_at']!, _pausedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workspaceId};
+  @override
+  InstructionInterview map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InstructionInterview(
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
+      threadId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thread_id'],
+      ),
+      filesHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}files_hash'],
+      ),
+      tokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      pausedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}paused_at'],
+      ),
+    );
+  }
+
+  @override
+  $InstructionInterviewsTable createAlias(String alias) {
+    return $InstructionInterviewsTable(attachedDatabase, alias);
+  }
+}
+
+class InstructionInterview extends DataClass
+    implements Insertable<InstructionInterview> {
+  final int workspaceId;
+
+  /// JSON of `InterviewData` (rounds, findings, questions, answers, draft,
+  /// summary and the proposal).
+  final String data;
+
+  /// Provider fixed when it started (R17): `claude` / `codex`.
+  final String provider;
+
+  /// Model the provider reported in the last round.
+  final String? model;
+
+  /// Local id of the thread (`agent.run.<id>.*`): the Claude session, or
+  /// the key of the Codex thread (R18).
+  final String? threadId;
+
+  /// sha256 of the root `AGENTS.md` + `CLAUDE.md` when the AI last read
+  /// them (R18: changed = it reads them again).
+  final String? filesHash;
+  final int tokens;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  /// Set by "Pausar"; null = open.
+  final DateTime? pausedAt;
+  const InstructionInterview({
+    required this.workspaceId,
+    required this.data,
+    required this.provider,
+    this.model,
+    this.threadId,
+    this.filesHash,
+    required this.tokens,
+    required this.createdAt,
+    required this.updatedAt,
+    this.pausedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['data'] = Variable<String>(data);
+    map['provider'] = Variable<String>(provider);
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
+    if (!nullToAbsent || threadId != null) {
+      map['thread_id'] = Variable<String>(threadId);
+    }
+    if (!nullToAbsent || filesHash != null) {
+      map['files_hash'] = Variable<String>(filesHash);
+    }
+    map['tokens'] = Variable<int>(tokens);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || pausedAt != null) {
+      map['paused_at'] = Variable<DateTime>(pausedAt);
+    }
+    return map;
+  }
+
+  InstructionInterviewsCompanion toCompanion(bool nullToAbsent) {
+    return InstructionInterviewsCompanion(
+      workspaceId: Value(workspaceId),
+      data: Value(data),
+      provider: Value(provider),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
+      threadId: threadId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(threadId),
+      filesHash: filesHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filesHash),
+      tokens: Value(tokens),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      pausedAt: pausedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pausedAt),
+    );
+  }
+
+  factory InstructionInterview.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InstructionInterview(
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      data: serializer.fromJson<String>(json['data']),
+      provider: serializer.fromJson<String>(json['provider']),
+      model: serializer.fromJson<String?>(json['model']),
+      threadId: serializer.fromJson<String?>(json['threadId']),
+      filesHash: serializer.fromJson<String?>(json['filesHash']),
+      tokens: serializer.fromJson<int>(json['tokens']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      pausedAt: serializer.fromJson<DateTime?>(json['pausedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'data': serializer.toJson<String>(data),
+      'provider': serializer.toJson<String>(provider),
+      'model': serializer.toJson<String?>(model),
+      'threadId': serializer.toJson<String?>(threadId),
+      'filesHash': serializer.toJson<String?>(filesHash),
+      'tokens': serializer.toJson<int>(tokens),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'pausedAt': serializer.toJson<DateTime?>(pausedAt),
+    };
+  }
+
+  InstructionInterview copyWith({
+    int? workspaceId,
+    String? data,
+    String? provider,
+    Value<String?> model = const Value.absent(),
+    Value<String?> threadId = const Value.absent(),
+    Value<String?> filesHash = const Value.absent(),
+    int? tokens,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> pausedAt = const Value.absent(),
+  }) => InstructionInterview(
+    workspaceId: workspaceId ?? this.workspaceId,
+    data: data ?? this.data,
+    provider: provider ?? this.provider,
+    model: model.present ? model.value : this.model,
+    threadId: threadId.present ? threadId.value : this.threadId,
+    filesHash: filesHash.present ? filesHash.value : this.filesHash,
+    tokens: tokens ?? this.tokens,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    pausedAt: pausedAt.present ? pausedAt.value : this.pausedAt,
+  );
+  InstructionInterview copyWithCompanion(InstructionInterviewsCompanion data) {
+    return InstructionInterview(
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      data: data.data.present ? data.data.value : this.data,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      model: data.model.present ? data.model.value : this.model,
+      threadId: data.threadId.present ? data.threadId.value : this.threadId,
+      filesHash: data.filesHash.present ? data.filesHash.value : this.filesHash,
+      tokens: data.tokens.present ? data.tokens.value : this.tokens,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      pausedAt: data.pausedAt.present ? data.pausedAt.value : this.pausedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstructionInterview(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('data: $data, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model, ')
+          ..write('threadId: $threadId, ')
+          ..write('filesHash: $filesHash, ')
+          ..write('tokens: $tokens, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('pausedAt: $pausedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    workspaceId,
+    data,
+    provider,
+    model,
+    threadId,
+    filesHash,
+    tokens,
+    createdAt,
+    updatedAt,
+    pausedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InstructionInterview &&
+          other.workspaceId == this.workspaceId &&
+          other.data == this.data &&
+          other.provider == this.provider &&
+          other.model == this.model &&
+          other.threadId == this.threadId &&
+          other.filesHash == this.filesHash &&
+          other.tokens == this.tokens &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.pausedAt == this.pausedAt);
+}
+
+class InstructionInterviewsCompanion
+    extends UpdateCompanion<InstructionInterview> {
+  final Value<int> workspaceId;
+  final Value<String> data;
+  final Value<String> provider;
+  final Value<String?> model;
+  final Value<String?> threadId;
+  final Value<String?> filesHash;
+  final Value<int> tokens;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> pausedAt;
+  const InstructionInterviewsCompanion({
+    this.workspaceId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.model = const Value.absent(),
+    this.threadId = const Value.absent(),
+    this.filesHash = const Value.absent(),
+    this.tokens = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.pausedAt = const Value.absent(),
+  });
+  InstructionInterviewsCompanion.insert({
+    this.workspaceId = const Value.absent(),
+    this.data = const Value.absent(),
+    required String provider,
+    this.model = const Value.absent(),
+    this.threadId = const Value.absent(),
+    this.filesHash = const Value.absent(),
+    this.tokens = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.pausedAt = const Value.absent(),
+  }) : provider = Value(provider);
+  static Insertable<InstructionInterview> custom({
+    Expression<int>? workspaceId,
+    Expression<String>? data,
+    Expression<String>? provider,
+    Expression<String>? model,
+    Expression<String>? threadId,
+    Expression<String>? filesHash,
+    Expression<int>? tokens,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? pausedAt,
+  }) {
+    return RawValuesInsertable({
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (data != null) 'data': data,
+      if (provider != null) 'provider': provider,
+      if (model != null) 'model': model,
+      if (threadId != null) 'thread_id': threadId,
+      if (filesHash != null) 'files_hash': filesHash,
+      if (tokens != null) 'tokens': tokens,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (pausedAt != null) 'paused_at': pausedAt,
+    });
+  }
+
+  InstructionInterviewsCompanion copyWith({
+    Value<int>? workspaceId,
+    Value<String>? data,
+    Value<String>? provider,
+    Value<String?>? model,
+    Value<String?>? threadId,
+    Value<String?>? filesHash,
+    Value<int>? tokens,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? pausedAt,
+  }) {
+    return InstructionInterviewsCompanion(
+      workspaceId: workspaceId ?? this.workspaceId,
+      data: data ?? this.data,
+      provider: provider ?? this.provider,
+      model: model ?? this.model,
+      threadId: threadId ?? this.threadId,
+      filesHash: filesHash ?? this.filesHash,
+      tokens: tokens ?? this.tokens,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      pausedAt: pausedAt ?? this.pausedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (threadId.present) {
+      map['thread_id'] = Variable<String>(threadId.value);
+    }
+    if (filesHash.present) {
+      map['files_hash'] = Variable<String>(filesHash.value);
+    }
+    if (tokens.present) {
+      map['tokens'] = Variable<int>(tokens.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (pausedAt.present) {
+      map['paused_at'] = Variable<DateTime>(pausedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstructionInterviewsCompanion(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('data: $data, ')
+          ..write('provider: $provider, ')
+          ..write('model: $model, ')
+          ..write('threadId: $threadId, ')
+          ..write('filesHash: $filesHash, ')
+          ..write('tokens: $tokens, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('pausedAt: $pausedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -21453,6 +22067,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RestorePointsTable restorePoints = $RestorePointsTable(this);
   late final $SecretWaiversTable secretWaivers = $SecretWaiversTable(this);
   late final $DebtLinksTable debtLinks = $DebtLinksTable(this);
+  late final $InstructionInterviewsTable instructionInterviews =
+      $InstructionInterviewsTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
@@ -21517,6 +22133,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     restorePoints,
     secretWaivers,
     debtLinks,
+    instructionInterviews,
     snippetsBodyHash,
     activityEventsAt,
     usageEntriesSpec,
@@ -21814,6 +22431,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('debt_links', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('instruction_interviews', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -22070,6 +22694,31 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_secretWaiversRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $InstructionInterviewsTable,
+    List<InstructionInterview>
+  >
+  _instructionInterviewsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.instructionInterviews,
+        aliasName: 'workspaces__id__instruction_interviews__workspace_id',
+      );
+
+  $$InstructionInterviewsTableProcessedTableManager
+  get instructionInterviewsRefs {
+    final manager = $$InstructionInterviewsTableTableManager(
+      $_db,
+      $_db.instructionInterviews,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _instructionInterviewsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -22427,6 +23076,32 @@ class $$WorkspacesTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> instructionInterviewsRefs(
+    Expression<bool> Function($$InstructionInterviewsTableFilterComposer f) f,
+  ) {
+    final $$InstructionInterviewsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.instructionInterviews,
+          getReferencedColumn: (t) => t.workspaceId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InstructionInterviewsTableFilterComposer(
+                $db: $db,
+                $table: $db.instructionInterviews,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -22806,6 +23481,32 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> instructionInterviewsRefs<T extends Object>(
+    Expression<T> Function($$InstructionInterviewsTableAnnotationComposer a) f,
+  ) {
+    final $$InstructionInterviewsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.instructionInterviews,
+          getReferencedColumn: (t) => t.workspaceId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InstructionInterviewsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.instructionInterviews,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -22835,6 +23536,7 @@ class $$WorkspacesTableTableManager
             bool usageEntriesRefs,
             bool restorePointsRefs,
             bool secretWaiversRefs,
+            bool instructionInterviewsRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -22895,6 +23597,7 @@ class $$WorkspacesTableTableManager
                 usageEntriesRefs = false,
                 restorePointsRefs = false,
                 secretWaiversRefs = false,
+                instructionInterviewsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -22912,6 +23615,7 @@ class $$WorkspacesTableTableManager
                     if (usageEntriesRefs) db.usageEntries,
                     if (restorePointsRefs) db.restorePoints,
                     if (secretWaiversRefs) db.secretWaivers,
+                    if (instructionInterviewsRefs) db.instructionInterviews,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -23189,6 +23893,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (instructionInterviewsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          InstructionInterview
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._instructionInterviewsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).instructionInterviewsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -23223,6 +23948,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool usageEntriesRefs,
         bool restorePointsRefs,
         bool secretWaiversRefs,
+        bool instructionInterviewsRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -39622,6 +40348,433 @@ typedef $$DebtLinksTableProcessedTableManager =
         bool piggybackSpecId,
       })
     >;
+typedef $$InstructionInterviewsTableCreateCompanionBuilder =
+    InstructionInterviewsCompanion Function({
+      Value<int> workspaceId,
+      Value<String> data,
+      required String provider,
+      Value<String?> model,
+      Value<String?> threadId,
+      Value<String?> filesHash,
+      Value<int> tokens,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> pausedAt,
+    });
+typedef $$InstructionInterviewsTableUpdateCompanionBuilder =
+    InstructionInterviewsCompanion Function({
+      Value<int> workspaceId,
+      Value<String> data,
+      Value<String> provider,
+      Value<String?> model,
+      Value<String?> threadId,
+      Value<String?> filesHash,
+      Value<int> tokens,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> pausedAt,
+    });
+
+final class $$InstructionInterviewsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $InstructionInterviewsTable,
+          InstructionInterview
+        > {
+  $$InstructionInterviewsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) => db.workspaces
+      .createAlias('instruction_interviews__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$InstructionInterviewsTableFilterComposer
+    extends Composer<_$AppDatabase, $InstructionInterviewsTable> {
+  $$InstructionInterviewsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get threadId => $composableBuilder(
+    column: $table.threadId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filesHash => $composableBuilder(
+    column: $table.filesHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokens => $composableBuilder(
+    column: $table.tokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pausedAt => $composableBuilder(
+    column: $table.pausedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InstructionInterviewsTableOrderingComposer
+    extends Composer<_$AppDatabase, $InstructionInterviewsTable> {
+  $$InstructionInterviewsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get threadId => $composableBuilder(
+    column: $table.threadId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filesHash => $composableBuilder(
+    column: $table.filesHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokens => $composableBuilder(
+    column: $table.tokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get pausedAt => $composableBuilder(
+    column: $table.pausedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InstructionInterviewsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InstructionInterviewsTable> {
+  $$InstructionInterviewsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get threadId =>
+      $composableBuilder(column: $table.threadId, builder: (column) => column);
+
+  GeneratedColumn<String> get filesHash =>
+      $composableBuilder(column: $table.filesHash, builder: (column) => column);
+
+  GeneratedColumn<int> get tokens =>
+      $composableBuilder(column: $table.tokens, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get pausedAt =>
+      $composableBuilder(column: $table.pausedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InstructionInterviewsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InstructionInterviewsTable,
+          InstructionInterview,
+          $$InstructionInterviewsTableFilterComposer,
+          $$InstructionInterviewsTableOrderingComposer,
+          $$InstructionInterviewsTableAnnotationComposer,
+          $$InstructionInterviewsTableCreateCompanionBuilder,
+          $$InstructionInterviewsTableUpdateCompanionBuilder,
+          (InstructionInterview, $$InstructionInterviewsTableReferences),
+          InstructionInterview,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$InstructionInterviewsTableTableManager(
+    _$AppDatabase db,
+    $InstructionInterviewsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InstructionInterviewsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$InstructionInterviewsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$InstructionInterviewsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<String> provider = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                Value<String?> threadId = const Value.absent(),
+                Value<String?> filesHash = const Value.absent(),
+                Value<int> tokens = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> pausedAt = const Value.absent(),
+              }) => InstructionInterviewsCompanion(
+                workspaceId: workspaceId,
+                data: data,
+                provider: provider,
+                model: model,
+                threadId: threadId,
+                filesHash: filesHash,
+                tokens: tokens,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                pausedAt: pausedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                required String provider,
+                Value<String?> model = const Value.absent(),
+                Value<String?> threadId = const Value.absent(),
+                Value<String?> filesHash = const Value.absent(),
+                Value<int> tokens = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> pausedAt = const Value.absent(),
+              }) => InstructionInterviewsCompanion.insert(
+                workspaceId: workspaceId,
+                data: data,
+                provider: provider,
+                model: model,
+                threadId: threadId,
+                filesHash: filesHash,
+                tokens: tokens,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                pausedAt: pausedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $InstructionInterviewsTable,
+                    InstructionInterview
+                  >(table),
+                  $$InstructionInterviewsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$InstructionInterviewsTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$InstructionInterviewsTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$InstructionInterviewsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InstructionInterviewsTable,
+      InstructionInterview,
+      $$InstructionInterviewsTableFilterComposer,
+      $$InstructionInterviewsTableOrderingComposer,
+      $$InstructionInterviewsTableAnnotationComposer,
+      $$InstructionInterviewsTableCreateCompanionBuilder,
+      $$InstructionInterviewsTableUpdateCompanionBuilder,
+      (InstructionInterview, $$InstructionInterviewsTableReferences),
+      InstructionInterview,
+      PrefetchHooks Function({bool workspaceId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -39688,4 +40841,6 @@ class $AppDatabaseManager {
       $$SecretWaiversTableTableManager(_db, _db.secretWaivers);
   $$DebtLinksTableTableManager get debtLinks =>
       $$DebtLinksTableTableManager(_db, _db.debtLinks);
+  $$InstructionInterviewsTableTableManager get instructionInterviews =>
+      $$InstructionInterviewsTableTableManager(_db, _db.instructionInterviews);
 }
