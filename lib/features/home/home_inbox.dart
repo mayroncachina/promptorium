@@ -120,6 +120,7 @@ List<InboxGroup> buildInbox({
   required Map<String, PrWatch> prWatches,
   required bool Function(String sessionId) isAlive,
   List<PendingSecret> secrets = const [],
+  Set<String> divertedSessions = const {},
 }) {
   final byId = {for (final s in specs) s.id: s};
   final sessionById = {for (final s in sessions) s.id: s};
@@ -250,7 +251,10 @@ List<InboxGroup> buildInbox({
     for (final s in sessions)
       if ((s.status == SessionStatus.interrupted ||
               s.status == SessionStatus.failed) &&
-          !isAlive(s.id))
+          !isAlive(s.id) &&
+          // SPEC-109 R5: the quota ended it and the step went on in the other
+          // provider; "Retomar" would redo it over work already done.
+          !divertedSessions.contains(s.id))
         InboxItem(
           kind: InboxKind.interrupted,
           ref: stepRef(byId[s.specId], s.steps),
@@ -348,6 +352,8 @@ final workspaceInboxProvider = Provider.autoDispose
             ref.watch(reviewQueueProvider(workspaceId)).value ?? const [],
         prWatches: ref.watch(prBabysitterProvider),
         isAlive: manager.isAlive,
+        divertedSessions:
+            ref.watch(divertedSessionIdsProvider).value ?? const {},
         secrets: [
           for (final p in ref.watch(secretBlocksProvider).values)
             if (p.workspaceId == workspaceId) p,

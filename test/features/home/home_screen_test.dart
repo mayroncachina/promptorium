@@ -96,10 +96,16 @@ void main() {
       reviewQueue: const [],
       prWatches: {
         'c': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'analyze', state: 'FAILURE')]),
+          status: PrStatus(
+            state: 'OPEN',
+            checks: [PrCheck(name: 'analyze', state: 'FAILURE')],
+          ),
         ),
         'a': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'test', state: 'SUCCESS')]),
+          status: PrStatus(
+            state: 'OPEN',
+            checks: [PrCheck(name: 'test', state: 'SUCCESS')],
+          ),
         ),
       },
       isAlive: (id) => id == 'd', // resumed meanwhile: not interrupted
@@ -115,6 +121,39 @@ void main() {
     );
     expect(groups.last.items.last.title, 'Sessão falhou');
     expect(groups.first.items.single.title, 'CI falhou em analyze');
+  });
+
+  test('SPEC-109 R5: a session the quota divert replaced is not offered to '
+      'resume', () {
+    final now = DateTime(2026, 11, 26, 10);
+    Session session(String id) => Session(
+      provider: 'claude',
+      id: id,
+      workspaceId: 1,
+      worktreePath: '/w/$id',
+      branch: 'pr/$id',
+      status: SessionStatus.failed,
+      model: 'haiku',
+      title: 'Sessão $id',
+      costUsd: 0,
+      tokensIn: 0,
+      tokensOut: 0,
+      startedAt: now.subtract(const Duration(hours: 1)),
+      endedAt: now,
+    );
+    final groups = buildInbox(
+      sessionApprovals: const [],
+      conversationApprovals: const {},
+      specs: const [],
+      stepRows: const [],
+      sessions: [session('limite'), session('outra')],
+      reviewQueue: const [],
+      prWatches: const {},
+      isAlive: (_) => false,
+      divertedSessions: const {'limite'},
+    );
+    expect(groups.single.kind, InboxKind.interrupted);
+    expect(groups.single.items.map((i) => i.sessionId), ['outra']);
   });
 
   testWidgets('Início lists the interrupted session, counts it on the '

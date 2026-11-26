@@ -616,6 +616,27 @@ void main() {
       expect(await repo.byStep(s.id, 'R9'), isNull);
     });
 
+    test('SPEC-109 R5: the sessions a quota divert replaced', () async {
+      final s = await spec();
+      final repo = StepRunsRepo(db);
+      Future<void> add(String? session, StepRunResult r, {String? why}) =>
+          repo.add(
+            specId: s.id,
+            step: 'R1',
+            kind: 'mecanica',
+            model: 'haiku',
+            sessionId: session,
+            result: r,
+            diverted: why,
+          );
+      await add('limite', StepRunResult.diverted, why: 'quota');
+      // The run on the other provider carries the reason too, but passed.
+      await add('codex', StepRunResult.passed, why: 'quota');
+      await add('falhou', StepRunResult.failed);
+      await add(null, StepRunResult.diverted, why: 'quota');
+      expect(await repo.watchDivertedSessionIds().first, {'limite'});
+    });
+
     test('step runs are read by period, oldest first', () async {
       final s = await spec();
       final repo = StepRunsRepo(db);
