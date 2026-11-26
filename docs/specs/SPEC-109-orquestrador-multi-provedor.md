@@ -1,6 +1,6 @@
 ---
 id: SPEC-109
-status: em implementação
+status: concluida
 versao: 0.27.0
 tipo: recurso
 epico: 332
@@ -148,7 +148,7 @@ Quem não liga nada continua com o comportamento de hoje: as regras padrão são
 - [x] A classificação roda no modelo escolhido, inclusive no Codex, e mantém o cache [R11] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
 - [x] O piloto segue as mesmas regras, e "Pausar automáticos" impede desvios e agendamentos [R12] verificar: flutter test test/features/board/autopilot_test.dart
 - [x] O Histórico agrupa por tipo e provedor, conta os desvios e mostra tokens, sem US$ no Codex [R13] verificar: flutter test test/features/settings/orchestrator_history_test.dart
-- [ ] No app isolado, uma spec em Automático com a cota do Claude esgotando na R4 segue no Codex e volta ao Claude depois da renovação [R5–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, `fake_codex`, prints em `docs/mockups/spec-109/app/`)
+- [x] No app isolado, uma spec em Automático com a cota do Claude esgotando na R4 segue no Codex e volta ao Claude depois da renovação [R5–R10] verificar: manual (xdotool, `XDG_DATA_HOME`, `fake_codex`, prints em `docs/mockups/spec-109/app/`)
 - [x] O projeto compila, a migração tem teste e a análise estática passa [R1–R14] verificar: flutter analyze e flutter test test/data/migration_test.dart
 
 ## Telas
@@ -173,4 +173,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/6eD6puW5gbjEXZqqXRD
   - Numa etapa planejada para o Codex o `--agent` não vai (R10 e "Fora do escopo"), embora a SPEC-106 traduza o agente nas execuções Manuais.
   - O modo escolhido no Executar em Automático fica guardado por spec; o YOLO forçado do Codex sem sandbox nunca passa para uma etapa do Claude.
   - Segunda opinião cortada pela cota espera a pessoa em vez de voltar ao plano que já reprovou.
-- O critério manual (E2E no app isolado) não foi feito: o lançamento do app de teste foi negado pelo sistema de permissões nesta sessão.
+- E2E no app isolado (26/11/2026, depois do merge; build da main `d6db4581`, Xephyr, `XDG_DATA_HOME`/`HOME`/`CODEX_HOME` no scratchpad, Claude e Codex falsos, nenhum turno pago). Prints em `docs/mockups/spec-109/app/`:
+  - **Migração:** o banco v37 do E2E da SPEC-108 (1 workspace, 1 spec com 2 etapas, 2 sessões) abriu como v38, com os dados, as colunas novas nulas (= Claude), a cópia `bak-v37` e `integrity_check` ok.
+  - **Padrão:** regras todas no Claude, reservas no Codex preenchidas, desvio desligado.
+  - **Desvio:** com o desvio ligado, a cota do Claude acabou no meio da R1 (a etapa não é a R4 do critério: a spec de teste tem 2 etapas). A sessão terminou, a worktree voltou ao início da etapa, o que a tentativa deixou ficou em `refs/promptorium/SPEC-002/R1-cota`, e a R1 seguiu no Codex com o pacote ("interrompida porque a cota dele acabou, não foi reprovada"). A raiz do repositório não mudou.
+  - **Volta ao plano:** com a renovação em 50 s, a R1 desviou e a R2 voltou ao Claude (Sonnet). Com a renovação em 2 h, a R2 também foi para o Codex.
+  - **Histórico:** Mecânica · Claude com 1 desvio e US$; Mecânica e Implementação · Codex com tokens e sem US$.
+  - **Falha de tela encontrada:** no painel da spec, a etapa interrompida pela cota e concluída no Codex não mostra o selo do Codex nem "desviada"; só a etapa que já começou no Codex mostra, e o texto "desviada: cota do Claude · volta …" fica cortado. O banco (`step_runs.provider`/`diverted`) e o Histórico estão certos.
+  - Não verificado no app: "Retomar quando renovar", desvio preventivo, segunda opinião, Revisão no Codex e o piloto.
