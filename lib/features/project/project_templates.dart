@@ -3,7 +3,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../core/providers/workspace_assets.dart'
-    show agentsMdMarker, agentsMdName, claudeMdName;
+    show
+        agentsMdMarker,
+        agentsMdName,
+        claudeImportLine,
+        claudeImportLines,
+        claudeMdName;
 import 'project_config.dart';
 import 'project_plan.dart' show StackCommands, StackDecision;
 import 'stack_commands.dart';
@@ -47,7 +52,7 @@ class ProjectTemplate {
 
   /// Instructions written at creation (null = none; the planner proposes).
   /// They go to the `AGENTS.md`, and the `CLAUDE.md` gets the import
-  /// (SPEC-113 R2, [writeInstructionFiles]).
+  /// (SPEC-113 R2, [writeNewProjectInstructions]).
   final String? claudeMd;
 
   /// The skeleton command of a custom stack (empty for the built-in ones).
@@ -195,12 +200,8 @@ String? _read(String path) {
   }
 }
 
-// TODO(SPEC-113 T1): trocar pela constante do import de workspace_assets.dart
-// (claudeImportLine) quando a T1 entrar na branch pai.
-const _claudeImportLine = '@AGENTS.md';
-
 /// The `CLAUDE.md` of a new project: only the import (SPEC-113 R2).
-const claudeImportMd = '$_claudeImportLine\n';
+const claudeImportMd = '$claudeImportLine\n';
 
 /// Who wrote an instruction file at the root of a project being created.
 enum InstructionFileOwner {
@@ -246,8 +247,7 @@ bool _isTemplateText(String text) {
 }
 
 bool _isImportOnly(String text) {
-  final mine = text.trim();
-  return mine == _claudeImportLine || mine == '@./AGENTS.md';
+  return claudeImportLines.contains(text.trim());
 }
 
 /// Who wrote the `AGENTS.md` and the `CLAUDE.md` of [path]. [text] is what
@@ -280,7 +280,10 @@ InstructionFiles instructionFilesOf(String path, {String? text}) {
 /// `CLAUDE.md` (SPEC-113 R2). Returns the two names, or nothing when [text]
 /// is empty or a file of the person's is there ([InstructionFiles.blocked]):
 /// then neither file is touched.
-Future<List<String>> writeInstructionFiles(String path, String text) async {
+Future<List<String>> writeNewProjectInstructions(
+  String path,
+  String text,
+) async {
   if (text.trim().isEmpty) return const [];
   if (instructionFilesOf(path, text: text).blocked) return const [];
   await File('$path/$agentsMdName').writeAsString(text);
