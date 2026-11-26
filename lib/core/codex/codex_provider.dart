@@ -874,6 +874,9 @@ class CodexRun implements ManagedAgentRun {
           if (turn['status'] == 'interrupted')
             'interrupt_reason': _interruptAsked ? 'user' : 'agent',
           'result': _answer,
+          // SPEC-108 R7: the turn's own time, when the server tells it.
+          if (turn['durationMs'] is num)
+            'duration_ms': (turn['durationMs'] as num).toInt(),
           'cost_available': false,
           // "Compactar agora" is not a work turn (SPEC-087 R9).
           'num_turns': compactTurn ? 0 : 1,

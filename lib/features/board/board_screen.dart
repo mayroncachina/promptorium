@@ -46,6 +46,7 @@ import '../issues/issue_state_watcher.dart';
 import '../issues/widgets/issue_badge.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
+import 'widgets/duel_start_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
@@ -2575,10 +2576,16 @@ class _CardMenu extends ConsumerWidget {
               ref.read(boardSelectedSpecProvider.notifier).select(spec.id);
             case 'duel':
               final messenger = ScaffoldMessenger.maybeOf(context);
+              // SPEC-108 R11: each attempt picks its provider first.
+              final runner = ref.read(specRunnerProvider);
+              final attempts = await showDuelStartDialog(context, spec);
+              if (attempts == null) return;
               try {
-                await ref
-                    .read(specRunnerProvider)
-                    .runNext(spec.id, duel: true, reviewUnblocks: true);
+                await runner.runDuel(
+                  spec.id,
+                  attempts,
+                  reviewUnblocks: true,
+                );
               } catch (e) {
                 messenger?.showAppToast(SnackBar(content: Text('$e')));
               }

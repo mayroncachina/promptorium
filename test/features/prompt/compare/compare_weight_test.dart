@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_event.dart' show QuotaWindow;
+import 'package:promptorium/core/providers/quota_source.dart';
 import 'package:promptorium/core/providers/agent_provider.dart';
 import 'package:promptorium/features/prompt/compare/compare_run.dart';
 import 'package:promptorium/features/prompt/compare/compare_weight.dart';
@@ -68,6 +70,153 @@ void main() {
     });
   });
 
+  group('each side on its quota (SPEC-108 R8)', () {
+    CompareSide side(
+      String letter,
+      String provider, {
+      double cost = 0,
+      int tokens = 0,
+    }) => CompareSide(
+      letter: letter,
+      provider: provider,
+      model: 'm',
+      mode: PromptMode.ask,
+      state: CompareSideState.done,
+      metrics: CompareMetrics(costUsd: cost, tokensIn: tokens),
+    );
+    const before = {
+      'claude': UsageReading(five: 0.38, week: 0.61),
+      'codex': UsageReading(five: 0.12, week: 0.30),
+    };
+    const after = {
+      'claude': UsageReading(five: 0.44, week: 0.62),
+      'codex': UsageReading(five: 0.15, week: 0.31),
+    };
+
+    test('different providers: the whole variation, no cost, no ratio', () {
+      final sides = [side('A', 'claude', cost: 5), side('B', 'codex')];
+      final w = compareRunWeights(sides: sides, before: before, after: after);
+      expect(w.measured, isTrue);
+      expect(w.weights['A']!.five, closeTo(0.06, 1e-9));
+      expect(w.weights['B']!.five, closeTo(0.03, 1e-9));
+      expect(w.weights['B']!.week, closeTo(0.01, 1e-9));
+      final a = sides[0].copyWith(weight: w.weights['A']);
+      final b = sides[1].copyWith(weight: w.weights['B']);
+      expect(compareRatio(a, b).weight, isNull);
+      // Nor by the cost, without weights.
+      expect(compareRatio(sides[0], sides[1]).weight, isNull);
+    });
+
+    test('a quota without both readings has no weight', () {
+      final w = compareRunWeights(
+        sides: [side('A', 'claude', cost: 5), side('B', 'codex')],
+        before: {'codex': before['codex']!},
+        after: {'codex': after['codex']!},
+        lastClaude: const UsageReading(five: .4),
+        windowCosts: const {'x': 1},
+      );
+      expect(w.weights.keys, ['B']);
+      expect(w.measured, isFalse);
+    });
+
+    test('both on the Codex: the share of the total tokens', () {
+      final w = compareRunWeights(
+        sides: [
+          side('A', 'codex', tokens: 10000),
+          side('B', 'codex', tokens: 20000),
+        ],
+        before: before,
+        after: after,
+      );
+      expect(w.weights['A']!.five, closeTo(0.01, 1e-9));
+      expect(w.weights['B']!.five, closeTo(0.02, 1e-9));
+    });
+
+    test('both on the Claude: the rule of SPEC-079, with its fallback', () {
+      final sides = [
+        side('A', 'claude', cost: 1),
+        side('B', 'claude', cost: 3),
+      ];
+      final w = compareRunWeights(sides: sides, before: before, after: after);
+      expect(w.weights['B']!.five, closeTo(0.045, 1e-9));
+      final f = compareRunWeights(
+        sides: sides,
+        before: const {},
+        after: const {},
+        lastClaude: const UsageReading(five: 0.40, week: 0.60),
+      );
+      expect(f.measured, isFalse);
+      expect(f.weights['B']!.five, closeTo(0.30, 1e-9));
+    });
+
+    test('time and tokens of B over A', () {
+      CompareSide m(String l, int ms, int tokens) => CompareSide(
+        letter: l,
+        model: 'm',
+        mode: PromptMode.ask,
+        metrics: CompareMetrics(durationMs: ms, tokensIn: tokens),
+      );
+      expect(
+        compareTimeTokens(m('A', 100, 100), m('B', 60, 130)),
+        'B levou 0,6× o tempo · usou 1,3× os tokens',
+      );
+      expect(
+        compareTimeTokens(
+          m('A', 100, 100),
+          const CompareSide(letter: 'B', model: 'm', mode: PromptMode.ask),
+        ),
+        isNull,
+      );
+    });
+
+    test('the windows have the real durations', () {
+      final r = UsageReading.ofSnapshot(
+        const QuotaSnapshot(
+          provider: 'codex',
+          main: QuotaBucket(
+            id: 'codex',
+            windows: [
+              QuotaWindow(
+                id: 'primary',
+                label: '',
+                usedPercent: 12,
+                minutes: 720,
+              ),
+              QuotaWindow(
+                id: 'secondary',
+                label: '',
+                usedPercent: 30,
+                minutes: 10080,
+              ),
+            ],
+          ),
+        ),
+      )!;
+      expect((r.five, r.week), (0.12, 0.30));
+      expect(compareWindowLabel(r.fiveMinutes), 'janela de 12 h');
+      expect(compareWindowLabel(r.weekMinutes), 'semana');
+      expect(compareWindowSpoken(300), 'janela de 5 horas');
+      // A single weekly window is the long one.
+      final w = UsageReading.ofSnapshot(
+        const QuotaSnapshot(
+          provider: 'codex',
+          main: QuotaBucket(
+            id: 'codex',
+            windows: [
+              QuotaWindow(
+                id: 'primary',
+                label: '',
+                usedPercent: 30,
+                minutes: 10080,
+              ),
+            ],
+          ),
+        ),
+      )!;
+      expect((w.five, w.week), (null, 0.30));
+    });
+  });
+
   group('labels (R7, R15)', () {
     test('time, tokens, calls and weight, never US\$', () {
       expect(compareDuration(38000), '38 s');
@@ -87,7 +236,11 @@ void main() {
         compareCalls({'Read': 9, 'Grep': 1, 'Glob': 1}),
         '9 leituras · 2 buscas',
       );
-      expect(compareCalls({'Read': 1, 'Bash': 1}), '1 leitura · 1 outra');
+      expect(compareCalls({'Read': 1, 'Bash': 1}), '1 leitura · 1 comando');
+      expect(
+        compareCalls({'mcp__github__get': 2, 'WebSearch': 1, 'Edit': 1}),
+        '2 chamadas MCP · 1 consulta web · 1 outra',
+      );
       expect(compareCalls({}), 'nenhuma');
       expect(compareWeightLabel(0.012), '≈ 1,2%');
       expect(compareWeightSpoken(0.012), 'cerca de 1,2 por cento');
@@ -125,33 +278,39 @@ void main() {
   group('sides (R1–R3, P8)', () {
     test('B is the other model in the same mode; Editar becomes Perguntar', () {
       expect(defaultCompareSides('sonnet', PromptMode.plan), (
-        (model: 'sonnet', mode: PromptMode.plan),
-        (model: 'opus', mode: PromptMode.plan),
+        CompareChoice(model: 'sonnet', mode: PromptMode.plan),
+        CompareChoice(model: 'opus', mode: PromptMode.plan),
       ));
       expect(defaultCompareSides('opus', PromptMode.ask).$2.model, 'sonnet');
       expect(defaultCompareSides('haiku', PromptMode.ask).$2.model, 'sonnet');
       expect(defaultCompareSides('inherit', PromptMode.edit), (
-        (model: 'sonnet', mode: PromptMode.ask),
-        (model: 'opus', mode: PromptMode.ask),
+        CompareChoice(model: 'sonnet', mode: PromptMode.ask),
+        CompareChoice(model: 'opus', mode: PromptMode.ask),
       ));
     });
 
     test('equal sides and Editar cannot be sent', () {
-      const ask = (model: 'sonnet', mode: PromptMode.ask);
+      const ask = CompareChoice(model: 'sonnet', mode: PromptMode.ask);
       expect(compareSidesProblem(ask, ask), compareSameSidesMessage);
       expect(
-        compareSidesProblem(ask, (model: 'opus', mode: PromptMode.edit)),
+        compareSidesProblem(
+          ask,
+          CompareChoice(model: 'opus', mode: PromptMode.edit),
+        ),
         compareEditHint,
       );
       expect(
-        compareSidesProblem(ask, (model: 'sonnet', mode: PromptMode.plan)),
+        compareSidesProblem(
+          ask,
+          CompareChoice(model: 'sonnet', mode: PromptMode.plan),
+        ),
         isNull,
       );
     });
 
     test('the last pair round-trips; an invalid one is ignored', () {
-      const a = (model: 'sonnet', mode: PromptMode.plan);
-      const b = (model: 'sonnet', mode: PromptMode.ask);
+      const a = CompareChoice(model: 'sonnet', mode: PromptMode.plan);
+      const b = CompareChoice(model: 'sonnet', mode: PromptMode.ask);
       expect(decodeCompareSides(encodeCompareSides(a, b)), (a, b));
       expect(decodeCompareSides(encodeCompareSides(a, a)), isNull);
       expect(decodeCompareSides('x'), isNull);
@@ -185,7 +344,7 @@ void main() {
         originalSessionId: 'orig',
         originalModel: 'sonnet',
         originalMode: PromptMode.ask,
-        before: const UsageReading(five: 0.38, week: 0.61),
+        before: const {'claude': UsageReading(five: 0.38, week: 0.61)},
       );
       final back = CompareRun.fromJson(run.toJson(), conversationId: 1)!;
       expect(back.prompt, 'por quê?');
@@ -196,7 +355,7 @@ void main() {
       expect(back.b.plan, '1. x');
       expect(back.b.state, CompareSideState.planReady);
       expect(back.originalSessionId, 'orig');
-      expect(back.before!.five, 0.38);
+      expect(back.before['claude']!.five, 0.38);
       expect(run.toJson().toString(), isNot(contains('US\$')));
     });
   });
