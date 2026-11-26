@@ -91,8 +91,27 @@ class PlanQuotaHeader extends ConsumerWidget {
   }
 }
 
+/// The last attempt of each step of [specId] that ran away from its plan's
+/// provider and did not stop there (R13, R14): the step keeps the badge after
+/// the divert of the spec moves to the next step or ends.
+final stepRunDivertsProvider = StreamProvider.family<Map<String, StepRun>, int>(
+  (ref, specId) =>
+      ref.watch(stepRunsRepoProvider).watchBySpec(specId).map((runs) {
+        final last = <String, StepRun>{};
+        for (final r in runs) {
+          last[r.step] = r;
+        }
+        return {
+          for (final e in last.entries)
+            if (DivertReason.parse(e.value.diverted) != null &&
+                e.value.result != StepRunResult.diverted)
+              e.key: e.value,
+        };
+      }),
+);
+
 /// The line of a spec whose step was diverted (R5, R14): on the card and in
-/// the list of steps. Nothing when the spec is on its plan.
+/// the list of steps. Nothing when the step ran on its plan.
 class SpecDivertLine extends ConsumerWidget {
   const SpecDivertLine({
     super.key,
@@ -113,7 +132,16 @@ class SpecDivertLine extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = ref.watch(specDivertProvider(specId));
-    if (d == null || d.step != step) return const SizedBox.shrink();
+    if (d == null || d.step != step) {
+      // In the list of steps, a step that already ran diverted.
+      final runs = provider && step != null
+          ? ref.watch(stepRunDivertsProvider(specId)).value
+          : null;
+      final run = runs == null ? null : runs[step];
+      return run == null
+          ? const SizedBox.shrink()
+          : _RecordedDivertLine(run: run);
+    }
     return Semantics(
       label: d.spoken,
       liveRegion: true,
@@ -150,6 +178,50 @@ class SpecDivertLine extends ConsumerWidget {
   }
 }
 
+/// A step that ran on the other provider, from its last attempt: the badge,
+/// the model and why, without "volta…" (the divert is over for it).
+class _RecordedDivertLine extends StatelessWidget {
+  const _RecordedDivertLine({required this.run});
+
+  final StepRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = DivertReason.parse(run.diverted)!;
+    final to = StepRule(run.model, run.effort ?? '', provider: run.provider);
+    final what = divertReasonWords(reason, otherPlanProvider(run.provider));
+    return Semantics(
+      label:
+          '${run.step} rodou no ${planProviderLabel(run.provider)}, '
+          'desviada: $what',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Wrap(
+          key: ValueKey('step-divert-run-${run.step}'),
+          spacing: 6,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ProviderChip(run.provider, dense: true),
+            Text(
+              to.label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              'desviada: $what',
+              style: const TextStyle(fontSize: 11, color: AppColors.amber),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The plan of a step on the Codex, in the list of steps (R9). Nothing for
 /// the Claude Code (the plans of before) nor for a diverted step.
 class StepPlanLine extends ConsumerWidget {
@@ -164,7 +236,9 @@ class StepPlanLine extends ConsumerWidget {
     if (provider == null || provider == 'claude' || model == null) {
       return const SizedBox.shrink();
     }
-    if (ref.watch(specDivertProvider(specId))?.step == step.id) {
+    if (ref.watch(specDivertProvider(specId))?.step == step.id ||
+        (ref.watch(stepRunDivertsProvider(specId)).value ?? const {})
+            .containsKey(step.id)) {
       return const SizedBox.shrink();
     }
     return Padding(

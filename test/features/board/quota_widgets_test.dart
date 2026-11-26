@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/board_rules.dart' show StepView;
 import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
 import 'package:promptorium/features/board/orchestrator/quota_divert.dart';
 import 'package:promptorium/features/board/orchestrator/quota_diverter.dart';
@@ -37,16 +38,7 @@ void main() {
   final renewClaude = DateTime.now().add(const Duration(hours: 3));
   final renewCodex = DateTime.now().add(const Duration(hours: 1));
 
-  Future<void> pump(WidgetTester tester, Widget child) async {
-    c = ProviderContainer(
-      retry: (_, _) => null,
-      overrides: [
-        databaseOverride(memoryDatabase()),
-        specRunnerProvider.overrideWith((ref) => runner = _Runner(ref)),
-      ],
-    );
-    addTearDown(c.dispose);
-    await tester.runAsync(() => c.read(appSettingsProvider.notifier).load());
+  Future<void> show(WidgetTester tester, Widget child) async {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: c,
@@ -60,7 +52,55 @@ void main() {
     );
   }
 
+  Future<void> pump(WidgetTester tester, Widget child) async {
+    c = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        specRunnerProvider.overrideWith((ref) => runner = _Runner(ref)),
+      ],
+    );
+    addTearDown(c.dispose);
+    await tester.runAsync(() => c.read(appSettingsProvider.notifier).load());
+    await show(tester, child);
+  }
+
   Finder key(String k) => find.byKey(ValueKey(k));
+
+  // A step run needs its spec (foreign key): the first one of the
+  // memory database, id 1.
+  Future<void> seedSpec(WidgetTester tester) async {
+    final id = await tester.runAsync(() async {
+      final ws = await c
+          .read(workspacesRepoProvider)
+          .add(path: '/r', name: 'r');
+      final spec = await c
+          .read(specsRepoProvider)
+          .insert(
+            workspaceId: ws.id,
+            code: 'SPEC-001',
+            title: 'x',
+            path: 'specs/x.md',
+          );
+      return spec.id;
+    });
+    expect(id, 1);
+  }
+
+  // The drift stream of the step runs answers outside the fake clock.
+  Future<void> settleRuns(WidgetTester tester) async {
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  // The step runs are a drift stream: unmount and let its timer run.
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  }
 
   testWidgets('R8: the renewals of each provider and the three actions; the '
       'resume is scheduled for the first one and can be cancelled', (
@@ -161,5 +201,126 @@ void main() {
       findsOneWidget,
     );
     semantics.dispose();
+    await unmount(tester);
+  });
+
+  testWidgets('R14: a step that ran diverted keeps the badge after the '
+      'divert of the spec moves on or ends', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pump(tester, const SizedBox());
+    await seedSpec(tester);
+    // Written before the lines watch them: the drift stream answers in the
+    // fake zone, and writes under a live watch would wait on it.
+    final repo = c.read(stepRunsRepoProvider);
+    await tester.runAsync(() async {
+      // R1: interrupted on the Claude, then passed on the Codex.
+      await repo.add(
+        specId: 1,
+        step: 'R1',
+        kind: 'mecanica',
+        model: 'haiku',
+        effort: 'low',
+        result: StepRunResult.diverted,
+        diverted: DivertReason.quota.stored,
+      );
+      await repo.add(
+        specId: 1,
+        step: 'R1',
+        kind: 'mecanica',
+        model: 'gpt-6.2-sol',
+        effort: 'low',
+        result: StepRunResult.passed,
+        provider: 'codex',
+        diverted: DivertReason.quota.stored,
+      );
+      // R2: back on its plan.
+      await repo.add(
+        specId: 1,
+        step: 'R2',
+        kind: 'implementacao',
+        model: 'sonnet',
+        effort: 'medium',
+        result: StepRunResult.passed,
+      );
+    });
+    await show(
+      tester,
+      const Column(
+        children: [
+          SpecDivertLine(specId: 1, step: 'R1', provider: true),
+          SpecDivertLine(specId: 1, step: 'R2', provider: true),
+          SpecDivertLine(specId: 1, step: 'R1'),
+        ],
+      ),
+    );
+    await settleRuns(tester);
+    expect(key('step-divert-run-R1'), findsOneWidget);
+    expect(key('step-divert-run-R2'), findsNothing);
+    expect(find.text('Codex'), findsOneWidget);
+    expect(find.text('gpt-6.2-sol · low'), findsOneWidget);
+    expect(find.text('desviada: cota do Claude'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('R1 rodou no Codex, desviada: cota do Claude'),
+      findsOneWidget,
+    );
+
+    // The divert of the spec now on R2: R1 keeps its line from the run, R2
+    // shows the live one, once each.
+    await tester.runAsync(
+      () => c
+          .read(quotaDiverterProvider)
+          .setDivert(
+            1,
+            const SpecDivert(
+              step: 'R2',
+              from: 'claude',
+              to: StepRule('gpt-6.2-sol', 'medium', provider: 'codex'),
+              reason: DivertReason.quota,
+              why: 'x',
+            ),
+          ),
+    );
+    await tester.pumpAndSettle();
+    expect(key('step-divert-run-R1'), findsOneWidget);
+    expect(key('spec-divert-1-step'), findsOneWidget);
+    expect(find.text('Codex'), findsNWidgets(2));
+    semantics.dispose();
+    await unmount(tester);
+  });
+
+  testWidgets('R9: the Codex plan line gives way to the run that went to the '
+      'Claude', (tester) async {
+    await pump(
+      tester,
+      const StepPlanLine(
+        specId: 1,
+        step: StepView(
+          id: 'R1',
+          text: 't',
+          status: StepStatus.done,
+          planProvider: 'codex',
+          planModel: 'gpt-6.2-sol',
+          planEffort: 'low',
+        ),
+      ),
+    );
+    expect(key('step-plan-line-R1'), findsOneWidget);
+    await seedSpec(tester);
+    await tester.runAsync(
+      () => c
+          .read(stepRunsRepoProvider)
+          .add(
+            specId: 1,
+            step: 'R1',
+            kind: 'mecanica',
+            model: 'haiku',
+            effort: 'low',
+            result: StepRunResult.passed,
+            diverted: DivertReason.quota.stored,
+          ),
+    );
+    await settleRuns(tester);
+    expect(key('step-plan-line-R1'), findsNothing);
+    await unmount(tester);
   });
 }
