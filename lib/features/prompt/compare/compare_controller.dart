@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,17 +11,29 @@ import '../../../core/claude/run_prefs.dart';
 import '../../../core/claude/usage_poller.dart';
 import '../../../core/claude/usage_tracker.dart';
 import '../../../core/providers/agent_registry.dart';
+import '../../../core/codex/codex_probe.dart' show codexNoSandboxMessage;
+import '../../../core/git/git_service.dart';
+import '../../../core/providers/provider_availability.dart';
 import '../../../core/providers/provider_preferences.dart';
+import '../../../core/providers/quota_source.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/conversations_repo.dart';
 import '../../mcp/mcp_rules.dart';
 import '../../cost/usage_ledger.dart';
 import '../../sessions/session_manager.dart'
-    show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
+    show
+        LiveTool,
+        PendingApproval,
+        liveTextLine,
+        liveToolOfNeutral,
+        recordLiveTool,
+        sessionIdGeneratorProvider;
 import '../../context/context_tracker.dart';
 import '../../sessions/timeline.dart';
 import '../conversation_manager.dart';
 import '../plan_ready.dart' show planDraftsProvider, planOfRequest;
+import '../prompt_actions.dart' show lastAnswer;
+import 'compare_handoff.dart';
 import 'compare_run.dart';
 import 'compare_weight.dart';
 
@@ -90,6 +103,9 @@ class _Side {
   final Map<String, DateTime> pendingAt = {};
   final Map<String, int> tools = {};
   final List<LiveTool> recent = [];
+
+  /// Neutral items already counted in [tools].
+  final Set<String> seen = {};
   String? lastText;
   bool stopping = false;
 
@@ -134,14 +150,21 @@ class CompareController extends Notifier<Map<int, CompareView>> {
   // --- start -----------------------------------------------------------------
 
   /// Sends [prompt] to the two sides (R5). [conversationId] null creates
-  /// the conversation (with side A's model and mode). Returns its id.
+  /// the conversation (with side A's provider, model and mode). Returns its
+  /// id.
+  ///
+  /// SPEC-108 R4: in a conversation with history, the sides of its provider
+  /// fork its session; the others (or both, with [sameHandoff]) start from
+  /// the package ([handoff], the one the person reviewed, or the one built
+  /// now).
   Future<int> start({
     required Workspace workspace,
     int? conversationId,
     required String prompt,
     required CompareChoice a,
     required CompareChoice b,
-    String? providerId,
+    CompareHandoff? handoff,
+    bool sameHandoff = false,
   }) async {
     final msg = prompt.trim();
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
@@ -150,15 +173,18 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     if (_shuttingDown) {
       throw const ConversationException('O aplicativo está sendo encerrado.');
     }
+    // R2: refused before anything is stored; nothing switches by itself.
+    for (final provider in {a.provider, b.provider}) {
+      final reason = ref.read(compareProviderReasonProvider(provider));
+      if (reason != null) throw ConversationException(reason);
+    }
     Conversation? conv;
     if (conversationId == null) {
-      final provider =
-          providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
       conv = await _repo.insert(
         workspaceId: workspace.id,
         title: conversationTitle(msg),
         model: a.model,
-        provider: provider,
+        provider: a.provider,
         mode: a.mode.name,
       );
     } else {
@@ -189,27 +215,30 @@ class CompareController extends Notifier<Map<int, CompareView>> {
         .read(appSettingsProvider.notifier)
         .set(compareSidesKey(workspace.id), encodeCompareSides(a, b));
     final newId = ref.read(sessionIdGeneratorProvider);
+    final c = conv;
+    bool fresh(CompareChoice s) => sameHandoff || s.provider != c.provider;
+    final package = conversationId != null && (fresh(a) || fresh(b))
+        ? handoff ?? await buildHandoff(c, workspace)
+        : null;
+    CompareSide side(String letter, CompareChoice s) => CompareSide(
+      letter: letter,
+      provider: s.provider,
+      model: s.model,
+      effort: s.effort,
+      mode: s.mode,
+      handoff: package != null && fresh(s),
+      sessionId: newId(),
+    );
     var run = CompareRun(
       conversationId: id,
       prompt: msg,
       at: DateTime.now(),
-      sides: [
-        CompareSide(
-          letter: 'A',
-          model: a.model,
-          mode: a.mode,
-          sessionId: newId(),
-        ),
-        CompareSide(
-          letter: 'B',
-          model: b.model,
-          mode: b.mode,
-          sessionId: newId(),
-        ),
-      ],
+      sides: [side('A', a), side('B', b)],
       originalSessionId: conv.claudeSessionId,
       originalModel: conv.model,
       originalMode: PromptMode.fromName(conv.mode),
+      originalProvider: conv.provider,
+      handoff: package,
     );
     final row = await _repo.appendEvent(
       id,
@@ -223,10 +252,9 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     });
     _lives[id] = live;
     _publish();
-    // R8: the usage before the two sides start.
-    final before = await _readUsage();
+    // R8: the quota of each provider involved, before the sides start.
+    final before = await _readUsages(run.providers);
     live.run = live.run.copyWith(before: before);
-    final c = conv;
     await Future.wait([
       for (final s in run.sides) _startSide(c, workspace, live, s.letter, msg),
     ]);
@@ -245,19 +273,26 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     var side = live.run.side(letter);
     // Stopped while the usage was read.
     if (side.state != CompareSideState.starting) return;
-    final provider = ref.read(agentProviderByIdProvider(conv.provider));
-    final origin = live.run.originalSessionId;
+    // R4: only a side of the conversation's provider forks its session.
+    final origin =
+        !side.handoff &&
+            side.provider == (live.run.originalProvider ?? conv.provider)
+        ? live.run.originalSessionId
+        : null;
+    var name = compareProviderLabel(side.provider);
     final AgentRun run;
     try {
+      final provider = ref.read(agentProviderByIdProvider(side.provider));
+      name = provider.displayName;
       if (!provider.enabled) {
         throw AgentUnavailable(
           '${provider.displayName} ainda não está disponível.',
         );
       }
       final flows = ref.read(providerFlowsProvider);
-      if (!flows.allows(conv.provider, AppFlow.compare)) {
+      if (!flows.allows(side.provider, AppFlow.compare)) {
         throw AgentUnavailable(
-          flows.refusal(conv.provider, provider.displayName, AppFlow.compare),
+          flows.refusal(side.provider, name, AppFlow.compare),
         );
       }
       final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
@@ -274,7 +309,8 @@ class CompareController extends Notifier<Map<int, CompareView>> {
           forkSession: resumeOwn == null && origin != null,
           model: side.model,
           effort: effortArg(
-            providerEffort(ref, conv.provider, RunKind.conversation),
+            side.effort ??
+                providerEffort(ref, side.provider, RunKind.conversation),
           ),
           extras: extrasFor(
             caps,
@@ -296,7 +332,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       live.run = live.run.withSide(
         side.copyWith(
           state: CompareSideState.error,
-          error: 'Falha ao iniciar ${provider.displayName}: $e',
+          error: 'Falha ao iniciar $name: $e',
         ),
       );
       _publish();
@@ -306,6 +342,7 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       ..run = run
       ..stopping = false
       ..tools.clear()
+      ..seen.clear()
       ..recent.clear()
       ..pending.clear()
       ..pendingAt.clear();
@@ -320,13 +357,14 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     );
     // SPEC-087 R7, R11: each side records what its own execution received.
     final runJson = ContextEventTypes.runEvent(
-      autocompact: ref.read(runPrefsProvider).autocompactOf(conv.provider),
+      autocompact: ref.read(runPrefsProvider).autocompactOf(side.provider),
       model: side.model,
-      provider: conv.provider,
+      provider: side.provider,
     );
     s.timeline.apply(UnknownEvent(runJson));
     s.version++;
     final started = live.run.side(letter);
+    final package = resumeOwn == null && side.handoff ? live.run.handoff : null;
     live.run = live.run.withSide(
       started.copyWith(
         state: CompareSideState.running,
@@ -335,7 +373,54 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       ),
     );
     _publish();
-    await run.send(text);
+    try {
+      await run.send(package == null ? text : handoffPrompt(package, text));
+    } catch (e) {
+      // The App Server refused the turn (a protocol error): this side ends.
+      final now = live.run.side(letter);
+      if (now.state.live) {
+        live.run = live.run.withSide(
+          now.copyWith(state: CompareSideState.error, error: '$name: $e'),
+        );
+      }
+      s.stopping = true;
+      unawaited(run.stop());
+      _publish();
+    }
+  }
+
+  /// The package of [conv] (SPEC-108 R4), from its stored timeline and the
+  /// git of [ws]; null without history. Nothing is called nor copied.
+  Future<CompareHandoff?> buildHandoff(Conversation conv, Workspace ws) async {
+    final timeline = Timeline();
+    for (final r in await _repo.events(conv.id)) {
+      timeline.applyStored(r.json);
+    }
+    final git = ref.read(gitServiceFactoryProvider)(ws.path);
+    String? branch;
+    int? changed;
+    try {
+      branch = await git.currentBranch();
+      changed = (await git.status()).length;
+    } catch (e) {
+      debugPrint('comparar: git de ${ws.path} — $e');
+    }
+    if (!ref.mounted) return null;
+    return buildCompareHandoff(
+      title: conv.title,
+      provider: conv.provider,
+      items: timeline.items,
+      root: ws.path,
+      plan:
+          ref.read(planDraftsProvider)[conv.id] ??
+          (PromptMode.fromName(conv.mode) == PromptMode.plan &&
+                  !capabilitiesFor(conv.provider)
+                      .supports(ProviderCapability.planMode)
+              ? lastAnswer(timeline.items)
+              : null),
+      branch: branch,
+      changed: changed,
+    );
   }
 
   Future<void> _enqueue(_Side s, Future<void> Function() job) {
@@ -402,6 +487,17 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       case ToolResult() when e.parentToolUseId == null:
         final i = s.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) s.recent[i] = s.recent[i].finished();
+      // SPEC-108 R6, R7: the Codex reads by command; it counts as what it
+      // does, once (the event comes when it starts and when it ends).
+      case CommandEvent():
+        final key = compareCommandTool(e);
+        recordLiveTool(s.recent, liveToolOfNeutral(e)!);
+        if (s.seen.add(e.toolUseId)) s.tools[key] = (s.tools[key] ?? 0) + 1;
+      case FileChangeEvent():
+        recordLiveTool(s.recent, liveToolOfNeutral(e)!);
+        if (s.seen.add(e.toolUseId)) {
+          s.tools['Edit'] = (s.tools['Edit'] ?? 0) + 1;
+        }
       case Result():
         // Both forks consume quota, even when discarded or not chosen.
         await ref
@@ -414,10 +510,27 @@ class CompareController extends Notifier<Map<int, CompareView>> {
                 stored: side.metrics?.costUsd ?? 0,
               ),
               model: side.model,
+              provider: side.provider,
             );
         finished = true;
+        // R3: no ExitPlanMode in the Codex: the last answer is the plan.
+        if (e.isSuccess &&
+            side.mode == PromptMode.plan &&
+            !capabilitiesFor(side.provider)
+                .supports(ProviderCapability.planMode)) {
+          final answer = lastAnswer(s.timeline.items) ?? e.result;
+          if (answer != null && answer.trim().isNotEmpty) {
+            side = side.copyWith(plan: answer);
+          }
+        }
         side = side.copyWith(
-          metrics: CompareMetrics.ofResult(e, s.tools),
+          metrics: CompareMetrics.ofResult(
+            e,
+            s.tools,
+            elapsedMs: side.startedAt == null
+                ? 0
+                : DateTime.now().difference(side.startedAt!).inMilliseconds,
+          ),
           state: side.plan != null
               ? CompareSideState.planReady
               : e.isSuccess
@@ -509,6 +622,35 @@ class CompareController extends Notifier<Map<int, CompareView>> {
 
   // --- weight (R8) -----------------------------------------------------------
 
+  /// The quota of each of [providers], read now (SPEC-108 R8); one that
+  /// could not be read is left out.
+  Future<Map<String, UsageReading>> _readUsages(List<String> providers) async {
+    final all = await Future.wait([
+      for (final p in providers)
+        isClaudeCode(p) ? _readUsage() : _readCodexUsage(),
+    ]);
+    return {for (var i = 0; i < providers.length; i++) providers[i]: ?all[i]};
+  }
+
+  /// `account/rateLimits/read` through the quota store of SPEC-097 (which
+  /// also merges the updates of the turns). Null when the reading failed.
+  Future<UsageReading?> _readCodexUsage() async {
+    final start = DateTime.now();
+    try {
+      await ref
+          .read(codexQuotaProvider.notifier)
+          .refresh()
+          .timeout(const Duration(seconds: 20), onTimeout: () {});
+      if (!ref.mounted) return null;
+      final s = ref.read(codexQuotaProvider);
+      final failed = s?.errorAt != null && !s!.errorAt!.isBefore(start);
+      return failed ? null : UsageReading.ofSnapshot(s);
+    } catch (e) {
+      debugPrint('comparar: cota do Codex — $e');
+      return null;
+    }
+  }
+
   Future<UsageReading?> _readUsage() async {
     try {
       final text = await ref
@@ -529,25 +671,28 @@ class CompareController extends Notifier<Map<int, CompareView>> {
   Future<void> _measure(int id, {bool read = true}) async {
     final live = _lives[id];
     if (live == null || !live.run.allDone || live.measuring) return;
-    if (live.run.after != null ||
+    if (live.run.after.isNotEmpty ||
         live.run.sides.every((s) => s.weight != null)) {
       return;
     }
     live.measuring = true;
     try {
-      final after = read && live.run.before != null ? await _readUsage() : null;
+      // Only the providers read before: without it there is no variation.
+      final after = !read
+          ? const <String, UsageReading>{}
+          : await _readUsages([
+              for (final p in live.run.providers)
+                if (live.run.before.containsKey(p)) p,
+            ]);
       if (!identical(_lives[id], live)) return;
       final r = ref.read(rateLimitProvider);
       final run = live.run;
-      final costs = {
-        for (final s in run.sides) s.letter: s.metrics?.costUsd ?? 0.0,
-      };
-      final w = compareWeights(
-        costs: costs,
+      final w = compareRunWeights(
+        sides: run.sides,
         before: run.before,
         after: after,
-        last: r == null ? null : UsageReading.of(r),
-        windowCosts: await _windowCosts(r),
+        lastClaude: r == null ? null : UsageReading.of(r),
+        windowCosts: run.crossProvider ? const {} : await _windowCosts(r),
       );
       var next = run.copyWith(after: after, measured: w.measured);
       for (final s in run.sides) {
@@ -715,6 +860,8 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       chosen.started ? chosen.sessionId : null,
       model: chosen.model,
       mode: chosen.mode,
+      provider: chosen.provider,
+      effort: chosen.effort,
     );
     var done = live.run.copyWith(status: CompareStatus.chosen, chosen: letter);
     for (final s in done.sides) {
@@ -747,8 +894,12 @@ class CompareController extends Notifier<Map<int, CompareView>> {
         tokensOut: m.tokensOut,
       );
     }
-    // A Planejar side brings its "plano pronto" (approve, adjust).
-    if (chosen.plan case final plan? when plan.trim().isNotEmpty) {
+    // A Planejar side brings its "plano pronto" (approve, adjust). The
+    // Codex has "Executar plano" under its answer (SPEC-096 R5).
+    if (chosen.plan case final plan?
+        when plan.trim().isNotEmpty &&
+            capabilitiesFor(chosen.provider)
+                .supports(ProviderCapability.planMode)) {
       ref.read(planDraftsProvider.notifier).set(id, plan);
     }
     _lives.remove(id);
@@ -782,6 +933,11 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       } else if (conv.claudeSessionId != run.originalSessionId &&
           run.originalSessionId != null) {
         await _repo.setClaudeSession(id, run.originalSessionId!);
+      }
+      // SPEC-108 R10: and to the provider of before.
+      if (run.originalProvider case final p?
+          when !deleted && conv.provider != p) {
+        await _repo.update(id, ConversationsCompanion(provider: Value(p)));
       }
     }
     ref.invalidate(conversationTimelineProvider(id));
@@ -819,7 +975,13 @@ class CompareController extends Notifier<Map<int, CompareView>> {
       try {
         final j = jsonDecode(r.json);
         if (j is Map<String, dynamic>) {
-          run = CompareRun.fromJson(j, conversationId: id, seq: r.seq);
+          // R10: an event before SPEC-108 runs on the conversation's.
+          run = CompareRun.fromJson(
+            j,
+            conversationId: id,
+            seq: r.seq,
+            provider: (await _repo.getById(id))?.provider ?? 'claude',
+          );
         }
       } catch (_) {}
       break;
@@ -898,6 +1060,35 @@ final compareControllerProvider =
     NotifierProvider<CompareController, Map<int, CompareView>>(
       CompareController.new,
     );
+
+/// Why [provider] cannot run a side (SPEC-108 R2); null = it can. The
+/// Codex needs to be installed, at the minimum version, logged in, on in
+/// the Prompt and with its sandbox.
+final compareProviderReasonProvider = Provider.family<String?, String>((
+  ref,
+  provider,
+) {
+  final p = ref
+      .watch(agentProvidersProvider)
+      .where((p) => p.id == provider)
+      .firstOrNull;
+  final name = p?.displayName ?? compareProviderLabel(provider);
+  if (p == null) return '$name não está registrado.';
+  final flows = ref.watch(providerFlowsProvider);
+  for (final f in [AppFlow.prompt, AppFlow.compare]) {
+    if (!flows.allows(provider, f)) return flows.refusal(provider, name, f);
+  }
+  if (isClaudeCode(provider)) return null;
+  final a = ref.watch(providerAvailabilityProvider(provider)).value;
+  if (a == null) return 'Verificando o $name…';
+  return switch (a.status) {
+    ProviderStatus.missing => '$name não está instalado.',
+    ProviderStatus.loginRequired => '$name sem login: rode codex login.',
+    ProviderStatus.ready =>
+      a.sandboxWarning == null ? null : codexNoSandboxMessage(),
+    _ => '$name: ${a.message}',
+  };
+});
 
 /// The comparison of one conversation waiting for a choice (null = none).
 final compareProvider = Provider.family<CompareView?, int>(

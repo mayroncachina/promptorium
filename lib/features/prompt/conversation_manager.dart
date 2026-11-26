@@ -445,27 +445,55 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   /// in a comparison, SPEC-079 R11), with its model and mode. A live
   /// process of the old session is stopped: the next message resumes the
   /// new one. [sessionId] null keeps the session.
+  ///
+  /// SPEC-108 R9: [provider] moves the conversation to the chosen side's
+  /// provider, between turns and by an explicit choice, so it needs that
+  /// provider's session; [effort] becomes the conversation's.
   Future<void> adoptSession(
     int id,
     String? sessionId, {
     required String model,
     required PromptMode mode,
+    String? provider,
+    String? effort,
   }) async {
     final r = _runs[id];
     if (r != null) await _stopRun(id, r);
+    if (provider != null && sessionId == null) {
+      final conv = await _repo.getById(id);
+      if (conv != null && conv.provider != provider) {
+        throw const ConversationException(
+          'Este lado não chegou a começar: retome-o antes de passar a '
+          'conversa para ele.',
+        );
+      }
+    }
+    if (effort != null) {
+      await ref
+          .read(appSettingsProvider.notifier)
+          .set(conversationEffortKey(id), effort);
+    }
     await _repo.update(
       id,
       ConversationsCompanion(
         claudeSessionId: sessionId == null
             ? const Value.absent()
             : Value(sessionId),
+        provider: provider == null ? const Value.absent() : Value(provider),
         model: Value(model),
         mode: Value(mode.name),
       ),
     );
   }
 
-  Future<void> setModel(int id, String model) => _repo.setModel(id, model);
+  Future<void> setModel(int id, String model) async {
+    // The effort brought by a comparison was of the model it chose.
+    final key = conversationEffortKey(id);
+    if (ref.read(appSettingsProvider)[key]?.isNotEmpty ?? false) {
+      await ref.read(appSettingsProvider.notifier).set(key, '');
+    }
+    await _repo.setModel(id, model);
+  }
 
   Future<void> approve(
     int id,
@@ -655,7 +683,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           resumeId: resume,
           model: conv.model,
           effort: effortArg(
-            providerEffort(ref, conv.provider, RunKind.conversation),
+            conversationEffort(ref.read(appSettingsProvider), conv.id) ??
+                providerEffort(ref, conv.provider, RunKind.conversation),
           ),
           appMcpConfigs: [?mcpLink?.configPath],
           appAllowedTools: mcpLink?.allowedTools ?? const [],
@@ -1023,6 +1052,16 @@ final promptDraftProvider =
     NotifierProvider<PromptDraftController, PromptDraft>(
       PromptDraftController.new,
     );
+
+/// `app_settings` key of the effort a conversation received from the side
+/// chosen in a comparison (SPEC-108 R9; no migration).
+String conversationEffortKey(int id) => 'prompt.esforco.$id';
+
+/// The effort of one conversation; null = the provider's preference.
+String? conversationEffort(Map<String, String> settings, int id) {
+  final e = settings[conversationEffortKey(id)];
+  return e == null || e.isEmpty ? null : e;
+}
 
 /// The message of "Executar plano" (SPEC-096 R5).
 String planExecutionMessage(String plan) =>
