@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/fs/dir_watcher.dart';
+import '../../core/providers/workspace_assets.dart'
+    show agentsMdName, claudeMdName, instructionsInventoryProvider;
 import '../../data/providers.dart';
 import '../agents/agent_repository.dart';
 import '../project/project_config.dart';
@@ -97,6 +99,11 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
     }
     if (under('$root/.claude/skills')) {
       ref.invalidate(skillEntriesProvider(root));
+    }
+    // SPEC-113 R8: the open instructions editor re-reads the root files.
+    if (paths.contains('$root/$claudeMdName') ||
+        paths.contains('$root/$agentsMdName')) {
+      ref.invalidate(instructionsInventoryProvider(root));
     }
     if (under('$root/.promptorium')) {
       ref

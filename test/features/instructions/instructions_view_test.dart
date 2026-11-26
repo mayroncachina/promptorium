@@ -132,7 +132,7 @@ void main() {
     write('packages/api/CLAUDE.md', 'x\n');
     write('lib/ui/AGENTS.md', 'y\n');
     await pump(tester);
-    expect(find.text('INSTRUÇÕES DO PROJETO'), findsOneWidget);
+    expect(find.text('ARQUIVOS'), findsOneWidget);
     expect(key('instructions-file-CLAUDE.md'), findsOneWidget);
     expect(key('instructions-file-packages/api/CLAUDE.md'), findsOneWidget);
     expect(key('instructions-file-lib/ui/AGENTS.md'), findsOneWidget);
@@ -257,6 +257,8 @@ void main() {
       agentsMdBody(File('${tmp.path}/AGENTS.md').readAsStringSync()),
       '# a\n- Testes só nas telas principais.\n',
     );
+    await tester.ensureVisible(key('instructions-update-agents'));
+    await tester.pump();
     await tester.tap(key('instructions-update-agents'));
     await waitFor(tester, key('instructions-fresh'));
     expect(
@@ -277,6 +279,8 @@ void main() {
     expect(inRow('Codex', 'nada (não lê o CLAUDE.md)'), findsOneWidget);
     expect(key('instructions-mechanism'), findsNothing);
     expect(find.text('Só Claude Code'), findsOneWidget);
+    await tester.ensureVisible(key('instructions-generate-agents'));
+    await tester.pump();
     await tester.tap(key('instructions-generate-agents'));
     await waitFor(tester, key('instructions-fresh'));
     final agents = File('${tmp.path}/AGENTS.md').readAsStringSync();

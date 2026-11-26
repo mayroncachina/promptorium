@@ -18,6 +18,8 @@ import '../project/project_config.dart';
 import '../project/widgets/project_widgets.dart';
 import '../sessions/widgets/session_style.dart';
 import 'instructions_editor.dart';
+import 'interview_controller.dart' show InstructionProposal;
+import 'interview_view.dart';
 
 /// How a provider row reads (R2, R5): the state pill's tone.
 enum InstructionsTone { loaded, expected, warning, missing }
@@ -174,7 +176,23 @@ class InstructionsModeController extends Notifier<InstructionsMode> {
   @override
   InstructionsMode build() => InstructionsMode.editor;
 
+  /// The proposal the interview handed over (R16), shown by
+  /// [InstructionsMode.proposal] (T6).
+  InstructionProposal? proposal;
+
   void show(InstructionsMode mode) => state = mode;
+
+  /// The interview ended with [p]: the tab shows the proposal (T6).
+  void showProposal(InstructionProposal p) {
+    proposal = p;
+    state = InstructionsMode.proposal;
+  }
+
+  /// Back to the editor (after "Pausar", or when the proposal is done).
+  void backToEditor() {
+    proposal = null;
+    state = InstructionsMode.editor;
+  }
 }
 
 /// The mode of the tab, by workspace id.
@@ -268,12 +286,18 @@ class InstructionsShortcut extends ConsumerWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                const InstructionsTag(agentsMdName, warning: true),
-                const SizedBox(width: 6),
-                const _Pill('Claude Code', InstructionsTone.loaded),
-                const SizedBox(width: 6),
-                const _Pill('Codex', InstructionsTone.loaded),
-                const Spacer(),
+                const Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      InstructionsTag(agentsMdName, warning: true),
+                      _Pill('Claude Code', InstructionsTone.loaded),
+                      _Pill('Codex', InstructionsTone.loaded),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
                 AmberButton(
                   key: const ValueKey('instructions-shortcut-open'),
                   label: 'Abrir Projeto › Instruções',
@@ -468,9 +492,11 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
   // TODO(SPEC-113 T4): showUnifyDialog(context, ref, workspacePath: root).
   VoidCallback? _unify(String root) => null;
 
-  /// "Começar entrevista" (R13): the interview of the T5.
-  // TODO(SPEC-113 T5): instructionsModeProvider → InstructionsMode.interview.
-  VoidCallback? _interview(Workspace ws) => null;
+  /// "Começar entrevista" (R13): the interview (T5) takes the tab.
+  VoidCallback? _interview(Workspace ws) =>
+      () => ref
+          .read(instructionsModeProvider(ws.id).notifier)
+          .show(InstructionsMode.interview);
 
   void _goToCut(InstructionsBuffer b, InstructionsCut cut) {
     setState(() {
@@ -511,9 +537,38 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
       );
     }
     final mode = ref.watch(instructionsModeProvider(ws.id));
-    if (mode != InstructionsMode.editor) {
-      // TODO(SPEC-113 T5/T6): the interview and the proposal take the tab.
-      return const ColoredBox(color: AppColors.background);
+    final modes = ref.read(instructionsModeProvider(ws.id).notifier);
+    switch (mode) {
+      case InstructionsMode.editor:
+        break;
+      case InstructionsMode.interview:
+        return ColoredBox(
+          color: AppColors.background,
+          child: InstructionsInterviewView(
+            key: ValueKey('instructions-interview-${ws.id}'),
+            workspace: ws,
+            autoStart: true,
+            onProposalReady: modes.showProposal,
+            onPaused: modes.backToEditor,
+          ),
+        );
+      case InstructionsMode.proposal:
+        // TODO(SPEC-113 T6): InstructionsProposalView(workspace: ws,
+        // proposal: modes.proposal!, onDone: modes.backToEditor).
+        return ColoredBox(
+          color: AppColors.background,
+          child: StepEmpty(
+            key: const ValueKey('instructions-proposal-pending'),
+            title: 'Proposta pronta',
+            text:
+                'A tela da proposta ainda não está nesta versão. Nada foi '
+                'gravado nos arquivos.',
+            action: SmallButton(
+              label: 'Voltar ao editor',
+              onTap: modes.backToEditor,
+            ),
+          ),
+        );
     }
     final e = _editingFor(ws.path, inv);
     final proof = ref.watch(instructionsProofProvider(ws.id)).value;
@@ -637,103 +692,113 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
             decoration: const BoxDecoration(
               border: Border(left: BorderSide(color: AppColors.border)),
             ),
-            child: ListView(
+            // A column (not a lazy list): the cards are few and the tests
+            // and the screen reader see all of them.
+            child: SingleChildScrollView(
               key: const ValueKey('instructions-detail'),
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-              children: [
-                if (buffer != null &&
-                    buffer.isClaude &&
-                    buffer.importLine != null)
-                  _Card(
-                    key: const ValueKey('instructions-move-card'),
-                    amber: true,
-                    title: 'Regra repetida?',
-                    text:
-                        'Uma regra que vale para os dois agentes fica no '
-                        'AGENTS.md.',
-                    action: SmallButton(
-                      key: const ValueKey('instructions-move-selection'),
-                      label: 'Mover seleção para o AGENTS.md',
-                      onTap: () => setState(() {
-                        _error = e.moveSelectionToAgents()
-                            ? null
-                            : 'Selecione no trecho só do Claude o que vale '
-                                  'para os dois agentes.';
-                      }),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (buffer != null &&
+                      buffer.isClaude &&
+                      buffer.importLine != null)
+                    _Card(
+                      key: const ValueKey('instructions-move-card'),
+                      amber: true,
+                      title: 'Regra repetida?',
+                      text:
+                          'Uma regra que vale para os dois agentes fica no '
+                          'AGENTS.md.',
+                      action: SmallButton(
+                        key: const ValueKey('instructions-move-selection'),
+                        label: 'Mover seleção para o AGENTS.md',
+                        onTap: () => setState(() {
+                          _error = e.moveSelectionToAgents()
+                              ? null
+                              : 'Selecione no trecho só do Claude o que vale '
+                                    'para os dois agentes.';
+                        }),
+                      ),
+                    )
+                  else ...[
+                    InterviewResumeCard(
+                      workspace: ws,
+                      onContinue: () => modes.show(InstructionsMode.interview),
                     ),
-                  )
-                else
-                  _Card(
-                    key: const ValueKey('instructions-improve'),
-                    lilac: true,
-                    title: 'Melhorar com IA',
-                    text:
-                        'A IA lê o projeto e faz perguntas em rodadas, até '
-                        'fechar o que falta nas instruções. Nada é gravado '
-                        'sem você aceitar.',
-                    action: SmallButton(
-                      key: const ValueKey('instructions-interview'),
-                      label: 'Começar entrevista',
-                      expand: true,
-                      color: projectLilac,
-                      border: projectLilacBorder,
-                      onTap: _interview(ws),
+                    _Card(
+                      key: const ValueKey('instructions-improve'),
+                      lilac: true,
+                      title: 'Melhorar com IA',
+                      text:
+                          'A IA lê o projeto e faz perguntas em rodadas, até '
+                          'fechar o que falta nas instruções. Nada é gravado '
+                          'sem você aceitar.',
+                      action: SmallButton(
+                        key: const ValueKey('instructions-interview'),
+                        label: 'Começar entrevista',
+                        expand: true,
+                        color: projectLilac,
+                        border: projectLilacBorder,
+                        onTap: _interview(ws),
+                      ),
+                      footer: 'Planner e assistentes · somente leitura',
                     ),
-                    footer: 'Planner e assistentes · somente leitura',
-                  ),
-                if (instructionsNeedUnify(inv)) ...[
-                  const SizedBox(height: 12),
-                  _Card(
-                    key: const ValueKey('instructions-unify-card'),
-                    title: 'Unificar instruções',
-                    text: switch (inv.agentsState) {
-                      AgentsMdState.personal =>
-                        'Duas fontes: o Codex lê o AGENTS.md e o Claude Code '
-                            'o CLAUDE.md. Unifique num AGENTS.md que os dois '
-                            'leem.',
-                      AgentsMdState.fresh || AgentsMdState.stale =>
-                        'O AGENTS.md é uma cópia gerada pelo app. Unifique '
-                            'para escrever as instruções uma vez só.',
-                      _ =>
-                        'Só o CLAUDE.md: fora do app o Codex não o lê. '
-                            'Unifique para o AGENTS.md, que os dois leem.',
-                    },
-                    action: SmallButton(
-                      key: const ValueKey('instructions-unify'),
-                      label: 'Unificar instruções',
-                      onTap: _unify(ws.path),
+                  ],
+                  if (instructionsNeedUnify(inv)) ...[
+                    const SizedBox(height: 12),
+                    _Card(
+                      key: const ValueKey('instructions-unify-card'),
+                      title: 'Unificar instruções',
+                      text: switch (inv.agentsState) {
+                        AgentsMdState.personal =>
+                          'Duas fontes: o Codex lê o AGENTS.md e o Claude Code '
+                              'o CLAUDE.md. Unifique num AGENTS.md que os dois '
+                              'leem.',
+                        AgentsMdState.fresh || AgentsMdState.stale =>
+                          'O AGENTS.md é uma cópia gerada pelo app. Unifique '
+                              'para escrever as instruções uma vez só.',
+                        _ =>
+                          'Só o CLAUDE.md: fora do app o Codex não o lê. '
+                              'Unifique para o AGENTS.md, que os dois leem.',
+                      },
+                      action: SmallButton(
+                        key: const ValueKey('instructions-unify'),
+                        label: 'Unificar instruções',
+                        onTap: _unify(ws.path),
+                      ),
                     ),
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  NoticeBox.error(text: _error!),
-                ],
-                const SizedBox(height: 18),
-                const Text('QUEM LÊ', style: sectionTitleStyle),
-                const SizedBox(height: 8),
-                for (final r in rows) ...[
-                  _ReaderCard(row: r),
-                  const SizedBox(height: 8),
-                ],
-                ..._state(ws.path, inv, reads: reads),
-                if (fallback &&
-                    inv.claude != null &&
-                    inv.agentsState == AgentsMdState.absent) ...[
-                  const SizedBox(height: 12),
-                  _Mechanism(proof: proof),
-                ],
-                if (sized.exists || sized.dirty) ...[
+                  ],
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    NoticeBox.error(text: _error!),
+                  ],
                   const SizedBox(height: 18),
-                  const Text('TAMANHO', style: sectionTitleStyle),
+                  const Text('QUEM LÊ', style: sectionTitleStyle),
                   const SizedBox(height: 8),
-                  _SizeCard(
-                    name: sized.name,
-                    size: instructionsSize(sized.fullText),
-                    onGoToCut: (cut) => _goToCut(sized, cut),
-                  ),
+                  for (final r in rows) ...[
+                    _ReaderCard(row: r),
+                    const SizedBox(height: 8),
+                  ],
+                  ..._state(ws.path, inv, reads: reads),
+                  if (fallback &&
+                      inv.claude != null &&
+                      inv.agentsState == AgentsMdState.absent) ...[
+                    const SizedBox(height: 12),
+                    _Mechanism(proof: proof),
+                  ],
+                  if (sized.exists || sized.dirty) ...[
+                    const SizedBox(height: 18),
+                    const Text('TAMANHO', style: sectionTitleStyle),
+                    const SizedBox(height: 8),
+                    _SizeCard(
+                      name: sized.name,
+                      size: instructionsSize(sized.fullText),
+                      onGoToCut: (cut) => _goToCut(sized, cut),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],
