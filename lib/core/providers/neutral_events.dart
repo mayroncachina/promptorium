@@ -245,6 +245,7 @@ class CommandEvent extends AgentEvent {
     int? durationMs,
     List<String> reads = const [],
     List<CommandAction> actions = const [],
+    int unknownActions = 0,
   }) {
     String? stored = output;
     var cutLines = 0;
@@ -264,6 +265,7 @@ class CommandEvent extends AgentEvent {
       'duration_ms': ?durationMs,
       if (reads.isNotEmpty) 'reads': reads,
       if (actions.isNotEmpty) 'actions': [for (final a in actions) a.toJson()],
+      if (unknownActions > 0) 'unknown_actions': unknownActions,
       'status': status.name,
     };
   }
@@ -289,6 +291,13 @@ class CommandEvent extends AgentEvent {
     for (final a in json['actions'] as List? ?? const [])
       ?CommandAction.fromJson(a),
   ];
+
+  /// Actions the agent could not classify (Codex `unknown`, SPEC-110 R1):
+  /// with any, the command is not only a read.
+  int get unknownActions => _int(json['unknown_actions']) ?? 0;
+
+  /// Every action of the command is a read, a search or a listing.
+  bool get onlyReads => unknownActions == 0 && actions.isNotEmpty;
 
   bool get done => status != CommandStatus.running;
 
@@ -330,6 +339,7 @@ class CommandEvent extends AgentEvent {
         durationMs: durationMs,
         reads: reads,
         actions: actions,
+        unknownActions: unknownActions,
       ),
     );
   }
@@ -338,7 +348,12 @@ class CommandEvent extends AgentEvent {
 /// One classified action of a command (Codex `commandActions`, SPEC-107
 /// R11): only the known types; `unknown` never becomes one (P4).
 class CommandAction {
-  const CommandAction({required this.type, this.path, this.query});
+  const CommandAction({
+    required this.type,
+    this.path,
+    this.query,
+    this.command,
+  });
 
   static const read = 'read';
   static const search = 'search';
@@ -352,19 +367,28 @@ class CommandAction {
   /// The searched text (`search`).
   final String? query;
 
+  /// The part of the command that does it (`sed -n 1,80p a.dart`).
+  final String? command;
+
   static CommandAction? fromJson(Object? j) {
     if (j is! Map) return null;
     final type = _str(j['type']);
     if (type == null || !known.contains(type)) return null;
     final path = _str(j['path']);
     if (type == read && (path == null || path.isEmpty)) return null;
-    return CommandAction(type: type, path: path, query: _str(j['query']));
+    return CommandAction(
+      type: type,
+      path: path,
+      query: _str(j['query']),
+      command: _str(j['command']),
+    );
   }
 
   Map<String, dynamic> toJson() => {
     'type': type,
     'path': ?path,
     'query': ?query,
+    'command': ?command,
   };
 }
 
@@ -562,15 +586,23 @@ class OtherItemEvent extends AgentEvent {
     required String itemType,
     required String summary,
     String? toolUseId,
+    String? text,
   }) => {
     ..._neutral(NeutralEventTypes.otherItem, provider),
     'item_type': itemType,
     'summary': summary,
+    'text': ?text,
     'tool_use_id': ?toolUseId,
   };
 
   String get itemType => _str(json['item_type']) ?? '';
   String get summary => _str(json['summary']) ?? '';
+
+  /// The whole text, where the item is one (a plan, SPEC-110 R1).
+  String? get text => _str(json['text']);
+
+  /// A plan of the agent: the `plan` item or `turn/plan/updated`.
+  bool get isPlan => itemType == 'plan' || itemType == 'turnPlan';
   String get toolUseId => _str(json['tool_use_id']) ?? '';
   String get provider => _str(json['provider']) ?? 'claude';
 }

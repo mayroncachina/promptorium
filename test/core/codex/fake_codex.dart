@@ -64,6 +64,13 @@ class FakeCodex extends FakeProcess {
   /// `hooks/list` fails with this message.
   String? hooksListError;
 
+  /// Threads of the thread operations (SPEC-110), shared by the servers of
+  /// a test: what the Codex keeps on disk. Null = they answer as before.
+  FakeCodexStore? store;
+
+  /// Threads this server loaded (`thread/revert` needs it).
+  final loaded = <String>{};
+
   /// Sends a `hook/started` + `hook/completed` pair of [run] (SPEC-103 R6).
   void emitHook(Map<String, dynamic> run, {String? thread}) {
     for (final m in ['hook/started', 'hook/completed']) {
@@ -192,6 +199,15 @@ class FakeCodex extends FakeProcess {
         );
         continue;
       }
+      if (store != null) {
+        final answer = store!.answer(this, '${m['method']}', p);
+        if (answer != null) {
+          if (answer['silent'] != true) {
+            emit(jsonEncode({'id': m['id'], ...answer}));
+          }
+          continue;
+        }
+      }
       final result = switch (m['method']) {
         'hooks/list' => hooksList ?? <String, dynamic>{},
         'skills/list' => skillsList ?? <String, dynamic>{'data': []},
@@ -248,9 +264,162 @@ class FakeCodex extends FakeProcess {
       },
     }),
   );
+  /// The process ended (its threads have no writer any more).
+  bool ended = false;
+
   @override
   Future<void> finish([int code = 0]) {
+    ended = true;
     _timer.cancel();
     return super.finish(code);
+  }
+}
+
+/// The threads of the Codex as the 0.170 App Server answered in the probe of
+/// SPEC-110 (real binary, local model provider): `thread/revert` only in a
+/// connection that loaded the thread, forks that keep the turn ids, one
+/// writer per thread, `turn not found`, archived threads that do not resume.
+class FakeCodexStore {
+  final threads = <String, List<String>>{};
+  final archived = <String>{};
+
+  /// `aggregatedOutput` of an item, by thread, turn and item.
+  final outputs = <(String, String, String), String>{};
+
+  /// Every thread operation, in order: `fork a`, `revert a t3`…
+  final calls = <String>[];
+
+  /// Method → error message (the request fails), or `null` = never answers.
+  final fail = <String, String?>{};
+
+  /// Thread → the server whose process writes it.
+  final writers = <String, FakeCodex>{};
+
+  /// Called before each operation is answered.
+  void Function(String method)? onCall;
+
+  var _forks = 0;
+  var _turns = 0;
+
+  /// Ends the running turn of [thread] (the server that writes it).
+  void complete(String thread, {String status = 'completed'}) =>
+      writers[thread]!.emit(
+        jsonEncode({
+          'method': 'turn/completed',
+          'params': {
+            'threadId': thread,
+            'turn': {'id': threads[thread]!.last, 'status': status},
+          },
+        }),
+      );
+
+  Map<String, dynamic> _error(String message) => {
+    'error': {'code': -32600, 'message': message},
+  };
+
+  Map<String, dynamic> _thread(String id) => {
+    'result': {
+      'thread': {'id': id, 'historyMode': 'paginated', 'turns': []},
+    },
+  };
+
+  Map<String, dynamic>? answer(FakeCodex server, String method, Map p) {
+    onCall?.call(method);
+    if (fail.containsKey(method)) {
+      calls.add('$method falhou');
+      final message = fail[method];
+      return message == null ? {'silent': true} : _error(message);
+    }
+    final id = '${p['threadId']}';
+    bool known() => threads.containsKey(id) && !archived.contains(id);
+    switch (method) {
+      case 'thread/start':
+        threads[server.threadId] = [];
+        server.loaded.add(server.threadId);
+        writers[server.threadId] = server;
+        return null;
+      case 'turn/start':
+        final turn = 't${++_turns}';
+        threads[id]!.add(turn);
+        calls.add('turn $id $turn');
+        server.emit(
+          jsonEncode({
+            'method': 'turn/started',
+            'params': {
+              'threadId': id,
+              'turn': {'id': turn},
+            },
+          }),
+        );
+        return {
+          'result': {
+            'turn': {'id': turn},
+          },
+        };
+      case 'thread/resume':
+        if (archived.contains(id)) return _error('session $id is archived.');
+        if (!known()) return _error('no rollout found for thread id $id');
+        final w = writers[id];
+        if (w != null && !identical(w, server) && !w.ended) {
+          return _error('thread $id already has an active writer');
+        }
+        writers[id] = server;
+        server.loaded.add(id);
+        calls.add('resume $id');
+        return _thread(id);
+      case 'thread/fork':
+        if (!known()) return _error('no rollout found for thread id $id');
+        final copy = 'copia-${++_forks}';
+        threads[copy] = [...threads[id]!];
+        server.loaded.add(copy);
+        calls.add('fork $id → $copy');
+        server.emit(
+          jsonEncode({
+            'method': 'thread/started',
+            'params': {
+              'thread': {'id': copy},
+            },
+          }),
+        );
+        return _thread(copy);
+      case 'thread/revert':
+        if (!server.loaded.contains(id)) {
+          return _error('thread not found: $id');
+        }
+        final before = '${p['beforeTurnId']}';
+        final turns = threads[id] ?? const [];
+        final i = turns.indexOf(before);
+        if (i < 0) return _error('turn not found: $before');
+        threads[id] = turns.sublist(0, i);
+        calls.add('revert $id $before');
+        return _thread(id);
+      case 'thread/archive':
+        if (!known()) return _error('no rollout found for thread id $id');
+        archived.add(id);
+        calls.add('archive $id');
+        return {'result': <String, dynamic>{}};
+      case 'thread/items/list':
+        calls.add('items $id ${p['turnId']}');
+        return {
+          'result': {
+            'data': [
+              if (known() && threads[id]!.contains(p['turnId']))
+                for (final MapEntry(key: (t, turn, item), :value)
+                    in outputs.entries)
+                  if (turn == p['turnId'] && (t == id || t == '*'))
+                    {
+                      'turnId': turn,
+                      'item': {
+                        'id': item,
+                        'type': 'commandExecution',
+                        'aggregatedOutput': value,
+                      },
+                    },
+            ],
+            'nextCursor': null,
+          },
+        };
+    }
+    return null;
   }
 }

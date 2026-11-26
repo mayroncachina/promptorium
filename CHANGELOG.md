@@ -2,6 +2,87 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.27.1] - 2026-11-26
+
+### Correções
+
+- **provedores:** Codex ligado na documentação e aviso apontando para Provedores (b795041)
+
+## [0.27.0] - 2026-11-26
+
+### Funcionalidades
+
+- **orquestrador:** Provedor nas regras, reservas, escada do Codex e schema v38 (SPEC-109 T1) (e057c97)
+- **orquestrador:** Desvio por cota entre provedores, com volta ao plano e retomada agendada (SPEC-109 T2) (f6b325c)
+- **orquestrador:** Provedor por etapa no Executar e nas Configurações, e a espera por cota (SPEC-109 T3) (e9d8e27)
+- **orquestrador:** Classificação e Revisão no Codex, agente só no Claude (SPEC-109 T4) (dcc4ab9)
+- **orquestrador:** Histórico por provedor e modelo, com desvios e tokens (SPEC-109 T5) (4eab996)
+- **replay:** Passos do Codex, base pelo ponto de restauração e saída completa pela RPC (SPEC-110 T1–T3) (4e7c0a6)
+- **restauracao:** Desfazer também a conversa do Codex, com cópia para o Refazer (SPEC-110 T4) (450b89e)
+- **sessoes:** Turnos revertidos esmaecidos na timeline e no Replay (SPEC-110 T5) (97a0527)
+- **prompt:** Comparar com provedor, esforço e peso por lado (SPEC-108 T1, T2) (a8e643c)
+- **prompt:** Faixa, colunas e pacote de partida do Comparar por provedor (SPEC-108 T3) (28455b5)
+- **quadro:** Comparar A/B com provedor, modelo e esforço por tentativa (SPEC-108 T5) (6462845)
+
+### Correções
+
+- **comparar:** Ajustes vistos no app isolado e guia (SPEC-108 T4) (21672de)
+- **inicio:** A sessão substituída por um desvio por cota não aparece para retomar (SPEC-109 R5) (ff3149a)
+- **orquestrador:** A etapa desviada mantém o selo do provedor no painel (SPEC-109 R14) (2cc77c4)
+- **orquestrador:** O selo da etapa desviada não deixa timer do banco pendente (c9b235a)
+
+### Documentação
+
+- **spec:** SPEC-109 Orquestrador multi-provedor (3e7c385)
+- **spec:** SPEC-109 aponta a issue #344 (94f548e)
+- **spec:** SPEC-109 vai para a 0.26.0 (753ab79)
+- **spec:** SPEC-109 arquiva o canvas no repositório (548320d)
+- **spec:** SPEC-109 em implementação na 0.27.0, com as decisões fechadas (fa04d8e)
+- **spec:** SPEC-110 Replay e restauração com o Codex (2063475)
+- **spec:** SPEC-110 aponta a issue #350 (2cc81f6)
+- **spec:** SPEC-110 vai para a 0.26.0 (700c35d)
+- **spec:** SPEC-110 arquiva o canvas no repositório (40411fa)
+- **spec:** SPEC-110 em implementação, com as decisões P1–P6 fechadas (ee514fe)
+- **spec:** SPEC-108 Comparar Claude × Codex (5066482)
+- **spec:** SPEC-108 aponta a issue #336 (107e14a)
+- **spec:** SPEC-108 vai para a 0.26.0 (c742ee9)
+- **spec:** SPEC-108 arquiva o canvas no repositório (06ce81b)
+- **spec:** SPEC-108 em implementação, decisões P1–P6 fechadas (51eb9a8)
+- **spec:** SPEC-108 concluída, prints do app e leitura de antes guardada na hora (cb00803)
+- **spec:** SPEC-109 com as decisões além da spec e o E2E pendente (95a667b)
+- **spec:** SPEC-109 concluída, E2E no app e prints (27c6b22)
+
+### Testes
+
+- **restauracao:** Ponta a ponta no app compilado, sonda do App Server e ajustes (SPEC-110 T5) (0b88528)
+- O Codex roda no Comparar (SPEC-108) (965ce05)
+- O Codex roda no Comparar (SPEC-108) (b2a7358)
+
+## [0.26.0] - 2026-11-25
+
+### Funcionalidades
+
+- **debitos:** Parser e escritor das tabelas, arquivos, vínculos e schema v37 (SPEC-112 T1) (6a2eeac)
+- **debitos:** Tela Débitos e decisões, menu, itens à mão e commit próprio (SPEC-112 T2) (db2d36f)
+- **debitos:** Pagar débitos, riscar no merge, devolver no descarte e chip do Quadro (SPEC-112 T6) (112c8ec)
+- **debitos:** Registrar_debito e listar_debitos no MCP e etiqueta do provedor na faixa (SPEC-112 T5) (b411b45)
+- **debitos:** "Virar débito" nos comentários da Revisão e nas mensagens do agente (SPEC-112 T4) (03d419c)
+- **debitos:** Entrevista e decisões, débito e DP nas perguntas (SPEC-112 T3) (90e229d)
+- **debitos:** Chips "débitos neste arquivo", lembrete no prompt da etapa e "pago de carona?" (SPEC-112 T7) (c063ee4)
+
+### Documentação
+
+- **spec:** SPEC-112 débitos e decisões, com os mocks (04cda44)
+- **spec:** SPEC-112 ligada à issue #417 (a2ecfbf)
+- **spec:** SPEC-112 com o ícone pending_actions no menu e nos mocks (67cae83)
+- **spec:** SPEC-112 em implementação, com as decisões P fechadas (ac8ee4c)
+- **guia:** O Codex nas páginas do guia de uso (#383) (0c26564)
+
+### Testes
+
+- **debitos:** O menu tem 12 itens com Débitos e decisões (SPEC-112 T2) (902c9fb)
+- **debitos:** Ponta a ponta no app compilado e ajustes do teste (SPEC-112 T8) (79353f8)
+
 ## [0.25.0] - 2026-11-23
 
 ### Funcionalidades

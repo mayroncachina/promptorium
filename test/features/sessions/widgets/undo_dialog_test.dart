@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/providers/capabilities.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/restore/restore_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/features/sessions/widgets/restore_points_section.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/features/sessions/widgets/timeline_view.dart';
 import 'package:promptorium/features/sessions/widgets/undo_dialog.dart';
 
@@ -48,7 +50,11 @@ void main() {
   );
 
   const m = TreeChangeKind.modified;
-  UndoPlan examplePlan({bool pushed = false}) => buildUndoPlan(
+  UndoPlan examplePlan({
+    bool pushed = false,
+    ConversationPlan? conversation,
+  }) => buildUndoPlan(
+    conversation: conversation,
     turn: [
       const TreeChange(
         path: 'src/checkout/checkout.ts',
@@ -93,6 +99,8 @@ void main() {
     bool busy = false,
     Future<UndoPlan> Function()? onStop,
     Object? fail,
+    bool redo = false,
+    bool latest = true,
   }) async {
     tester.view.physicalSize = const Size(1366, 900);
     tester.view.devicePixelRatio = 1;
@@ -104,6 +112,8 @@ void main() {
             point: point(),
             plan: Future.value(plan),
             busy: busy,
+            redo: redo,
+            latest: latest,
             onStop: onStop,
             onConfirm: (c) async {
               if (fail != null) throw fail;
@@ -381,6 +391,207 @@ void main() {
     );
     await tester.tap(find.text('ponto'));
     expect(opened, 1);
+  });
+
+  group('SPEC-110 · Conversa do agente', () {
+    const codex = ConversationPlan(
+      provider: 'codex',
+      agent: 'Codex',
+      firstTurn: 3,
+      lastTurn: 5,
+      beforeTurnId: 't3',
+    );
+    Checkbox box(WidgetTester tester) => tester.widget<Checkbox>(
+      find.byKey(const ValueKey('undo-conversation-check')),
+    );
+
+    testWidgets('R7: no Codex, a caixa vem marcada, diz o efeito e a cópia, e '
+        'entra no botão; desmarcada, só os arquivos', (tester) async {
+      final got = <UndoChoice>[];
+      await pumpDialog(
+        tester,
+        examplePlan(conversation: codex),
+        got: got,
+        latest: false,
+      );
+      expect(find.text('CONVERSA DO AGENTE'), findsOneWidget);
+      expect(box(tester).value, isTrue);
+      expect(
+        find.text('Voltar também a conversa do Codex para antes do turno 3'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'O Codex esquece os turnos 3 a 5. A timeline do app continua '
+          'mostrando os turnos, marcados como revertidos.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('undo-conversation-copy')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Desfazer 4 arquivos, 1 commit e os turnos 3 a 5 da conversa',
+        ),
+        findsOneWidget,
+      );
+      final toggle = find.byKey(const ValueKey('undo-conversation-toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pump();
+      expect(box(tester).value, isFalse);
+      expect(
+        find.byKey(const ValueKey('undo-conversation-copy')),
+        findsNothing,
+      );
+      expect(find.text('Desfazer 4 arquivos e 1 commit'), findsOneWidget);
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('undo-confirm')));
+      await tester.pumpAndSettle();
+      expect(got.single.revertConversation, isTrue);
+    });
+
+    testWidgets('R11: o rótulo completo da caixa para o leitor de tela', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await pumpDialog(
+        tester,
+        examplePlan(
+          conversation: const ConversationPlan(
+            provider: 'codex',
+            agent: 'Codex',
+            firstTurn: 4,
+            lastTurn: 4,
+            beforeTurnId: 't4',
+          ),
+        ),
+        got: [],
+      );
+      final node = tester.getSemantics(
+        find.byKey(const ValueKey('undo-conversation-box')),
+      );
+      expect(
+        node.label,
+        'Voltar também a conversa do Codex para antes do turno 4. O Codex '
+        'esquece o turno 4. A timeline do app continua mostrando o turno, '
+        'marcado como revertido.',
+      );
+      expect(node.flagsCollection.isChecked.name, 'isTrue');
+      handle.dispose();
+    });
+
+    testWidgets('R7: no Claude, desabilitada com "Só Codex" e a dica', (
+      tester,
+    ) async {
+      final got = <UndoChoice>[];
+      await pumpDialog(
+        tester,
+        examplePlan(
+          conversation: ConversationPlan(
+            provider: 'claude',
+            agent: 'Claude Code',
+            firstTurn: 4,
+            lastTurn: 4,
+            onlyCodex: true,
+            reason: ProviderCapabilities.claude.reasonFor(
+              ProviderCapability.revertConversation,
+            ),
+          ),
+        ),
+        got: got,
+      );
+      const why =
+          'Só Codex: o Claude Code não volta a conversa no modo do app; o '
+          'agente recebe o aviso.';
+      expect(box(tester).value, isFalse);
+      expect(box(tester).onChanged, isNull);
+      expect(find.text(why), findsOneWidget);
+      expect(find.byTooltip(why), findsOneWidget);
+      expect(find.text('Desfazer 4 arquivos e 1 commit'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('undo-confirm')));
+      await tester.pumpAndSettle();
+      expect(got.single.revertConversation, isFalse);
+    });
+
+    testWidgets('R6: sem turno identificado, o motivo; um turno só de leitura '
+        'dá para desfazer só na conversa', (tester) async {
+      await pumpDialog(
+        tester,
+        const UndoPlan(
+          conversation: ConversationPlan(
+            provider: 'codex',
+            agent: 'Codex',
+            firstTurn: 4,
+            lastTurn: 4,
+            reason:
+                'O turno do Codex deste ponto não foi identificado: só os '
+                'arquivos voltam.',
+          ),
+        ),
+        got: [],
+      );
+      expect(box(tester).onChanged, isNull);
+      expect(find.textContaining('não foi identificado'), findsOneWidget);
+      expect(find.textContaining('Só Codex'), findsNothing);
+      SmallButton confirm() => tester.widget<SmallButton>(
+        find.byKey(const ValueKey('undo-confirm')),
+      );
+      expect(confirm().onTap, isNull);
+      await tester.pumpWidget(const SizedBox());
+      await pumpDialog(tester, const UndoPlan(conversation: codex), got: []);
+      expect(confirm().label, 'Desfazer os turnos 3 a 5 da conversa');
+      expect(confirm().onTap, isNotNull);
+    });
+
+    testWidgets('R9: no Refazer, a cópia usada ou o aviso de que não há', (
+      tester,
+    ) async {
+      await pumpDialog(
+        tester,
+        examplePlan(
+          conversation: ConversationPlan(
+            provider: 'codex',
+            agent: 'Codex',
+            firstTurn: 3,
+            lastTurn: 5,
+            copyAt: DateTime(2026, 11, 17, 14, 20),
+          ),
+        ),
+        got: [],
+        redo: true,
+      );
+      expect(
+        find.text(
+          'A sessão volta para a cópia da conversa de 14:20: o Codex lembra '
+          'de novo dos turnos 3 a 5.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('undo-conversation-check')),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+      await pumpDialog(
+        tester,
+        examplePlan(
+          conversation: const ConversationPlan(
+            provider: 'codex',
+            agent: 'Codex',
+            firstTurn: 3,
+            lastTurn: 3,
+            reason: 'Não há cópia da conversa: só os arquivos voltam.',
+          ),
+        ),
+        got: [],
+        redo: true,
+      );
+      expect(find.textContaining('Não há cópia'), findsOneWidget);
+    });
   });
 
   test('the timeline note after an undo', () {

@@ -127,15 +127,29 @@ List<DiffRow> unifiedDiffRows(String diff) {
 /// [text] with [diff] applied; null when a hunk does not match (the file
 /// changed in another way). [text] null = an empty file.
 String? applyUnifiedDiff(String? text, String diff) =>
-    _apply(text, parseHunks(diff));
+    applyHunks(text, parseHunks(diff)).text;
 
 /// [text] (the file after the change) with [diff] undone: the text before
 /// it (SPEC-095 P4). Null when the diff does not apply in reverse.
 String? reverseUnifiedDiff(String text, String diff) =>
-    _apply(text, [for (final h in parseHunks(diff)) h.reversed]);
+    applyHunks(text, [for (final h in parseHunks(diff)) h.reversed]).text;
 
-String? _apply(String? text, List<Hunk> hunks) {
-  if (hunks.isEmpty) return null;
+/// Outcome of [applyHunks]: the text, or the hunk that did not match and the
+/// first line of the text (1-based) that was already different (SPEC-110
+/// R2; null = the hunk starts past the end of the text).
+class HunksApplied {
+  const HunksApplied.ok(String this.text) : failed = null, line = null;
+
+  const HunksApplied.failed(this.failed, this.line) : text = null;
+
+  final String? text;
+  final Hunk? failed;
+  final int? line;
+}
+
+/// [text] with [hunks] applied in order. [text] null = an empty file.
+HunksApplied applyHunks(String? text, List<Hunk> hunks) {
+  if (hunks.isEmpty) return const HunksApplied.failed(null, null);
   final src = text ?? '';
   final trailing = src.isEmpty || src.endsWith('\n');
   final lines = src.isEmpty
@@ -151,14 +165,27 @@ String? _apply(String? text, List<Hunk> hunks) {
       h.oldCount == 0 ? h.oldStart : h.oldStart - 1,
       pos,
     );
-    if (at == null) return null;
+    if (at == null) {
+      return HunksApplied.failed(h, _firstDifferent(lines, old, h.oldStart));
+    }
     out.addAll(lines.sublist(pos, at));
     out.addAll(h.newLines);
     pos = at + old.length;
   }
   out.addAll(lines.sublist(pos));
-  if (out.isEmpty) return '';
-  return '${out.join('\n')}${trailing ? '\n' : ''}';
+  if (out.isEmpty) return const HunksApplied.ok('');
+  return HunksApplied.ok('${out.join('\n')}${trailing ? '\n' : ''}');
+}
+
+/// 1-based line where [lines] stops matching [block] placed at [start].
+int? _firstDifferent(List<String> lines, List<String> block, int start) {
+  final from = start < 1 ? 0 : start - 1;
+  for (var k = 0; k < block.length; k++) {
+    final i = from + k;
+    if (i >= lines.length) return null;
+    if (lines[i] != block[k]) return i + 1;
+  }
+  return start < 1 ? 1 : start;
 }
 
 /// Where [block] starts in [lines] at or after [from]: [hint] first, then

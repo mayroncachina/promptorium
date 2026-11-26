@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
+import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart';
 import 'package:promptorium/features/review/auto_reviewer.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
@@ -82,7 +83,10 @@ void main() {
           models: const [
             {
               'id': 'gpt-6.1-terra',
-              'supportedReasoningEfforts': ['low', 'medium'],
+              'supportedReasoningEfforts': [
+                {'reasoningEffort': 'low'},
+                {'reasoningEffort': 'medium'},
+              ],
               'inputModalities': ['text'],
             },
           ],
@@ -153,6 +157,43 @@ void main() {
 
   Map<String, dynamic> thread() =>
       servers.last.writtenJson.lastWhere((m) => m['method'] == 'thread/start');
+
+  test('SPEC-109 R11: em Automático, a regra Revisão no Codex revisa com o '
+      'modelo e o esforço da regra', () async {
+    await setUpRepo('revisor:\n  ligado: true\n  modelo: haiku\n');
+    await executedBy('claude');
+    await c
+        .read(specStepsRepoProvider)
+        .setPlan(
+          spec.id,
+          'R1',
+          kind: 'implementacao',
+          model: 'sonnet',
+          effort: 'medium',
+        );
+    await storeReviewRule(
+      c.read(appSettingsProvider.notifier),
+      spec.id,
+      const StepRule('gpt-6.1-terra', 'medium', provider: 'codex'),
+    );
+    final done = c.read(autoReviewerProvider).review(spec.id);
+    final turn = await codexTurn();
+    expect(thread()['params']['sandbox'], 'read-only');
+    expect(thread()['params']['model'], 'gpt-6.1-terra');
+    expect(turn['params']['effort'], 'medium');
+    expect(cli.processes, isEmpty);
+    servers.last
+      ..answer(
+        jsonEncode({
+          'veredito': 'aprovar',
+          'resumo': 'Ok.',
+          'criterios': [],
+          'comentarios': [],
+        }),
+      )
+      ..completeTurn();
+    await done;
+  });
 
   test('spec executada no Codex é revisada pelo Codex com o schema atual: '
       'sem alias do Claude nem orçamento, o agente traduzido (SPEC-106 '

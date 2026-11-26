@@ -105,7 +105,7 @@ void main() {
     // SPEC-101 R1: Executar spec is on for the Codex.
     expect(find.text('Executar spec'), findsOneWidget);
     expect(find.text('Executar spec · SPEC-101'), findsNothing);
-    expect(find.text('Comparar · SPEC-108'), findsOneWidget);
+    expect(find.byKey(const ValueKey('codex-flow-compare')), findsOneWidget);
     expect(
       c.read(providerFlowsProvider).allows('codex', AppFlow.prompt),
       isTrue,

@@ -141,6 +141,47 @@ abstract final class AppSettingKeys {
   /// "Classificar as etapas com": model alias (`haiku` / `sonnet`).
   static const orchestratorClassifierModel = 'orchestrator.classifierModel';
 
+  // --- Orquestrador multi-provedor (SPEC-109) ---------------------------------
+
+  /// Provider of the rule of a `StepKind` (absent = the Claude Code, R1).
+  static String orchestratorProvider(String kind) =>
+      'orchestrator.provider.$kind';
+
+  /// Reserve of the rule of a `StepKind` on the other provider (R2):
+  /// `provider|model|effort`, or `none`.
+  static String orchestratorFallback(String kind) =>
+      'orchestrator.fallback.$kind';
+
+  /// "Desviar para o outro provedor quando a cota acabar" (`1` / `0`, R5).
+  static const orchestratorDivertOnQuota = 'orchestrator.divertOnQuota';
+
+  /// "Desviar antes de começar uma etapa…" (`1` / `0`) and its N% (R6).
+  static const orchestratorDivertAbove = 'orchestrator.divertAbove';
+  static const orchestratorDivertAbovePercent =
+      'orchestrator.divertAbovePercent';
+
+  /// "No topo da escada, tentar o outro provedor" (`1` / `0`, R4).
+  static const orchestratorSecondOpinion = 'orchestrator.secondOpinion';
+
+  /// Ladder of the Codex (R3): `effort` or `models`, and the models in
+  /// order (comma separated).
+  static const orchestratorCodexLadder = 'orchestrator.codexLadder';
+  static const orchestratorCodexLadderModels = 'orchestrator.codexLadderModels';
+
+  /// Last limit reached by a provider in Automático (R5, R7), JSON.
+  static String orchestratorQuotaHit(String provider) =>
+      'orchestrator.quotaHit.$provider';
+
+  /// Where the spec's current step was diverted to, JSON (R5, R14).
+  static String specDivert(int specId) => 'spec.$specId.divert';
+
+  /// Permission mode chosen in Executar for a run in Automático, whatever
+  /// the provider of each step (R10).
+  static String specAutoMode(int specId) => 'spec.$specId.autoMode';
+
+  /// Why the spec waits for quota, JSON (R8).
+  static String specQuotaWait(int specId) => 'spec.$specId.quotaWait';
+
   /// Model and effort of the line "Revisão" of the plan of a spec run in
   /// Automático (`sonnet|medium`, SPEC-035 R4, R8).
   static String orchestratorReviewOf(int specId) =>

@@ -21,6 +21,10 @@ class StepRunsRepo {
     String? sessionId,
     required StepRunResult result,
     double? costUsd,
+    String provider = 'claude',
+    int? tokensIn,
+    int? tokensOut,
+    String? diverted,
     DateTime? at,
   }) => _db
       .into(_t)
@@ -34,6 +38,10 @@ class StepRunsRepo {
           sessionId: Value(sessionId),
           result: result,
           costUsd: Value(costUsd),
+          provider: Value(provider),
+          tokensIn: Value(tokensIn),
+          tokensOut: Value(tokensOut),
+          diverted: Value(diverted),
           createdAt: Value.absentIfNull(at),
         ),
       );
@@ -61,10 +69,26 @@ class StepRunsRepo {
 
   Stream<List<StepRun>> watchSince(DateTime from) => _since(from).watch();
 
+  /// Sessions a quota divert ended and replaced (SPEC-109 R5): the step went
+  /// on in a new session of the other provider, so resuming them would redo
+  /// the step over work already done.
+  Stream<Set<String>> watchDivertedSessionIds() =>
+      (_db.selectOnly(_t, distinct: true)
+            ..addColumns([_t.sessionId])
+            ..where(
+              _t.result.equalsValue(StepRunResult.diverted) &
+                  _t.sessionId.isNotNull(),
+            ))
+          .watch()
+          .map((rows) => {for (final r in rows) r.read(_t.sessionId)!});
+
+  SimpleSelectStatement<$StepRunsTable, StepRun> _bySpec(int specId) =>
+      _db.select(_t)
+        ..where((r) => r.specId.equals(specId))
+        ..orderBy([(r) => OrderingTerm.asc(r.id)]);
+
   /// Attempts of [specId], oldest first.
-  Future<List<StepRun>> bySpec(int specId) =>
-      (_db.select(_t)
-            ..where((r) => r.specId.equals(specId))
-            ..orderBy([(r) => OrderingTerm.asc(r.id)]))
-          .get();
+  Future<List<StepRun>> bySpec(int specId) => _bySpec(specId).get();
+
+  Stream<List<StepRun>> watchBySpec(int specId) => _bySpec(specId).watch();
 }

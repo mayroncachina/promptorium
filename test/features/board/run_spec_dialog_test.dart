@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,10 @@ import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
 import 'package:promptorium/core/codex/codex_agent_mapping.dart';
 import 'package:promptorium/core/codex/codex_probe.dart';
+import 'package:promptorium/core/providers/agent_event.dart' show QuotaWindow;
 import 'package:promptorium/core/providers/capabilities.dart';
+import 'package:promptorium/core/providers/permission_policy.dart';
+import 'package:promptorium/core/providers/quota_source.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
@@ -22,6 +26,7 @@ import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/sessions/agent_names.dart';
 import 'package:promptorium/features/settings/settings_sections.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart';
+import 'package:promptorium/ui/providers/provider_logos.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:promptorium/ui/widgets/app_dialog.dart';
@@ -365,9 +370,9 @@ void main() {
       expect(find.text('gpt-6.1-terra'), findsWidgets);
       expect(find.text('opus'), findsNothing);
       expect(find.text('inherit (padrão)'), findsNothing);
-      // R5: Automático off with the tag and the hint.
-      expect(key('run-spec-auto-only'), findsOneWidget);
-      expect(key('run-spec-auto-only-hint'), findsOneWidget);
+      // SPEC-109 R9: the provider of the form is only of Manual.
+      expect(key('run-spec-auto-only'), findsNothing);
+      expect(key('run-spec-auto-fixed-hint'), findsNothing);
       // SPEC-106 R8: the agent selector comes back with the Codex.
       expect(key('run-spec-agent-only'), findsNothing);
       expect(key('run-spec-agent'), findsOneWidget);
@@ -443,7 +448,7 @@ void main() {
         },
         codex: const ProviderAvailability(ProviderStatus.ready, 'ok'),
       );
-      expect(key('run-spec-auto-only'), findsOneWidget);
+      // No rule uses the Codex: it stays in Manual by itself (SPEC-109 R12).
       expect(key('run-spec-model'), findsOneWidget);
       expect(key('step-plan-skeleton'), findsNothing);
       expect(classifier.calls, 0);
@@ -578,6 +583,183 @@ void main() {
         stepTextHash('Criar a tabela de relatórios'),
       );
       expect(result!.plan.any((e) => e.userPicked), isFalse);
+      await tester.pumpAndSettle();
+    });
+
+    const codexReady = ProviderAvailability(ProviderStatus.ready, 'ok');
+
+    /// Mecânica on the Codex (gpt-5.6-luna · low); the rest on the Claude.
+    Map<String, String> mixed([Map<String, String> extra = const {}]) => {
+      AppSettingKeys.orchestratorAutoByDefault: '1',
+      codexModelsCacheKey: codexCache,
+      AppSettingKeys.orchestratorProvider('mecanica'): 'codex',
+      AppSettingKeys.orchestratorModel('mecanica'): 'gpt-5.6-luna',
+      AppSettingKeys.orchestratorEffort('mecanica'): 'low',
+      ...extra,
+    };
+
+    testWidgets('SPEC-109 R9, R14: the badge of the provider by step, the '
+        'quotas in the header and a session per change of provider', (
+      tester,
+    ) async {
+      final renew = DateTime.now().add(const Duration(hours: 2));
+      await open(
+        tester,
+        settings: mixed({
+          AppSettingKeys.orchestratorDivertOnQuota: '1',
+          AppSettingKeys.lastRateLimit: jsonEncode({
+            'type': 'rate_limit_event',
+            'rate_limit_info': {
+              'status': 'allowed',
+              'unifiedWindows': {
+                'five_hour': {
+                  'utilization': 0.62,
+                  'resetsAt': renew.millisecondsSinceEpoch ~/ 1000,
+                },
+                'seven_day': {
+                  'utilization': 0.41,
+                  'resetsAt': renew.millisecondsSinceEpoch ~/ 1000,
+                },
+              },
+            },
+          }),
+          AppSettingKeys.codexLastRateLimit: jsonEncode(
+            QuotaSnapshot(
+              provider: 'codex',
+              main: QuotaBucket(
+                id: 'codex',
+                windows: [
+                  QuotaWindow(
+                    id: 'primary',
+                    label: '5h',
+                    usedPercent: 18,
+                    resetsAt: renew,
+                    minutes: 300,
+                  ),
+                ],
+              ),
+            ).toJson(),
+          ),
+        }),
+        codex: codexReady,
+      );
+      await answer(tester, {
+        'R1': 'mecanica',
+        'R2': 'altoRisco',
+        'R3': 'implementacao',
+        'R4': 'mecanica',
+      });
+      ProviderChip chip(String step) =>
+          tester.widget<ProviderChip>(key('step-plan-chip-$step'));
+      expect(
+        [
+          for (final s in ['R1', 'R2', 'R3', 'R4']) chip(s).provider,
+        ],
+        ['codex', 'claude', 'claude', 'codex'],
+      );
+      // The badge has text, not only color.
+      expect(
+        find.descendant(
+          of: key('step-plan-chip-R1'),
+          matching: find.text('Codex'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('gpt-5.6-luna · low'), findsNWidgets(2));
+      expect(find.text('5 h 62% · semana 41%'), findsOneWidget);
+      expect(find.text('5 h 18%'), findsOneWidget);
+      // R1 | R2 | R3 | R4.
+      expect(
+        find.text(
+          '4 sessões · 2 no Codex, 2 no Claude · uma nova a cada troca de '
+          'provedor · desvio por cota ligado: reserva do outro provedor',
+        ),
+        findsOneWidget,
+      );
+      expect(key('run-spec-codex-mode'), findsOneWidget);
+
+      // The line moves to the other provider: the reserve of its kind.
+      await tester.tap(key('step-plan-provider-R2'));
+      await tester.pumpAndSettle();
+      await tester.tap(key('step-plan-provider-R2-codex'));
+      await tester.pumpAndSettle();
+      expect(chip('R2').provider, 'codex');
+      expect(find.text('gpt-6.1-terra · high'), findsOneWidget);
+      expect(key('step-plan-picked-R2'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.provider, 'claude', reason: 'the mode is the Claude one');
+      expect(result!.auto, isTrue);
+      expect(
+        [for (final e in result!.plan) e.rule],
+        const [
+          StepRule('gpt-5.6-luna', 'low', provider: 'codex'),
+          StepRule('gpt-6.1-terra', 'high', provider: 'codex'),
+          StepRule('sonnet', 'medium'),
+          StepRule('gpt-5.6-luna', 'low', provider: 'codex'),
+        ],
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SPEC-109 R9: with the Codex unavailable the lines say it '
+        'and only an explicit action changes them', (tester) async {
+      await open(
+        tester,
+        settings: mixed(),
+        codex: const ProviderAvailability(
+          ProviderStatus.loginRequired,
+          'rode codex login',
+        ),
+      );
+      await answer(tester, {'R1': 'mecanica', 'R4': 'mecanica'});
+      expect(find.text('Codex indisponível: login pendente'), findsNWidgets(2));
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isFalse, reason: 'nothing goes elsewhere in silence');
+      await tester.tap(key('run-spec-use-claude-rule'));
+      await pump(tester);
+      expect(find.text('Codex indisponível: login pendente'), findsNothing);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.plan.every((e) => e.rule.isClaude), isTrue);
+      expect(result!.plan.first.rule, const StepRule('haiku', 'low'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SPEC-109 R10: the line on the Codex says the agent stays '
+        'with the Claude; a run begun in Manual on the Codex stays there', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        settings: mixed({'spec.7.provider': 'codex'}),
+        codex: codexReady,
+      );
+      expect(key('run-spec-auto-fixed-hint'), findsOneWidget);
+      expect(classifier.calls, 0);
+    });
+
+    testWidgets('SPEC-109 R10: on the Codex without sandbox, Automático '
+        'never opens in YOLO', (tester) async {
+      await open(
+        tester,
+        settings: mixed({
+          'agent.provider.default': 'codex',
+          permissionModePreferenceKey('claude'):
+              ClaudePermissionMode.acceptEdits.cliValue,
+        }),
+        codex: const ProviderAvailability(
+          ProviderStatus.ready,
+          'ok',
+          sandboxWarning: 'x',
+        ),
+      );
+      await answer(tester, {'R1': 'mecanica'});
+      expect(find.textContaining('sem o sandbox, só o YOLO'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.mode, ClaudePermissionMode.acceptEdits);
       await tester.pumpAndSettle();
     });
 

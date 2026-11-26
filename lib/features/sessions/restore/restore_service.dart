@@ -6,9 +6,16 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/codex/codex_neutral.dart' show codexTurnStartedSubtype;
+import '../../../core/codex/codex_thread_ops.dart';
 import '../../../core/git/git_service.dart';
+import '../../../core/providers/capabilities.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/restore_points_repo.dart';
+import '../codex_conversations.dart';
+import '../conversation_events.dart';
+import '../session_manager.dart';
+import '../timeline.dart' show AppEventTypes;
 import 'restore_point.dart';
 
 export '../../../data/repos/restore_points_repo.dart'
@@ -90,6 +97,8 @@ class UndoOutcome {
     required this.turn,
     required this.files,
     this.commits = const [],
+    this.conversation,
+    this.restored,
   });
 
   final int turn;
@@ -97,7 +106,39 @@ class UndoOutcome {
 
   /// Subjects of the commits thrown away.
   final List<String> commits;
+
+  /// What came of the agent's conversation in an undo (SPEC-110 R8); null =
+  /// it was not asked to go back.
+  final ConversationRevert? conversation;
+
+  /// Redo (R9): the copy was adopted (true) or the conversation did not come
+  /// back (false); null = it had not gone back.
+  final bool? restored;
 }
+
+/// The Codex turn a restore point opened (SPEC-110 R6, P1); without one,
+/// only the files can be undone.
+@immutable
+class AgentTurn {
+  const AgentTurn(String this.id) : reason = null;
+
+  const AgentTurn.unknown(String this.reason) : id = null;
+
+  final String? id;
+  final String? reason;
+}
+
+/// Text of the timeline after an undo: "Turno 4 desfeito: 41 arquivos,
+/// 1 commit (wip)." (SPEC-084 R8).
+String undoneNote(UndoOutcome o) {
+  final commits = o.commits.isEmpty ? '' : ', ${commitsLabel(o.commits)}';
+  return 'Turno ${o.turn} desfeito: ${filesLabel(o.files)}$commits.';
+}
+
+/// What the agent hears after a redo (with the next message).
+String redoNotice(int turn) =>
+    'O usuário refez o turno $turn; os arquivos voltaram ao estado de depois '
+    'do turno. Releia antes de alterar.';
 
 class RestoreException implements Exception {
   const RestoreException(this.message);
@@ -169,6 +210,8 @@ class RestoreService {
     list.add((path, at ?? DateTime.now()));
     if (list.length > 500) list.removeRange(0, list.length - 500);
   }
+
+  SessionManager get _manager => _ref.read(sessionManagerProvider.notifier);
 
   static bool isGitDir(String path) =>
       FileSystemEntity.typeSync('$path/.git') != FileSystemEntityType.notFound;
@@ -457,6 +500,7 @@ class RestoreService {
       startBranch: p.startBranch,
       currentBranch: now.branch,
       startHead: p.startHead,
+      conversation: await _safe(() => _conversationPlan(p, range), null),
     );
   });
 
@@ -488,8 +532,417 @@ class RestoreService {
           startBranch: p.undoBranch,
           currentBranch: now.branch,
           startHead: p.undoHead ?? now.head,
+          conversation: await _safe(() => _redoConversationPlan(p), null),
         );
       });
+
+  // --- the agent's conversation (SPEC-110) -------------------------------------
+
+  /// The Codex turn [p] opened (R6): the `turn/started` that follows its
+  /// message in `session_events`, up to the next message. A message that
+  /// steered a running turn opened none.
+  Future<AgentTurn> agentTurnOf(RestorePoint p) async {
+    const none = AgentTurn.unknown(
+      'O turno do Codex deste ponto não foi identificado: só os arquivos '
+      'voltam.',
+    );
+    final sid = p.sessionId, seq = p.eventSeq;
+    if (sid == null || seq == null) return none;
+    final sessions = _ref.read(sessionsRepoProvider);
+    String? other;
+    var from = seq;
+    scan:
+    while (true) {
+      final rows = await sessions.eventsAfter(sid, from);
+      for (final e in rows) {
+        from = e.seq;
+        if (e.type == AppEventTypes.user) break scan;
+        if (!e.json.contains('"turn_id"')) {
+          // The process died before the turn and was started again.
+          if (e.type == AppEventTypes.note &&
+              e.json.contains('Sessão retomada')) {
+            break scan;
+          }
+          continue;
+        }
+        final id = _turnIdOf(e.json);
+        if (id == null) continue;
+        if (e.type == 'system/$codexTurnStartedSubtype') return AgentTurn(id);
+        other ??= id;
+      }
+      if (rows.length < 200) break;
+    }
+    if (other == null) return none;
+    // Sessions from before the `turn_started` event: an id already seen
+    // before the message is of a turn that was running.
+    final before = await sessions.lastEventBefore(sid, seq, '"turn_id"');
+    if (before != null && _turnIdOf(before.json) == other) {
+      return const AgentTurn.unknown(
+        'Este ponto foi gravado no meio de um turno do Codex: só os arquivos '
+        'voltam.',
+      );
+    }
+    return AgentTurn(other);
+  }
+
+  static String? _turnIdOf(String json) {
+    try {
+      final j = jsonDecode(json);
+      final id = j is Map && j['provider'] == 'codex' ? j['turn_id'] : null;
+      return id is String && id.isNotEmpty ? id : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static int _lastTurn(RestorePoint p, List<RestorePoint> range) {
+    var last = p.turn;
+    for (final x in range) {
+      if (x.state != RestoreState.undone && x.turn > last) last = x.turn;
+    }
+    return last;
+  }
+
+  /// The "Conversa do agente" of the undo window (R7).
+  Future<ConversationPlan?> _conversationPlan(
+    RestorePoint p,
+    List<RestorePoint> range,
+  ) async {
+    if (p.sessionId == null) return null;
+    final s = await _ref.read(sessionsRepoProvider).getById(p.sessionId!);
+    if (s == null) return null;
+    final caps = capabilitiesFor(s.provider);
+    final last = _lastTurn(p, range);
+    ConversationPlan plan({String? id, String? reason, bool only = false}) =>
+        ConversationPlan(
+          provider: s.provider,
+          agent: caps.displayName,
+          firstTurn: p.turn,
+          lastTurn: last,
+          beforeTurnId: id,
+          reason: reason,
+          onlyCodex: only,
+        );
+    if (!caps.supports(ProviderCapability.revertConversation)) {
+      return plan(
+        reason: caps.reasonFor(ProviderCapability.revertConversation),
+        only: true,
+      );
+    }
+    if ((s.externalId ?? '').isEmpty) {
+      return plan(reason: 'A sessão ainda não tem uma conversa do Codex.');
+    }
+    final turn = await agentTurnOf(p);
+    return plan(id: turn.id, reason: turn.reason);
+  }
+
+  Future<ConversationPlan?> _redoConversationPlan(RestorePoint p) async {
+    final r = await activeRevert(p);
+    if (r == null) return null;
+    return ConversationPlan(
+      provider: 'codex',
+      agent: capabilitiesFor('codex').displayName,
+      firstTurn: r.turn,
+      lastTurn: r.lastTurn,
+      copyAt: r.copyId == null ? null : r.copyAt,
+      reason: r.copyId == null
+          ? 'Não há cópia da conversa: só os arquivos voltam, e o agente '
+                'recebe o aviso.'
+          : null,
+    );
+  }
+
+  /// The revert of the conversation made with the undo of [p] and not
+  /// restored since (R9).
+  Future<ConversationRevert?> activeRevert(RestorePoint p) async {
+    if (p.sessionId == null) return null;
+    final rows = await _ref.read(sessionsRepoProvider).eventsOfTypes({
+      AgentConversationEvents.reverted,
+      AgentConversationEvents.restored,
+    }, sessionId: p.sessionId);
+    ConversationRevert? found;
+    for (final e in rows) {
+      final Object? j;
+      try {
+        j = jsonDecode(e.json);
+      } on FormatException {
+        continue;
+      }
+      if (j is! Map) continue;
+      if (j['type'] == AgentConversationEvents.restored) {
+        if (found != null && j['revert'] == found.key) found = null;
+        continue;
+      }
+      final r = ConversationRevert.fromJson(j);
+      if (r != null && r.pointId == p.id) found = r;
+    }
+    return found;
+  }
+
+  /// Steps 2 and 3 of R8, after the files: the copy, then the revert. Never
+  /// throws: a failure comes in [ConversationRevert.error] and changes
+  /// nothing else — the files stay undone and the session keeps its thread,
+  /// which is whole until `thread/revert` answers. Only inside
+  /// [SessionManager.holdConversation].
+  Future<ConversationRevert?> _revertConversation(
+    RestorePoint p, {
+    required int lastTurn,
+    required int files,
+    required List<String> commits,
+    String? copyId,
+    DateTime? copiedAt,
+  }) async {
+    final s = await _ref.read(sessionsRepoProvider).getById(p.sessionId ?? '');
+    if (s == null) return null;
+    final turn = await agentTurnOf(p);
+    final thread = s.externalId ?? '';
+    var copy = copyId;
+    String? copyError;
+    String? error = turn.reason;
+    if (error == null && thread.isEmpty) {
+      error = 'a sessão não tem uma conversa do Codex';
+    }
+    if (error == null) {
+      try {
+        await _ref.read(codexConversationsProvider).run(s, (
+          ops, {
+          required live,
+        }) async {
+          // `thread/revert` wants the thread loaded; no turn starts.
+          if (!live) await ops.resume(thread, cwd: s.worktreePath);
+          if (copy == null) {
+            try {
+              copy = await ops.fork(thread, cwd: s.worktreePath);
+            } catch (e) {
+              // R9: without a copy, "Refazer" brings back only the files.
+              copyError = codexThreadFailure(e);
+            }
+          }
+          await ops.revert(thread, turn.id!);
+        }, loadsThread: true);
+      } catch (e) {
+        error = codexThreadFailure(e);
+      }
+    }
+    final out = ConversationRevert(
+      key: 'cr-${DateTime.now().microsecondsSinceEpoch}',
+      pointId: p.id,
+      turn: p.turn,
+      lastTurn: lastTurn,
+      beforeTurnId: turn.id ?? '',
+      threadId: thread,
+      at: DateTime.now(),
+      fromSeq: p.eventSeq,
+      copyId: copy,
+      copiedAt: copyId == null ? null : copiedAt,
+      copyError: copyError,
+      error: error,
+      files: files,
+      commits: commits,
+    );
+    if (out.ok) {
+      _manager.conversationReverted(s.id);
+      await _safe(() => _manager.appEvent(s.id, out.toJson()), null);
+    }
+    return out;
+  }
+
+  /// R9: the session goes on in the copy. False when it could not (the
+  /// thread of the session stays the one it has).
+  Future<bool> _restoreConversation(
+    RestorePoint p,
+    ConversationRevert r, {
+    required int files,
+  }) async {
+    final s = await _ref.read(sessionsRepoProvider).getById(p.sessionId ?? '');
+    final copy = r.copyId;
+    if (s == null || copy == null) return false;
+    try {
+      // The idle process ends first: it writes the old thread and may have
+      // the copy open (it made it).
+      await _manager.release(s.id);
+      // What the next message will do. A copy that does not resume (gone,
+      // archived) never becomes the conversation of the session.
+      await _ref
+          .read(codexConversationsProvider)
+          .runShort(
+            (ops) => ops.resume(copy, cwd: s.worktreePath),
+            cwd: s.worktreePath,
+            loadsThread: true,
+          );
+      await _ref.read(sessionsRepoProvider).setExternalId(s.id, copy);
+    } catch (e) {
+      await _safe(
+        () => _manager.note(
+          s.id,
+          'A conversa do Codex não voltou: ${codexThreadFailure(e)}. Só os '
+          'arquivos foram refeitos e o agente recebe o aviso.',
+          error: true,
+        ),
+        null,
+      );
+      return false;
+    }
+    await _safe(
+      () => _manager.appEvent(
+        s.id,
+        conversationRestoredEvent(
+          revert: r,
+          previousThread: s.externalId ?? '',
+          files: files,
+        ),
+      ),
+      null,
+    );
+    return true;
+  }
+
+  /// "Desfazer" of a session, whole (R8): the files, the conversation when
+  /// asked, the timeline and what the agent hears.
+  Future<UndoOutcome> undoTurn(
+    RestorePoint p,
+    Set<String> paths, {
+    bool filesOnly = false,
+    bool revertConversation = false,
+  }) async {
+    final out = await undo(
+      p,
+      paths,
+      filesOnly: filesOnly,
+      revertConversation: revertConversation,
+    );
+    final sid = p.sessionId;
+    if (sid == null) return out;
+    final c = out.conversation;
+    // It went back: the note is its event, and the agent no longer knows
+    // the turn.
+    if (c != null && c.ok) return out;
+    await _manager.note(sid, undoneNote(out));
+    if (c != null) await _manager.appEvent(sid, c.toJson());
+    await _manager.queueNotice(sid, SessionManager.undoNotice(out.turn));
+    return out;
+  }
+
+  /// "Refazer" of a session, whole (R9).
+  Future<UndoOutcome> redoTurn(RestorePoint p, Set<String> paths) async {
+    final out = await redo(p, paths);
+    final sid = p.sessionId;
+    // With the conversation back, its event is the note.
+    if (sid == null || out.restored == true) return out;
+    final lost = out.restored == false
+        ? ' Sem a cópia, a conversa do Codex não volta.'
+        : '';
+    await _manager.note(
+      sid,
+      'Turno ${out.turn} refeito: ${filesLabel(out.files)}.$lost',
+    );
+    await _manager.queueNotice(sid, redoNotice(out.turn));
+    return out;
+  }
+
+  /// "Tentar voltar a conversa" after a failure (R8): only the conversation,
+  /// while no turn started since the undo.
+  Future<ConversationRevert> retryConversation(
+    String sessionId,
+    ConversationRevert failed,
+  ) async {
+    final p = await _repo.byId(failed.pointId);
+    if (p == null ||
+        p.state != RestoreState.undone ||
+        p.undoneSha == null ||
+        await activeRevert(p) != null) {
+      throw const RestoreException(
+        'A conversa só volta enquanto nenhum turno novo começou.',
+      );
+    }
+    final out = await _manager.holdConversation(
+      sessionId,
+      () => _serial(
+        p.worktreePath,
+        () => _revertConversation(
+          p,
+          lastTurn: failed.lastTurn,
+          files: failed.files,
+          commits: failed.commits,
+          copyId: failed.copyId,
+          copiedAt: failed.copyAt,
+        ),
+      ),
+    );
+    if (out == null) throw const RestoreException('Sessão não encontrada.');
+    if (out.ok) {
+      await _manager.cancelNotice(
+        sessionId,
+        SessionManager.undoNotice(failed.turn),
+      );
+    } else {
+      await _manager.appEvent(sessionId, out.toJson());
+    }
+    return out;
+  }
+
+  /// The copies nobody can adopt any more are archived in the Codex
+  /// (`thread/archive`, R9): a new turn took "Refazer" away, or the point is
+  /// gone. Never the conversation of a session, nor a copy once adopted.
+  Future<void> archiveOrphanCopies() async {
+    final sessions = _ref.read(sessionsRepoProvider);
+    final rows = await sessions.eventsOfTypes(AgentConversationEvents.all);
+    final copies = <String, (String, ConversationRevert)>{};
+    final done = <String>{};
+    for (final e in rows) {
+      final Object? j;
+      try {
+        j = jsonDecode(e.json);
+      } on FormatException {
+        continue;
+      }
+      if (j is! Map) continue;
+      final copy = j['copy_id'];
+      if (j['type'] == AgentConversationEvents.restored ||
+          j['type'] == AgentConversationEvents.archived) {
+        if (copy is String) done.add(copy);
+        continue;
+      }
+      final r = ConversationRevert.fromJson(j);
+      if (r?.copyId case final id?) copies[id] = (e.sessionId, r!);
+    }
+    final orphans = <String, String>{};
+    for (final MapEntry(key: id, value: (sid, r)) in copies.entries) {
+      if (done.contains(id) || await sessions.hasExternalId(id)) continue;
+      final p = await _repo.byId(r.pointId);
+      final redoable =
+          p != null && p.state == RestoreState.undone && p.undoneSha != null;
+      if (!redoable) orphans[id] = sid;
+    }
+    if (orphans.isEmpty) return;
+    await _ref.read(codexConversationsProvider).runShort((ops) async {
+      for (final MapEntry(key: id, value: sid) in orphans.entries) {
+        try {
+          await ops.archive(id);
+        } catch (e) {
+          final text = '$e'.toLowerCase();
+          final gone =
+              text.contains('no rollout found') ||
+              text.contains('thread not found') ||
+              text.contains('archived');
+          if (!gone) {
+            debugPrint('cópia $id da conversa não arquivada — $e');
+            continue;
+          }
+        }
+        await sessions.appendEvent(
+          sid,
+          type: AgentConversationEvents.archived,
+          json: jsonEncode({
+            'type': AgentConversationEvents.archived,
+            'v': 1,
+            'copy_id': id,
+            'at': DateTime.now().toIso8601String(),
+          }),
+        );
+      }
+    });
+  }
 
   Future<Map<String, Set<String>>> _others(
     RestorePoint p,
@@ -530,14 +983,38 @@ class RestoreService {
   /// moves the branch back to the start HEAD (unless [filesOnly], R12) and
   /// puts back only [paths]. A failure halfway goes back to "antes de
   /// desfazer" and throws [RestoreException].
+  ///
+  /// [revertConversation] (SPEC-110 R8): only after the files are undone,
+  /// the agent's conversation goes back too; no turn of the session starts
+  /// meanwhile, and its failure never touches the files.
   Future<UndoOutcome> undo(
     RestorePoint p,
     Set<String> paths, {
     bool filesOnly = false,
+    bool revertConversation = false,
+  }) {
+    final sid = p.sessionId;
+    Future<UndoOutcome> job() => _undo(
+      p,
+      paths,
+      filesOnly: filesOnly,
+      revertConversation: revertConversation && sid != null,
+    );
+    return revertConversation && sid != null
+        ? _manager.holdConversation(sid, job)
+        : job();
+  }
+
+  Future<UndoOutcome> _undo(
+    RestorePoint p,
+    Set<String> paths, {
+    required bool filesOnly,
+    required bool revertConversation,
   }) => _serial(p.worktreePath, () async {
     final git = _git(p.worktreePath);
     final owner = _ownerOf(p);
     final (range, _) = await _range(p);
+    final lastTurn = _lastTurn(p, range);
     final before = await git.captureState(
       maxUntrackedBytes: _settings.maxUntrackedBytes,
     );
@@ -591,51 +1068,83 @@ class RestoreService {
         ),
       );
     }
+    final subjects = [for (final c in commits) c.subject];
     return UndoOutcome(
       turn: p.turn,
       files: paths.length,
-      commits: [for (final c in commits) c.subject],
+      commits: subjects,
+      conversation: revertConversation
+          ? await _safe<ConversationRevert?>(
+              () => _revertConversation(
+                p,
+                lastTurn: lastTurn,
+                files: paths.length,
+                commits: subjects,
+              ),
+              null,
+            )
+          : null,
     );
   });
 
   /// "Refazer" (R11): back to "antes de desfazer" with the same rules
-  /// (only [paths]; the branch goes back to where it was).
-  Future<UndoOutcome> redo(RestorePoint p, Set<String> paths) => _serial(
-    p.worktreePath,
-    () async {
-      final undoSha = p.undoSha, undoHead = p.undoHead;
-      if (undoSha == null || undoHead == null || p.undoneSha == null) {
-        throw const RestoreException('Este turno não pode ser refeito.');
-      }
-      final git = _git(p.worktreePath);
-      final before = await git.captureState(
-        maxUntrackedBytes: _settings.maxUntrackedBytes,
+  /// (only [paths]; the branch goes back to where it was). With the
+  /// conversation reverted, the session goes on in its copy (SPEC-110 R9),
+  /// also only after the files.
+  Future<UndoOutcome> redo(RestorePoint p, Set<String> paths) async {
+    final revert = await _safe(() => activeRevert(p), null);
+    Future<UndoOutcome> job() => _redo(p, paths, revert);
+    return revert?.copyId == null
+        ? job()
+        : _manager.holdConversation(p.sessionId!, job);
+  }
+
+  Future<UndoOutcome> _redo(
+    RestorePoint p,
+    Set<String> paths,
+    ConversationRevert? revert,
+  ) => _serial(p.worktreePath, () async {
+    final undoSha = p.undoSha, undoHead = p.undoHead;
+    if (undoSha == null || undoHead == null || p.undoneSha == null) {
+      throw const RestoreException('Este turno não pode ser refeito.');
+    }
+    final git = _git(p.worktreePath);
+    final before = await git.captureState(
+      maxUntrackedBytes: _settings.maxUntrackedBytes,
+    );
+    final moveHead = before.head != undoHead || before.branch != p.undoBranch;
+    await _apply(
+      git,
+      before: before,
+      head: moveHead ? (undoHead, p.undoBranch) : null,
+      source: undoSha,
+      paths: paths,
+    );
+    final (range, _) = await _range(p);
+    final now = DateTime.now();
+    for (final x in range) {
+      if (x.state != RestoreState.undone) continue;
+      await _repo.update(
+        x.id,
+        RestorePointsCompanion(
+          state: const Value(RestoreState.redone),
+          undoneSha: const Value(null),
+          undoneHead: const Value(null),
+          usedAt: Value(now),
+        ),
       );
-      final moveHead = before.head != undoHead || before.branch != p.undoBranch;
-      await _apply(
-        git,
-        before: before,
-        head: moveHead ? (undoHead, p.undoBranch) : null,
-        source: undoSha,
-        paths: paths,
-      );
-      final (range, _) = await _range(p);
-      final now = DateTime.now();
-      for (final x in range) {
-        if (x.state != RestoreState.undone) continue;
-        await _repo.update(
-          x.id,
-          RestorePointsCompanion(
-            state: const Value(RestoreState.redone),
-            undoneSha: const Value(null),
-            undoneHead: const Value(null),
-            usedAt: Value(now),
-          ),
-        );
-      }
-      return UndoOutcome(turn: p.turn, files: paths.length);
-    },
-  );
+    }
+    return UndoOutcome(
+      turn: p.turn,
+      files: paths.length,
+      restored: revert == null
+          ? null
+          : await _safe(
+              () => _restoreConversation(p, revert, files: paths.length),
+              false,
+            ),
+    );
+  });
 
   /// Test hook: fails [_apply] after the HEAD moved (R8 "nunca fica meio
   /// desfeito").
@@ -800,6 +1309,8 @@ class RestoreService {
       ];
       if (orphan.isNotEmpty) await _safe(() => git.deleteRefList(orphan), null);
     }
+    // SPEC-110 R9: the copies of the conversations go with the points.
+    await _safe(archiveOrphanCopies, null);
   }
 
   /// Points and space of [ws] (R14).

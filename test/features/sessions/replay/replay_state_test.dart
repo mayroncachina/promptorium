@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/claude/claude_event.dart';
+import 'package:promptorium/core/codex/codex_neutral.dart';
 import 'package:promptorium/features/sessions/replay/replay_state.dart';
 import 'package:promptorium/features/sessions/replay/replay_step.dart';
 
@@ -125,6 +127,97 @@ void main() {
       ]);
       expect(pick((s) => replayStepVisible(s, query: 'GIT')), [3]);
       expect(pick((s) => replayStepVisible(s, file: '/w/a.dart')), [0, 1]);
+    });
+  });
+
+  group('SPEC-110 · estado com o Codex', () {
+    test('R1: "Já leu" conta as leituras por comando e "editou sem ler" some '
+        'quando o arquivo foi lido por sed -n', () {
+      final b = TimelineBuilder()..user('x');
+      b.turn('t-1');
+      b.command('c1', 'sed -n 1,80p lib/t.dart', [
+        readAction('/w/lib/t.dart', command: 'sed -n 1,80p lib/t.dart'),
+      ]);
+      b.command('c2', 'rg frete lib', [
+        {
+          'type': 'search',
+          'command': 'rg frete lib',
+          'query': 'frete',
+          'path': 'lib/',
+        },
+      ]);
+      // Uma leitura que falhou não conta.
+      b.command('c3', 'cat lib/r.dart', [readAction('/w/lib/r.dart')], exit: 1);
+      b.command('c4', 'cat lib/t.dart && dart test', [
+        readAction('/w/lib/t.dart'),
+        {'type': 'unknown', 'command': 'dart test'},
+      ], exit: 1);
+      b.patch('p1', [
+        update('/w/lib/t.dart', '@@ -1 +1 @@\n-a\n+b\n'),
+        update('/w/lib/r.dart', '@@ -1 +1 @@\n-a\n+b\n'),
+        {
+          'path': '/w/lib/n.dart',
+          'kind': {'type': 'add'},
+          'diff': 'x\n',
+        },
+      ]);
+      final steps = replaySteps(b.items, root: '/w');
+      final st = replayStateAt(steps, steps.length - 1, root: '/w');
+      final t = st.read.firstWhere((f) => f.path == '/w/lib/t.dart');
+      expect(t.reads, 2);
+      expect(t.via, ['sed', 'cat']);
+      final folder = st.read.singleWhere((f) => f.folder);
+      expect(folder.path, '/w/lib');
+      expect(folder.via, ['rg']);
+      expect(st.read.any((f) => f.path == '/w/lib/r.dart'), isFalse);
+      expect(
+        {for (final f in st.edited) f.path: f.editedWithoutRead},
+        {'/w/lib/t.dart': false, '/w/lib/r.dart': true, '/w/lib/n.dart': false},
+      );
+    });
+
+    test('R5: o contexto do ponto vem da leitura do Codex, com a janela dela; '
+        'sem leitura, aguardando medição', () {
+      final b = TimelineBuilder()..user('x');
+      b.turn('t-1');
+      b.say('antes');
+      void usage(int tokens, int window) => b.codexEvent(
+        codexContextUsage({
+          'turnId': 't-1',
+          'tokenUsage': {
+            'last': {'totalTokens': tokens, 'inputTokens': tokens},
+            'modelContextWindow': window,
+          },
+        }, model: 'gpt')!,
+      );
+      usage(61000, 400000);
+      b.say('meio');
+      b.codexEvent(
+        CompactionEvent.toJson(
+          provider: 'codex',
+          phase: CompactionEventPhase.completed,
+          trigger: 'auto',
+          key: 'k1',
+        ),
+      );
+      b.say('compactado');
+      usage(9000, 200000);
+      b.say('fim');
+      final steps = replaySteps(b.items);
+      ReplayState at(String text) => replayStateAt(
+        steps,
+        steps.indexWhere((s) => s.target == text),
+        context: b.t.contextTokens,
+        ctx: b.t.context.snapshot,
+      );
+      expect(at('antes').contextTokens, isNull);
+      expect(at('antes').measures, isTrue);
+      expect(at('meio').contextTokens, 61000);
+      expect(at('meio').capacity, 400000);
+      expect(at('compactado').compactedSince, isTrue);
+      expect(at('compactado').compactions, 1);
+      expect(at('fim').contextTokens, 9000);
+      expect(at('fim').capacity, 200000);
     });
   });
 }

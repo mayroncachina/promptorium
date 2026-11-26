@@ -207,6 +207,7 @@ class SpecStepsRepo {
     String? hash,
     String? reason,
     bool userPicked = false,
+    String? provider,
   }) {
     final plan = SpecStepsCompanion(
       kind: Value(kind),
@@ -215,6 +216,8 @@ class SpecStepsRepo {
       planHash: Value(hash),
       planReason: Value(reason),
       userPicked: Value(userPicked),
+      // Null = the Claude Code (SPEC-109 P1).
+      planProvider: Value(provider == 'claude' ? null : provider),
     );
     return _db
         .into(_t)
@@ -238,6 +241,7 @@ class SpecStepsRepo {
               planEffort: Value(null),
               planHash: Value(null),
               planReason: Value(null),
+              planProvider: Value(null),
               userPicked: Value(false),
               escalations: Value(0),
             ),

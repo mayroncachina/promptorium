@@ -105,6 +105,10 @@ enum StepRunResult {
 
   /// The gate failed and the step went up a rung of the ladder.
   escalated,
+
+  /// The step left this provider for the other one because of the quota
+  /// (SPEC-109 R5, R6): neither a failure nor an escalation.
+  diverted,
 }
 
 /// What spent a turn (`usage_entries.source`, schema v30; SPEC-081 R2).

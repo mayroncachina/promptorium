@@ -12,6 +12,7 @@ import 'package:promptorium/features/board/orchestrator/orchestrator_rules.dart'
 import 'package:promptorium/features/board/orchestrator/step_classifier.dart';
 
 import '../../../helpers/test_db.dart';
+import 'orchestrator_fixture.dart' show codexCatalog;
 
 const _spec = '''---
 id: SPEC-012
@@ -213,6 +214,44 @@ void main() {
         'R3': StepKind.implementacao,
       },
     );
+  });
+
+  test('SPEC-109 R11: a model of the Codex classifies, and the cache is the '
+      'same for both providers', () async {
+    final settings = c.read(appSettingsProvider.notifier);
+    for (final MapEntry(:key, :value) in codexCatalog().entries) {
+      await settings.set(key, value);
+    }
+    await settings.set(
+      AppSettingKeys.orchestratorClassifierModel,
+      'codex|gpt-6-luna',
+    );
+    final done = classifier().classify(spec, views());
+    await called(1);
+    final intent = calls.single.options;
+    expect(intent.providerId, 'codex');
+    expect(
+      (intent.modelOverride, intent.effortOverride),
+      ('gpt-6-luna', 'low'),
+    );
+    expect(intent.claude.model, isNull, reason: 'no Claude alias');
+    expect(intent.schema, stepClassifierSchema);
+    calls.single.answer.complete(
+      _result(
+        _out([
+          ('R1', 'mecanica', 'a'),
+          ('R2', 'altoRisco', 'b'),
+          ('R3', 'implementacao', 'c'),
+        ]),
+      ),
+    );
+    expect((await done).kinds['R2']!.kind, StepKind.altoRisco);
+    classifier().cancel(spec.id);
+    // Another classifier: the text did not change, nothing runs.
+    await settings.set(AppSettingKeys.orchestratorClassifierModel, 'haiku');
+    final again = await classifier().classify(spec, views());
+    expect(calls, hasLength(1));
+    expect(again.kinds['R1']!.kind, StepKind.mecanica);
   });
 
   test('reopening without changing the requirement does not run again; '

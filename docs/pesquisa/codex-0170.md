@@ -303,6 +303,19 @@ O `CodexRun` atual **não quebra** com nenhuma das transcrições (`codex_0170_f
 - **SPEC-103:** hooks por `-c` não rodam sem *trust*, e o App Server não tem *bypass*. Ver R15.
 - **SPEC-104/105/107:** `CLAUDE.md` por fallback comprovado; MCP desligável por servidor; "Compactar agora" comprovado.
 
+## Voltar a conversa (SPEC-110)
+
+Sonda de 25/11 com o binário 0.170.0 e `CODEX_HOME`/`HOME` isolados. O modelo era um servidor local (`model_providers.mock`, `wire_api = "responses"`, em `127.0.0.1`), com o proxy apontando para uma porta morta: nenhuma chamada saiu da máquina e nenhuma cota foi gasta. O que cada pedido de modelo levou mostrou o que o agente lembra.
+
+- `thread/revert {threadId, beforeTurnId}` só funciona numa conexão que carregou a thread (senão `thread not found`) e numa thread `paginated`, que é o padrão do 0.170 (todas as fixtures). Tira o turno e os seguintes; o turno depois dele não leva mais nada dos turnos revertidos ao modelo. Emite `thread/reverted`.
+- Um turno que já saiu dá `turn not found: <id>`. Reverter o primeiro turno deixa a thread vazia e utilizável: ela retoma em outro processo e aceita turnos e forks.
+- `thread/fork {threadId, excludeTurns, ephemeral: false}` funciona com a thread carregada ou não e **mantém os ids dos turnos**. A cópia continua inteira depois que a original é revertida. O fork emite `thread/started` da cópia na mesma conexão.
+- Uma thread tem um escritor por vez: com o processo da sessão vivo, outro processo recebe `thread … already has an active writer` no `thread/resume`. `thread/fork`, `thread/read` e `thread/items/list` de outro processo passam.
+- `thread/archive` funciona sem carregar a thread; arquivar de novo dá `no rollout found`. Uma thread arquivada não retoma (`session … is archived`), mas o `thread/read` dela ainda responde: só o `thread/resume` prova que a cópia serve.
+- `thread/items/list {threadId, turnId}` funciona sem carregar a thread; um turno revertido devolve a lista vazia.
+- Depois do revert, o `total` de `thread/tokenUsage/updated` encolhe junto com a conversa (só os turnos que ficaram).
+- Não testado: revert de uma thread `legacy` (criada por versões antigas) e com turno em andamento.
+
 ## Capacidades comprovadas no 0.170
 
 Fonte da SPEC-094 (R2: "não testada" conta como não suportada).
@@ -326,7 +339,7 @@ Fonte da SPEC-094 (R2: "não testada" conta como não suportada).
 | `quota` | **comprovada** | R3: `account/rateLimits/read` + `account/rateLimits/updated` |
 | `costUsd` | não suportada | só tokens (decisão 5) |
 | `nativeReview` | não testada | `review/start` existe no schema |
-| `revertConversation` | não testada | `thread/revert` existe no schema |
+| `revertConversation` | **comprovada** (SPEC-110) | `thread/revert` + `thread/fork` no App Server 0.170, sem turno pago (seção "Voltar a conversa") |
 
 Capacidades fora da lista da 094 que as outras specs usam:
 

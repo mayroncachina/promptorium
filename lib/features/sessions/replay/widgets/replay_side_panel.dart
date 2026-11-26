@@ -90,8 +90,8 @@ class ReplaySidePanel extends StatelessWidget {
       for (final f in s.read)
         _Line(
           key: ValueKey('replay-read-${baseName(f.path)}'),
-          left: baseName(f.path),
-          right: '×${f.reads}',
+          left: f.folder ? '${baseName(f.path)}/ (busca)' : baseName(f.path),
+          right: ['×${f.reads}', ...f.via].join(' · '),
           tip: relativePath(f.path, root),
         ),
       const _Head('Já editou'),
@@ -174,7 +174,7 @@ class ReplaySidePanel extends StatelessWidget {
         left: s.compactedSince
             ? 'compactado · aguardando medição'
             : s.contextTokens == null
-            ? '–'
+            ? (s.measures ? 'aguardando medição' : '–')
             : s.capacity == null
             ? '${contextTokens(s.contextTokens!)} · limite desconhecido'
             : '${contextTokens(s.contextTokens!)} de '
@@ -213,6 +213,11 @@ class ReplaySidePanel extends StatelessWidget {
       var reads = 0, edits = 0;
       int? first;
       for (final s in flattenSteps(steps)) {
+        // SPEC-110 R1: the reads made by commands.
+        if (countsReads(s)) {
+          reads += s.reads.where((r) => r.isFile && r.path == key).length;
+          continue;
+        }
         final p = s.filePath;
         if (p == null || absolutePath(p, root) != key) continue;
         if (s.toolName == 'Read') reads++;

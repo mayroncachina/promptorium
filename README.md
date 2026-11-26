@@ -61,12 +61,12 @@ O Promptorium é uma IDE desktop, feita em Flutter, para trabalhar com o **Claud
   <tr>
     <td width="50%" valign="top">
       <h3>⚡ Sessões ao vivo, com Claude Code ou Codex</h3>
-      <p>Timeline, aprovações, perguntas do agente, terminal, Replay, diff, fork e lado a lado. Novo na 0.23: sessões com o Codex em worktree, com interromper, retomar e fork.</p>
+      <p>Timeline, aprovações, perguntas do agente, terminal, Replay, diff, fork e lado a lado. Com o Codex também: worktree, interromper, retomar, fork, Replay com "Arquivo neste ponto" e desfazer arquivos e conversa.</p>
       <img src="docs/readme/sessao-codex.png" alt="Sessão do Codex num worktree, com a timeline e os detalhes da sessão">
     </td>
     <td width="50%" valign="top">
       <h3>💬 Prompt</h3>
-      <p>Conversas sem worktree para perguntar, planejar e editar, com anexos e prompts salvos. A resposta vira spec ou sessão. O Codex entra nos modos Perguntar, Planejar e Editar, com aprovação das edições.</p>
+      <p>Conversas sem worktree para perguntar, planejar e editar, com anexos e prompts salvos. A resposta vira spec ou sessão. O Codex entra nos modos Perguntar, Planejar e Editar, com aprovação das edições, e o Comparar põe Claude Code e Codex lado a lado.</p>
       <img src="docs/readme/prompt-codex.png" alt="Conversa no Prompt com o Codex pedindo aprovação para uma edição">
     </td>
   </tr>
@@ -84,7 +84,7 @@ O Promptorium é uma IDE desktop, feita em Flutter, para trabalhar com o **Claud
   </tr>
 </table>
 
-Também tem: árvore de arquivos, editor, terminal e busca (Código), releases e o que falta lançar (Repositório), agentes, skills e servidores MCP do Claude Code (Ferramentas), paleta de comandos (Ctrl+K), notificações e ícone na bandeja. Detalhes de cada tela no [Guia de uso](docs/guia/README.md).
+Também tem: árvore de arquivos, editor, terminal e busca (Código), releases e o que falta lançar (Repositório), agentes, skills e servidores MCP do Claude Code e do Codex (Ferramentas), paleta de comandos (Ctrl+K), notificações e ícone na bandeja. Detalhes de cada tela no [Guia de uso](docs/guia/README.md).
 
 ## Como funciona
 
@@ -93,7 +93,7 @@ O Promptorium não chama nenhuma API. Cada execução é um processo do CLI do p
 - **Claude Code**: cada sessão é um processo `claude -p --input-format stream-json --output-format stream-json`. A timeline é montada a partir do stream-json, e as aprovações de ferramenta chegam e são respondidas pela própria stdin/stdout (`--permission-prompt-tool stdio`).
 - **Codex**: o app conversa com o `codex app-server`. Os eventos dos dois provedores viram os mesmos cartões na timeline, no Replay e no medidor de contexto.
 
-O provedor é escolhido no rodapé, no Prompt e na Nova sessão, e nunca troca no meio de uma execução. Nesta versão o Codex roda no **Prompt** e nas **Sessões**; a execução de specs, o review automático e o Comparar com o Codex vêm nas próximas versões (veja o [Roadmap](#roadmap)). Onde o Codex ainda não funciona, a tela mostra "Só Claude Code".
+O provedor é escolhido no rodapé, no Prompt, na Nova sessão e por etapa no Executar spec, e nunca troca no meio de uma etapa. Desde a 0.27 o Codex roda em todos os fluxos: **Prompt**, **Sessões**, **execução de specs**, review automático e **Comparar**. O orquestrador escolhe o provedor de cada etapa pelas regras e, quando a cota de um acaba, desvia a etapa para o outro e volta quando a cota renova. O Codex pode ser desligado em Configurações → Provedores.
 
 Mais detalhes em [Como funciona](docs/guia/como-funciona.md).
 
@@ -142,11 +142,9 @@ Cada passo, com as telas, no [Guia de uso](docs/guia/README.md).
 
 ## Roadmap
 
-O Codex chega por ondas ([épico #332](https://github.com/mayroncachina/promptorium/issues/332)):
+O Codex chegou por ondas, da 0.23 à 0.27 ([épico #332](https://github.com/mayroncachina/promptorium/issues/332), concluído). A 0.27 fechou o épico com o Comparar Claude × Codex, o orquestrador multi-provedor e o Replay com o Codex.
 
-- [**0.24.0**](https://github.com/mayroncachina/promptorium/milestone/4): memória e fluxo de specs, incluindo executar spec e review automático com o Codex.
-- [**0.25.0**](https://github.com/mayroncachina/promptorium/milestone/5): ecossistema do provedor (AGENTS.md, skills, MCP e agentes no Codex).
-- [**0.26.0**](https://github.com/mayroncachina/promptorium/milestone/6): multi-provedor (Comparar Claude × Codex, orquestrador e Replay com o Codex).
+- [**0.28.0**](https://github.com/mayroncachina/promptorium/milestone/9): Instruções do projeto, com o `AGENTS.md` como fonte única, editor e entrevista com a IA ([SPEC-113](https://github.com/mayroncachina/promptorium/issues/429)).
 
 Todos os marcos: [milestones](https://github.com/mayroncachina/promptorium/milestones). O que já saiu: [CHANGELOG](CHANGELOG.md).
 
