@@ -94,22 +94,21 @@ class PlanQuotaHeader extends ConsumerWidget {
 /// The last attempt of each step of [specId] that ran away from its plan's
 /// provider and did not stop there (R13, R14): the step keeps the badge after
 /// the divert of the spec moves to the next step or ends.
-final stepRunDivertsProvider = StreamProvider.autoDispose
-    .family<Map<String, StepRun>, int>(
-      (ref, specId) =>
-          ref.watch(stepRunsRepoProvider).watchBySpec(specId).map((runs) {
-            final last = <String, StepRun>{};
-            for (final r in runs) {
-              last[r.step] = r;
-            }
-            return {
-              for (final e in last.entries)
-                if (DivertReason.parse(e.value.diverted) != null &&
-                    e.value.result != StepRunResult.diverted)
-                  e.key: e.value,
-            };
-          }),
-    );
+final stepRunDivertsProvider = StreamProvider.family<Map<String, StepRun>, int>(
+  (ref, specId) =>
+      ref.watch(stepRunsRepoProvider).watchBySpec(specId).map((runs) {
+        final last = <String, StepRun>{};
+        for (final r in runs) {
+          last[r.step] = r;
+        }
+        return {
+          for (final e in last.entries)
+            if (DivertReason.parse(e.value.diverted) != null &&
+                e.value.result != StepRunResult.diverted)
+              e.key: e.value,
+        };
+      }),
+);
 
 /// The line of a spec whose step was diverted (R5, R14): on the card and in
 /// the list of steps. Nothing when the step ran on its plan.
