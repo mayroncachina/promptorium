@@ -103,6 +103,11 @@ final specDuelsRepoProvider = Provider(
 final stepRunsRepoProvider = Provider(
   (ref) => StepRunsRepo(ref.watch(appDatabaseProvider)),
 );
+
+/// Sessions a quota divert replaced (SPEC-109 R5), of every workspace.
+final divertedSessionIdsProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(stepRunsRepoProvider).watchDivertedSessionIds(),
+);
 final specNotesRepoProvider = Provider(
   (ref) => SpecNotesRepo(ref.watch(appDatabaseProvider)),
 );
