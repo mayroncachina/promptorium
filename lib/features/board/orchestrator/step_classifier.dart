@@ -441,13 +441,18 @@ class StepClassifier extends Notifier<Map<int, StepClassifierState>> {
     final cwd = worktree != null && await Directory(worktree).exists()
         ? worktree
         : ws.path;
+    // SPEC-109 R11: the model of "Classificar as etapas com", on either
+    // provider; the cache is by the text of the step, whoever answered.
+    final classifier = ref.read(orchestratorPrefsProvider).classifier;
     final r = await ref.read(stepClassifierRunProvider)(
       ref,
       StructuredIntent(
         workspaceId: ws.id,
-        // The Orquestrador only uses the Claude Code until SPEC-109 (D5,
-        // SPEC-100 R8).
-        providerId: 'claude',
+        providerId: classifier.provider,
+        modelOverride: classifier.isClaude || classifier.model == 'inherit'
+            ? null
+            : classifier.model,
+        effortOverride: classifier.isClaude ? null : classifier.effort,
         cancelled: cancelled,
         specId: spec.id,
         usageSource: UsageSource.orquestrador,
@@ -456,7 +461,7 @@ class StepClassifier extends Notifier<Map<int, StepClassifierState>> {
         instructions: stepClassifierPrompt,
         schema: stepClassifierSchema,
         claude: ClaudeStructuredExtras(
-          model: ref.read(orchestratorPrefsProvider).classifierModel,
+          model: classifier.isClaude ? classifier.model : null,
           effort: 'low',
           maxBudgetUsd: budgetUsd,
         ),

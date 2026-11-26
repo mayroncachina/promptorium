@@ -89,10 +89,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Sem cota nos dois provedores.'), findsOneWidget);
-    expect(
-      find.text('renova ${quotaClockWords(renewClaude)}'),
-      findsOneWidget,
-    );
+    expect(find.text('renova ${quotaClockWords(renewClaude)}'), findsOneWidget);
     expect(find.byType(ProviderChip), findsNWidgets(2));
     expect(key('quota-wait-manual-7'), findsOneWidget);
     expect(

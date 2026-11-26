@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/codex/codex_probe.dart' show CodexModelInfo;
+import 'package:promptorium/core/git/agent_trailer.dart';
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/core/providers/quota_source.dart';
@@ -162,6 +163,9 @@ class OrchestratorFixture {
         if (classifier != null)
           stepClassifierProvider.overrideWith(() => classifier),
         if (codex) ...[
+          agentGitHooksProvider.overrideWithValue(
+            AgentGitHooks('${tmp.path}/ganchos'),
+          ),
           providerAvailabilityProvider.overrideWith(
             (ref, id) async => id == 'codex'
                 ? codexStatus

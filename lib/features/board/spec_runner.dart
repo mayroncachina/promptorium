@@ -1090,7 +1090,11 @@ class SpecRunner {
       SpecDocument.parse(text).subagents,
       config.subagents,
     );
-    final runAgent = caps.supports(ProviderCapability.agentFiles)
+    // SPEC-109 R10: in Automático the agent only goes on the Claude Code
+    // (decision 7), as the plan says.
+    final planOnCodex = plan != null && !isClaudeCode(runProvider);
+    final runAgent =
+        caps.supports(ProviderCapability.agentFiles) && !planOnCodex
         ? spec.agentName ?? config.agent
         : null;
     final autoMode = plan == null
@@ -1201,6 +1205,7 @@ class SpecRunner {
         caps,
         agent: spec.agentName ?? config.agent,
         subagents: {for (final a in specSubagents) a.agent}.toList(),
+        planned: planOnCodex,
       );
       return id;
     }
@@ -1277,10 +1282,11 @@ class SpecRunner {
     ProviderCapabilities caps, {
     String? agent,
     required List<String> subagents,
+    bool planned = false,
   }) async {
     final hasAgent = agent != null && agent.isNotEmpty;
     final dropsAgent =
-        hasAgent && !caps.supports(ProviderCapability.agentFiles);
+        hasAgent && (planned || !caps.supports(ProviderCapability.agentFiles));
     final dropsSubs =
         subagents.isNotEmpty && !caps.supports(ProviderCapability.subagents);
     if (!dropsAgent && !dropsSubs) return;
