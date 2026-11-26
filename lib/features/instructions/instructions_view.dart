@@ -72,9 +72,14 @@ List<InstructionsRow> instructionsRows(
   String? codexReason,
 }) {
   final hasClaude = inv.claude != null;
+  final single = inv.agentsState == AgentsMdState.singleSource;
   final claude = InstructionsRow(
     provider: 'Claude Code',
-    reads: hasClaude ? claudeMdName : '—',
+    reads: single
+        ? '$claudeMdName + $agentsMdName (import)'
+        : hasClaude
+        ? claudeMdName
+        : '—',
     state: hasClaude ? 'carregado' : 'sem CLAUDE.md',
     tone: hasClaude ? InstructionsTone.loaded : InstructionsTone.missing,
     proof: hasClaude
@@ -87,6 +92,7 @@ List<InstructionsRow> instructionsRows(
   final agents = inv.agentsState;
   final reads = switch (agents) {
     AgentsMdState.personal => 'AGENTS.md (no lugar do CLAUDE.md)',
+    AgentsMdState.singleSource => 'AGENTS.md (fonte única)',
     AgentsMdState.fresh || AgentsMdState.stale => 'AGENTS.md gerado',
     AgentsMdState.absent when !hasClaude => '—',
     AgentsMdState.absent =>
@@ -115,6 +121,11 @@ List<InstructionsRow> instructionsRows(
     claude,
     switch (agents) {
       AgentsMdState.personal => codex('duas fontes', InstructionsTone.warning),
+      // SPEC-113 R1: "carregado" only with the proof of a run.
+      AgentsMdState.singleSource =>
+        proof != null && proof.loaded(agentsMdName)
+            ? codex('carregado', InstructionsTone.loaded)
+            : codex('previsto', InstructionsTone.expected),
       AgentsMdState.stale => codex('desatualizado', InstructionsTone.warning),
       AgentsMdState.fresh =>
         proof != null && proof.loaded(agentsMdName)
@@ -307,6 +318,17 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
                 onTap: () => _open(root, [claudeMdName, agentsMdName]),
               ),
             ],
+          ),
+        ];
+      case AgentsMdState.singleSource:
+        return [
+          gap,
+          NoticeBox(
+            key: const ValueKey('instructions-single-source'),
+            text:
+                'Fonte única. O AGENTS.md tem as instruções, e o CLAUDE.md o '
+                'importa com @AGENTS.md: o Codex e o Claude Code leem o mesmo '
+                'texto.',
           ),
         ];
       case AgentsMdState.stale:
@@ -522,10 +544,12 @@ class _FileList extends StatelessWidget {
 
     final agentsSub = switch (inv.agentsState) {
       AgentsMdState.personal => 'raiz · escrito por você',
+      AgentsMdState.singleSource => 'raiz · fonte única',
       AgentsMdState.fresh => 'raiz · gerado · em dia',
       AgentsMdState.stale => 'raiz · gerado · desatualizado',
       AgentsMdState.absent => '',
     };
+    final single = inv.agentsState == AgentsMdState.singleSource;
     return Container(
       width: 280,
       decoration: const BoxDecoration(
@@ -549,14 +573,20 @@ class _FileList extends StatelessWidget {
                 if (inv.claude case final c?)
                   item(
                     c,
-                    'fonte · raiz · ${_size(c.size)}',
-                    tag: const _Pill('fonte', InstructionsTone.warning),
+                    single
+                        ? 'importa o AGENTS.md · raiz · ${_size(c.size)}'
+                        : 'fonte · raiz · ${_size(c.size)}',
+                    tag: single
+                        ? null
+                        : const _Pill('fonte', InstructionsTone.warning),
                   ),
                 if (inv.agents case final a?)
                   item(
                     a,
                     agentsSub,
-                    tag: inv.agentsState == AgentsMdState.stale
+                    tag: single
+                        ? const _Pill('fonte', InstructionsTone.warning)
+                        : inv.agentsState == AgentsMdState.stale
                         ? const _Pill('desatualizado', InstructionsTone.warning)
                         : null,
                   ),
