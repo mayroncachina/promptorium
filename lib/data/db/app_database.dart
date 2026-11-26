@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 38;
+const appSchemaVersion = 39;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -1136,6 +1136,41 @@ class DebtLinks extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// The interview of "Melhorar com IA" (SPEC-113 R13–R18, schema v39): one
+/// per workspace, kept while it is paused so it survives closing the app.
+/// The AI never writes the files; the app applies the proposal (T6).
+class InstructionInterviews extends Table {
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// JSON of `InterviewData` (rounds, findings, questions, answers, draft,
+  /// summary and the proposal).
+  TextColumn get data => text().withDefault(const Constant('{}'))();
+
+  /// Provider fixed when it started (R17): `claude` / `codex`.
+  TextColumn get provider => text()();
+
+  /// Model the provider reported in the last round.
+  TextColumn get model => text().nullable()();
+
+  /// Local id of the thread (`agent.run.<id>.*`): the Claude session, or
+  /// the key of the Codex thread (R18).
+  TextColumn get threadId => text().nullable()();
+
+  /// sha256 of the root `AGENTS.md` + `CLAUDE.md` when the AI last read
+  /// them (R18: changed = it reads them again).
+  TextColumn get filesHash => text().nullable()();
+  IntColumn get tokens => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Set by "Pausar"; null = open.
+  DateTimeColumn get pausedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {workspaceId};
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -1178,6 +1213,7 @@ class AppSettings extends Table {
     RestorePoints,
     SecretWaivers,
     DebtLinks,
+    InstructionInterviews,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1614,6 +1650,11 @@ class AppDatabase extends _$AppDatabase {
           },
           // v37: links of the debts and decisions (SPEC-112 R4). Nothing
           // is imported: the files are the source.
+          // v39: the interview of the instructions (SPEC-113 R18).
+          from38To39: (m, v) async {
+            if (await _hasTable('instruction_interviews')) return;
+            await m.createTable(v.instructionInterviews);
+          },
           from37To38: (m, v) async {
             // SPEC-109 P1: provider of the plan and of the attempts. Null /
             // 'claude' = what every row of before was.

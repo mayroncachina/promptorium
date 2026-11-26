@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 39) {
+    await db.customStatement('DROP TABLE IF EXISTS instruction_interviews');
+  }
   if (version < 38) {
     await db.customStatement(
       'ALTER TABLE spec_steps DROP COLUMN plan_provider',
