@@ -39,7 +39,7 @@ Hoje a fonte é o `CLAUDE.md` (decisão 6 do épico #332, SPEC-104), e a aba Fer
 - R6 · **Projeto › Instruções.** Uma aba nova, ao lado de Configuração. No fluxo de planejamento, onde não há abas, ela abre em diálogo, como Memória e Métricas. Mostra os arquivos, o editor, quem lê cada um e o tamanho.
 - R7 · **Ferramentas › Instruções vira atalho.** A aba e o item da paleta continuam e levam a Projeto › Instruções. Os estados, a prova e o plano B da SPEC-104 mudam para a tela nova, sem perda.
 - R8 · **Editor.** Texto e prévia, Salvar e Descartar, marca de não salvo e "Abrir no editor". Se o arquivo mudar fora do app: sem edição, relê; com edição, pergunta antes de perder qualquer lado.
-- R9 · **CLAUDE.md.** A linha do import aparece separada do trecho "Só para o Claude Code". "Mover seleção para o AGENTS.md" tira de um e põe no outro. Sem a linha do import, o app avisa e oferece "Recolocar o import".
+- R9 · **CLAUDE.md.** A linha do import aparece separada do trecho "Só para o Claude Code". "Mover seleção para o AGENTS.md" tira de um e põe no outro. Sem a linha do import, o app avisa e oferece "Recolocar o import", menos quando o CLAUDE.md repete regras do AGENTS.md: aí o import faria o Claude Code ler tudo duas vezes, e fica só "Unificar".
 - R10 · **Quem lê.** Uma linha por provedor, com a prova da SPEC-104 (`instructionSources` no Codex). "Carregado" só com prova; antes, "previsto".
 - R11 · **Tamanho.** Mostra bytes e linhas contra o limite de 32 KiB do Codex. Avisa a partir de 80% e mostra onde o corte cai quando passa.
 - R12 · **Subpastas.** `AGENTS.md` e `CLAUDE.md` aninhados continuam só leitura.

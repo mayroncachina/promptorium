@@ -305,6 +305,7 @@ class InstructionsEditor extends StatelessWidget {
     required this.onChanged,
     required this.onOpenAgents,
     required this.onRestoreImport,
+    this.offerImport = true,
     this.busy = false,
     this.readOnly = false,
     this.saved = false,
@@ -328,6 +329,10 @@ class InstructionsEditor extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onOpenAgents;
   final VoidCallback onRestoreImport;
+
+  /// "Recolocar o import" is offered (R9): false when the `CLAUDE.md`
+  /// repeats rules of the `AGENTS.md` and "Unificar" is the way out.
+  final bool offerImport;
   final bool busy;
   final bool readOnly;
 
@@ -345,6 +350,7 @@ class InstructionsEditor extends StatelessWidget {
     final noImport =
         buffer.isClaude &&
         buffer.importLine == null &&
+        offerImport &&
         buffer.exists &&
         editing.agents.exists;
     return Padding(

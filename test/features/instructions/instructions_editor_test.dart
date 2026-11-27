@@ -326,6 +326,22 @@ void main() {
     expect(key('instructions-undo'), findsOneWidget);
   });
 
+  testWidgets('R9: a CLAUDE.md that repeats the AGENTS.md offers only '
+      '"Unificar", not "Recolocar o import" (rules read twice)', (
+    tester,
+  ) async {
+    write('AGENTS.md', '# vitrine\n\n## Regras\n- Textos em português.\n');
+    write(
+      'CLAUDE.md',
+      '# vitrine\n\n## Regras\n- Textos em português.\n- Use o revisor.\n',
+    );
+    await pump(tester);
+    await tap(tester, 'instructions-file-CLAUDE.md');
+    expect(key('instructions-unify-card'), findsOneWidget);
+    expect(key('instructions-no-import'), findsNothing);
+    expect(key('instructions-restore-import'), findsNothing);
+  });
+
   testWidgets('R10: "previsto" without the proof, "carregado" with it', (
     tester,
   ) async {

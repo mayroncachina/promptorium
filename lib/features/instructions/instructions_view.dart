@@ -23,7 +23,7 @@ import 'interview_controller.dart'
 import 'interview_view.dart';
 import 'proposal_view.dart';
 import 'unify_dialog.dart';
-import 'unify_service.dart' show canUnify;
+import 'unify_service.dart' show buildUnifyPlan, canUnify;
 
 /// How a provider row reads (R2, R5): the state pill's tone.
 enum InstructionsTone { loaded, expected, warning, missing }
@@ -647,6 +647,13 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
         onChanged: () => setState(() => _comparing = false),
         onOpenAgents: () => setState(() => _selected = agentsMdName),
         onRestoreImport: () => _restoreImport(ws.path, e),
+        offerImport:
+            !(buffer.isClaude &&
+                instructionsNeedUnify(inv) &&
+                buildUnifyPlan(
+                  claude: inv.claudeText,
+                  agents: inv.agentsText,
+                ).repeatsRules),
       );
     } else if (selected != null && nested[selected] != null) {
       center = _NestedFile(
@@ -766,8 +773,8 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
                       text: switch (inv.agentsState) {
                         AgentsMdState.personal =>
                           'Duas fontes: o Codex lê o AGENTS.md e o Claude Code '
-                              'o CLAUDE.md. Unifique num AGENTS.md que os dois '
-                              'leem.',
+                              'só o CLAUDE.md, sem o import. Unifique num '
+                              'AGENTS.md que os dois leem.',
                         AgentsMdState.fresh || AgentsMdState.stale =>
                           'O AGENTS.md é uma cópia gerada pelo app. Unifique '
                               'para escrever as instruções uma vez só.',

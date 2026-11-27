@@ -336,6 +336,13 @@ class UnifyPlan {
     for (final d in diffs) d.id: d.defaultTarget,
   };
 
+  /// The `CLAUDE.md` repeats rules of the `AGENTS.md` (the same item, or a
+  /// changed version of it): putting the import back would make the Claude
+  /// Code read them twice, so only "Unificar" is offered (R9).
+  bool get repeatsRules =>
+      diffs.any((d) => d.kind == UnifyDiffKind.changed) ||
+      _blocks.any((b) => b.entries.any((e) => e.item != null));
+
   UnifyDiff? diff(String id) {
     for (final d in diffs) {
       if (d.id == id) return d;
