@@ -15,7 +15,7 @@ depende-de: []
 
 Quando a pessoa chega a um **gate de decisão**, o Promptorium roda uma análise crítica das opções que estão na mesa e a mostra ao lado delas. A análise se apoia numa **base de conhecimento** de arquitetura: a que vem com o app (Clean Architecture, SOLID, DDD, testabilidade e simplicidade) e a que o projeto acrescenta. A crítica **só aconselha**. Ela nunca bloqueia, nunca escolhe e nunca altera a spec.
 
-Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-033), a IA propõe de 2 a 4 opções e marca uma como sugerida, mas não diz o que cada uma custa. Nas Decisões P1…Pn de uma spec, a recomendação vem do mesmo agente que escreveu a spec. O mini planejamento, o plano das etapas e o protótipo seguem o mesmo padrão. Uma decisão que fere uma regra do projeto (por exemplo, a tela chamar o banco direto) só aparece depois, no review ou no débito técnico.
+Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-033), a IA propõe de 2 a 4 opções e marca uma como sugerida, mas não diz o que cada uma custa. Nas Decisões P1…Pn de uma spec, a recomendação vem do mesmo agente que escreveu a spec. O mini planejamento e o plano das etapas seguem o mesmo padrão. Uma decisão que fere uma regra do projeto (por exemplo, a tela chamar o banco direto) só aparece depois, no review ou no débito técnico.
 
 ### Exemplo
 
@@ -27,7 +27,7 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
 
 ### Núcleo
 
-- R1 · **Execução de crítica.** É uma execução auxiliar, estruturada e somente leitura (`runStructured`, SPEC-100), com schema próprio. Ela recebe três coisas: o contexto do gate (as opções, as decisões, o plano ou o protótipo), o texto da spec e a base de conhecimento (R7–R9). Pode ler o repositório para citar arquivos reais, mas nunca grava nada.
+- R1 · **Execução de crítica.** É uma execução auxiliar, estruturada e somente leitura (`runStructured`, SPEC-100), com schema próprio. Ela recebe três coisas: o contexto do gate (as opções, as decisões ou o plano), o texto da spec e a base de conhecimento (R7–R9). Lê o repositório em somente leitura, com orçamento curto, para citar arquivos reais ("`cart_widget.dart` já chama o repositório"), e nunca grava nada (P11).
 - R2 · **O que a crítica devolve.** Para cada opção:
   - um resumo de uma linha;
   - os pontos a favor;
@@ -62,7 +62,7 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
 
 ### Gates
 
-- R11 · **Disparo por gate.** Também em Projeto › Configuração, cada gate tem três modos: **Automático**, **Botão** ou **Desligado**. O padrão é Automático no modal de decisão e nas Decisões da spec, e Botão nos outros três. No modo Botão, o gate mostra "Criticar abordagem", com uma estimativa de tokens.
+- R11 · **Disparo por gate.** Também em Projeto › Configuração, cada gate tem três modos: **Automático**, **Botão** ou **Desligado**. O padrão é Automático no modal de decisão e nas Decisões da spec, e Botão nos outros dois. No modo Botão, o gate mostra "Criticar abordagem", com uma estimativa de tokens.
 - R12 · **Modal de decisão da etapa (SPEC-033).**
   - A crítica começa assim que as opções aparecem, sem atrasar a abertura do modal.
   - Cada opção ganha o selo de gravidade, e a prévia ganha uma aba "Crítica" ao lado de "Como a etapa fica".
@@ -73,8 +73,7 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
   - Depois de **Planejar** (`## Plano` e `## Etapas`) e no diálogo **Executar spec**, a crítica avalia a abordagem do plano e aponta as etapas que ferem a base.
   - Uma etapa grave ganha o selo na lista de etapas.
   - Executar continua liberado.
-- R16 · **Criar o mock (protótipo).** Ao fim de uma execução de protótipo (SPEC-022), a crítica olha o fluxo das telas, os estados de vazio, de erro e de carregamento, e se a tela respeita o design do app e as regras do projeto. Ela aparece no painel do protótipo e usa a mesma base, mais o tema de telas, se a Q1 decidir por ele.
-- R17 · **Estados.**
+- R16 · **Estados.**
   - **Gerando**: esqueleto nos selos.
   - **Falhou**: "Não consegui criticar: <motivo>", com "Tentar de novo".
   - **Sem base do projeto**: aviso discreto "Só a base do app", com o link para R10.
@@ -84,7 +83,7 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
 
 ## Decisões
 
-- P1 · **Gates.** **Decidido (27/11):** os cinco: modal de decisão da etapa, Decisões da spec, mini planejamento, plano antes de executar e criar o mock.
+- P1 · **Gates.** **Decidido (27/11):** os quatro: modal de decisão da etapa, Decisões da spec, mini planejamento e plano antes de executar. "Criar o mock" era o pedido do canvas das telas, não um gate.
 - P2 · **Formato.** **Decidido (27/11):** só execução do app, sem SKILL.md. O app dispara a crítica no gate.
 - P3 · **Base.** **Decidido (27/11):** Markdown curado do app mais o do projeto, sem embeddings.
 - P4 · **Peso.** **Decidido (27/11):** só aconselha, com o selo de gravidade.
@@ -94,11 +93,11 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
 - P8 · **Guardar.** **Decidido (27/11):** sim, a crítica fica salva no gate, e cada risco pode virar débito ou decisão pendente (SPEC-112).
 - P9 · **Pasta do projeto.** **Decidido (27/11):** `docs/arquitetura/`, visível no repositório.
 - P10 · **Entrega.** **Decidido (27/11):** spec pai `spec/115-critica-de-abordagem` com filhas por tarefa. O canvas é validado antes de implementar.
+- P11 · **A crítica lê o código.** **Decidido (27/11):** sim, em somente leitura e com orçamento curto (R1).
 
 ## Perguntas em aberto
 
-- Q1 · **Tema de telas para o gate do mock.** Os quatro temas de fábrica falam de código, mas o gate do mock precisa olhar telas. **Recomendado:** um quinto tema, `telas-e-ux.md` (IDs `UX-`), com hierarquia, estados de vazio, erro e carregamento, acessibilidade e consistência com o design do app. Ele fica ligado só no gate do mock.
-- Q2 · **A crítica lê o código?** **Recomendado:** sim, em somente leitura e com orçamento curto, para citar arquivos reais ("`cart_widget.dart` já chama o repositório"). Sem isso, a crítica fica genérica.
+Nenhuma.
 
 ## Fora do escopo
 
@@ -121,26 +120,25 @@ Hoje as decisões chegam sem contraponto. No modal de decisão da etapa (SPEC-03
   - `lib/features/board/widgets/step_decision_dialog.dart` e `step_decision_preview.dart` (R12);
   - a visão das decisões da spec, com `spec_answers.dart` e `spec_file.dart` (R13);
   - `lib/features/specs/new_spec_view.dart` e `spec_planner.dart` (R14);
-  - `lib/features/specs/spec_design.dart` e `lib/features/board/widgets/run_spec_dialog.dart` (R15);
-  - `lib/features/specs/prototype/prototype_view.dart` (R16).
+  - `lib/features/specs/spec_design.dart` e `lib/features/board/widgets/run_spec_dialog.dart` (R15).
 - **Provedor:** uma linha em `structured_run.dart` (`AppFlow.critique`) e em `provider_kind_card.dart` (R4).
 - **Banco:** tabela `ApproachCritiques` (spec, gate, chave do item, hash da entrada, JSON, provedor, modelo, tokens e datas) e as preferências por gate em `app_settings` do projeto. Migração v40.
 - **Débitos:** reaproveita o diálogo de registro da SPEC-112 (`lib/features/debts/`).
-- **Mock:** canvas no Claude Design com os cinco gates, a tela da base, a configuração e os estados. Fica em `docs/mockups/spec-115/` depois de validado.
+- **Mock:** canvas no Claude Design com os quatro gates, a tela da base, a configuração e os estados. Fica em `docs/mockups/spec-115/` depois de validado.
 
 ## Tarefas
 
-- T1 · **Núcleo** (R1–R5, R17): serviço, schema, modelos, tabela e migração v40, e a linha do provedor. Verificar: testes do serviço com um provedor falso, do hash e da reutilização, e da migração.
-- T2 · **Base de conhecimento** (R7–R10): escrever os quatro temas (e o quinto, se a Q1 aprovar), o leitor, o índice do projeto e a tela da base. Verificar: testes do leitor (IDs, limite e temas desligados) e de widget da tela.
+- T1 · **Núcleo** (R1–R5, R16): serviço, schema, modelos, tabela e migração v40, e a linha do provedor. Verificar: testes do serviço com um provedor falso, do hash e da reutilização, e da migração.
+- T2 · **Base de conhecimento** (R7–R10): escrever os quatro temas, o leitor, o índice do projeto e a tela da base. Verificar: testes do leitor (IDs, limite e temas desligados) e de widget da tela.
 - T3 · **Modal de decisão e Decisões da spec** (R11–R13): selos, a aba Crítica e a crítica no Compilar e na visão da spec. Verificar: testes de widget dos dois gates, com a crítica gerando, pronta e com falha.
-- T4 · **Mini planejamento, plano e mock** (R14–R16). Verificar: testes de widget dos três gates.
+- T4 · **Mini planejamento e plano** (R14, R15). Verificar: testes de widget dos dois gates.
 - T5 · **Disparo por gate e registro** (R6, R11): a configuração por projeto e o "Registrar como débito/decisão". Verificar: testes das preferências e do diálogo preenchido.
 - T6 · **Ponta a ponta** no app compilado, com dados isolados, e o guia de uso. Verificar: prints e relatório.
 
 ## Critérios de aceite
 
 - [ ] No modal de decisão, cada opção mostra o selo e a crítica, com princípios citados por ID e fonte, sem atrasar a abertura nem bloquear as teclas `1`–`4`.
-- [ ] Nas Decisões da spec, no mini planejamento, no plano e no mock, a crítica aparece no modo configurado: automático, botão ou desligado.
+- [ ] Nas Decisões da spec, no mini planejamento e no plano, a crítica aparece no modo configurado: automático, botão ou desligado.
 - [ ] Um princípio de `docs/arquitetura/` que contradiz a base do app prevalece na crítica.
 - [ ] A mesma entrada não roda de novo; "Criticar de novo" roda.
 - [ ] Um risco vira débito ou decisão pendente com o diálogo da SPEC-112 preenchido, e o ID aparece no risco.
