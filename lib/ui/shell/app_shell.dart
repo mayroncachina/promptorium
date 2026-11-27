@@ -358,7 +358,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.repository => const RepositoryScreen(),
     AppSection.code => const CodeScreen(),
     AppSection.mcp => const McpScreen(),
-    AppSection.instructions => const InstructionsView(),
+    AppSection.instructions => const InstructionsShortcut(),
     AppSection.settings => const SettingsScreen(),
   };
 

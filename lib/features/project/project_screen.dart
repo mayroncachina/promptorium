@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_icon.dart';
+import '../instructions/instructions_view.dart';
 import '../sessions/widgets/session_style.dart';
 import '../../core/providers/provider_availability.dart';
 import 'cost_estimate.dart';
@@ -46,69 +47,92 @@ class ProjectScreen extends ConsumerWidget {
         AsyncData(value: null)
             when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
           DefaultTabController(
-            length: 4,
-            child: Column(
-              children: [
-                const TabBar(
-                  key: ValueKey('project-tabs'),
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  tabs: [
-                    Tab(key: ValueKey('project-tab-health'), text: 'Saúde'),
-                    Tab(text: 'Configuração'),
-                    Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
-                    Tab(key: ValueKey('project-tab-metrics'), text: 'Métricas'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      ProjectHealthView(workspace: ws),
-                      ProjectConfigView(
-                        key: ValueKey('project-config-${ws.id}'),
-                        workspace: ws,
-                        intro:
-                            'Este repositório já tem código: não é preciso '
-                            'planejar do zero. Ajuste como o Promptorium '
-                            'trabalha nele; as specs você cria na tela Specs.',
-                        onPlan: () =>
-                            ref.read(projectPlannerProvider.notifier).start(ws),
+            length: 5,
+            // SPEC-113 R7: Ferramentas › Instruções and the palette open the
+            // tab.
+            child: _OnInstructionsRequest(
+              onRequest: (ctx) => DefaultTabController.of(ctx).index = 2,
+              child: Column(
+                children: [
+                  const TabBar(
+                    key: ValueKey('project-tabs'),
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    tabs: [
+                      Tab(key: ValueKey('project-tab-health'), text: 'Saúde'),
+                      Tab(text: 'Configuração'),
+                      Tab(
+                        key: ValueKey('project-tab-instructions'),
+                        text: 'Instruções',
                       ),
-                      ProjectMemoryView(workspace: ws),
-                      SpecMetricsView(workspace: ws),
+                      Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
+                      Tab(
+                        key: ValueKey('project-tab-metrics'),
+                        text: 'Métricas',
+                      ),
                     ],
                   ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        ProjectHealthView(workspace: ws),
+                        ProjectConfigView(
+                          key: ValueKey('project-config-${ws.id}'),
+                          workspace: ws,
+                          intro:
+                              'Este repositório já tem código: não é preciso '
+                              'planejar do zero. Ajuste como o Promptorium '
+                              'trabalha nele; as specs você cria na tela Specs.',
+                          onPlan: () => ref
+                              .read(projectPlannerProvider.notifier)
+                              .start(ws),
+                        ),
+                        const InstructionsView(),
+                        ProjectMemoryView(workspace: ws),
+                        SpecMetricsView(workspace: ws),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // R6: without tabs, a request opens the dialog (once the screen
+        // knows it has no tabs).
+        AsyncData(value: null) => _OnInstructionsRequest(
+          enabled: ref.watch(hasExistingCodeProvider(ws.path)).hasValue,
+          onRequest: showInstructionsDialog,
+          child: StepEmpty(
+            title: 'Planejar ${ws.name}',
+            text:
+                'Converse com o planner sobre o projeto. Ele monta a visão, '
+                'propõe a stack e as instruções e divide o trabalho em specs e '
+                'tarefas. Nada é gravado no repositório até você confirmar.',
+            action: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SmallButton(
+                  label: 'Novo projeto…',
+                  height: 34,
+                  onTap: () => ref.read(startScreenProvider.notifier).set(true),
+                ),
+                AmberButton(
+                  key: const ValueKey('project-start'),
+                  label: 'Começar planejamento',
+                  height: 34,
+                  onTap: () =>
+                      ref.read(projectPlannerProvider.notifier).start(ws),
                 ),
               ],
             ),
           ),
-        AsyncData(value: null) => StepEmpty(
-          title: 'Planejar ${ws.name}',
-          text:
-              'Converse com o planner sobre o projeto. Ele monta a visão, '
-              'propõe a stack e as instruções e divide o trabalho em specs e '
-              'tarefas. Nada é gravado no repositório até você confirmar.',
-          action: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              SmallButton(
-                label: 'Novo projeto…',
-                height: 34,
-                onTap: () => ref.read(startScreenProvider.notifier).set(true),
-              ),
-              AmberButton(
-                key: const ValueKey('project-start'),
-                label: 'Começar planejamento',
-                height: 34,
-                onTap: () =>
-                    ref.read(projectPlannerProvider.notifier).start(ws),
-              ),
-            ],
-          ),
         ),
-        AsyncData(:final value?) => _PlanView(workspace: ws, plan: value),
+        AsyncData(:final value?) => _OnInstructionsRequest(
+          onRequest: showInstructionsDialog,
+          child: _PlanView(workspace: ws, plan: value),
+        ),
         AsyncError(:final error) => StepEmpty(
           title: 'Erro ao ler o plano',
           text: '$error',
@@ -116,6 +140,58 @@ class ProjectScreen extends ConsumerWidget {
         _ => const SizedBox.shrink(),
       },
     );
+  }
+}
+
+/// Opens Projeto › Instruções when asked from outside (SPEC-113 R7): the
+/// tab, or the dialog in the planning flow (R6).
+class _OnInstructionsRequest extends ConsumerStatefulWidget {
+  const _OnInstructionsRequest({
+    required this.onRequest,
+    required this.child,
+    this.enabled = true,
+  });
+
+  final void Function(BuildContext context) onRequest;
+
+  /// False while the screen does not know yet what it shows.
+  final bool enabled;
+  final Widget child;
+
+  @override
+  ConsumerState<_OnInstructionsRequest> createState() =>
+      _OnInstructionsRequestState();
+}
+
+class _OnInstructionsRequestState
+    extends ConsumerState<_OnInstructionsRequest> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  @override
+  void didUpdateWidget(_OnInstructionsRequest old) {
+    super.didUpdateWidget(old);
+    if (widget.enabled && !old.enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+    }
+  }
+
+  void _check() {
+    if (!mounted || !widget.enabled) return;
+    if (ref.read(projectInstructionsRequestProvider.notifier).consume()) {
+      widget.onRequest(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(projectInstructionsRequestProvider, (_, asked) {
+      if (asked) WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+    });
+    return widget.child;
   }
 }
 
@@ -344,6 +420,16 @@ class _Stepper extends ConsumerWidget {
                     icon: const Icon(Icons.tune, size: 16),
                     label: const Text(
                       'Configuração do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  // SPEC-113 R6: Instruções in a dialog, like Memória.
+                  TextButton.icon(
+                    key: const ValueKey('project-instructions-open'),
+                    onPressed: () => showInstructionsDialog(context),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: const Text(
+                      'Instruções do projeto',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
