@@ -124,7 +124,7 @@ Nenhuma.
 - **Provedor:** uma linha em `structured_run.dart` (`AppFlow.critique`) e em `provider_kind_card.dart` (R4).
 - **Banco:** tabela `ApproachCritiques` (spec, gate, chave do item, hash da entrada, JSON, provedor, modelo, tokens e datas) e as preferências por gate em `app_settings` do projeto. Migração v40.
 - **Débitos:** reaproveita o diálogo de registro da SPEC-112 (`lib/features/debts/`).
-- **Mock:** canvas no Claude Design com os quatro gates, a tela da base, a configuração e os estados. Fica em `docs/mockups/spec-115/` depois de validado.
+- **Mock:** [canvas no Claude Design](https://claude.ai/artifact/4LqW2yiNN2aj7mcwYKbfWx) com seis telas: 1 · modal de decisão, 2 · Decisões da spec, 3 · mini planejamento, 4 · plano antes de executar, 5 · base de conhecimento e disparo, e 6 · estados e registrar como débito. Ele fica em `docs/mockups/spec-115/` depois de validado.
 
 ## Tarefas
 
