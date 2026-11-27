@@ -2,6 +2,42 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.28.0] - 2026-11-27
+
+### Funcionalidades
+
+- **instrucoes:** Estado fonte única e a constante do import @AGENTS.md (SPEC-113 T1) (46cff3b)
+- **instrucoes:** Import do CLAUDE.md, gravação segura dos dois arquivos e tamanho contra os 32 KiB do Codex (SPEC-113 T1) (94f7b7d)
+- **instrucoes:** Editor das instruções do projeto e Ferramentas › Instruções como atalho (SPEC-113 T3) (da1f8a0)
+- **projeto:** Criação grava o AGENTS.md e o CLAUDE.md com @AGENTS.md (SPEC-113 T2) (da1753e)
+- **instrucoes:** Tabela InstructionInterviews e migração v39 (SPEC-113 T5) (80316f8)
+- **instrucoes:** Entrevista em rodadas, pausar e retomar, e a proposta por trecho (SPEC-113 T5) (710c4ab)
+- **instrucoes:** Aba Projeto › Instruções, diálogo no planejamento, entrevista na aba e atalho da paleta (SPEC-113 T3) (2ac57e0)
+- **instrucoes:** Comparar CLAUDE.md e AGENTS.md por seção e item e compor os dois arquivos (SPEC-113 T4) (7b1c668)
+- **instrucoes:** Diálogo Unificar instruções com resultado antes de gravar e Desfazer (SPEC-113 T4) (5508eeb)
+- **instrucoes:** Botão Unificar instruções abre o diálogo da T4 (SPEC-113 T3) (cf27229)
+- **instrucoes:** Proposta por trecho, conferência dos caminhos e commit opcional na branch atual (SPEC-113 T6) (059aea9)
+- **instrucoes:** A proposta da entrevista abre na aba e Concluir volta ao editor (SPEC-113 T3) (7e639f0)
+
+### Correções
+
+- **instrucoes:** "Tentar de novo" refaz a proposta que falhou (SPEC-113 T5) (6df078e)
+- **instrucoes:** Ajustes vistos no app isolado, prints e guia (SPEC-113 T7) (cb785ab)
+- **instrucoes:** Sem "Recolocar o import" quando o CLAUDE.md repete o AGENTS.md (SPEC-113 R9) (8e4112c)
+- **instrucoes:** Tirar o aviso "Duas fontes" da SPEC-104, já dito pelo card Unificar (SPEC-113) (b34c886)
+
+### Refatoração
+
+- **projeto:** Usa a constante do import da T1 e renomeia a gravação da criação (SPEC-113) (029e451)
+
+### Documentação
+
+- **spec:** SPEC-113 Instruções do projeto, com mocks (74a76c3)
+- **spec:** SPEC-113 aponta a issue #429 (a16d4db)
+- **spec:** SPEC-113 vai para a 0.28.0, canvas aprovado (13d6a20)
+- **spec:** SPEC-113 aprovada, commit na branch atual (P7) (08d36d1)
+- **spec:** SPEC-113 em implementação, migração v39 (d02b7f0)
+
 ## [0.27.1] - 2026-11-26
 
 ### Correções
