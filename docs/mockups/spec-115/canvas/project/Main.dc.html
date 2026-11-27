@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Modal de decisão com a crítica</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="crit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="board" hint-size="1366px,768px"></dc-import>
+<main class="main"><div class="tabs"><button class="tab on">Quadro</button><button class="tab">Lista</button></div></main>
+<div class="scrim"></div>
+<div class="dialog" style="left:150px;top:44px;width:1066px;height:680px" role="dialog" aria-label="Decidir a etapa">
+<div class="row"><span class="chip amber">aguardando você</span><b style="font-size:14px">SPEC-031 · Frete no carrinho</b><span class="muted sm">etapa R3 · Calcular o frete</span><span class="end row"><button class="btn s">Abrir sessão</button><button class="btn s" aria-label="Fechar">✕</button></span></div>
+<div class="card" style="gap:4px;padding:9px 12px"><span class="sect">O que aconteceu</span><span class="sm">O agente montou a tela do carrinho e parou: o cálculo do frete pode ficar em três lugares, e a spec não diz qual.</span></div>
+<div style="display:grid;grid-template-columns:440px 1fr;gap:14px;flex:1;min-height:0">
+<section class="col" style="padding:0;gap:8px">
+<div class="row"><b style="font-size:14px">Onde calcular o frete?</b><span class="muted sm end">teclas 1–3</span></div>
+<button class="opt"><span class="kbd" style="margin:0">1</span><span style="display:flex;flex-direction:column;gap:3px;flex:1"><b>No widget do carrinho</b><span class="muted sm">Mais rápido de fazer; o cálculo fica junto da tela.</span></span><span class="sv sv-grave">grave</span></button>
+<button class="opt on"><span class="kbd" style="margin:0">2</span><span style="display:flex;flex-direction:column;gap:3px;flex:1"><span class="row"><b>Caso de uso <span class="mono">CalcularFrete</span></b><span class="chip lilac">sugerida</span></span><span class="muted sm">Uma classe no domínio, chamada pela tela.</span></span><span class="sv sv-ok">ok</span></button>
+<button class="opt"><span class="kbd" style="margin:0">3</span><span style="display:flex;flex-direction:column;gap:3px;flex:1"><b>No repositório que já lê os CEPs</b><span class="muted sm">Aproveita a consulta que já existe.</span></span><span class="sv sv-att">atenção</span></button>
+<div class="card ai" style="gap:5px;margin-top:4px"><div class="row"><span class="sect lilac">Leitura geral da crítica</span></div><span class="sm">A regra de frete é do domínio. A opção 2 segue a regra do projeto e fica testável; o risco é estrutura demais para um cálculo pequeno. A opção 1 põe regra de negócio na tela.</span></div>
+<div class="critbar" style="margin-top:auto"><span class="chip claude">Claude Code · Sonnet</span><span>crítica · 2,4 mil tokens · somente leitura</span><button class="btn s end">Criticar de novo</button></div>
+</section>
+<section class="col bl" style="padding:0 0 0 14px;gap:9px">
+<div class="row"><button class="ptab">Como a etapa fica</button><button class="ptab on">Crítica</button><span class="muted sm end">da opção 2</span></div>
+<div class="row"><b>2 · Caso de uso <span class="mono">CalcularFrete</span></b><span class="sv sv-ok">ok</span></div>
+<div class="sect">A favor</div>
+<ul class="ul"><li>A regra fica fora da tela e do banco; testa com teste de unidade puro.</li><li>Segue a regra do projeto: regra de negócio mora em <span class="mono">lib/domain/</span>.</li></ul>
+<div class="sect">Riscos</div>
+<div class="risk"><span class="sm">Mais um arquivo para um cálculo que hoje tem três linhas.</span><div class="row"><span class="mono lilac sm">TS-04 YAGNI</span><span class="src">app</span><span class="end row"><button class="btn s">Registrar como débito</button><button class="btn s">Como decisão</button></span></div></div>
+<div class="sect">Princípios citados</div>
+<div class="prin"><span class="id">PRJ-02</span><span>Regra de negócio em <span class="mono">lib/domain/</span><br><span class="muted">docs/arquitetura/camadas.md</span></span><span class="src prj">projeto</span></div>
+<div class="prin"><span class="id">CA-01</span><span>Regra de dependência: a tela depende do domínio, nunca o contrário</span><span class="src">app</span></div>
+<div class="prin"><span class="id">TS-04</span><span>YAGNI <span class="muted">· não se aplica se o frete ganhar regra por região</span></span><span class="src">app</span></div>
+<div class="muted sm">Arquivos lidos: <span class="mono">cart_widget.dart</span> · <span class="mono">cep_repository.dart</span></div>
+<div class="row" style="margin-top:auto;border-top:1px solid #252B35;padding-top:10px"><span class="chk"></span><span class="sm">Enviar a crítica ao agente</span><span class="muted sm">· só aconselha: escolher continua com você</span><button class="btn pri end">Compilar (1)</button></div>
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

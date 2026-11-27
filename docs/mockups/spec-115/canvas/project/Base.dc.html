@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Base de conhecimento e disparo por gate</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="crit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="proj" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab on">Configuração</button><button class="tab">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="row" style="padding:12px 16px 0"><span class="h">Crítica de abordagem</span><span class="muted sm">A IA critica as opções nos gates de decisão. Só aconselha.</span><span class="end row"><span class="muted sm">Provedor</span><span class="chip claude">Claude Code · Sonnet · esforço baixo</span><button class="btn s">Mudar em Provedores</button></span></div>
+<div class="body" style="grid-template-columns:1fr 1fr">
+<section class="col br" style="gap:8px;padding:14px 16px">
+<div class="sect">Quando criticar</div>
+<div class="card" style="gap:9px">
+<div class="row"><span style="flex:1">Modal de decisão da etapa</span><span class="seg"><span class="on">Automático</span><span>Botão</span><span>Desligado</span></span></div>
+<div class="row"><span style="flex:1">Decisões da spec (P1…Pn)</span><span class="seg"><span class="on">Automático</span><span>Botão</span><span>Desligado</span></span></div>
+<div class="row"><span style="flex:1">Mini planejamento</span><span class="seg"><span>Automático</span><span class="on">Botão</span><span>Desligado</span></span></div>
+<div class="row"><span style="flex:1">Plano antes de executar</span><span class="seg"><span>Automático</span><span class="on">Botão</span><span>Desligado</span></span></div>
+</div>
+<div class="muted sm">Automático roda ao abrir o gate. Botão mostra "Criticar abordagem" com a estimativa de tokens. A mesma entrada não roda duas vezes.</div>
+<div class="sect" style="margin-top:6px">Consumo neste projeto · 7 dias</div>
+<div class="card" style="gap:6px">
+<div class="row sm"><span style="flex:1">14 críticas · 3 reaproveitadas</span><b>38,2 mil tokens</b></div>
+<span class="bar"><i style="width:22%"></i></span>
+<span class="muted sm">22% do uso de 5h nas críticas de hoje</span>
+</div>
+<div class="sect" style="margin-top:6px">A crítica lê o código</div>
+<div class="row sm"><span class="tog on"></span><span>Ler o repositório em somente leitura para citar arquivos reais</span></div>
+</section>
+<section class="col" style="gap:8px;padding:14px 16px">
+<div class="row"><span class="sect">Base do app</span><span class="muted sm">resumos próprios, em português</span></div>
+<div class="item on" style="border-color:#2E3542"><span class="tog on"></span><span style="flex:1"><b>Clean Architecture</b> <span class="muted sm">· 8 princípios · CA-</span></span><button class="btn s">Ver</button></div>
+<div class="item" style="border-color:#252B35"><span class="tog on"></span><span style="flex:1"><b>SOLID e design de código</b> <span class="muted sm">· 9 princípios · SOLID-</span></span><button class="btn s">Ver</button></div>
+<div class="item" style="border-color:#252B35"><span class="tog"></span><span style="flex:1"><b class="muted">DDD</b> <span class="muted sm">· 7 princípios · DDD-</span></span><button class="btn s">Ver</button></div>
+<div class="item" style="border-color:#252B35"><span class="tog on"></span><span style="flex:1"><b>Testabilidade e simplicidade</b> <span class="muted sm">· 6 princípios · TS-</span></span><button class="btn s">Ver</button></div>
+<div class="row sm muted"><span>3 de 4 temas ligados · 21 KB de 40 KB</span></div>
+<div class="row" style="margin-top:6px"><span class="sect">Base do projeto</span><span class="muted sm">o projeto manda quando discorda</span></div>
+<div class="item" style="border-color:#252B35"><span class="mono sm" style="flex:1">docs/arquitetura/camadas.md</span><span class="src prj">PRJ-01…04</span><button class="btn s">Abrir no editor</button></div>
+<div class="item" style="border-color:#252B35"><span class="mono sm" style="flex:1">docs/arquitetura/regras.md</span><span class="src prj">PRJ-05…07</span><button class="btn s">Abrir no editor</button></div>
+<div class="item" style="border-color:#252B35"><span class="mono sm" style="flex:1">AGENTS.md</span><span class="src">regras gerais</span><button class="btn s">Abrir no editor</button></div>
+<div class="card ai" style="gap:4px;margin-top:4px"><span class="sm"><b>Princípio do projeto:</b> um título com o ID, por exemplo <span class="mono">## PRJ-08 · Telas não acessam o banco</span>, seguido do texto. A crítica cita o ID.</span></div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

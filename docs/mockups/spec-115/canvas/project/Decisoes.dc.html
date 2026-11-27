@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Decisões da spec com a crítica</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="crit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="specs" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="row" style="padding:10px 14px 0"><span class="mono muted sm">SPEC-031</span><span class="h">Frete no carrinho</span><span class="chip amber">em revisão</span><span class="end row"><button class="btn s">Abrir no editor</button><button class="btn s pri">Aprovar spec</button></span></div>
+<div class="tabs"><button class="tab">Spec</button><button class="tab on">Decisões</button><button class="tab">Etapas</button><button class="tab">Protótipo</button></div>
+<div class="card ai" style="margin:10px 14px 0;flex-direction:row;align-items:center;gap:12px;padding:9px 12px">
+<span class="sect lilac" style="flex:none">Leitura geral da abordagem</span>
+<span class="sm" style="flex:1">A spec acerta em pôr o frete no domínio, mas a Q1 recomenda guardar a tabela de preços dentro do app, contra a regra do projeto. Revise a Q1 antes de aprovar.</span>
+<span class="sv sv-grave">1 grave</span><span class="sv sv-att">1 atenção</span><span class="sv sv-ok">2 ok</span>
+</div>
+<div class="body" style="grid-template-columns:1fr 470px">
+<section class="col" style="gap:9px">
+<div class="sect">Perguntas em aberto · 2</div>
+<div class="card on" style="gap:7px">
+<div class="row"><span class="mono amber">Q1</span><b>Onde fica a tabela de preços do frete?</b><span class="sv sv-grave end">grave</span></div>
+<button class="opt on" style="padding:7px 10px"><span class="rad"></span><span style="flex:1"><b>Um JSON dentro do app</b> <span class="chip lilac">recomendada pela spec</span></span><span class="sv sv-grave">grave</span></button>
+<button class="opt" style="padding:7px 10px"><span class="rad"></span><span style="flex:1">Endpoint <span class="mono">/frete</span> no backend</span><span class="sv sv-ok">ok</span></button>
+<button class="opt" style="padding:7px 10px"><span class="rad"></span><span style="flex:1">Outra resposta</span></button>
+</div>
+<div class="card" style="gap:7px">
+<div class="row"><span class="mono amber">Q2</span><b>Frete grátis acima de R$ 200: onde mora a regra?</b><span class="sv sv-ok end">ok</span></div>
+<button class="opt on" style="padding:7px 10px"><span class="rad"></span><span style="flex:1"><b>Na entidade Promoção</b> <span class="chip lilac">recomendada pela spec</span></span><span class="sv sv-ok">ok</span></button>
+<button class="opt" style="padding:7px 10px"><span class="rad"></span><span style="flex:1">Um <span class="mono">if</span> dentro de <span class="mono">CalcularFrete</span></span><span class="sv sv-att">atenção</span></button>
+</div>
+<div class="sect" style="margin-top:4px">Decisões · 1</div>
+<div class="card" style="gap:5px">
+<div class="row"><span class="mono muted">P1</span><span>Calcular o frete no checkout, não a cada item <span class="muted sm">(26/11)</span></span><button class="btn s end">Criticar esta decisão</button></div>
+<span class="muted sm">Decisões já tomadas só são criticadas a pedido.</span>
+</div>
+</section>
+<aside class="col bl" style="gap:9px">
+<div class="row"><span class="sect">Crítica da Q1</span><span class="muted sm">· opção recomendada</span><span class="sv sv-grave end">grave</span></div>
+<b>Um JSON dentro do app</b>
+<div class="sect">A favor</div>
+<ul class="ul"><li>Funciona sem rede e é simples de testar.</li></ul>
+<div class="sect">Riscos</div>
+<div class="risk grave"><span class="sm">Mudar um preço exige publicar uma versão nova do app. O projeto diz que configuração de negócio vem do backend.</span><div class="row"><span class="mono lilac sm">PRJ-05</span><span class="src prj">projeto</span><span class="end row"><button class="btn s">Registrar como débito</button><button class="btn s">Como decisão</button></span></div></div>
+<div class="risk"><span class="sm">O app e o backend passam a ter duas fontes do preço, e o pedido pode fechar com um valor diferente do que a tela mostrou.</span><div class="row"><span class="mono lilac sm">DDD-02 Fonte única</span><span class="src">app</span><span class="end row"><button class="btn s">Registrar como débito</button></span></div></div>
+<div class="sect">Princípios citados</div>
+<div class="prin"><span class="id">PRJ-05</span><span>Configuração de negócio vem do backend<br><span class="muted">docs/arquitetura/regras.md</span></span><span class="src prj">projeto</span></div>
+<div class="prin"><span class="id">DDD-02</span><span>Um dado de negócio tem uma fonte só</span><span class="src">app</span></div>
+<div class="muted sm">Arquivos lidos: <span class="mono">api/routes.py</span> · <span class="mono">lib/data/api_client.dart</span></div>
+<div class="critbar" style="margin-top:auto"><span class="chip claude">Claude Code · Sonnet</span><span>3,1 mil tokens</span><button class="btn s end">Criticar de novo</button></div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

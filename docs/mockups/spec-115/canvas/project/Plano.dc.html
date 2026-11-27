@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Plano antes de executar com a crítica</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="crit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="board" hint-size="1366px,768px"></dc-import>
+<main class="main"><div class="tabs"><button class="tab on">Quadro</button><button class="tab">Lista</button></div></main>
+<div class="scrim"></div>
+<div class="dialog" style="left:190px;top:60px;width:986px;height:648px" role="dialog" aria-label="Executar spec">
+<div class="row"><b style="font-size:15px">Executar spec</b><span class="muted sm">SPEC-031 · Frete no carrinho</span><span class="end seg"><span class="on">Automático</span><span>Manual</span></span></div>
+<div style="display:grid;grid-template-columns:1fr 420px;gap:14px;flex:1;min-height:0">
+<section class="col" style="padding:0;gap:7px">
+<div class="row"><span class="sect">Plano · 5 etapas</span><span class="muted sm end">da seção ## Etapas</span></div>
+<div class="item on" style="border-color:#2E3542"><span class="mono muted">E1</span><span style="flex:1">Caso de uso <span class="mono">CalcularFrete</span> e testes</span><span class="chip claude">Sonnet</span><span class="sv sv-ok">ok</span></div>
+<div class="item" style="border-color:#252B35"><span class="mono muted">E2</span><span style="flex:1">Endpoint <span class="mono">/frete</span> no cliente da API</span><span class="chip claude">Sonnet</span><span class="sv sv-ok">ok</span></div>
+<div class="item" style="border-color:#7a3a33;background:#1f1312"><span class="mono muted">E3</span><span style="flex:1">Campo de CEP chama a API direto do widget</span><span class="chip claude">Haiku</span><span class="sv sv-grave">grave</span></div>
+<div class="item" style="border-color:#252B35"><span class="mono muted">E4</span><span style="flex:1">Guardar o último CEP no perfil</span><span class="chip claude">Sonnet</span><span class="sv sv-att">atenção</span></div>
+<div class="item" style="border-color:#252B35"><span class="mono muted">E5</span><span style="flex:1">Teste de widget do carrinho</span><span class="chip claude">Haiku</span><span class="sv sv-ok">ok</span></div>
+<div class="card" style="gap:4px;margin-top:6px"><span class="sect">Revisor automático</span><span class="sm muted">Codex · ligado no projeto</span></div>
+<div class="row" style="margin-top:auto"><span class="muted sm">A crítica só aconselha: Executar continua liberado.</span><span class="end row"><button class="btn">Cancelar</button><button class="btn pri">Executar 5 etapas</button></span></div>
+</section>
+<section class="col bl" style="padding:0 0 0 14px;gap:9px">
+<div class="row"><span class="sect lilac">Crítica do plano</span><span class="sv sv-grave end">1 grave</span></div>
+<span class="sm">O plano segue as camadas, menos na E3: o widget chamaria a API sem passar pelo caso de uso da E1, e a regra ficaria duplicada.</span>
+<div class="risk grave"><div class="row"><b class="sm">E3 · Campo de CEP chama a API direto</b></div><span class="sm">A tela pula o domínio; o frete calculado na E1 deixa de ser a fonte.</span><div class="row"><span class="mono lilac sm">CA-01</span><span class="src">app</span><span class="mono lilac sm">PRJ-02</span><span class="src prj">projeto</span></div><span class="muted sm">Sugestão: a E3 chama <span class="mono">CalcularFrete</span>, que usa o cliente da E2.</span><div class="row"><button class="btn s">Registrar como débito</button><button class="btn s">Como decisão</button></div></div>
+<div class="risk"><div class="row"><b class="sm">E4 · Guardar o CEP no perfil</b></div><span class="sm">Depende de login, e a spec não diz o que fazer com visitante.</span><div class="row"><span class="mono lilac sm">TS-01 Caso de borda explícito</span><span class="src">app</span></div></div>
+<div class="muted sm">Arquivos lidos: <span class="mono">lib/features/cart/</span> · <span class="mono">lib/data/api_client.dart</span></div>
+<div class="critbar" style="margin-top:auto"><span class="chip claude">Claude Code · Sonnet</span><span>2,8 mil tokens</span><button class="btn s end">Criticar de novo</button></div>
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

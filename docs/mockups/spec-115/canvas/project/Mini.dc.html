@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mini planejamento com a crítica</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="crit.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" active="specs" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="row" style="padding:10px 14px;border-bottom:1px solid #252B35"><span class="h">Nova spec</span><span class="chip lilac">mini planejamento</span><span class="chip claude">Claude Code · Planner</span><span class="end row"><button class="btn s">Cancelar</button><button class="btn s pri">Criar spec</button></span></div>
+<div class="body" style="grid-template-columns:1fr 400px">
+<section class="col" style="gap:10px;padding:14px 18px">
+<div class="row"><span class="chip">você</span><span class="sm">Quero mostrar o frete no carrinho assim que a pessoa digitar o CEP.</span></div>
+<div class="card" style="gap:4px"><span class="sect lilac">Planner</span><span class="sm">Entendi. Antes de escrever a spec, preciso de duas respostas.</span></div>
+<div class="card" style="gap:6px">
+<div class="row"><span class="mono amber">1</span><b>Quando consultar o frete?</b><span class="end row"><button class="btn s ai">Criticar opções</button><span class="muted sm">~1,5 mil tokens</span></span></div>
+<button class="opt" style="padding:6px 10px"><span class="rad"></span><span>A cada dígito do CEP</span></button>
+<button class="opt" style="padding:6px 10px"><span class="rad"></span><span>Quando o CEP tiver 8 dígitos</span></button>
+<button class="opt" style="padding:6px 10px"><span class="rad"></span><span>Ao clicar em "Calcular"</span></button>
+</div>
+<div class="card on" style="gap:6px">
+<div class="row"><span class="mono amber">2</span><b>Onde guardar o último CEP?</b><span class="muted sm end">criticado · 1,2 mil tokens</span></div>
+<button class="opt" style="padding:6px 10px;align-items:center"><span class="rad"></span><span style="flex:1;display:flex;flex-direction:column;gap:2px"><span>No estado da tela</span><span class="muted sm">Some ao fechar o app; simples e sem dado pessoal guardado.</span></span><span class="sv sv-ok">ok</span></button>
+<button class="opt on" style="padding:6px 10px;align-items:center"><span class="rad"></span><span style="flex:1;display:flex;flex-direction:column;gap:2px"><span>No perfil do cliente, no backend</span><span class="muted sm">Fonte única e serve no site também; precisa de login.</span></span><span class="sv sv-ok">ok</span></button>
+<button class="opt" style="padding:6px 10px;align-items:center"><span class="rad"></span><span style="flex:1;display:flex;flex-direction:column;gap:2px"><span>Em <span class="mono">SharedPreferences</span>, chamado pelo widget</span><span class="muted sm">A tela acessa o armazenamento direto (CA-01).</span></span><span class="sv sv-att">atenção</span></button>
+<div class="row sm muted"><span class="mono lilac">CA-01</span><span class="src">app</span><span class="mono lilac">DDD-02</span><span class="src">app</span><button class="btn s end">Ver crítica completa</button></div>
+</div>
+<div class="row" style="margin-top:auto"><input class="field" id="msg" value="" placeholder="Responda ou escreva outra coisa…" aria-label="Mensagem para o Planner"><button class="btn pri">Enviar</button></div>
+</section>
+<aside class="col bl">
+<div class="sect">Rascunho da spec</div>
+<pre class="ed" style="flex:1;font-size:11px"><b># Frete no carrinho</b>
+
+<b>## Objetivo</b>
+Mostrar o valor e o prazo do frete
+no carrinho a partir do CEP.
+
+<b>## Requisitos</b>
+- R1 · Campo de CEP no carrinho.
+- R2 · Consultar o frete <span class="amber">(pergunta 1)</span>.
+- R3 · Lembrar o último CEP <span class="amber">(pergunta 2)</span>.</pre>
+<div class="muted sm">Responder não espera a crítica. Ela aparece dentro de cada pergunta.</div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
