@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -13,6 +14,7 @@ import 'core/dev/dev_server.dart';
 import 'core/dev/preview_browser.dart';
 import 'core/git/git_service.dart';
 import 'core/perf/frame_monitor.dart';
+import 'core/system/window_bounds.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
 import 'features/sessions/codex_workspace_release.dart';
@@ -40,14 +42,21 @@ Future<void> main() async {
   // ~/.pub-cache/hosted/pub.dev/window_manager-0.5.2/README.md ("Usage").
   await windowManager.ensureInitialized();
 
-  const windowOptions = WindowOptions(
-    size: Size(1440, 900),
-    minimumSize: Size(1100, 700),
-    center: true,
+  // The window must fit the screen's usable area, also on Windows with a
+  // small screen or a high scale, where 1440×900 / 1100×700 overflow it and
+  // block Maximize (SPEC-114).
+  final area = await _primaryVisibleArea();
+  final bounds = initialWindowBounds(area?.size, area?.origin);
+  final windowOptions = WindowOptions(
+    size: bounds.size,
+    minimumSize: bounds.minimumSize,
+    center: bounds.position == null,
     backgroundColor: AppColors.backgroundSolid,
     title: 'Promptorium',
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    final position = bounds.position;
+    if (position != null) await windowManager.setPosition(position);
     await windowManager.show();
     await windowManager.focus();
   });
@@ -154,4 +163,16 @@ class _CloseHandler with WindowListener {
   void onWindowClose() => close();
 
   Future<void> close() => container.read(appShutdownProvider).closeWindow();
+}
+
+/// Usable area (without the taskbar) of the primary display, in logical
+/// pixels; `null` when it cannot be read, so the window opens as before
+/// (SPEC-114 R1, R6).
+Future<({Size? size, Offset? origin})?> _primaryVisibleArea() async {
+  try {
+    final display = await screenRetriever.getPrimaryDisplay();
+    return (size: display.visibleSize, origin: display.visiblePosition);
+  } catch (_) {
+    return null;
+  }
 }

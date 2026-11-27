@@ -1,8 +1,9 @@
 ---
 id: SPEC-114
-status: rascunho
+status: em-revisao
 versao: 0.28.1
 tipo: correcao
+issue: 460
 depende-de: []
 ---
 
