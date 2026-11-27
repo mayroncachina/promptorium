@@ -2,6 +2,16 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.28.1] - 2026-11-27
+
+### Correções
+
+- **janela:** Tamanho, mínimo e posição pela área útil da tela (SPEC-114) (ba8151f)
+
+### Documentação
+
+- **spec:** SPEC-114 janela que cabe na tela (Windows) (2645474)
+
 ## [0.28.0] - 2026-11-27
 
 ### Funcionalidades
