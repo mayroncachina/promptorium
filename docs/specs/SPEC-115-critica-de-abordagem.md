@@ -144,3 +144,17 @@ Nenhuma.
 - [ ] Um risco vira débito ou decisão pendente com o diálogo da SPEC-112 preenchido, e o ID aparece no risco.
 - [ ] Com o gate desligado ou com a execução falhando, o gate funciona como hoje.
 - [ ] A base do app não tem trechos copiados de livros.
+
+## Telas
+
+![1 · Modal de decisão com a crítica](../mockups/spec-115/1-modal-decisao.png)
+
+![2 · Decisões da spec](../mockups/spec-115/2-decisoes-da-spec.png)
+
+![3 · Mini planejamento](../mockups/spec-115/3-mini-planejamento.png)
+
+![4 · Plano antes de executar](../mockups/spec-115/4-plano-antes-de-executar.png)
+
+![5 · Base de conhecimento e disparo](../mockups/spec-115/5-base-e-disparo.png)
+
+![6 · Estados e registrar como débito](../mockups/spec-115/6-estados-e-debito.png)
