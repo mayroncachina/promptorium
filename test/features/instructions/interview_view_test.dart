@@ -99,6 +99,17 @@ final mockData = InterviewData(
 );
 
 void main() {
+  test('the AI Markdown: backticks become code spans, list items bullets', () {
+    final spans = interviewCodeSpans('Rode `flutter test` antes');
+    expect(
+      [for (final x in spans) (x as TextSpan).text],
+      ['Rode ', 'flutter test', ' antes'],
+    );
+    expect((spans[1] as TextSpan).style?.fontFamily, isNotNull);
+    expect(interviewCodeSpans('um ` solto'), hasLength(1));
+    expect(interviewBullets('- a\n- b\nc'), '• a\n• b\nc');
+  });
+
   late Directory tmp;
   late FakeCli cli;
 
@@ -315,7 +326,7 @@ void main() {
       ),
     );
     await waitFor(tester, key('interview-summary'));
-    expect(find.text('- Testes com flutter test.'), findsOneWidget);
+    expect(find.text('• Testes com flutter test.'), findsOneWidget);
     expect(key('interview-confirm'), findsOneWidget);
     expect(cli.processes, isEmpty);
   });

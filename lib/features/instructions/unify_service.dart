@@ -51,12 +51,21 @@ class MdItem {
 /// its items.
 @immutable
 class MdSection {
-  const MdSection({this.heading, this.level = 0, required this.items});
+  const MdSection({
+    this.heading,
+    this.level = 0,
+    required this.items,
+    this.spaced = false,
+  });
 
   /// The heading line as written (`## Comandos`).
   final String? heading;
   final int level;
   final List<MdItem> items;
+
+  /// A blank line between the heading and its first item, as written: the
+  /// person's layout is kept.
+  final bool spaced;
 
   /// The heading text (`Comandos`); empty for the preamble.
   String get title => heading == null ? '' : _headingTitle(heading!);
@@ -84,6 +93,7 @@ List<MdSection> parseMdSections(String text) {
   List<String>? current;
   var currentList = false;
   String? fence;
+  var spaced = false;
 
   void endItem() {
     if (current != null) {
@@ -96,9 +106,12 @@ List<MdSection> parseMdSections(String text) {
   void endSection() {
     endItem();
     if (heading != null || items.isNotEmpty) {
-      sections.add(MdSection(heading: heading, level: level, items: items));
+      sections.add(
+        MdSection(heading: heading, level: level, items: items, spaced: spaced),
+      );
     }
     items = <MdItem>[];
+    spaced = false;
   }
 
   for (final raw in text.replaceAll('\r\n', '\n').split('\n')) {
@@ -136,6 +149,7 @@ List<MdSection> parseMdSections(String text) {
       continue;
     }
     if (line.trim().isEmpty) {
+      if (heading != null && items.isEmpty && current == null) spaced = true;
       endItem();
       continue;
     }
@@ -155,8 +169,9 @@ List<MdSection> parseMdSections(String text) {
   return sections;
 }
 
-/// [sections] as Markdown: heading, items right under it (consecutive list
-/// items without a blank line between them, others with one), a blank line between sections
+/// [sections] as Markdown: heading, items under it (a blank line after the
+/// heading when the section had one, consecutive list items without a blank
+/// line between them, others with one), a blank line between sections
 /// and a newline at the end; empty when there is nothing.
 String renderMdSections(List<MdSection> sections) {
   final parts = <String>[];
@@ -167,7 +182,8 @@ String renderMdSections(List<MdSection> sections) {
       final item = s.items[i];
       if (b.isNotEmpty) {
         final prev = i == 0 ? null : s.items[i - 1];
-        b.write(prev == null || (prev.isList && item.isList) ? '\n' : '\n\n');
+        final gap = prev == null ? !s.spaced : prev.isList && item.isList;
+        b.write(gap ? '\n' : '\n\n');
       }
       b.write(item.text);
     }
@@ -281,10 +297,12 @@ class _Block {
     this.entries = const [],
     this.sectionDiff,
     this.section,
+    this.spaced = false,
   });
 
   final String? heading;
   final int level;
+  final bool spaced;
   final List<_Entry> entries;
   final UnifyDiff? sectionDiff;
 
@@ -461,7 +479,7 @@ UnifyPlan buildUnifyPlan({required String? claude, required String? agents}) {
     final s = ci != null ? cs[ci] : as[ai!];
     if (s.items.isEmpty) {
       // A heading alone (the `# título` over the sections) is structure.
-      blocks.add(_Block(heading: s.heading, level: s.level));
+      blocks.add(_Block(heading: s.heading, level: s.level, spaced: s.spaced));
       continue;
     }
     final fromClaude = ci != null;
@@ -577,7 +595,12 @@ _Block _sharedBlock(
     }
   }
   // The person's AGENTS.md wording of the heading wins.
-  return _Block(heading: a.heading, level: a.level, entries: entries);
+  return _Block(
+    heading: a.heading,
+    level: a.level,
+    entries: entries,
+    spaced: a.spaced,
+  );
 }
 
 bool _isListText(String text) => _listRe.hasMatch(text);
@@ -631,10 +654,22 @@ UnifyResult composeUnify(
           }
       }
     }
-    agents.add(MdSection(heading: b.heading, level: b.level, items: toAgents));
+    agents.add(
+      MdSection(
+        heading: b.heading,
+        level: b.level,
+        items: toAgents,
+        spaced: b.spaced,
+      ),
+    );
     if (toClaude.isNotEmpty) {
       claude.add(
-        MdSection(heading: b.heading, level: b.level, items: toClaude),
+        MdSection(
+          heading: b.heading,
+          level: b.level,
+          items: toClaude,
+          spaced: b.spaced,
+        ),
       );
     }
   }

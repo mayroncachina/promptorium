@@ -18,7 +18,8 @@ import '../project/project_config.dart';
 import '../project/widgets/project_widgets.dart';
 import '../sessions/widgets/session_style.dart';
 import 'instructions_editor.dart';
-import 'interview_controller.dart' show InstructionProposal;
+import 'interview_controller.dart'
+    show InstructionProposal, instructionInterviewProvider;
 import 'interview_view.dart';
 import 'proposal_view.dart';
 import 'unify_dialog.dart';
@@ -732,24 +733,30 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
                       workspace: ws,
                       onContinue: () => modes.show(InstructionsMode.interview),
                     ),
-                    _Card(
-                      key: const ValueKey('instructions-improve'),
-                      lilac: true,
-                      title: 'Melhorar com IA',
-                      text:
-                          'A IA lê o projeto e faz perguntas em rodadas, até '
-                          'fechar o que falta nas instruções. Nada é gravado '
-                          'sem você aceitar.',
-                      action: SmallButton(
-                        key: const ValueKey('instructions-interview'),
-                        label: 'Começar entrevista',
-                        expand: true,
-                        color: projectLilac,
-                        border: projectLilacBorder,
-                        onTap: _interview(ws),
+                    // A paused interview is continued (or discarded) on its
+                    // own card: no second way in (mock 6-retomar).
+                    if (!ref.watch(
+                      instructionInterviewProvider(ws.id)
+                          .select((s) => s.exists && s.paused),
+                    ))
+                      _Card(
+                        key: const ValueKey('instructions-improve'),
+                        lilac: true,
+                        title: 'Melhorar com IA',
+                        text:
+                            'A IA lê o projeto e faz perguntas em rodadas, até '
+                            'fechar o que falta nas instruções. Nada é gravado '
+                            'sem você aceitar.',
+                        action: SmallButton(
+                          key: const ValueKey('instructions-interview'),
+                          label: 'Começar entrevista',
+                          expand: true,
+                          color: projectLilac,
+                          border: projectLilacBorder,
+                          onTap: _interview(ws),
+                        ),
+                        footer: 'Planner e assistentes · somente leitura',
                       ),
-                      footer: 'Planner e assistentes · somente leitura',
-                    ),
                   ],
                   if (instructionsNeedUnify(inv)) ...[
                     const SizedBox(height: 12),

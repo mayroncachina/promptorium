@@ -1,6 +1,6 @@
 ---
 id: SPEC-113
-status: em implementação
+status: concluida
 versao: 0.28.0
 tipo: recurso
 issue: 429
@@ -100,20 +100,20 @@ Nenhuma.
 
 ## Critérios de aceite
 
-- [ ] `CLAUDE.md` com `@AGENTS.md` e um `AGENTS.md` da pessoa aparece como fonte única; um `@AGENTS.md` dentro de bloco de código não conta [R1] verificar: testes de unidade.
-- [ ] Projeto novo sai com o texto no `AGENTS.md` e o import no `CLAUDE.md`, no commit inicial, sem sobrescrever arquivo da pessoa [R2] verificar: teste do serviço.
-- [ ] Abrir um projeto antigo não grava nem avisa nada, e o override continua [R3] verificar: teste de widget e dos args do Codex.
-- [ ] Unificar mostra o resultado antes, e uma falha no segundo arquivo devolve o primeiro [R4, R5] verificar: teste com falha simulada.
-- [ ] Ferramentas › Instruções e a paleta abrem Projeto › Instruções, com todos os estados da SPEC-104 [R6, R7] verificar: testes de widget.
-- [ ] Uma mudança externa com edição aberta não perde nenhum dos dois textos [R8] verificar: teste de widget.
-- [ ] Apagar o import avisa e "Recolocar o import" resolve [R9] verificar: teste de widget.
-- [ ] "Carregado" só aparece com prova, e 32 769 bytes mostram o corte [R10, R11] verificar: testes.
-- [ ] Arquivos de subpastas não têm ação de escrita [R12] verificar: teste de widget.
-- [ ] Uma rodada traz várias perguntas com recomendação, e a seguinte só depois das respostas [R13–R16] verificar: teste com provedor falso.
-- [ ] A entrevista roda no Claude e no Codex, só leitura, e não grava arquivo [R13, R17] verificar: teste dos args e do repositório limpo.
-- [ ] Fechar o app no meio e continuar mantém as respostas, com e sem a thread antiga [R18] verificar: teste do repositório e do controlador.
-- [ ] Aplicar grava só os aceitos, e um trecho que não casa vira conflito [R19, R20] verificar: testes.
-- [ ] O commit é opcional, desmarcado, e leva só os arquivos de instruções e vai para a branch atual, que a caixa nomeia; fora da base há aviso, e com HEAD solto a caixa fica desativada [R21] verificar: teste de git e de widget.
+- [x] `CLAUDE.md` com `@AGENTS.md` e um `AGENTS.md` da pessoa aparece como fonte única; um `@AGENTS.md` dentro de bloco de código não conta [R1] verificar: testes de unidade.
+- [x] Projeto novo sai com o texto no `AGENTS.md` e o import no `CLAUDE.md`, no commit inicial, sem sobrescrever arquivo da pessoa [R2] verificar: teste do serviço.
+- [x] Abrir um projeto antigo não grava nem avisa nada, e o override continua [R3] verificar: teste de widget e dos args do Codex.
+- [x] Unificar mostra o resultado antes, e uma falha no segundo arquivo devolve o primeiro [R4, R5] verificar: teste com falha simulada.
+- [x] Ferramentas › Instruções e a paleta abrem Projeto › Instruções, com todos os estados da SPEC-104 [R6, R7] verificar: testes de widget.
+- [x] Uma mudança externa com edição aberta não perde nenhum dos dois textos [R8] verificar: teste de widget.
+- [x] Apagar o import avisa e "Recolocar o import" resolve [R9] verificar: teste de widget.
+- [x] "Carregado" só aparece com prova, e 32 769 bytes mostram o corte [R10, R11] verificar: testes.
+- [x] Arquivos de subpastas não têm ação de escrita [R12] verificar: teste de widget.
+- [x] Uma rodada traz várias perguntas com recomendação, e a seguinte só depois das respostas [R13–R16] verificar: teste com provedor falso.
+- [x] A entrevista roda no Claude e no Codex, só leitura, e não grava arquivo [R13, R17] verificar: teste dos args e do repositório limpo.
+- [x] Fechar o app no meio e continuar mantém as respostas, com e sem a thread antiga [R18] verificar: teste do repositório e do controlador.
+- [x] Aplicar grava só os aceitos, e um trecho que não casa vira conflito [R19, R20] verificar: testes.
+- [x] O commit é opcional, desmarcado, e leva só os arquivos de instruções e vai para a branch atual, que a caixa nomeia; fora da base há aviso, e com HEAD solto a caixa fica desativada [R21] verificar: teste de git e de widget.
 
 ## Telas
 

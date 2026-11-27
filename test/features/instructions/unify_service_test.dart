@@ -157,6 +157,18 @@ Um parágrafo.
       expect(renderMdSections(parseMdSections(vitrineAgents)), vitrineAgents);
       expect(renderMdSections(const []), '');
     });
+
+    test('a blank line after the heading is kept, as written', () {
+      const spaced = '# vitrine\n\n- Rode o analyze.\n- Textos em português.\n';
+      expect(renderMdSections(parseMdSections(spaced)), spaced);
+      final r = composeUnify(
+        buildUnifyPlan(
+          claude: '$spaced- Nunca use print.\n',
+          agents: '$spaced- Rotas em lib/router.dart.\n',
+        ),
+      );
+      expect(r.agents, startsWith('# vitrine\n\n- Rode o analyze.\n'));
+    });
   });
 
   group('diffs (R4)', () {

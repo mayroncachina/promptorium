@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/structured_run.dart' show providerDisplayName;
+import '../../core/providers/workspace_assets.dart'
+    show instructionsInventoryProvider;
 import '../../data/providers.dart' show Workspace;
 import '../../ui/providers/provider_logos.dart';
 import '../../ui/theme/tokens.dart';
@@ -249,7 +251,7 @@ class _InstructionsInterviewViewState
                               : AppColors.amber,
                         ),
                       ),
-                      TextSpan(text: q.title),
+                      ...interviewCodeSpans(q.title),
                     ],
                   ),
                   style: const TextStyle(fontSize: 12, color: AppColors.text),
@@ -284,7 +286,8 @@ class _InstructionsInterviewViewState
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: '${f.text} '),
+                  ...interviewCodeSpans(f.text),
+                  const TextSpan(text: ' '),
                   TextSpan(
                     text: f.path,
                     style: const TextStyle(fontFamily: AppFonts.mono),
@@ -446,8 +449,8 @@ class _InstructionsInterviewViewState
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            q.text,
+          child: Text.rich(
+            TextSpan(children: interviewCodeSpans(q.text)),
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -483,8 +486,8 @@ class _InstructionsInterviewViewState
           title,
           if (reason.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(
-              reason,
+            Text.rich(
+              TextSpan(children: interviewCodeSpans(reason)),
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -631,8 +634,14 @@ class _InstructionsInterviewViewState
         ),
       ),
       const SizedBox(height: 8),
-      Text(
-        s.data.summary.isEmpty ? 'Sem perguntas abertas.' : s.data.summary,
+      Text.rich(
+        TextSpan(
+          children: interviewCodeSpans(
+            s.data.summary.isEmpty
+                ? 'Sem perguntas abertas.'
+                : interviewBullets(s.data.summary),
+          ),
+        ),
         style: const TextStyle(
           fontSize: 13,
           color: AppColors.text,
@@ -678,99 +687,111 @@ class _InstructionsInterviewViewState
         children: [
           Text('RASCUNHO ATÉ AGORA', style: sectionTitleStyle),
           const SizedBox(height: 8),
-          Flexible(
-            child: Container(
-              key: const ValueKey('interview-draft'),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: lines.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Text(
-                        'O rascunho aparece depois da primeira rodada.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    )
-                  : ListView(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      children: [
-                        for (final l in lines)
-                          Container(
-                            color:
-                                l.trim().isNotEmpty &&
-                                    data.previousDraft.isNotEmpty &&
-                                    !before.contains(l)
-                                ? SessionColors.addBg
-                                : null,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 1,
-                            ),
+          // The draft takes the free height (up to its text); the footer
+          // stays at the bottom. A Spacer next to it split the height in two
+          // and the draft scrolled with room left.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(
+                  child: Container(
+                    key: const ValueKey('interview-draft'),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: lines.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
                             child: Text(
-                              l,
+                              'O rascunho aparece depois da primeira rodada.',
                               style: TextStyle(
-                                fontFamily: AppFonts.mono,
-                                fontSize: 11.5,
-                                height: 1.45,
-                                fontWeight: l.startsWith('#')
-                                    ? FontWeight.w700
-                                    : null,
-                                color: AppColors.text,
+                                fontSize: 12,
+                                color: AppColors.textMuted,
                               ),
                             ),
+                          )
+                        : ListView(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            children: [
+                              for (final l in lines)
+                                Container(
+                                  color:
+                                      l.trim().isNotEmpty &&
+                                          data.previousDraft.isNotEmpty &&
+                                          !before.contains(l)
+                                      ? SessionColors.addBg
+                                      : null,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 1,
+                                  ),
+                                  child: Text(
+                                    l,
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.mono,
+                                      fontSize: 11.5,
+                                      height: 1.45,
+                                      fontWeight: l.startsWith('#')
+                                          ? FontWeight.w700
+                                          : null,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
+                  ),
+                ),
+                if (q != null && answer != null && answer.complete) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    key: const ValueKey('interview-answered'),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: SessionColors.approvalBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: SessionColors.approvalBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'COM A ${q.id} RESPONDIDA',
+                          style: sectionTitleStyle.copyWith(
+                            color: AppColors.amber,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '- ${answer.value}',
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 12,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        if (q.target.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            q.target,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (q != null && answer != null && answer.complete) ...[
-            const SizedBox(height: 12),
-            Container(
-              key: const ValueKey('interview-answered'),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: SessionColors.approvalBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: SessionColors.approvalBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'COM A ${q.id} RESPONDIDA',
-                    style: sectionTitleStyle.copyWith(color: AppColors.amber),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '- ${answer.value}',
-                    style: const TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 12,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if (q.target.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      q.target,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-          const Spacer(),
+          const SizedBox(height: 12),
           const Text(
             'Nada foi gravado nos arquivos. As respostas ficam guardadas '
             'neste projeto.',
@@ -813,7 +834,7 @@ Future<void> showInterviewAnswers(
                         color: AppColors.amber,
                       ),
                     ),
-                    TextSpan(text: '${q.text}\n'),
+                    ...interviewCodeSpans('${q.text}\n'),
                     TextSpan(
                       text: switch (data.answers[q.id]) {
                         final a? when a.complete => a.spoken,
@@ -873,6 +894,14 @@ class _InterviewResumeCardState extends ConsumerState<InterviewResumeCard> {
 
   @override
   Widget build(BuildContext context) {
+    // A file changed while paused (the tab's watcher rescans): the warning
+    // shows now, not only after reopening the app (R18).
+    ref.listen(instructionsInventoryProvider(ws.path), (prev, next) {
+      final st = ref.read(instructionInterviewProvider(ws.id));
+      if (prev?.hasValue == true && next.hasValue && st.paused && !st.busy) {
+        ref.read(instructionInterviewProvider(ws.id).notifier).load(ws);
+      }
+    });
     final s = ref.watch(instructionInterviewProvider(ws.id));
     if (!s.exists || !s.paused) return const SizedBox.shrink();
     final c = ref.read(instructionInterviewProvider(ws.id).notifier);
@@ -1116,3 +1145,27 @@ class _Option extends StatelessWidget {
     ),
   );
 }
+
+/// The AI writes Markdown: the text between backticks shows in the code
+/// font (no backticks), the rest as is.
+List<InlineSpan> interviewCodeSpans(String text) {
+  final parts = text.split('`');
+  // An unpaired backtick is text, not the start of a code span.
+  if (parts.length.isEven) return [TextSpan(text: text)];
+  return [
+    for (var i = 0; i < parts.length; i++)
+      if (parts[i].isNotEmpty)
+        i.isOdd
+            ? TextSpan(
+                text: parts[i],
+                style: const TextStyle(fontFamily: AppFonts.mono),
+              )
+            : TextSpan(text: parts[i]),
+  ];
+}
+
+/// The summary's Markdown list items (`- `, `* `) as bullets.
+String interviewBullets(String text) => text.replaceAllMapped(
+  RegExp(r'^(\s*)[-*] ', multiLine: true),
+  (m) => '${m[1]}• ',
+);

@@ -362,8 +362,8 @@ class InstructionsEditor extends StatelessWidget {
             NoticeBox.warning(
               key: const ValueKey('instructions-no-import'),
               text:
-                  'O CLAUDE.md não importa o AGENTS.md: o Claude Code deixou '
-                  'de ler as instruções do AGENTS.md.',
+                  'O CLAUDE.md não importa o AGENTS.md: o Claude Code não lê '
+                  'as instruções do AGENTS.md.',
               action: SmallButton(
                 key: const ValueKey('instructions-restore-import'),
                 label: 'Recolocar o import',

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,7 @@ import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/workspace_assets.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
+import 'package:promptorium/features/instructions/interview_data.dart';
 import 'package:promptorium/features/instructions/instructions_view.dart';
 import 'package:promptorium/features/project/widgets/project_widgets.dart'
     show NoticeBox;
@@ -37,6 +39,7 @@ void main() {
   Future<ProviderContainer> pump(
     WidgetTester tester, {
     InstructionsProof? proof,
+    bool pausedInterview = false,
   }) async {
     tester.view.physicalSize = const Size(1440, 1000);
     tester.view.devicePixelRatio = 1;
@@ -63,6 +66,18 @@ void main() {
             WorkspacesCompanion.insert(path: tmp.path, name: 'vitrine'),
           );
       await AppSettingsRepo(db).setInt(AppSettingKeys.activeWorkspace, ws.id);
+      if (pausedInterview) {
+        final repo = c.read(instructionInterviewsRepoProvider);
+        await repo.start(
+          ws.id,
+          provider: 'claude',
+          data: const InterviewData().encode(),
+        );
+        await repo.update(
+          ws.id,
+          InstructionInterviewsCompanion(pausedAt: Value(DateTime(2026, 11))),
+        );
+      }
       await c.read(appSettingsProvider.notifier).load();
     });
     await tester.pumpWidget(
@@ -283,6 +298,16 @@ void main() {
     expect(claude, isNot(contains(rule)));
   });
 
+  testWidgets('R18: a paused interview has only its own card, no second '
+      '"Começar entrevista"', (tester) async {
+    write('AGENTS.md', '# vitrine\n');
+    write('CLAUDE.md', '@AGENTS.md\n');
+    await pump(tester, pausedInterview: true);
+    await idle(tester);
+    expect(find.text('Entrevista pausada'), findsOneWidget);
+    expect(key('instructions-improve'), findsNothing);
+  });
+
   testWidgets('R9: without the import the app warns and "Recolocar o import" '
       'puts it back', (tester) async {
     write('AGENTS.md', '# vitrine\n');
@@ -295,6 +320,8 @@ void main() {
     expect(read('CLAUDE.md'), '@AGENTS.md\n\n# só do Claude\n');
     expect(key('instructions-no-import'), findsNothing);
     expect(key('instructions-import-line'), findsOneWidget);
+    // The app's own file watcher may rescan once more after the write.
+    await waitFor(tester, key('instructions-single-source'));
     expect(key('instructions-single-source'), findsOneWidget);
     expect(key('instructions-undo'), findsOneWidget);
   });
