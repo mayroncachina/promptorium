@@ -132,7 +132,7 @@ void main() {
     write('packages/api/CLAUDE.md', 'x\n');
     write('lib/ui/AGENTS.md', 'y\n');
     await pump(tester);
-    expect(find.text('INSTRUÇÕES DO PROJETO'), findsOneWidget);
+    expect(find.text('ARQUIVOS'), findsOneWidget);
     expect(key('instructions-file-CLAUDE.md'), findsOneWidget);
     expect(key('instructions-file-packages/api/CLAUDE.md'), findsOneWidget);
     expect(key('instructions-file-lib/ui/AGENTS.md'), findsOneWidget);
@@ -189,17 +189,58 @@ void main() {
     );
   });
 
-  testWidgets('R4: an AGENTS.md of the person: "duas fontes", only "Abrir os '
-      'dois", no write action', (tester) async {
+  testWidgets('R4: an AGENTS.md of the person: "duas fontes" on the Codex '
+      'row and only the "Unificar" card, no write action', (tester) async {
     write('CLAUDE.md', '# a\n');
     write('AGENTS.md', '# meu\n');
     await pump(tester);
-    expect(key('instructions-two-sources'), findsOneWidget);
+    expect(key('instructions-two-sources'), findsNothing);
+    expect(key('instructions-unify-card'), findsOneWidget);
     expect(inRow('Codex', 'duas fontes'), findsOneWidget);
     expect(inRow('Codex', 'AGENTS.md (no lugar do CLAUDE.md)'), findsOneWidget);
-    expect(key('instructions-open-both'), findsOneWidget);
+    expect(key('instructions-open-both'), findsNothing);
     expect(key('instructions-update-agents'), findsNothing);
     expect(key('instructions-generate-agents'), findsNothing);
+  });
+
+  testWidgets('SPEC-113 R1: CLAUDE.md importing a person\'s AGENTS.md is the '
+      'single source, never "duas fontes"', (tester) async {
+    write('CLAUDE.md', '@AGENTS.md\n\n# só Claude\n');
+    write('AGENTS.md', '# meu\n');
+    await pump(tester);
+    expect(key('instructions-single-source'), findsOneWidget);
+    expect(key('instructions-two-sources'), findsNothing);
+    expect(find.textContaining('Duas fontes'), findsNothing);
+    expect(inRow('Codex', 'duas fontes'), findsNothing);
+    expect(inRow('Codex', 'AGENTS.md (fonte única)'), findsOneWidget);
+    expect(inRow('Codex', 'previsto'), findsOneWidget);
+    expect(key('instructions-generate-agents'), findsNothing);
+    expect(key('instructions-update-agents'), findsNothing);
+  });
+
+  test('SPEC-113 R1: single source is "carregado" only with the proof', () {
+    final file = InstructionFile(
+      path: 'AGENTS.md',
+      size: 6,
+      modified: DateTime(2026),
+      lines: 1,
+    );
+    final inv = InstructionsInventory(
+      root: '/r',
+      claude: file,
+      claudeText: '@AGENTS.md\n',
+      agents: file,
+      agentsText: '# meu\n',
+    );
+    expect(instructionsRows(inv, null, fallback: true)[1].state, 'previsto');
+    final proof = InstructionsProof(
+      sources: const ['AGENTS.md'],
+      at: DateTime.now(),
+      where: 'sessão',
+    );
+    final rows = instructionsRows(inv, proof, fallback: true);
+    expect(rows[1].state, 'carregado');
+    expect(rows[0].reads, 'CLAUDE.md + AGENTS.md (import)');
   });
 
   testWidgets('R4: a generated, stale AGENTS.md shows the diff before '
@@ -217,6 +258,8 @@ void main() {
       agentsMdBody(File('${tmp.path}/AGENTS.md').readAsStringSync()),
       '# a\n- Testes só nas telas principais.\n',
     );
+    await tester.ensureVisible(key('instructions-update-agents'));
+    await tester.pump();
     await tester.tap(key('instructions-update-agents'));
     await waitFor(tester, key('instructions-fresh'));
     expect(
@@ -237,6 +280,8 @@ void main() {
     expect(inRow('Codex', 'nada (não lê o CLAUDE.md)'), findsOneWidget);
     expect(key('instructions-mechanism'), findsNothing);
     expect(find.text('Só Claude Code'), findsOneWidget);
+    await tester.ensureVisible(key('instructions-generate-agents'));
+    await tester.pump();
     await tester.tap(key('instructions-generate-agents'));
     await waitFor(tester, key('instructions-fresh'));
     final agents = File('${tmp.path}/AGENTS.md').readAsStringSync();

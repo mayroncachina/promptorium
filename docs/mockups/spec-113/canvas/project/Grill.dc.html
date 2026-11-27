@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrevista grill-me</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="row" style="padding:9px 14px;border-bottom:1px solid #252B35"><span class="h">Melhorar com IA</span><span class="chip lilac">rodada 2</span><span class="chip claude">Claude Code · Sonnet</span><span class="muted sm">somente leitura · 18,4 mil tokens</span><span class="end row"><button class="btn s">Pausar</button><button class="btn s teal">Encerrar e ver a proposta</button></span></div>
+<div class="body" style="grid-template-columns:220px 1fr 290px">
+<aside class="col br">
+<div class="row"><span class="sect">Rodada 1</span><span class="teal sm end">3 respondidas</span></div>
+<div class="sm"><span class="mono muted">Q1</span> Como rodar os testes</div>
+<div class="sm"><span class="mono muted">Q2</span> Antes do commit</div>
+<div class="sm"><span class="mono muted">Q3</span> Idioma dos textos</div>
+<button class="btn s" style="align-self:flex-start">Rever respostas</button>
+<div class="sect" style="margin-top:8px">Rodada 2</div>
+<div class="sm"><span class="mono amber">Q4</span> Teste em tela nova</div>
+<div class="sm"><span class="mono amber">Q5</span> O que não mexer</div>
+<div class="sm"><span class="mono amber">Q6</span> Modo plan no Claude</div>
+<div class="sect" style="margin-top:8px">Achado no código · 2</div>
+<div class="muted sm">A IA não pergunta o que o projeto já responde.</div>
+<div class="sm">Logger em <span class="mono">lib/core/log.dart</span></div>
+<div class="sm">CI roda a suíte inteira: <span class="mono">ci.yml</span></div>
+</aside>
+<section class="col" style="gap:9px;padding:12px 16px">
+<div class="card on" style="gap:6px"><div class="row"><span class="mono amber">Q4</span><b>Toda tela nova precisa de teste de widget, ou só as que têm formulário?</b></div>
+<span class="muted sm">8 das 11 telas têm teste. As 3 sem teste são só de leitura, e nenhuma regra diz se é de propósito.</span>
+<button class="opt on" style="padding:6px 10px"><span class="rad"></span><span><b>Toda tela nova</b> <span class="chip lilac">recomendada</span></span></button>
+<button class="opt" style="padding:6px 10px"><span class="rad"></span><span>Só telas com formulário</span></button>
+<button class="opt" style="padding:6px 10px"><span class="rad"></span><span>Outra resposta</span></button></div>
+<div class="card" style="gap:6px"><div class="row"><span class="mono amber">Q5</span><b>O que o agente nunca pode editar?</b></div>
+<span class="muted sm">Recomendo: os arquivos gerados <span class="mono">*.g.dart</span> e a pasta <span class="mono">packages/legado</span>, sem commits há 14 meses.</span>
+<label class="sm muted" for="q5">Sua resposta</label>
+<input class="field" id="q5" value="os .g.dart sim; o legado só com spec aprovada">
+<div class="row"><button class="btn s ai">Aceitar a recomendação</button><button class="btn s">Pular</button></div></div>
+<div class="card" style="gap:6px"><div class="row"><span class="mono amber">Q6</span><b>O Claude deve começar em modo plan em toda mudança?</b><span class="chip lilac end">só do Claude</span></div>
+<span class="muted sm">Recomendo: não, só em mudança de banco. As outras são pequenas.</span>
+<div class="row"><button class="btn s ai">Aceitar a recomendação</button><button class="btn s">Responder</button><button class="btn s">Pular</button></div></div>
+<div class="row" style="margin-top:auto"><button class="btn">Aceitar as recomendadas que faltam</button><button class="btn pri end">Enviar rodada</button></div>
+</section>
+<aside class="col bl">
+<div class="sect">Rascunho até agora</div>
+<pre class="ed" style="flex:none;font-size:10.5px"><b>## Comandos</b>
+<span class="ln add">- Testes: `flutter test test/&lt;area&gt;`;</span><span class="ln add">  a suíte inteira só no CI.</span><span class="ln add">- Antes de commitar:</span><span class="ln add">  `flutter analyze`.</span>
+<b>## Regras</b>
+<span class="ln add">- Textos em português do Brasil.</span></pre>
+<div class="card on"><span class="sect">Com a Q4 respondida</span><span class="mono sm">- Tela nova leva teste de widget.</span><span class="muted sm">AGENTS.md › Regras</span></div>
+<div class="muted sm" style="margin-top:auto">Nada foi gravado nos arquivos. As respostas ficam guardadas neste projeto.</div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

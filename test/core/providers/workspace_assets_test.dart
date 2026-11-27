@@ -99,6 +99,63 @@ void main() {
     });
   });
 
+  group('SPEC-113 R1: single source', () {
+    test('a CLAUDE.md importing a person\'s AGENTS.md is the single source, '
+        'never two sources', () async {
+      for (final line in ['@AGENTS.md', '@./AGENTS.md', '  @AGENTS.md  ']) {
+        expect(
+          agentsMdState(claude: '$line\n\n# só Claude\n', agents: '# a\n'),
+          AgentsMdState.singleSource,
+          reason: line,
+        );
+      }
+      expect(claudeImportLine, '@AGENTS.md');
+      write('CLAUDE.md', '# Projeto\n\n@AGENTS.md\n');
+      write('AGENTS.md', '# regras\n');
+      expect(
+        (await scanInstructions(root)).agentsState,
+        AgentsMdState.singleSource,
+      );
+    });
+
+    test('an import inside a code block does not count', () {
+      for (final claude in [
+        '```md\n@AGENTS.md\n```\n',
+        '~~~\n@AGENTS.md\n~~~\n',
+        '````\n```\n@AGENTS.md\n````\n',
+        '# a\n\n    @AGENTS.md\n',
+        'Use `@AGENTS.md` aqui.\n',
+        '@AGENTS.md e mais\n',
+      ]) {
+        expect(hasAgentsImport(claude), isFalse, reason: claude);
+        expect(
+          agentsMdState(claude: claude, agents: '# a\n'),
+          AgentsMdState.personal,
+          reason: claude,
+        );
+      }
+      // After the block closes, the import counts.
+      expect(agentsImportLineIndex('```\nx\n```\n@AGENTS.md\n'), 3);
+    });
+
+    test('a generated AGENTS.md stays generated even with the import', () {
+      const claude = '@AGENTS.md\n';
+      expect(
+        agentsMdState(claude: claude, agents: generatedAgentsMd(claude)),
+        AgentsMdState.fresh,
+      );
+    });
+
+    test('an old project (CLAUDE.md only) is unchanged: absent, no file '
+        'written', () async {
+      write('CLAUDE.md', '# antigo\n');
+      final inv = await scanInstructions(root);
+      expect(inv.agentsState, AgentsMdState.absent);
+      expect(File('$root/AGENTS.md').existsSync(), isFalse);
+      expect(tmp.listSync().map((e) => e.path.split('/').last), ['CLAUDE.md']);
+    });
+  });
+
   test('R5: the root files and the nested ones (read-only), skipping dot '
       'folders and build output', () async {
     write('CLAUDE.md', '# raiz\nlinha\n');

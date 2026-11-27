@@ -246,11 +246,11 @@ void main() {
       const VisionPlan(summary: 'Receitas'),
       baseClaudeMd: templateClaudeMd(tmp.path),
     );
-    expect(prompt, contains('CLAUDE.md mínimo do modelo de partida'));
+    expect(prompt, contains('Instruções mínimas do modelo de partida'));
     expect(prompt, contains(md.trim()));
     expect(
       stackPrompt(const VisionPlan(summary: 'Receitas')),
-      isNot(contains('CLAUDE.md mínimo')),
+      isNot(contains('Instruções mínimas')),
     );
     File('${tmp.path}/CLAUDE.md').writeAsStringSync('$md\n- Minha regra\n');
     expect(templateClaudeMd(tmp.path), isNull);

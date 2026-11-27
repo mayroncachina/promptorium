@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../features/instructions/instructions_view.dart'
+    show projectInstructionsRequestProvider;
 import '../../features/resume/resume_state.dart' show resumeProvider;
 import '../../features/board/autopilot.dart';
 import '../../features/board/board_rules.dart';
@@ -406,9 +408,16 @@ List<PaletteCommand> paletteCommands(
     ])
       PaletteCommand(
         label: 'Ir para ${s == AppSection.agents ? 'Agentes' : s.label}',
+        // SPEC-113 R7: the instructions live in Projeto › Instruções.
+        detail: s == AppSection.instructions ? 'Projeto' : null,
         shortcut: s.shortcutLabel,
         icon: s.icon,
-        run: () => onNavigate(s),
+        run: s == AppSection.instructions
+            ? () {
+                ref.read(projectInstructionsRequestProvider.notifier).request();
+                onNavigate(AppSection.project);
+              }
+            : () => onNavigate(s),
       ),
     PaletteCommand(
       label: 'Abrir Releases',

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Editar o AGENTS.md</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="body" style="grid-template-columns:230px 1fr 310px">
+<aside class="col br">
+<div class="sect">Arquivos</div>
+<button class="item on"><span><span class="mono">AGENTS.md</span><br><span class="muted sm">raiz · 3,1 KB</span></span><span class="chip amber end">fonte</span></button>
+<button class="item"><span><span class="mono">CLAUDE.md</span><br><span class="muted sm">raiz · 0,2 KB</span></span><span class="chip lilac end">importa</span></button>
+<div class="sect" style="margin-top:8px">Subpastas · só leitura</div>
+<button class="item"><span><span class="mono" style="font-size:12px">packages/api/AGENTS.md</span><br><span class="muted sm">1,2 KB</span></span></button>
+<div class="muted sm" style="margin-top:auto">Escreva uma vez no AGENTS.md. O CLAUDE.md só o importa.</div>
+</aside>
+<section class="col">
+<div class="row"><span class="h mono">AGENTS.md</span><span class="chip amber">não salvo</span><span class="end row"><button class="btn s">Texto</button><button class="btn s">Prévia</button><button class="btn s">Abrir no editor</button></span></div>
+<pre class="ed" style="flex:1"><b># vitrine</b>
+
+Loja de demonstração em Flutter, com API em Dart.
+
+<b>## Comandos</b>
+- Testes: `flutter test test/&lt;area&gt;`; a suíte inteira só no CI.
+- Antes de commitar: `flutter analyze`.
+
+<b>## Regras</b>
+- Textos para o usuário em português do Brasil.
+- Nunca use `print`; use o logger de `lib/core/log.dart`.
+<span class="ln add">- Tela nova leva teste de widget.</span>
+<b>## Onde está cada coisa</b>
+- Telas: `lib/features/`. Banco: `lib/data/db/`.
+- Detalhes da arquitetura: `docs/arquitetura.md`.</pre>
+<div class="row"><span class="muted sm">1 linha alterada · o arquivo é relido se mudar fora do app</span><span class="end row"><button class="btn">Descartar</button><button class="btn pri">Salvar</button></span></div>
+</section>
+<aside class="col bl">
+<div class="card ai"><b>Melhorar com IA</b><span class="muted sm">A IA lê o projeto e faz perguntas em rodadas, até fechar o que falta nas instruções. Nada é gravado sem você aceitar.</span><button class="btn ai">Começar entrevista</button><span class="muted sm">Claude Code · Sonnet · somente leitura</span></div>
+<div class="sect" style="margin-top:4px">Quem lê</div>
+<div class="card"><div class="row"><span class="chip claude">Claude Code</span><span class="chip teal end">carregado</span></div><span class="sm muted">pelo <span class="mono">@AGENTS.md</span> no CLAUDE.md</span></div>
+<div class="card"><div class="row"><span class="chip codex">Codex</span><span class="chip teal end">carregado</span></div><span class="sm muted">direto · sessão “Corrigir cache”, hoje 14:32</span></div>
+<div class="sect" style="margin-top:4px">Tamanho</div>
+<div class="card"><div class="row"><span>3,1 KB · 84 linhas</span><span class="muted sm end">limite do Codex: 32 KB</span></div><span class="bar"><i style="width:10%"></i></span><span class="muted sm">Curto é melhor: deixe os detalhes em <span class="mono">docs/</span>.</span></div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

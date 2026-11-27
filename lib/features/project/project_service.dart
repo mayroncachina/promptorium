@@ -7,8 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/git_root.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/repo_setup.dart';
-import '../../core/providers/workspace_assets.dart'
-    show agentsMdMarker, agentsMdName, claudeMdName, writeGeneratedAgentsMd;
 import '../../data/providers.dart';
 import '../prompt/conversation_manager.dart';
 import '../review/review_host.dart' show detectReviewHost, remoteHost;
@@ -48,7 +46,8 @@ class MaterializeOutcome {
 
   final List<Spec> specs;
 
-  /// Paths written, relative to the workspace (`CLAUDE.md`, `specs/…`).
+  /// Paths written, relative to the workspace (`AGENTS.md`, `CLAUDE.md`,
+  /// `specs/…`).
   final List<String> files;
 
   /// Spec of [Roadmap.firstSpec], as saved.
@@ -127,9 +126,9 @@ class ProjectService {
       initialConfig(t?.config ?? const ProjectConfig(), b, remoteUrl),
     );
     if (t != null && !t.isEmpty) {
-      if (t.claudeMd case final md?) {
-        await File('$path/CLAUDE.md').writeAsString(md);
-      }
+      // The text in the AGENTS.md, the import in the CLAUDE.md (SPEC-113
+      // R2); a file left in the folder that is the person's is kept.
+      if (t.claudeMd case final md?) await writeNewProjectInstructions(path, md);
     }
     try {
       await setup.init(path, remoteUrl: remoteUrl, branch: b);
@@ -234,22 +233,24 @@ class ProjectService {
     await _ref.read(workspaceActionsProvider).remove(ws.id);
   }
 
-  /// Whether the workspace already has a `CLAUDE.md`.
-  bool hasClaudeMd(Workspace ws) => File('${ws.path}/CLAUDE.md').existsSync();
+  /// Who wrote the `AGENTS.md` and the `CLAUDE.md` of the workspace
+  /// (SPEC-113 R2): "Criar projeto" never overwrites the person's. [text]
+  /// is the plan's text: a file already equal to it is the app's.
+  InstructionFiles instructionFiles(Workspace ws, {String? text}) =>
+      instructionFilesOf(ws.path, text: text);
 
-  /// Whether that `CLAUDE.md` is still the template's minimal one (R23).
+  /// Whether the instructions are still the template's minimal ones (R23).
   bool hasTemplateClaudeMd(Workspace ws) => templateClaudeMd(ws.path) != null;
 
-  /// Writes the CLAUDE.md (when [writeClaudeMd]), the `AGENTS.md` generated
-  /// from it (when [writeAgentsMd], SPEC-104 R3: the Codex does not read the
-  /// CLAUDE.md; never over an `AGENTS.md` of the person's) and one approved spec file
-  /// per roadmap spec (`depende-de` translated to `SPEC-NNN`) and, when
-  /// [commit], commits those files on the current branch. The specs show up
-  /// in the Quadro. Marks the plan as done.
+  /// Writes the plan's instructions (when [writeInstructions]: the text in
+  /// the `AGENTS.md` and the `@AGENTS.md` import in the `CLAUDE.md`,
+  /// SPEC-113 R2; nothing when either file is the person's) and one approved
+  /// spec file per roadmap spec (`depende-de` translated to `SPEC-NNN`) and,
+  /// when [commit], commits those files on the current branch. The specs
+  /// show up in the Quadro. Marks the plan as done.
   Future<MaterializeOutcome> materialize(
     Workspace ws, {
-    bool writeClaudeMd = true,
-    bool writeAgentsMd = false,
+    bool writeInstructions = true,
     bool commit = true,
   }) async {
     final plans = _ref.read(projectPlansRepoProvider);
@@ -266,17 +267,8 @@ class ProjectService {
 
     final files = <String>[];
     final claudeMd = data.stack.claudeMd.trim();
-    if (writeClaudeMd && claudeMd.isNotEmpty) {
-      await File('${ws.path}/CLAUDE.md').writeAsString('$claudeMd\n');
-      files.add('CLAUDE.md');
-    }
-    if (writeAgentsMd && File('${ws.path}/$claudeMdName').existsSync()) {
-      final agents = File('${ws.path}/$agentsMdName');
-      final current = agents.existsSync() ? agents.readAsStringSync() : null;
-      if (current == null || agentsMdMarker(current) != null) {
-        await writeGeneratedAgentsMd(ws.path, replaceGenerated: true);
-        files.add(agentsMdName);
-      }
+    if (writeInstructions && claudeMd.isNotEmpty) {
+      files.addAll(await writeNewProjectInstructions(ws.path, '$claudeMd\n'));
     }
 
     // The stack's commands fill the empty keys of the config.yml

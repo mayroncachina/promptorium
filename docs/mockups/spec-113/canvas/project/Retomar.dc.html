@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Retomar a entrevista</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="body" style="grid-template-columns:230px 1fr 310px">
+<aside class="col br">
+<div class="sect">Arquivos</div>
+<button class="item on"><span><span class="mono">AGENTS.md</span><br><span class="muted sm">raiz · 3,1 KB</span></span><span class="chip amber end">fonte</span></button>
+<button class="item"><span><span class="mono">CLAUDE.md</span><br><span class="muted sm">raiz · 0,2 KB</span></span><span class="chip lilac end">importa</span></button>
+</aside>
+<section class="col">
+<div class="row"><span class="h mono">AGENTS.md</span><span class="chip">salvo</span><span class="end row"><button class="btn s">Texto</button><button class="btn s">Prévia</button><button class="btn s">Abrir no editor</button></span></div>
+<pre class="ed" style="flex:1"><b># vitrine</b>
+
+Loja de demonstração em Flutter, com API em Dart.
+
+<b>## Comandos</b>
+- Testes: `flutter test`.
+- Antes de commitar: `flutter analyze`.
+
+<b>## Regras</b>
+- Textos para o usuário em português do Brasil.
+- Nunca use `print`; use o logger de `lib/core/log.dart`.</pre>
+</section>
+<aside class="col bl">
+<div class="card ai"><div class="row"><b>Entrevista pausada</b><span class="chip lilac end">rodada 2</span></div><span class="sm">3 perguntas respondidas e 3 abertas · parada ontem às 17:40</span><span class="bar"><i style="width:50%;background:#C79BF2"></i></span><div class="row"><button class="btn ai">Continuar</button><button class="btn">Ver respostas</button></div><button class="btn s" style="align-self:flex-start">Descartar e começar outra</button><span class="muted sm">Continua no Claude Code, onde começou.</span></div>
+<div class="warn"><b>O AGENTS.md mudou depois da pausa.</b><br>Ao continuar, a IA relê o arquivo. As suas respostas são mantidas.</div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

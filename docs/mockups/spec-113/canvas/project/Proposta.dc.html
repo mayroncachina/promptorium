@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Proposta da IA</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="row" style="padding:10px 14px;border-bottom:1px solid #252B35"><span class="h">Proposta da IA</span><span class="chip lilac">6 perguntas</span><span class="chip claude">Claude Code · Sonnet</span><span class="muted sm">4 trechos · 2 aceitos, 1 recusado, 1 a decidir</span><span class="end row"><button class="btn s">Voltar à entrevista</button></span></div>
+<div class="body" style="grid-template-columns:1fr 310px">
+<section class="col" style="gap:9px">
+<div class="card"><div class="row"><span class="mono sm">AGENTS.md › Comandos</span><span class="chip">Q1</span><span class="end row"><span class="chip teal">aceito</span><button class="btn s">Desfazer</button></span></div>
+<pre class="ed"><span class="ln del">- Testes: `flutter test`.</span><span class="ln add">- Testes: `flutter test test/&lt;area&gt;`; a suíte inteira só no CI.</span></pre></div>
+<div class="card"><div class="row"><span class="mono sm">AGENTS.md › Regras</span><span class="chip">Q4</span><span class="end row"><span class="chip teal">aceito</span><button class="btn s">Desfazer</button></span></div>
+<pre class="ed"><span class="ln add">- Tela nova leva teste de widget.</span></pre></div>
+<div class="card on"><div class="row"><span class="mono sm">AGENTS.md › Não mexer</span><span class="chip">Q5</span><span class="chip amber">seção nova</span><span class="end row"><button class="btn s">Editar</button><button class="btn s">Recusar</button><button class="btn s teal">Aceitar</button></span></div>
+<pre class="ed"><span class="ln add">## Não mexer</span><span class="ln add">- Não edite `lib/data/db/*.g.dart`: é gerado pelo build_runner.</span><span class="ln add">- Não mude `packages/legado` sem uma spec aprovada.</span></pre></div>
+<div class="card"><div class="row"><span class="mono sm">CLAUDE.md › Só para o Claude Code</span><span class="chip">Q6</span><span class="end row"><span class="chip">recusado</span><button class="btn s">Desfazer</button></span></div>
+<pre class="ed muted">- Em mudança de banco, comece no modo plan.</pre></div>
+<div class="row" style="margin-top:auto"><button class="btn">Aceitar todos</button><span class="end row"><button class="btn">Descartar proposta</button><button class="btn pri">Aplicar 2 trechos</button></span></div>
+</section>
+<aside class="col bl">
+<div class="sect">Depois de aplicar</div>
+<div class="card"><div class="row"><span class="mono">AGENTS.md</span><span class="muted sm end">3,1 → 3,2 KB</span></div><span class="sm"><span class="teal">+2</span> <span class="red">−1</span> linhas</span></div>
+<div class="card"><div class="row"><span class="mono">CLAUDE.md</span><span class="muted sm end">sem mudança</span></div></div>
+<div class="ok"><b>Conferido no projeto.</b><br>Os 3 caminhos citados na proposta existem.</div>
+<div class="card"><label class="row"><input type="checkbox"> Commitar ao aplicar</label><span class="mono sm muted">docs: instruções dos agentes</span></div>
+<div class="warn">Sem commit, as worktrees das specs continuam com o texto antigo.</div>
+<div class="muted sm">Vale para a próxima sessão. As sessões abertas não mudam.</div>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

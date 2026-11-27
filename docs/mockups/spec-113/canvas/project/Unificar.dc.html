@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Unificar um projeto antigo</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app">
+<dc-import name="Shell" hint-size="1366px,768px"></dc-import>
+<main class="main">
+<div class="tabs"><button class="tab">Saúde</button><button class="tab">Configuração</button><button class="tab on">Instruções</button><button class="tab">Memória</button><button class="tab">Métricas</button></div>
+<div class="body" style="grid-template-columns:230px 1fr">
+<aside class="col br">
+<div class="sect">Arquivos</div>
+<button class="item on"><span><span class="mono">CLAUDE.md</span><br><span class="muted sm">raiz · 2,8 KB</span></span></button>
+<button class="item"><span><span class="mono">AGENTS.md</span><br><span class="muted sm">raiz · 1,1 KB</span></span></button>
+</aside>
+<section class="col"><div class="warn"><b>Duas fontes.</b> O Claude Code lê o CLAUDE.md e o Codex lê o AGENTS.md, com textos diferentes.</div></section>
+</div>
+</main>
+<div class="scrim"></div>
+<div class="dialog" style="left:163px;top:54px;width:1040px;height:660px">
+<div class="row"><span class="h">Unificar instruções</span><span class="chip">vitrine</span><span class="muted sm end">Nada é gravado até você confirmar</span></div>
+<div class="muted">O texto comum vai para o AGENTS.md. O CLAUDE.md fica com o import e o que é só do Claude Code.</div>
+<div style="display:grid;grid-template-columns:330px 1fr;gap:16px;flex:1;min-height:0">
+<div style="display:flex;flex-direction:column;gap:9px">
+<div class="sect">Diferenças · 3</div>
+<div class="card on"><b>Comando de teste</b>
+<button class="opt on"><span class="rad"></span><span><span class="sm muted">CLAUDE.md</span><br><span class="mono sm">flutter test test/&lt;area&gt;</span></span></button>
+<button class="opt"><span class="rad"></span><span><span class="sm muted">AGENTS.md</span><br><span class="mono sm">flutter test</span></span></button>
+<button class="opt"><span class="rad"></span><span>Escrever outro texto</span></button></div>
+<div class="card"><div class="row"><b>Nunca use print</b><span class="chip teal end">só no CLAUDE.md</span></div><span class="sm muted">Vai para o AGENTS.md</span></div>
+<div class="card"><div class="row"><b>Subagente tester</b><span class="chip lilac end">só do Claude</span></div><span class="sm muted">Fica no CLAUDE.md</span></div>
+<button class="btn ai" style="align-self:flex-start">Pedir ajuda da IA</button>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;min-height:0">
+<div class="row"><span class="sect mono" style="text-transform:none">AGENTS.md</span><span class="chip amber">fonte</span><span class="muted sm end"><span class="teal">+2</span> <span class="red">−1</span></span></div>
+<pre class="ed" style="flex:1"><span class="ln"># vitrine</span><span class="ln"> </span><span class="ln">## Comandos</span><span class="ln del">- Testes: `flutter test`.</span><span class="ln add">- Testes: `flutter test test/&lt;area&gt;`; a suíte inteira só no CI.</span><span class="ln">- Antes de commitar: `flutter analyze`.</span><span class="ln"> </span><span class="ln">## Regras</span><span class="ln">- Textos para o usuário em português do Brasil.</span><span class="ln add">- Nunca use `print`; use o logger.</span></pre>
+<div class="row"><span class="sect mono" style="text-transform:none">CLAUDE.md</span><span class="chip lilac">importa</span><span class="muted sm end">o texto movido sai daqui</span></div>
+<pre class="ed"><span class="ln imp">@AGENTS.md</span><span class="ln"> </span><span class="ln">## Só para o Claude Code</span><span class="ln">- Use o subagente `tester` depois de mudar `packages/api`.</span></pre>
+</div>
+</div>
+<div class="row"><span class="muted sm">Os dois arquivos mudam juntos, sem commit. O app guarda uma cópia para desfazer.</span><span class="end row"><button class="btn">Cancelar</button><button class="btn pri">Unificar 2 arquivos</button></span></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

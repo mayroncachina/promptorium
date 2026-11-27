@@ -1,6 +1,6 @@
 # Ferramentas: agentes, skills e servidores MCP
 
-A seção Ferramentas (Ctrl+9) tem três abas.
+A seção Ferramentas (Ctrl+9) tem três abas e um atalho: **Instruções** leva a [Projeto › Instruções](projeto.md#instruções), onde ficam o `AGENTS.md` e o `CLAUDE.md`.
 
 ## Agentes
 

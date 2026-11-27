@@ -10,7 +10,7 @@ Sem workspace aberto, ou em **Novo projeto…**, a tela Começar oferece três c
 
 Em "Abrir pasta existente" e "Clonar de uma URL", a coluna da direita mostra os projetos recentes.
 
-Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
+Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e as instruções dos agentes: o texto vai no `AGENTS.md`, que o Claude Code e o Codex leem, e o `CLAUDE.md` só tem a linha `@AGENTS.md`. Os dois entram no commit inicial, e um arquivo que já é seu nunca é sobrescrito.
 
 ### Outra stack
 
@@ -48,7 +48,7 @@ O planejamento tem quatro etapas:
 1. **Visão**: uma conversa com o planner. O plano (resumo, público, MVP, fora do escopo, dúvidas) é atualizado a cada resposta.
 2. **Stack e convenções**: uma escolha por área, com alternativas clicáveis, o bloco **Comandos** e o `CLAUDE.md` editável.
 3. **Roadmap**: specs da Fundação e do MVP com código, requisitos (as etapas, no máximo 6 por spec) e dependências, numa ordem de execução em ondas. Tudo é editável à mão; ideias para depois podem virar specs.
-4. **Revisar e criar**: grava o `CLAUDE.md` e as specs na pasta configurada, coloca as specs no Quadro, commita e, se você quiser, abre a sessão da primeira etapa.
+4. **Revisar e criar**: grava as instruções (o `AGENTS.md` e o `CLAUDE.md` que o importa) e as specs na pasta configurada, coloca as specs no Quadro, commita e, se você quiser, abre a sessão da primeira etapa.
 
 O planner roda somente leitura. O rascunho do plano fica salvo no app até você criar ou descartar.
 
@@ -93,12 +93,47 @@ Salvar a spec à mão, ou abrir uma conversa de Refinar com IA, retira a marca, 
 
 ## Repositório existente
 
-Num repositório que já tem código, a tela Projeto mostra quatro abas:
+Num repositório que já tem código, a tela Projeto mostra cinco abas:
 
 - **Saúde**: "Analisar repositório" inspeciona os arquivos (sem chamar o modelo) e detecta a stack. Mostra as últimas 10 specs, o gate por spec, custo médio, rodadas de correção, reenvios do gate, hunks rejeitados, tempo por etapa e como o Promptorium trabalha ali.
 - **Configuração**: editor do `.promptorium/config.yml`.
+- **Instruções**: o `AGENTS.md` e o `CLAUDE.md` do projeto. Veja [Instruções](#instruções).
 - **Memória**: `.promptorium/memoria.md`, com Adicionar, Excluir e "Limpar entradas com mais de 30 dias". Linhas `APRENDIZADO:` que os agentes escrevem nas sessões entram aqui sozinhas e vão nos prompts seguintes.
 - **Métricas**: tabela por spec.
+
+## Instruções
+
+Projeto › Instruções mostra as instruções que os agentes leem neste repositório. O jeito recomendado é a **fonte única**: as regras ficam no `AGENTS.md`, que o Codex lê, e o `CLAUDE.md` tem a linha `@AGENTS.md`, que faz o Claude Code ler o mesmo texto. O que vale só para o Claude Code (subagentes, hooks, skills) fica no `CLAUDE.md`, abaixo do import.
+
+- **Arquivos**: o `AGENTS.md` e o `CLAUDE.md` da raiz, editáveis. Os de subpastas aparecem só para leitura.
+- **Editor**: Texto ou Prévia, Salvar e Descartar, e "Abrir no editor". Se o arquivo mudar fora do app, ele é relido; se você estava editando, o app pergunta antes de perder qualquer um dos dois textos.
+- **CLAUDE.md**: a linha do import fica separada do trecho "Só para o Claude Code". "Mover seleção para o AGENTS.md" leva uma regra que vale para os dois. Sem o import, o app avisa e oferece **Recolocar o import**.
+- **Quem lê**: uma linha por provedor. "Carregado" só aparece com prova; antes disso, "previsto".
+- **Tamanho**: bytes e linhas contra o limite de 32 KiB do Codex, com aviso a partir de 80% e o ponto do corte quando passa.
+
+Ferramentas › Instruções e o item "Instruções" da paleta (Ctrl+K) levam para esta aba.
+
+### Unificar
+
+Um projeto antigo não muda sozinho, e o app não mostra aviso ao abrir. Quando há só `CLAUDE.md`, duas fontes (um `AGENTS.md` seu e um `CLAUDE.md` sem o import) ou um `AGENTS.md` gerado pelo app, a aba oferece **Unificar instruções**.
+
+O diálogo lista as diferenças por seção e item. Cada uma vai para o `AGENTS.md`, fica no `CLAUDE.md` como trecho só do Claude ou, quando os dois arquivos dizem coisas diferentes, você escolhe a versão. "Pedir ajuda da IA" sugere o destino, sem decidir. O resultado dos dois arquivos aparece antes de gravar. Os dois são gravados juntos e sem commit: se o segundo falhar, o primeiro volta ao que era, e o aviso depois de gravar tem **Desfazer**.
+
+### Melhorar com IA
+
+**Começar entrevista** abre uma entrevista no estilo grill-me, no provedor de "Planner e assistentes", em somente leitura. A cada rodada a IA lê o projeto e faz todas as perguntas que já dá para fazer, com uma resposta recomendada. O que o código já responde não vira pergunta: aparece em "Achado no código", com o caminho. À direita fica o rascunho do `AGENTS.md`.
+
+- Responda escolhendo uma opção, escrevendo outra resposta ou pulando a pergunta (uma pergunta pulada não vira regra). "Aceitar as recomendadas que faltam" preenche a rodada, e **Enviar rodada** pede a próxima.
+- **Pausar** guarda tudo, e a entrevista sobrevive a fechar o app. O cartão "Entrevista pausada" tem **Continuar**, que segue no mesmo provedor e na mesma conversa. Se os arquivos mudaram durante a pausa, o cartão avisa, e a IA os relê ao continuar.
+- No fim, a IA mostra o que entendeu. **Confirmar e ver a proposta** (ou "Encerrar e ver a proposta", a qualquer momento) traz a proposta.
+
+### Proposta
+
+A proposta vem em trechos, por arquivo e seção, com as perguntas de origem. Cada trecho pode ser aceito, recusado ou editado. À direita, o tamanho de cada arquivo depois de aplicar e a conferência dos caminhos citados.
+
+- **Aplicar** grava só os trechos aceitos. Um trecho cujo texto antigo não está mais no arquivo vira **conflito** e não é gravado: edite o texto antigo ou recuse o trecho.
+- **Commitar ao aplicar** vem desmarcado. Marcado, o commit leva só os arquivos de instruções e vai para a branch atual, cujo nome aparece na caixa. Fora da branch base há um aviso; com HEAD solto a caixa fica desativada.
+- **Concluir** volta ao editor com o texto novo. A mudança vale para as próximas sessões, não para as que já estão abertas.
 
 ## `.promptorium/config.yml`
 
