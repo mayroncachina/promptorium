@@ -835,24 +835,8 @@ class _InstructionsViewState extends ConsumerState<InstructionsView> {
     const gap = SizedBox(height: 6);
     switch (inv.agentsState) {
       case AgentsMdState.personal:
-        return [
-          gap,
-          _Notice(
-            key: const ValueKey('instructions-two-sources'),
-            title: 'Duas fontes.',
-            text:
-                'Este repositório tem um AGENTS.md escrito por você: o Codex '
-                'lê o AGENTS.md primeiro, e o Claude lê o CLAUDE.md. O app '
-                'não sobrescreve um arquivo que não gerou.',
-            actions: [
-              SmallButton(
-                key: const ValueKey('instructions-open-both'),
-                label: 'Abrir os dois',
-                onTap: () => _open(root, [claudeMdName, agentsMdName]),
-              ),
-            ],
-          ),
-        ];
+        // The "Unificar instruções" card already says it (SPEC-113 R3).
+        return const [];
       case AgentsMdState.singleSource:
         return [
           gap,

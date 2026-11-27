@@ -189,15 +189,16 @@ void main() {
     );
   });
 
-  testWidgets('R4: an AGENTS.md of the person: "duas fontes", only "Abrir os '
-      'dois", no write action', (tester) async {
+  testWidgets('R4: an AGENTS.md of the person: "duas fontes" on the Codex '
+      'row and only the "Unificar" card, no write action', (tester) async {
     write('CLAUDE.md', '# a\n');
     write('AGENTS.md', '# meu\n');
     await pump(tester);
-    expect(key('instructions-two-sources'), findsOneWidget);
+    expect(key('instructions-two-sources'), findsNothing);
+    expect(key('instructions-unify-card'), findsOneWidget);
     expect(inRow('Codex', 'duas fontes'), findsOneWidget);
     expect(inRow('Codex', 'AGENTS.md (no lugar do CLAUDE.md)'), findsOneWidget);
-    expect(key('instructions-open-both'), findsOneWidget);
+    expect(key('instructions-open-both'), findsNothing);
     expect(key('instructions-update-agents'), findsNothing);
     expect(key('instructions-generate-agents'), findsNothing);
   });
